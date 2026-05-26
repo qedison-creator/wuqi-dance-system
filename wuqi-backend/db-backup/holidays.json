@@ -1,0 +1,32 @@
+[
+  {
+    "_id": "6a02e9f86adaa0b971c606b1",
+    "name": "福永放假测试",
+    "date": "2026-05-12",
+    "end_date": "2026-05-15",
+    "is_recurring": false,
+    "type": "holiday",
+    "description": "",
+    "status": "cancelled",
+    "store_scope": "single",
+    "store_id": "69fbf63456465be2d1b67aea",
+    "created_at": "2026-05-12T08:51:04.578Z",
+    "updated_at": "2026-05-12T09:13:10.791Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a02eeea6adaa0b971c606bd",
+    "name": "固戍放假测试",
+    "date": "2026-05-12",
+    "end_date": "2026-05-13",
+    "is_recurring": false,
+    "type": "holiday",
+    "description": "",
+    "status": "cancelled",
+    "store_scope": "single",
+    "store_id": "69fbf63456465be2d1b67aeb",
+    "created_at": "2026-05-12T09:12:10.122Z",
+    "updated_at": "2026-05-12T09:13:13.395Z",
+    "__v": 0
+  }
+]

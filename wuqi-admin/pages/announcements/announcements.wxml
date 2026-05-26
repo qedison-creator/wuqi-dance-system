@@ -1,0 +1,91 @@
+<view class="page">
+  <view class="top-bar">
+    <text class="top-title">公告管理</text>
+    <view class="top-btn" bindtap="onShowAddModal">
+      <view class="top-btn-icon"></view>
+      <text class="top-btn-text">新增公告</text>
+    </view>
+  </view>
+
+  <view class="controls">
+    <picker class="picker" mode="selector" range="{{storeList}}" range-key="name" value="{{storeIndex}}" bindchange="onStoreChange">
+      <view class="picker-wrap">
+        <text class="picker-label">{{currentStoreFilter}}</text>
+        <view class="picker-arrow"></view>
+      </view>
+    </picker>
+  </view>
+
+  <view class="list" wx:if="{{announcements.length > 0}}">
+    <view class="list-item {{item.status === 'inactive' ? 'inactive' : ''}}" wx:for="{{announcements}}" wx:key="_id">
+      <view class="item-main">
+        <view class="item-row">
+          <view class="item-status {{item.status === 'active' ? 'on' : 'off'}}"></view>
+          <text class="item-title">{{item.title}}</text>
+          <text class="item-store" wx:if="{{item.store_id}}">{{item.store_id.name}}</text>
+          <text class="item-store global" wx:else>全部门店</text>
+        </view>
+        <text class="item-content">{{item.content}}</text>
+      </view>
+      <view class="item-actions">
+        <view class="action-btn edit" data-id="{{item._id}}" data-item="{{item}}" bindtap="onShowEditModal">编辑</view>
+        <view class="action-btn {{item.status === 'active' ? 'pause' : 'resume'}}" data-id="{{item._id}}" data-status="{{item.status === 'active' ? 'inactive' : 'active'}}" bindtap="onToggleStatus">
+          {{item.status === 'active' ? '停用' : '启用'}}
+        </view>
+        <view class="action-btn del" data-id="{{item._id}}" bindtap="onDelete">删除</view>
+      </view>
+    </view>
+  </view>
+
+  <view class="empty" wx:if="{{!loading && announcements.length === 0}}">
+    <text class="empty-text">暂无公告</text>
+    <view class="empty-action" bindtap="onShowAddModal">创建第一条公告</view>
+  </view>
+
+  <view class="loading-area" wx:if="{{loading}}">
+    <text>加载中...</text>
+  </view>
+</view>
+
+<view class="modal-mask" wx:if="{{showModal}}" bindtap="onCloseModal">
+  <view class="modal-content" catchtap="onModalTap">
+    <view class="modal-header">
+      <text class="modal-title">{{editingItem ? '编辑公告' : '新增公告'}}</text>
+      <view class="modal-close" bindtap="onCloseModal">
+        <view class="mc-x"></view>
+      </view>
+    </view>
+    <view class="modal-body">
+      <view class="form-item">
+        <text class="form-label">公告标题</text>
+        <input class="form-input" placeholder="请输入公告标题" value="{{formTitle}}" bindinput="onTitleInput" maxlength="50" />
+      </view>
+      <view class="form-item">
+        <text class="form-label">公告内容</text>
+        <textarea class="form-textarea" placeholder="请输入公告内容" value="{{formContent}}" bindinput="onContentInput" maxlength="500"></textarea>
+      </view>
+      <view class="form-item">
+        <text class="form-label">适用门店</text>
+        <picker mode="selector" range="{{storeOptions}}" range-key="name" value="{{formStoreIndex}}" bindchange="onFormStoreChange">
+          <view class="form-picker">
+            <text class="form-picker-text">{{formStoreName}}</text>
+            <view class="picker-arrow"></view>
+          </view>
+        </picker>
+      </view>
+      <view class="form-item">
+        <text class="form-label">状态</text>
+        <view class="form-switch-row">
+          <view class="form-switch {{formStatus === 'active' ? 'on' : 'off'}}" data-status="{{formStatus === 'active' ? 'inactive' : 'active'}}" bindtap="onToggleFormStatus">
+            <view class="form-switch-dot"></view>
+          </view>
+          <text class="form-switch-label">{{formStatus === 'active' ? '生效中' : '已停用'}}</text>
+        </view>
+      </view>
+    </view>
+    <view class="modal-footer">
+      <view class="mf-btn cancel" bindtap="onCloseModal">取消</view>
+      <view class="mf-btn confirm" bindtap="onSubmit">确认</view>
+    </view>
+  </view>
+</view>

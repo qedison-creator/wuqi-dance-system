@@ -1,0 +1,134 @@
+.container {
+  padding: 20rpx;
+  background-color: var(--bg-root);
+  min-height: 100vh;
+}
+
+.page-header {
+  margin-bottom: 30rpx;
+}
+
+.page-title {
+  font-size: 36rpx;
+  font-weight: bold;
+  color: var(--text-primary);
+}
+
+.reviews-list {
+  margin-top: 20rpx;
+}
+
+.review-item {
+  background-color: var(--bg-card);
+  border-radius: 20rpx;
+  padding: 30rpx;
+  margin-bottom: 20rpx;
+  border: 1rpx solid var(--border);
+}
+
+.member-info {
+  display: flex;
+  align-items: center;
+  gap: 15rpx;
+  margin-bottom: 20rpx;
+  padding-bottom: 20rpx;
+  border-bottom: 1rpx solid var(--border);
+}
+
+.member-name {
+  font-size: 32rpx;
+  font-weight: bold;
+  color: var(--text-primary);
+}
+
+.member-code {
+  font-size: 24rpx;
+  color: var(--color-primary);
+  padding: 4rpx 12rpx;
+  background-color: rgba(197, 116, 75, 0.1);
+  border-radius: 6rpx;
+}
+
+.phone-section {
+  margin-bottom: 20rpx;
+}
+
+.phone-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15rpx 0;
+}
+
+.phone-label {
+  font-size: 26rpx;
+  color: var(--text-secondary);
+}
+
+.phone-value {
+  font-size: 28rpx;
+  color: var(--text-primary);
+}
+
+.phone-value.new {
+  color: var(--color-primary);
+  font-weight: bold;
+}
+
+.request-time {
+  display: flex;
+  align-items: center;
+  margin-bottom: 25rpx;
+}
+
+.time-label {
+  font-size: 24rpx;
+  color: var(--text-secondary);
+}
+
+.time-value {
+  font-size: 24rpx;
+  color: var(--text-tertiary);
+}
+
+.action-section {
+  display: flex;
+  gap: 20rpx;
+}
+
+.action-btn {
+  flex: 1;
+  text-align: center;
+  padding: 25rpx;
+  border-radius: 16rpx;
+  font-size: 28rpx;
+  font-weight: bold;
+}
+
+.action-btn.approve {
+  background-color: var(--color-success);
+  color: var(--text-primary);
+}
+
+.action-btn.reject {
+  background-color: var(--color-danger);
+  color: var(--text-primary);
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 120rpx 20rpx;
+}
+
+.empty-icon {
+  font-size: 100rpx;
+  margin-bottom: 20rpx;
+}
+
+.empty-text {
+  font-size: 28rpx;
+  color: var(--text-secondary);
+}

@@ -1,0 +1,219 @@
+.exemption-page {
+  padding: 20rpx;
+  padding-bottom: 40rpx;
+}
+
+.section {
+  margin-bottom: 24rpx;
+  padding: 28rpx;
+}
+
+.section-title {
+  display: flex;
+  align-items: center;
+  margin-bottom: 16rpx;
+}
+
+.title-icon {
+  font-size: 36rpx;
+  margin-right: 12rpx;
+}
+
+.title-text {
+  font-size: 32rpx;
+  color: var(--text-primary);
+  font-weight: bold;
+}
+
+.section-desc {
+  margin-bottom: 24rpx;
+}
+
+.section-desc text {
+  font-size: 26rpx;
+  color: var(--text-secondary);
+}
+
+/* 全局默认设置 */
+.config-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 24rpx 0;
+  border-bottom: 1rpx solid var(--border);
+}
+
+.config-label {
+  font-size: 28rpx;
+  color: var(--text-primary);
+}
+
+.config-value {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+}
+
+.config-value input {
+  width: 120rpx;
+  height: 64rpx;
+  background-color: var(--border);
+  border-radius: 14rpx;
+  text-align: center;
+  font-size: 32rpx;
+  color: var(--color-primary);
+  font-weight: bold;
+}
+
+.unit {
+  font-size: 26rpx;
+  color: var(--text-secondary);
+}
+
+.save-btn {
+  margin-top: 28rpx;
+  padding: 24rpx 0;
+  background: linear-gradient(135deg, var(--color-primary-hover), var(--color-primary));
+  border-radius: 16rpx;
+  text-align: center;
+}
+
+.save-btn text {
+  font-size: 30rpx;
+  color: var(--text-primary);
+  font-weight: bold;
+}
+
+/* 搜索框 */
+.search-box {
+  display: flex;
+  gap: 16rpx;
+  margin-bottom: 24rpx;
+}
+
+.search-box input {
+  flex: 1;
+  height: 80rpx;
+  background-color: var(--border);
+  border-radius: 14rpx;
+  padding: 0 24rpx;
+  font-size: 28rpx;
+  color: var(--text-primary);
+}
+
+.search-btn {
+  width: 80rpx;
+  height: 80rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--border);
+  border-radius: 14rpx;
+}
+
+.search-btn text {
+  font-size: 36rpx;
+}
+
+/* 会员列表 */
+.member-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16rpx;
+}
+
+.member-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 24rpx;
+  background-color: var(--bg-card);
+  border-radius: 20rpx;
+  border: 1rpx solid var(--border);
+}
+
+.member-info {
+  display: flex;
+  flex-direction: column;
+  gap: 8rpx;
+}
+
+.member-name {
+  font-size: 30rpx;
+  color: var(--text-primary);
+  font-weight: bold;
+}
+
+.member-phone {
+  font-size: 24rpx;
+  color: var(--text-secondary);
+}
+
+.member-exemption {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 12rpx;
+}
+
+.exemption-label {
+  font-size: 22rpx;
+  color: var(--text-secondary);
+}
+
+.exemption-control {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+}
+
+.control-btn {
+  width: 48rpx;
+  height: 48rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--border);
+  border-radius: 24rpx;
+}
+
+.control-btn.minus text,
+.control-btn.plus text {
+  font-size: 32rpx;
+  color: var(--color-primary);
+  font-weight: bold;
+}
+
+.exemption-count {
+  font-size: 32rpx;
+  color: var(--color-primary);
+  font-weight: bold;
+  min-width: 48rpx;
+  text-align: center;
+}
+
+/* 空状态 */
+.empty-state {
+  padding: 60rpx 0;
+  text-align: center;
+}
+
+.empty-state text {
+  font-size: 28rpx;
+  color: var(--text-tertiary);
+}
+
+/* 提示 */
+.tips {
+  margin-top: 24rpx;
+  padding: 20rpx;
+  background-color: rgba(197, 116, 75, 0.1);
+  border-radius: 12rpx;
+  border-left: 4rpx solid var(--color-primary);
+}
+
+.tips text {
+  font-size: 24rpx;
+  color: var(--color-primary);
+  line-height: 1.6;
+}

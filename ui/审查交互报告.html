@@ -1,0 +1,1964 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>舞栖舞蹈社系统审查交互报告</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px;
+            text-align: center;
+        }
+        .header h1 { font-size: 32px; margin-bottom: 10px; }
+        .header p { font-size: 16px; opacity: 0.9; }
+        
+        .summary-bar {
+            background: #f8f9fa;
+            padding: 20px 40px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+        .summary-stats { display: flex; gap: 30px; }
+        .stat { text-align: center; }
+        .stat-number { font-size: 32px; font-weight: bold; color: #667eea; }
+        .stat-label { font-size: 14px; color: #666; margin-top: 5px; }
+        .actions { display: flex; gap: 10px; }
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 5px 20px rgba(102,126,234,0.4); }
+        .btn-secondary { background: #f0f0f0; color: #333; }
+        .btn-secondary:hover { background: #e0e0e0; }
+        .btn-success { background: #10b981; color: white; }
+        .btn-success:hover { background: #059669; }
+
+        .nav-tabs {
+            display: flex;
+            background: #f8f9fa;
+            border-bottom: 1px solid #e0e0e0;
+            padding: 0 40px;
+            overflow-x: auto;
+        }
+        .nav-tab {
+            padding: 16px 24px;
+            cursor: pointer;
+            border: none;
+            background: none;
+            font-size: 15px;
+            font-weight: 500;
+            color: #666;
+            position: relative;
+            white-space: nowrap;
+        }
+        .nav-tab:hover { color: #667eea; }
+        .nav-tab.active { color: #667eea; }
+        .nav-tab.active::after {
+            content: '';
+            position: absolute;
+            bottom: 0; left: 0; right: 0;
+            height: 3px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .nav-tab .count {
+            background: #e5e7eb;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            margin-left: 8px;
+        }
+        .nav-tab.active .count { background: #667eea; color: white; }
+
+        .tab-content { padding: 40px; display: none; }
+        .tab-content.active { display: block; }
+
+        .progress-section {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px;
+            margin: 0 -40px 40px -40px;
+            border-radius: 0;
+        }
+        .progress-title { font-size: 18px; font-weight: 600; margin-bottom: 16px; }
+        .progress-bar {
+            height: 12px;
+            background: rgba(255,255,255,0.3);
+            border-radius: 6px;
+            overflow: hidden;
+        }
+        .progress-fill {
+            height: 100%;
+            background: white;
+            border-radius: 6px;
+            transition: width 0.3s;
+        }
+        .progress-text { font-size: 14px; opacity: 0.9; margin-top: 8px; }
+
+        .category { margin-bottom: 40px; }
+        .category-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #667eea;
+        }
+        .category-title { font-size: 20px; font-weight: bold; color: #333; }
+        .category-actions { display: flex; gap: 10px; }
+        .btn-small {
+            padding: 6px 12px;
+            font-size: 12px;
+            border-radius: 6px;
+        }
+
+        .item {
+            display: flex;
+            flex-direction: column;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            border: 2px solid transparent;
+            transition: all 0.3s;
+            margin-bottom: 12px;
+        }
+        .item.checked { background: #ecfdf5; border-color: #10b981; }
+        .item-header {
+            display: flex;
+            align-items: flex-start;
+            gap: 16px;
+            margin-bottom: 12px;
+        }
+        .item-checkbox {
+            margin-top: 4px;
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+            accent-color: #10b981;
+        }
+        .item-content { flex: 1; }
+        .item-top {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 8px;
+            flex-wrap: wrap;
+        }
+        .item-priority {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 16px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .priority-p0 { background: #fee2e2; color: #991b1b; }
+        .priority-p1 { background: #ffedd5; color: #9a3412; }
+        .priority-p2 { background: #dbeafe; color: #1e40af; }
+        .item-title { font-size: 16px; font-weight: 600; color: #333; }
+        .item-id {
+            background: #e5e7eb;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            color: #666;
+        }
+        .item-description {
+            font-size: 14px;
+            color: #666;
+            line-height: 1.6;
+            margin-bottom: 12px;
+        }
+        .item-meta {
+            display: flex;
+            gap: 20px;
+            font-size: 13px;
+            color: #888;
+            flex-wrap: wrap;
+        }
+        .item-footer {
+            display: flex;
+            gap: 16px;
+            margin-top: 16px;
+            padding-top: 16px;
+            border-top: 1px solid #e5e7eb;
+        }
+        .item-comment {
+            flex: 1;
+        }
+        .item-comment label {
+            display: block;
+            font-size: 13px;
+            color: #666;
+            margin-bottom: 6px;
+        }
+        .item-comment textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 14px;
+            resize: vertical;
+            min-height: 60px;
+        }
+        .item-comment textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal.active { display: flex; }
+        .modal-content {
+            background: white;
+            border-radius: 16px;
+            max-width: 900px;
+            width: 90%;
+            max-height: 85vh;
+            overflow-y: auto;
+            padding: 40px;
+        }
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+        }
+        .modal-title { font-size: 24px; font-weight: bold; }
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 28px;
+            cursor: pointer;
+            color: #666;
+        }
+        .modal-close:hover { color: #333; }
+        .modal-footer {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 24px;
+            padding-top: 24px;
+            border-top: 1px solid #e5e7eb;
+        }
+        .selected-list { margin-top: 20px; }
+        .selected-item {
+            padding: 16px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            margin-bottom: 12px;
+        }
+        .selected-item-header {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 8px;
+            align-items: center;
+        }
+        .selected-item-comment {
+            background: white;
+            padding: 12px;
+            border-radius: 6px;
+            margin-top: 12px;
+            border-left: 3px solid #667eea;
+        }
+        .selected-item-comment-title {
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 4px;
+        }
+        .selected-item-comment-text {
+            font-size: 14px;
+            color: #333;
+        }
+
+        .summary-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        .summary-card {
+            padding: 24px;
+            border-radius: 12px;
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+        }
+        .summary-card.p0 { background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%); }
+        .summary-card.p1 { background: linear-gradient(135deg, #ffedd5 0%, #fed7aa 100%); }
+        .summary-card.p2 { background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%); }
+        .summary-card-title { font-size: 14px; color: #666; margin-bottom: 8px; }
+        .summary-card-value { font-size: 32px; font-weight: bold; }
+        .summary-card.p0 .summary-card-value { color: #991b1b; }
+        .summary-card.p1 .summary-card-value { color: #9a3412; }
+        .summary-card.p2 .summary-card-value { color: #1e40af; }
+
+        @media (max-width: 768px) {
+            .container { border-radius: 0; }
+            .header { padding: 30px 20px; }
+            .summary-bar { padding: 20px; flex-direction: column; }
+            .summary-stats { gap: 15px; }
+            .tab-content { padding: 20px; }
+            .nav-tabs { padding: 0 20px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>💃 舞栖舞蹈社系统审查交互报告</h1>
+            <p>勾选需要修改的项目，填写修改意见，然后导出执行清单</p>
+        </div>
+
+        <div class="summary-bar">
+            <div class="summary-stats">
+                <div class="stat">
+                    <div class="stat-number" id="totalCount">48</div>
+                    <div class="stat-label">总项目</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-number" id="selectedCount">0</div>
+                    <div class="stat-label">已选中</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-number" id="p0Count">0</div>
+                    <div class="stat-label">P0 紧急</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-number" id="p1Count">0</div>
+                    <div class="stat-label">P1 重要</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-number" id="p2Count">0</div>
+                    <div class="stat-label">P2 一般</div>
+                </div>
+            </div>
+            <div class="actions">
+                <button class="btn btn-secondary" onclick="selectAll()">全部选中</button>
+                <button class="btn btn-secondary" onclick="deselectAll()">取消全部</button>
+                <button class="btn btn-primary" onclick="showSummary()">查看清单</button>
+                <button class="btn btn-success" onclick="exportSelected()">导出报告</button>
+            </div>
+        </div>
+
+        <div class="nav-tabs">
+            <button class="nav-tab active" onclick="switchTab('p0')">
+                🔴 P0 紧急 <span class="count" id="p0TabCount">0/20</span>
+            </button>
+            <button class="nav-tab" onclick="switchTab('p1')">
+                🟡 P1 重要 <span class="count" id="p1TabCount">0/16</span>
+            </button>
+            <button class="nav-tab" onclick="switchTab('p2')">
+                🟢 P2 一般 <span class="count" id="p2TabCount">0/12</span>
+            </button>
+            <button class="nav-tab" onclick="switchTab('all')">
+                📋 全部项目 <span class="count" id="allTabCount">0/48</span>
+            </button>
+        </div>
+
+        <!-- P0 紧急 -->
+        <div class="tab-content active" id="tab-p0">
+            <div class="progress-section">
+                <div class="progress-title">P0 紧急项目进度</div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progress-p0" style="width: 0%"></div>
+                </div>
+                <div class="progress-text" id="progress-text-p0">已选 0 / 20 项</div>
+            </div>
+
+            <div class="category">
+                <div class="category-header">
+                    <div class="category-title">1. 数据模型补充</div>
+                    <div class="category-actions">
+                        <button class="btn btn-secondary btn-small" onclick="selectCategory('p0-1')">全选此分类</button>
+                    </div>
+                </div>
+                <div class="item-list" data-category="p0-1">
+                    <div class="item" data-priority="p0" data-id="p0-1">
+                        <div class="item-header">
+                            <input type="checkbox" class="item-checkbox" onchange="updateStats()">
+                            <div class="item-content">
+                                <div class="item-top">
+                                    <span class="item-priority priority-p0">P0</span>
+                                    <span class="item-id">#1</span>
+                                    <span class="item-title">User模型添加双手机号字段</span>
+                                </div>
+                                <div class="item-description">添加 wechat_phone（微信授权手机号）和 reserve_phone（用户自主填写手机号）字段</div>
+                                <div class="item-meta">
+                                    <span>📍 涉及文件：User.js</span>
+                                    <span>⏱️ 预计工作量：0.5天</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="item-footer">
+                            <div class="item-comment">
+                                <label>📝 修改意见：</label>
+                                <textarea class="item-comment-input" placeholder="请输入您的修改意见或备注..." onchange="saveComment(this, 'p0-1')"></textarea>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="item" data-priority="p0" data-id="p0-2">
+                        <div class="item-header">
+                            <input type="checkbox" class="item-checkbox" onchange="updateStats()">
+                            <div class="item-content">
+                                <div class="item-top">
+                                    <span class="item-priority priority-p0">P0</span>
+                                    <span class="item-id">#2</span>
+                                    <span class="item-title">User模型添加会员信息字段</span>
+                                </div>
+                                <div class="item-description">添加 member_code（会员编码）、info_completed（信息是否完整）、phone_audit_status（手机号修改审核状态）</div>
+                                <div class="item-meta">
+                                    <span>📍 涉及文件：User.js</span>
+                                    <span>⏱️ 预计工作量：0.5天</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="item-footer">
+                            <div class="item-comment">
+                                <label>📝 修改意见：</label>
+                                <textarea class="item-comment-input" placeholder="请输入您的修改意见或备注..." onchange="saveComment(this, 'p0-2')"></textarea>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="item" data-priority="p0" data-id="p0-3">
+                        <div class="item-header">
+                            <input type="checkbox" class="item-checkbox" onchange="updateStats()">
+                            <div class="item-content">
+                                <div class="item-top">
+                                    <span class="item-priority priority-p0">P0</span>
+                                    <span class="item-id">#3</span>
+                                    <span class="item-title">创建套餐激活记录表：PackageActivation</span>
+                                </div>
+                                <div class="item-description">用于区分首次预约激活和强制激活，单独留存激活记录</div>
+                                <div class="item-meta">
+                                    <span>📍 涉及文件：新建</span>
+                                    <span>⏱️ 预计工作量：1天</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="item-footer">
+                            <div class="item-comment">
+                                <label>📝 修改意见：</label>
+                                <textarea class="item-comment-input" placeholder="请输入您的修改意见或备注..." onchange="saveComment(this, 'p0-3')"></textarea>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="item" data-priority="p0" data-id="p0-4">
+                        <div class="item-header">
+                            <input type="checkbox" class="item-checkbox" onchange="updateStats()">
+                            <div class="item-content">
+                                <div class="item-top">
+                                    <span class="item-priority priority-p0">P0</span>
+                                    <span class="item-id">#4</span>
+                                    <span class="item-title">创建套餐有效期延长记录表：PackageExtension</span>
+                                </div>
+                                <div class="item-description">用于记录套餐有效期的延长和撤销延长操作</div>
+                                <div class="item-meta">
+                                    <span>📍 涉及文件：新建</span>
+                                    <span>⏱️ 预计工作量：1天</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="item-footer">
+                            <div class="item-comment">
+                                <label>📝 修改意见：</label>
+                                <textarea class="item-comment-input" placeholder="请输入您的修改意见或备注..." onchange="saveComment(this, 'p0-4')"></textarea>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="item" data-priority="p0" data-id="p0-5">
+                        <div class="item-header">
+                            <input type="checkbox" class="item-checkbox" onchange="updateStats()">
+                            <div class="item-content">
+                                <div class="item-top">
+                                    <span class="item-priority priority-p0">P0</span>
+                                    <span class="item-id">#5</span>
+                                    <span class="item-title">Waitlist模型补全字段</span>
+                                </div>
+                                <div class="item-description">添加 position（轮候位置）、notified_at（候补通知时间）、expire_at（失效时间）字段</div>
+                                <div class="item-meta">
+                                    <span>📍 涉及文件：Waitlist.js</span>
+                                    <span>⏱️ 预计工作量：0.5天</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="item-footer">
+                            <div class="item-comment">
+                                <label>📝 修改意见：</label>
+                                <textarea class="item-comment-input" placeholder="请输入您的修改意见或备注..." onchange="saveComment(this, 'p0-5')"></textarea>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="item" data-priority="p0" data-id="p0-6">
+                        <div class="item-header">
+                            <input type="checkbox" class="item-checkbox" onchange="updateStats()">
+                            <div class="item-content">
+                                <div class="item-top">
+                                    <span class="item-priority priority-p0">P0</span>
+                                    <span class="item-id">#6</span>
+                                    <span class="item-title">创建教练薪酬设置表：CoachSalary</span>
+                                </div>
+                                <div class="item-description">用于按课程时长为教练设置不同的薪酬单价</div>
+                                <div class="item-meta">
+                                    <span>📍 涉及文件：新建</span>
+                                    <span>⏱️ 预计工作量：1天</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="item-footer">
+                            <div class="item-comment">
+                                <label>📝 修改意见：</label>
+                                <textarea class="item-comment-input" placeholder="请输入您的修改意见或备注..." onchange="saveComment(this, 'p0-6')"></textarea>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="item" data-priority="p0" data-id="p0-7">
+                        <div class="item-header">
+                            <input type="checkbox" class="item-checkbox" onchange="updateStats()">
+                            <div class="item-content">
+                                <div class="item-top">
+                                    <span class="item-priority priority-p0">P0</span>
+                                    <span class="item-id">#7</span>
+                                    <span class="item-title">创建教练薪酬统计表：CoachSalaryStat</span>
+                                </div>
+                                <div class="item-description">用于统计和记录教练的薪酬数据</div>
+                                <div class="item-meta">
+                                    <span>📍 涉及文件：新建</span>
+                                    <span>⏱️ 预计工作量：1天</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="item-footer">
+                            <div class="item-comment">
+                                <label>📝 修改意见：</label>
+                                <textarea class="item-comment-input" placeholder="请输入您的修改意见或备注..." onchange="saveComment(this, 'p0-7')"></textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="category">
+                <div class="category-header">
+                    <div class="category-title">2. 会员状态与身份体系</div>
+                    <div class="category-actions">
+                        <button class="btn btn-secondary btn-small" onclick="selectCategory('p0-2')">全选此分类</button>
+                    </div>
+                </div>
+                <div class="item-list" data-category="p0-2">
+                    <div class="item" data-priority="p0" data-id="p0-8">
+                        <div class="item-header">
+                            <input type="checkbox" class="item-checkbox" onchange="updateStats()">
+                            <div class="item-content">
+                                <div class="item-top">
+                                    <span class="item-priority priority-p0">P0</span>
+                                    <span class="item-id">#8</span>
+                                    <span class="item-title">实现会员自主填写信息强制校验</span>
+                                </div>
+                                <div class="item-description">审核通过的会员必须自主填写信息才能预约，当前没有这个校验</div>
+                                <div class="item-meta">
+                                    <span>📍 涉及文件：member.service.js, booking.service.js</span>
+                                    <span>⏱️ 预计工作量：1天</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="item-footer">
+                            <div class="item-comment">
+                                <label>📝 修改意见：</label>
+                                <textarea class="item-comment-input" placeholder="请输入您的修改意见或备注..." onchange="saveComment(this, 'p0-8')"></textarea>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="item" data-priority="p0" data-id="p0-9">
+                        <div class="item-header">
+                            <input type="checkbox" class="item-checkbox" onchange="updateStats()">
+                            <div class="item-content">
+                                <div class="item-top">
+                                    <span class="item-priority priority-p0">P0</span>
+                                    <span class="item-id">#9</span>
+                                    <span class="item-title">实现套餐强制激活定时任务（2个月）</span>
+                                </div>
+                                <div class="item-description">录入后2个月未激活自动强制激活的逻辑缺失</div>
+                                <div class="item-meta">
+                                    <span>📍 涉及文件：scheduler.js, package.service.js</span>
+                                    <span>⏱️ 预计工作量：1天</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="item-footer">
+                            <div class="item-comment">
+                                <label>📝 修改意见：</label>
+                                <textarea class="item-comment-input" placeholder="请输入您的修改意见或备注..." onchange="saveComment(this, 'p0-9')"></textarea>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="item" data-priority="p0" data-id="p0-10">
+                        <div class="item-header">
+                            <input type="checkbox" class="item-checkbox" onchange="updateStats()">
+                            <div class="item-content">
+                                <div class="item-top">
+                                    <span class="item-priority priority-p0">P0</span>
+                                    <span class="item-id">#10</span>
+                                    <span class="item-title">实现未激活会员预约弹窗提示激活</span>
+                                </div>
+                                <div class="item-description">未激活会员点击预约应先弹窗提示套餐激活，再完成预约</div>
+                                <div class="item-meta">
+                                    <span>📍 涉及文件：会员端booking页面</span>
+                                    <span>⏱️ 预计工作量：1天</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="item-footer">
+                            <div class="item-comment">
+                                <label>📝 修改意见：</label>
+                                <textarea class="item-comment-input" placeholder="请输入您的修改意见或备注..." onchange="saveComment(this, 'p0-10')"></textarea>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="item" data-priority="p0" data-id="p0-11">
+                        <div class="item-header">
+                            <input type="checkbox" class="item-checkbox" onchange="updateStats()">
+                            <div class="item-content">
+                                <div class="item-top">
+                                    <span class="item-priority priority-p0">P0</span>
+                                    <span class="item-id">#11</span>
+                                    <span class="item-title">完善5种会员状态的业务逻辑</span>
+                                </div>
+                                <div class="item-description">未激活、使用中、节次耗尽、已过期、已停卡5种状态的业务逻辑</div>
+                                <div class="item-meta">
+                                    <span>📍 涉及文件：package.service.js, member.service.js</span>
+                                    <span>⏱️ 预计工作量：1天</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="item-footer">
+                            <div class="item-comment">
+                                <label>📝 修改意见：</label>
+                                <textarea class="item-comment-input" placeholder="请输入您的修改意见或备注..." onchange="saveComment(this, 'p0-11')"></textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="category">
+                <div class="category-header">
+                    <div class="category-title">3. 预约与取消规则</div>
+                    <div class="category-actions">
+                        <button class="btn btn-secondary btn-small" onclick="selectCategory('p0-3')">全选此分类</button>
+                    </div>
+                </div>
+                <div class="item-list" data-category="p0-3">
+                    <div class="item" data-priority="p0" data-id="p0-12">
+                        <div class="item-header">
+                            <input type="checkbox" class="item-checkbox" onchange="updateStats()">
+                            <div class="item-content">
+                                <div class="item-top">
+                                    <span class="item-priority priority-p0">P0</span>
+                                    <span class="item-id">#12</span>
+                                    <span class="item-title">实现预约截止后检查最低人数自动取消</span>
+                                </div>
+                                <div class="item-description">未实现到达截止时间检查人数，不足则自动取消并通知</div>
+                                <div class="item-meta">
+                                    <span>📍 涉及文件：scheduler.js, booking.service.js</span>
+                                    <span>⏱️ 预计工作量：1.5天</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="item-footer">
+                            <div class="item-comment">
+                                <label>📝 修改意见：</label>
+                                <textarea class="item-comment-input" placeholder="请输入您的修改意见或备注..." onchange="saveComment(this, 'p0-12')"></textarea>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="item" data-priority="p0" data-id="p0-13">
+                        <div class="item-header">
+                            <input type="checkbox" class="item-checkbox" onchange="updateStats()">
+                            <div class="item-content">
+                                <div class="item-top">
+                                    <span class="item-priority priority-p0">P0</span>
+                                    <span class="item-id">#13</span>
+                                    <span class="item-title">完善轮候候补逻辑与通知</span>
+                                </div>
+                                <div class="item-description">名额释放后自动按顺序候补并通知会员</div>
+                                <div class="item-meta">
+                                    <span>📍 涉及文件：booking.service.js, wechat-message.service.js</span>
+                                    <span>⏱️ 预计工作量：1天</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="item-footer">
+                            <div class="item-comment">
+                                <label>📝 修改意见：</label>
+                                <textarea class="item-comment-input" placeholder="请输入您的修改意见或备注..." onchange="saveComment(this, 'p0-13')"></textarea>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="item" data-priority="p0" data-id="p0-14">
+                        <div class="item-header">
+                            <input type="checkbox" class="item-checkbox" onchange="updateStats()">
+                            <div class="item-content">
+                                <div class="item-top">
+                                    <span class="item-priority priority-p0">P0</span>
+                                    <span class="item-id">#14</span>
+                                    <span class="item-title">实现放假期间已预约课程自动取消</span>
+                                </div>
+                                <div class="item-description">放假期间已预约的课程自动取消并退还课时</div>
+                                <div class="item-meta">
+                                    <span>📍 涉及文件：holiday.service.js, booking.service.js</span>
+                                    <span>⏱️ 预计工作量：1天</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="item-footer">
+                            <div class="item-comment">
+                                <label>📝 修改意见：</label>
+                                <textarea class="item-comment-input" placeholder="请输入您的修改意见或备注..." onchange="saveComment(this, 'p0-14')"></textarea>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="item" data-priority="p0" data-id="p0-15">
+                        <div class="item-header">
+                            <input type="checkbox" class="item-checkbox" onchange="updateStats()">
+                            <div class="item-content">
+                                <div class="item-top">
+                                    <span class="item-priority priority-p0">P0</span>
+                                    <span class="item-id">#15</span>
+                                    <span class="item-title">实现豁免次数按门店配置</span>
+                                </div>
+                                <div class="item-description">豁免次数应按门店独立配置，当前是按会员配置</div>
+                                <div class="item-meta">
+                                    <span>📍 涉及文件：Config.js, exemption页面, booking.service.js</span>
+                                    <span>⏱️ 预计工作量：1天</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="item-footer">
+                            <div class="item-comment">
+                                <label>📝 修改意见：</label>
+                                <textarea class="item-comment-input" placeholder="请输入您的修改意见或备注..." onchange="saveComment(this, 'p0-15')"></textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="category">
+                <div class="category-header">
+                    <div class="category-title">4. 放假管理</div>
+                    <div class="category-actions">
+                        <button class="btn btn-secondary btn-small" onclick="selectCategory('p0-4')">全选此分类</button>
+                    </div>
+                </div>
+                <div class="item-list" data-category="p0-4">
+                    <div class="item" data-priority="p0" data-id="p0-16">
+                        <div class="item-header">
+                            <input type="checkbox" class="item-checkbox" onchange="updateStats()">
+                            <div class="item-content">
+                                <div class="item-top">
+                                    <span class="item-priority priority-p0">P0</span>
+                                    <span class="item-id">#16</span>
+                                    <span class="item-title">完善放假状态流转校验（生效后不能编辑）</span>
+                                </div>
+                                <div class="item-description">编辑、撤销、删除等操作的权限和状态校验（生效后不能编辑，只能撤销）未完整实现</div>
+                                <div class="item-meta">
+                                    <span>📍 涉及文件：holiday.service.js</span>
+                                    <span>⏱️ 预计工作量：0.5天</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="item-footer">
+                            <div class="item-comment">
+                                <label>📝 修改意见：</label>
+                                <textarea class="item-comment-input" placeholder="请输入您的修改意见或备注..." onchange="saveComment(this, 'p0-16')"></textarea>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="item" data-priority="p0" data-id="p0-17">
+                        <div class="item-header">
+                            <input type="checkbox" class="item-checkbox" onchange="updateStats()">
+                            <div class="item-content">
+                                <div class="item-top">
+                                    <span class="item-priority priority-p0">P0</span>
+                                    <span class="item-id">#17</span>
+                                    <span class="item-title">实现套餐有效期延长/撤销延长记录</span>
+                                </div>
+                                <div class="item-description">延长和撤销操作未独立记录，无法追溯</div>
+                                <div class="item-meta">
+                                    <span>📍 涉及文件：holiday.service.js, 新建ExtensionLog</span>
+                                    <span>⏱️ 预计工作量：1天</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="item-footer">
+                            <div class="item-comment">
+                                <label>📝 修改意见：</label>
+                                <textarea class="item-comment-input" placeholder="请输入您的修改意见或备注..." onchange="saveComment(this, 'p0-17')"></textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="category">
+                <div class="category-header">
+                    <div class="category-title">5. 微信消息推送</div>
+                    <div class="category-actions">
+                        <button class="btn btn-secondary btn-small" onclick="selectCategory('p0-5')">全选此分类</button>
+                    </div>
+                </div>
+                <div class="item-list" data-category="p0-5">
+                    <div class="item" data-priority="p0" data-id="p0-18">
+                        <div class="item-header">
+                            <input type="checkbox" class="item-checkbox" onchange="updateStats()">
+                            <div class="item-content">
+                                <div class="item-top">
+                                    <span class="item-priority priority-p0">P0</span>
+                                    <span class="item-id">#18</span>
+                                    <span class="item-title">补充课程取消推送场景</span>
+                                </div>
+                                <div class="item-description">课程因人数不足取消或放假取消时推送通知</div>
+                                <div class="item-meta">
+                                    <span>📍 涉及文件：wechat-message.service.js</span>
+                                    <span>⏱️ 预计工作量：0.5天</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="item-footer">
+                            <div class="item-comment">
+                                <label>📝 修改意见：</label>
+                                <textarea class="item-comment-input" placeholder="请输入您的修改意见或备注..." onchange="saveComment(this, 'p0-18')"></textarea>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="item" data-priority="p0" data-id="p0-19">
+                        <div class="item-header">
+                            <input type="checkbox" class="item-checkbox" onchange="updateStats()">
+                            <div class="item-content">
+                                <div class="item-top">
+                                    <span class="item-priority priority-p0">P0</span>
+                                    <span class="item-id">#19</span>
+                                    <span class="item-title">补充轮候候补成功推送场景</span>
+                                </div>
+                                <div class="item-description">轮候候补成功时推送通知</div>
+                                <div class="item-meta">
+                                    <span>📍 涉及文件：wechat-message.service.js</span>
+                                    <span>⏱️ 预计工作量：0.5天</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="item-footer">
+                            <div class="item-comment">
+                                <label>📝 修改意见：</label>
+                                <textarea class="item-comment-input" placeholder="请输入您的修改意见或备注..." onchange="saveComment(this, 'p0-19')"></textarea>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="item" data-priority="p0" data-id="p0-20">
+                        <div class="item-header">
+                            <input type="checkbox" class="item-checkbox" onchange="updateStats()">
+                            <div class="item-content">
+                                <div class="item-top">
+                                    <span class="item-priority priority-p0">P0</span>
+                                    <span class="item-id">#20</span>
+                                    <span class="item-title">补充放假课程取消推送场景</span>
+                                </div>
+                                <div class="item-description">放假导致课程取消时推送通知</div>
+                                <div class="item-meta">
+                                    <span>📍 涉及文件：wechat-message.service.js</span>
+                                    <span>⏱️ 预计工作量：0.5天</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="item-footer">
+                            <div class="item-comment">
+                                <label>📝 修改意见：</label>
+                                <textarea class="item-comment-input" placeholder="请输入您的修改意见或备注..." onchange="saveComment(this, 'p0-20')"></textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- P1 重要 -->
+        <div class="tab-content" id="tab-p1">
+            <div class="progress-section">
+                <div class="progress-title">P1 重要项目进度</div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progress-p1" style="width: 0%"></div>
+                </div>
+                <div class="progress-text" id="progress-text-p1">已选 0 / 16 项</div>
+            </div>
+
+            <div class="category">
+                <div class="category-header">
+                    <div class="category-title">6. 会员信息管理</div>
+                    <div class="category-actions">
+                        <button class="btn btn-secondary btn-small" onclick="selectCategory('p1-1')">全选此分类</button>
+                    </div>
+                </div>
+                <div class="item-list" data-category="p1-1">
+                    <div class="item" data-priority="p1" data-id="p1-21">
+                        <div class="item-header">
+                            <input type="checkbox" class="item-checkbox" onchange="updateStats()">
+                            <div class="item-content">
+                                <div class="item-top">
+                                    <span class="item-priority priority-p1">P1</span>
+                                    <span class="item-id">#21</span>
+                                    <span class="item-title">实现双手机号独立存储与展示</span>
+                                </div>
+                                <div class="item-description">微信授权手机号和用户自主填写手机号独立存储，管理端优先显示预留手机号</div>
+                                <div class="item-meta">
+                                    <span>📍 涉及文件：User.js, 管理端会员页, 会员端个人中心</span>
+                                    <span>⏱️ 预计工作量：1天</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="item-footer">
+                            <div class="item-comment">
+                                <label>📝 修改意见：</label>
+                                <textarea class="item-comment-input" placeholder="请输入您的修改意见或备注..." onchange="saveComment(this, 'p1-21')"></textarea>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="item" data-priority="p1" data-id="p1-22">
+                        <div class="item-header">
+                            <input type="checkbox" class="item-checkbox" onchange="updateStats()">
+                            <div class="item-content">
+                                <div class="item-top">
+                                    <span class="item-priority priority-p1">P1</span>
+                                    <span class="item-id">#22</span>
+                                    <span class="item-title">实现会员修改预留手机号审核流程</span>
+                                </div>
+                                <div class="item-description">会员修改预留手机号需要管理端审核</div>
+                                <div class="item-meta">
+                                    <span>📍 涉及文件：member.service.js, 管理端</span>
+                                    <span>⏱️ 预计工作量：1天</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="item-footer">
+                            <div class="item-comment">
+                                <label>📝 修改意见：</label>
+                                <textarea class="item-comment-input" placeholder="请输入您的修改意见或备注..." onchange="saveComment(this, 'p1-22')"></textarea>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="item" data-priority="p1" data-id="p1-23">
+                        <div class="item-header">
+                            <input type="checkbox" class="item-checkbox" onchange="updateStats()">
+                            <div class="item-content">
+                                <div class="item-top">
+                                    <span class="item-priority priority-p1">P1</span>
+                                    <span class="item-id">#23</span>
+                                    <span class="item-title">实现自动生成会员编码</span>
+                                </div>
+                                <div class="item-description">审核通过成为正式会员时自动生成唯一会员编码</div>
+                                <div class="item-meta">
+                                    <span>📍 涉及文件：member.service.js</span>
+                                    <span>⏱️ 预计工作量：0.5天</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="item-footer">
+                            <div class="item-comment">
+                                <label>📝 修改意见：</label>
+                                <textarea class="item-comment-input" placeholder="请输入您的修改意见或备注..." onchange="saveComment(this, 'p1-23')"></textarea>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="item" data-priority="p1" data-id="p1-24">
+                        <div class="item-header">
+                            <input type="checkbox" class="item-checkbox" onchange="updateStats()">
+                            <div class="item-content">
+                                <div class="item-top">
+                                    <span class="item-priority priority-p1">P1</span>
+                                    <span class="item-id">#24</span>
+                                    <span class="item-title">实现动态防截图二维码</span>
+                                </div>
+                                <div class="item-description">会员端显示动态防截图二维码，用于管理端扫码核验</div>
+                                <div class="item-meta">
+                                    <span>📍 涉及文件：会员端个人中心, 管理端扫码页</span>
+                                    <span>⏱️ 预计工作量：1天</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="item-footer">
+                            <div class="item-comment">
+                                <label>📝 修改意见：</label>
+                                <textarea class="item-comment-input" placeholder="请输入您的修改意见或备注..." onchange="saveComment(this, 'p1-24')"></textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="category">
+                <div class="category-header">
+                    <div class="category-title">7. 排课管理</div>
+                    <div class="category-actions">
+                        <button class="btn btn-secondary btn-small" onclick="selectCategory('p1-2')">全选此分类</button>
+                    </div>
+                </div>
+                <div class="item-list" data-category="p1-2">
+                    <div class="item" data-priority="p1" data-id="p1-25">
+                        <div class="item-header">
+                            <input type="checkbox" class="item-checkbox" onchange="updateStats()">
+                            <div class="item-content">
+                                <div class="item-top">
+                                    <span class="item-priority priority-p1">P1</span>
+                                    <span class="item-id">#25</span>
+                                    <span class="item-title">实现同教室同时间排课冲突校验</span>
+                                </div>
+                                <div class="item-description">同教室同时段禁止排课</div>
+                                <div class="item-meta">
+                                    <span>📍 涉及文件：schedule.service.js</span>
+                                    <span>⏱️ 预计工作量：0.5天</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="item-footer">
+                            <div class="item-comment">
+                                <label>📝 修改意见：</label>
+                                <textarea class="item-comment-input" placeholder="请输入您的修改意见或备注..." onchange="saveComment(this, 'p1-25')"></textarea>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="item" data-priority="p1" data-id="p1-26">
+                        <div class="item-header">
+                            <input type="checkbox" class="item-checkbox" onchange="updateStats()">
+                            <div class="item-content">
+                                <div class="item-top">
+                                    <span class="item-priority priority-p1">P1</span>
+                                    <span class="item-id">#26</span>
+                                    <span class="item-title">实现管理端查看轮候状态和名单</span>
+                                </div>
+                                <div class="item-description">排课详情页显示轮候名单、顺序、时间</div>
+                                <div class="item-meta">
+                                    <span>📍 涉及文件：排课详情页, schedule.service.js</span>
+                                    <span>⏱️ 预计工作量：1天</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="item-footer">
+                            <div class="item-comment">
+                                <label>📝 修改意见：</label>
+                                <textarea class="item-comment-input" placeholder="请输入您的修改意见或备注..." onchange="saveComment(this, 'p1-26')"></textarea>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="item" data-priority="p1" data-id="p1-27">
+                        <div class="item-header">
+                            <input type="checkbox" class="item-checkbox" onchange="updateStats()">
+                            <div class="item-content">
+                                <div class="item-top">
+                                    <span class="item-priority priority-p1">P1</span>
+                                    <span class="item-id">#27</span>
+                                    <span class="item-title">实现轮候名单导出</span>
+                                </div>
+                                <div class="item-description">导出轮候数据为Excel或CSV</div>
+                                <div class="item-meta">
+                                    <span>📍 涉及文件：排课详情页</span>
+                                    <span>⏱️ 预计工作量：0.5天</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="item-footer">
+                            <div class="item-comment">
+                                <label>📝 修改意见：</label>
+                                <textarea class="item-comment-input" placeholder="请输入您的修改意见或备注..." onchange="saveComment(this, 'p1-27')"></textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="category">
+                <div class="category-header">
+                    <div class="category-title">8. 角色权限体系</div>
+                    <div class="category-actions">
+                        <button class="btn btn-secondary btn-small" onclick="selectCategory('p1-3')">全选此分类</button>
+                    </div>
+                </div>
+                <div class="item-list" data-category="p1-3">
+                    <div class="item" data-priority="p1" data-id="p1-28">
+                        <div class="item-header">
+                            <input type="checkbox" class="item-checkbox" onchange="updateStats()">
+                            <div class="item-content">
+                                <div class="item-top">
+                                    <span class="item-priority priority-p1">P1</span>
+                                    <span class="item-id">#28</span>
+                                    <span class="item-title">完善细粒度权限控制（店员不能改配置）</span>
+                                </div>
+                                <div class="item-description">店员仅可审核会员、录入套餐、签到、查看，无修改删除系统配置权限</div>
+                                <div class="item-meta">
+                                    <span>📍 涉及文件：permission.js, 相关services</span>
+                                    <span>⏱️ 预计工作量：1天</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="item-footer">
+                            <div class="item-comment">
+                                <label>📝 修改意见：</label>
+                                <textarea class="item-comment-input" placeholder="请输入您的修改意见或备注..." onchange="saveComment(this, 'p1-28')"></textarea>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="item" data-priority="p1" data-id="p1-29">
+                        <div class="item-header">
+                            <input type="checkbox" class="item-checkbox" onchange="updateStats()">
+                            <div class="item-content">
+                                <div class="item-top">
+                                    <span class="item-priority priority-p1">P1</span>
+                                    <span class="item-id">#29</span>
+                                    <span class="item-title">实现前端菜单按权限隐藏</span>
+                                </div>
+                                <div class="item-description">根据用户角色隐藏无权限的菜单和功能</div>
+                                <div class="item-meta">
+                                    <span>📍 涉及文件：管理端各页面</span>
+                                    <span>⏱️ 预计工作量：1天</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="item-footer">
+                            <div class="item-comment">
+                                <label>📝 修改意见：</label>
+                                <textarea class="item-comment-input" placeholder="请输入您的修改意见或备注..." onchange="saveComment(this, 'p1-29')"></textarea>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="item" data-priority="p1" data-id="p1-30">
+                        <div class="item-header">
+                            <input type="checkbox" class="item-checkbox" onchange="updateStats()">
+                            <div class="item-content">
+                                <div class="item-top">
+                                    <span class="item-priority priority-p1">P1</span>
+                                    <span class="item-id">#30</span>
+                                    <span class="item-title">实现越权访问拦截</span>
+                                </div>
+                                <div class="item-description">直接访问无权限接口时被拦截</div>
+                                <div class="item-meta">
+                                    <span>📍 涉及文件：auth.js, permission.js</span>
+                                    <span>⏱️ 预计工作量：1天</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="item-footer">
+                            <div class="item-comment">
+                                <label>📝 修改意见：</label>
+                                <textarea class="item-comment-input" placeholder="请输入您的修改意见或备注..." onchange="saveComment(this, 'p1-30')"></textarea>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="item" data-priority="p1" data-id="p1-31">
+                        <div class="item-header">
+                            <input type="checkbox" class="item-checkbox" onchange="updateStats()">
+                            <div class="item-content">
+                                <div class="item-top">
+                                    <span class="item-priority priority-p1">P1</span>
+                                    <span class="item-id">#31</span>
+                                    <span class="item-title">创建角色权限配置页面</span>
+                                </div>
+                                <div class="item-description">用于配置不同角色的权限</div>
+                                <div class="item-meta">
+                                    <span>📍 涉及文件：新建roles页面</span>
+                                    <span>⏱️ 预计工作量：2天</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="item-footer">
+                            <div class="item-comment">
+                                <label>📝 修改意见：</label>
+                                <textarea class="item-comment-input" placeholder="请输入您的修改意见或备注..." onchange="saveComment(this, 'p1-31')"></textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="category">
+                <div class="category-header">
+                    <div class="category-title">9. 系统时间</div>
+                    <div class="category-actions">
+                        <button class="btn btn-secondary btn-small" onclick="selectCategory('p1-4')">全选此分类</button>
+                    </div>
+                </div>
+                <div class="item-list" data-category="p1-4">
+                    <div class="item" data-priority="p1" data-id="p1-32">
+                        <div class="item-header">
+                            <input type="checkbox" class="item-checkbox" onchange="updateStats()">
+                            <div class="item-content">
+                                <div class="item-top">
+                                    <span class="item-priority priority-p1">P1</span>
+                                    <span class="item-id">#32</span>
+                                    <span class="item-title">实现小程序启动拉取服务器时间</span>
+                                </div>
+                                <div class="item-description">小程序冷启动时拉取服务器标准时间</div>
+                                <div class="item-meta">
+                                    <span>📍 涉及文件：会员端app.js, 管理端app.js</span>
+                                    <span>⏱️ 预计工作量：0.5天</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="item-footer">
+                            <div class="item-comment">
+                                <label>📝 修改意见：</label>
+                                <textarea class="item-comment-input" placeholder="请输入您的修改意见或备注..." onchange="saveComment(this, 'p1-32')"></textarea>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="item" data-priority="p1" data-id="p1-33">
+                        <div class="item-header">
+                            <input type="checkbox" class="item-checkbox" onchange="updateStats()">
+                            <div class="item-content">
+                                <div class="item-top">
+                                    <span class="item-priority priority-p1">P1</span>
+                                    <span class="item-id">#33</span>
+                                    <span class="item-title">全面检查并统一使用服务器时间</span>
+                                </div>
+                                <div class="item-description">确保所有业务判断使用服务器时间，而非本地时间</div>
+                                <div class="item-meta">
+                                    <span>📍 涉及文件：所有service文件</span>
+                                    <span>⏱️ 预计工作量：1天</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="item-footer">
+                            <div class="item-comment">
+                                <label>📝 修改意见：</label>
+                                <textarea class="item-comment-input" placeholder="请输入您的修改意见或备注..." onchange="saveComment(this, 'p1-33')"></textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="category">
+                <div class="category-header">
+                    <div class="category-title">10. 管理端二维码核验</div>
+                    <div class="category-actions">
+                        <button class="btn btn-secondary btn-small" onclick="selectCategory('p1-5')">全选此分类</button>
+                    </div>
+                </div>
+                <div class="item-list" data-category="p1-5">
+                    <div class="item" data-priority="p1" data-id="p1-34">
+                        <div class="item-header">
+                            <input type="checkbox" class="item-checkbox" onchange="updateStats()">
+                            <div class="item-content">
+                                <div class="item-top">
+                                    <span class="item-priority priority-p1">P1</span>
+                                    <span class="item-id">#34</span>
+                                    <span class="item-title">实现管理端扫码识别会员二维码</span>
+                                </div>
+                                <div class="item-description">管理端扫描会员二维码识别会员身份</div>
+                                <div class="item-meta">
+                                    <span>📍 涉及文件：新建扫码页</span>
+                                    <span>⏱️ 预计工作量：1.5天</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="item-footer">
+                            <div class="item-comment">
+                                <label>📝 修改意见：</label>
+                                <textarea class="item-comment-input" placeholder="请输入您的修改意见或备注..." onchange="saveComment(this, 'p1-34')"></textarea>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="item" data-priority="p1" data-id="p1-35">
+                        <div class="item-header">
+                            <input type="checkbox" class="item-checkbox" onchange="updateStats()">
+                            <div class="item-content">
+                                <div class="item-top">
+                                    <span class="item-priority priority-p1">P1</span>
+                                    <span class="item-id">#35</span>
+                                    <span class="item-title">实现扫码后展示会员信息、状态、套餐</span>
+                                </div>
+                                <div class="item-description">扫码后显示会员状态、套餐、课时、有效期、双手机号</div>
+                                <div class="item-meta">
+                                    <span>📍 涉及文件：新建扫码页</span>
+                                    <span>⏱️ 预计工作量：1天</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="item-footer">
+                            <div class="item-comment">
+                                <label>📝 修改意见：</label>
+                                <textarea class="item-comment-input" placeholder="请输入您的修改意见或备注..." onchange="saveComment(this, 'p1-35')"></textarea>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="item" data-priority="p1" data-id="p1-36">
+                        <div class="item-header">
+                            <input type="checkbox" class="item-checkbox" onchange="updateStats()">
+                            <div class="item-content">
+                                <div class="item-top">
+                                    <span class="item-priority priority-p1">P1</span>
+                                    <span class="item-id">#36</span>
+                                    <span class="item-title">实现一键签到消课功能</span>
+                                </div>
+                                <div class="item-description">扫码后点击签到完成消课，减少课时</div>
+                                <div class="item-meta">
+                                    <span>📍 涉及文件：新建扫码页, booking.service.js</span>
+                                    <span>⏱️ 预计工作量：1天</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="item-footer">
+                            <div class="item-comment">
+                                <label>📝 修改意见：</label>
+                                <textarea class="item-comment-input" placeholder="请输入您的修改意见或备注..." onchange="saveComment(this, 'p1-36')"></textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- P2 一般 -->
+        <div class="tab-content" id="tab-p2">
+            <div class="progress-section">
+                <div class="progress-title">P2 一般项目进度</div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progress-p2" style="width: 0%"></div>
+                </div>
+                <div class="progress-text" id="progress-text-p2">已选 0 / 12 项</div>
+            </div>
+
+            <div class="category">
+                <div class="category-header">
+                    <div class="category-title">11. 教练薪酬管理</div>
+                    <div class="category-actions">
+                        <button class="btn btn-secondary btn-small" onclick="selectCategory('p2-1')">全选此分类</button>
+                    </div>
+                </div>
+                <div class="item-list" data-category="p2-1">
+                    <div class="item" data-priority="p2" data-id="p2-37">
+                        <div class="item-header">
+                            <input type="checkbox" class="item-checkbox" onchange="updateStats()">
+                            <div class="item-content">
+                                <div class="item-top">
+                                    <span class="item-priority priority-p2">P2</span>
+                                    <span class="item-id">#37</span>
+                                    <span class="item-title">实现教练薪酬设置功能</span>
+                                </div>
+                                <div class="item-description">为教练设置不同课程时长的薪酬单价</div>
+                                <div class="item-meta">
+                                    <span>📍 涉及文件：新建薪酬设置页, CoachSalary模型</span>
+                                    <span>⏱️ 预计工作量：2天</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="item-footer">
+                            <div class="item-comment">
+                                <label>📝 修改意见：</label>
+                                <textarea class="item-comment-input" placeholder="请输入您的修改意见或备注..." onchange="saveComment(this, 'p2-37')"></textarea>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="item" data-priority="p2" data-id="p2-38">
+                        <div class="item-header">
+                            <input type="checkbox" class="item-checkbox" onchange="updateStats()">
+                            <div class="item-content">
+                                <div class="item-top">
+                                    <span class="item-priority priority-p2">P2</span>
+                                    <span class="item-id">#38</span>
+                                    <span class="item-title">实现教练薪酬统计功能</span>
+                                </div>
+                                <div class="item-description">按时间段统计教练有效课时和薪酬</div>
+                                <div class="item-meta">
+                                    <span>📍 涉及文件：新建薪酬统计页, stats.service.js</span>
+                                    <span>⏱️ 预计工作量：2天</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="item-footer">
+                            <div class="item-comment">
+                                <label>📝 修改意见：</label>
+                                <textarea class="item-comment-input" placeholder="请输入您的修改意见或备注..." onchange="saveComment(this, 'p2-38')"></textarea>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="item" data-priority="p2" data-id="p2-39">
+                        <div class="item-header">
+                            <input type="checkbox" class="item-checkbox" onchange="updateStats()">
+                            <div class="item-content">
+                                <div class="item-top">
+                                    <span class="item-priority priority-p2">P2</span>
+                                    <span class="item-id">#39</span>
+                                    <span class="item-title">实现薪酬数据导出</span>
+                                </div>
+                                <div class="item-description">导出薪酬统计数据</div>
+                                <div class="item-meta">
+                                    <span>📍 涉及文件：薪酬统计页</span>
+                                    <span>⏱️ 预计工作量：1天</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="item-footer">
+                            <div class="item-comment">
+                                <label>📝 修改意见：</label>
+                                <textarea class="item-comment-input" placeholder="请输入您的修改意见或备注..." onchange="saveComment(this, 'p2-39')"></textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="category">
+                <div class="category-header">
+                    <div class="category-title">12. 会员端缺失页面</div>
+                    <div class="category-actions">
+                        <button class="btn btn-secondary btn-small" onclick="selectCategory('p2-2')">全选此分类</button>
+                    </div>
+                </div>
+                <div class="item-list" data-category="p2-2">
+                    <div class="item" data-priority="p2" data-id="p2-40">
+                        <div class="item-header">
+                            <input type="checkbox" class="item-checkbox" onchange="updateStats()">
+                            <div class="item-content">
+                                <div class="item-top">
+                                    <span class="item-priority priority-p2">P2</span>
+                                    <span class="item-id">#40</span>
+                                    <span class="item-title">创建视频播放页</span>
+                                </div>
+                                <div class="item-description">会员端视频播放页面</div>
+                                <div class="item-meta">
+                                    <span>📍 涉及文件：新建video-player页面</span>
+                                    <span>⏱️ 预计工作量：0.5天</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="item-footer">
+                            <div class="item-comment">
+                                <label>📝 修改意见：</label>
+                                <textarea class="item-comment-input" placeholder="请输入您的修改意见或备注..." onchange="saveComment(this, 'p2-40')"></textarea>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="item" data-priority="p2" data-id="p2-41">
+                        <div class="item-header">
+                            <input type="checkbox" class="item-checkbox" onchange="updateStats()">
+                            <div class="item-content">
+                                <div class="item-top">
+                                    <span class="item-priority priority-p2">P2</span>
+                                    <span class="item-id">#41</span>
+                                    <span class="item-title">创建套餐详情页</span>
+                                </div>
+                                <div class="item-description">会员端套餐详情页面</div>
+                                <div class="item-meta">
+                                    <span>📍 涉及文件：新建package-detail页面</span>
+                                    <span>⏱️ 预计工作量：0.5天</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="item-footer">
+                            <div class="item-comment">
+                                <label>📝 修改意见：</label>
+                                <textarea class="item-comment-input" placeholder="请输入您的修改意见或备注..." onchange="saveComment(this, 'p2-41')"></textarea>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="item" data-priority="p2" data-id="p2-42">
+                        <div class="item-header">
+                            <input type="checkbox" class="item-checkbox" onchange="updateStats()">
+                            <div class="item-content">
+                                <div class="item-top">
+                                    <span class="item-priority priority-p2">P2</span>
+                                    <span class="item-id">#42</span>
+                                    <span class="item-title">创建收藏教练页</span>
+                                </div>
+                                <div class="item-description">会员端收藏教练页面</div>
+                                <div class="item-meta">
+                                    <span>📍 涉及文件：新建favorites页面</span>
+                                    <span>⏱️ 预计工作量：0.5天</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="item-footer">
+                            <div class="item-comment">
+                                <label>📝 修改意见：</label>
+                                <textarea class="item-comment-input" placeholder="请输入您的修改意见或备注..." onchange="saveComment(this, 'p2-42')"></textarea>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="item" data-priority="p2" data-id="p2-43">
+                        <div class="item-header">
+                            <input type="checkbox" class="item-checkbox" onchange="updateStats()">
+                            <div class="item-content">
+                                <div class="item-top">
+                                    <span class="item-priority priority-p2">P2</span>
+                                    <span class="item-id">#43</span>
+                                    <span class="item-title">创建设置页</span>
+                                </div>
+                                <div class="item-description">会员端设置页面</div>
+                                <div class="item-meta">
+                                    <span>📍 涉及文件：新建settings页面</span>
+                                    <span>⏱️ 预计工作量：0.5天</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="item-footer">
+                            <div class="item-comment">
+                                <label>📝 修改意见：</label>
+                                <textarea class="item-comment-input" placeholder="请输入您的修改意见或备注..." onchange="saveComment(this, 'p2-43')"></textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="category">
+                <div class="category-header">
+                    <div class="category-title">13. 管理端缺失功能</div>
+                    <div class="category-actions">
+                        <button class="btn btn-secondary btn-small" onclick="selectCategory('p2-3')">全选此分类</button>
+                    </div>
+                </div>
+                <div class="item-list" data-category="p2-3">
+                    <div class="item" data-priority="p2" data-id="p2-44">
+                        <div class="item-header">
+                            <input type="checkbox" class="item-checkbox" onchange="updateStats()">
+                            <div class="item-content">
+                                <div class="item-top">
+                                    <span class="item-priority priority-p2">P2</span>
+                                    <span class="item-id">#44</span>
+                                    <span class="item-title">完善操作日志查看功能</span>
+                                </div>
+                                <div class="item-description">管理端操作日志查看页面功能完善</div>
+                                <div class="item-meta">
+                                    <span>📍 涉及文件：logs页面</span>
+                                    <span>⏱️ 预计工作量：1天</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="item-footer">
+                            <div class="item-comment">
+                                <label>📝 修改意见：</label>
+                                <textarea class="item-comment-input" placeholder="请输入您的修改意见或备注..." onchange="saveComment(this, 'p2-44')"></textarea>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="item" data-priority="p2" data-id="p2-45">
+                        <div class="item-header">
+                            <input type="checkbox" class="item-checkbox" onchange="updateStats()">
+                            <div class="item-content">
+                                <div class="item-top">
+                                    <span class="item-priority priority-p2">P2</span>
+                                    <span class="item-id">#45</span>
+                                    <span class="item-title">创建系统参数配置页面</span>
+                                </div>
+                                <div class="item-description">管理端系统参数配置页面</div>
+                                <div class="item-meta">
+                                    <span>📍 涉及文件：新建config页面</span>
+                                    <span>⏱️ 预计工作量：1天</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="item-footer">
+                            <div class="item-comment">
+                                <label>📝 修改意见：</label>
+                                <textarea class="item-comment-input" placeholder="请输入您的修改意见或备注..." onchange="saveComment(this, 'p2-45')"></textarea>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="item" data-priority="p2" data-id="p2-46">
+                        <div class="item-header">
+                            <input type="checkbox" class="item-checkbox" onchange="updateStats()">
+                            <div class="item-content">
+                                <div class="item-top">
+                                    <span class="item-priority priority-p2">P2</span>
+                                    <span class="item-id">#46</span>
+                                    <span class="item-title">实现会员转卡功能</span>
+                                </div>
+                                <div class="item-description">会员详情页转卡功能</div>
+                                <div class="item-meta">
+                                    <span>📍 涉及文件：会员详情页</span>
+                                    <span>⏱️ 预计工作量：1天</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="item-footer">
+                            <div class="item-comment">
+                                <label>📝 修改意见：</label>
+                                <textarea class="item-comment-input" placeholder="请输入您的修改意见或备注..." onchange="saveComment(this, 'p2-46')"></textarea>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="item" data-priority="p2" data-id="p2-47">
+                        <div class="item-header">
+                            <input type="checkbox" class="item-checkbox" onchange="updateStats()">
+                            <div class="item-content">
+                                <div class="item-top">
+                                    <span class="item-priority priority-p2">P2</span>
+                                    <span class="item-id">#47</span>
+                                    <span class="item-title">实现会员列表/预约记录/上课记录导出</span>
+                                </div>
+                                <div class="item-description">各相关页面数据导出功能</div>
+                                <div class="item-meta">
+                                    <span>📍 涉及文件：各相关页面</span>
+                                    <span>⏱️ 预计工作量：2天</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="item-footer">
+                            <div class="item-comment">
+                                <label>📝 修改意见：</label>
+                                <textarea class="item-comment-input" placeholder="请输入您的修改意见或备注..." onchange="saveComment(this, 'p2-47')"></textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="category">
+                <div class="category-header">
+                    <div class="category-title">14. 新用户定位</div>
+                    <div class="category-actions">
+                        <button class="btn btn-secondary btn-small" onclick="selectCategory('p2-4')">全选此分类</button>
+                    </div>
+                </div>
+                <div class="item-list" data-category="p2-4">
+                    <div class="item" data-priority="p2" data-id="p2-48">
+                        <div class="item-header">
+                            <input type="checkbox" class="item-checkbox" onchange="updateStats()">
+                            <div class="item-content">
+                                <div class="item-top">
+                                    <span class="item-priority priority-p2">P2</span>
+                                    <span class="item-id">#48</span>
+                                    <span class="item-title">实现新用户定位获取最近门店</span>
+                                </div>
+                                <div class="item-description">新用户根据定位优先显示最近门店</div>
+                                <div class="item-meta">
+                                    <span>📍 涉及文件：会员端首页, store.service.js</span>
+                                    <span>⏱️ 预计工作量：1天</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="item-footer">
+                            <div class="item-comment">
+                                <label>📝 修改意见：</label>
+                                <textarea class="item-comment-input" placeholder="请输入您的修改意见或备注..." onchange="saveComment(this, 'p2-48')"></textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 全部 -->
+        <div class="tab-content" id="tab-all">
+            <div class="progress-section">
+                <div class="progress-title">全部项目进度</div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progress-all" style="width: 0%"></div>
+                </div>
+                <div class="progress-text" id="progress-text-all">已选 0 / 48 项</div>
+            </div>
+            <div id="all-items-container"></div>
+        </div>
+    </div>
+
+    <!-- 汇总弹窗 -->
+    <div class="modal" id="summaryModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">📋 已选中项目清单</h2>
+                <button class="modal-close" onclick="closeModal()">&times;</button>
+            </div>
+            <div class="selected-list" id="selectedList"></div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal()">关闭</button>
+                <button class="btn btn-primary" onclick="exportSelected()">导出报告</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let selections = {};
+        let comments = {};
+
+        document.addEventListener('DOMContentLoaded', function() {
+            loadFromStorage();
+            updateStats();
+            renderAllItems();
+        });
+
+        function switchTab(tab) {
+            document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            
+            event.target.closest('.nav-tab').classList.add('active');
+            document.getElementById('tab-' + tab).classList.add('active');
+        }
+
+        function updateStats() {
+            const allItems = document.querySelectorAll('.item-checkbox');
+            const p0Items = document.querySelectorAll('[data-priority="p0"] .item-checkbox:checked');
+            const p1Items = document.querySelectorAll('[data-priority="p1"] .item-checkbox:checked');
+            const p2Items = document.querySelectorAll('[data-priority="p2"] .item-checkbox:checked');
+            
+            const selectedCount = Array.from(allItems).filter(i => i.checked).length;
+            
+            document.getElementById('totalCount').textContent = '48';
+            document.getElementById('selectedCount').textContent = selectedCount;
+            document.getElementById('p0Count').textContent = p0Items.length;
+            document.getElementById('p1Count').textContent = p1Items.length;
+            document.getElementById('p2Count').textContent = p2Items.length;
+
+            updateProgress('p0', p0Items.length, 20);
+            updateProgress('p1', p1Items.length, 16);
+            updateProgress('p2', p2Items.length, 12);
+            updateProgress('all', selectedCount, 48);
+
+            document.getElementById('p0TabCount').textContent = p0Items.length + '/20';
+            document.getElementById('p1TabCount').textContent = p1Items.length + '/16';
+            document.getElementById('p2TabCount').textContent = p2Items.length + '/12';
+            document.getElementById('allTabCount').textContent = selectedCount + '/48';
+
+            document.querySelectorAll('.item').forEach(item => {
+                const checkbox = item.querySelector('.item-checkbox');
+                if (checkbox.checked) {
+                    item.classList.add('checked');
+                } else {
+                    item.classList.remove('checked');
+                }
+            });
+
+            saveToStorage();
+        }
+
+        function updateProgress(priority, selected, total) {
+            const percent = Math.round((selected / total) * 100);
+            const fill = document.getElementById('progress-' + priority);
+            const text = document.getElementById('progress-text-' + priority);
+            if (fill) fill.style.width = percent + '%';
+            if (text) text.textContent = '已选 ' + selected + ' / ' + total + ' 项';
+        }
+
+        function selectAll() {
+            document.querySelectorAll('.item-checkbox').forEach(cb => cb.checked = true);
+            updateStats();
+        }
+
+        function deselectAll() {
+            document.querySelectorAll('.item-checkbox').forEach(cb => cb.checked = false);
+            updateStats();
+        }
+
+        function selectCategory(category) {
+            document.querySelectorAll('[data-category="' + category + '"] .item-checkbox').forEach(cb => cb.checked = true);
+            updateStats();
+        }
+
+        function saveComment(textarea, id) {
+            comments[id] = textarea.value;
+            saveToStorage();
+        }
+
+        function showSummary() {
+            const selectedItems = document.querySelectorAll('.item-checkbox:checked');
+            const list = document.getElementById('selectedList');
+            
+            if (selectedItems.length === 0) {
+                list.innerHTML = '<div style="text-align: center; padding: 60px 20px; color: #666;">暂未选择任何项目</div>';
+            } else {
+                let html = '';
+                let p0Count = 0, p1Count = 0, p2Count = 0;
+                
+                selectedItems.forEach(cb => {
+                    const item = cb.closest('.item');
+                    const title = item.querySelector('.item-title').textContent;
+                    const desc = item.querySelector('.item-description').textContent;
+                    const priority = item.dataset.priority || 'p0';
+                    const id = item.dataset.id;
+                    const comment = comments[id] || '';
+                    
+                    if (priority === 'p0') p0Count++;
+                    else if (priority === 'p1') p1Count++;
+                    else if (priority === 'p2') p2Count++;
+                    
+                    const priorityClass = 'priority-' + priority;
+                    const priorityText = priority.toUpperCase();
+                    
+                    html += '<div class="selected-item">' +
+                        '<div class="selected-item-header">' +
+                        '<span class="item-priority ' + priorityClass + '">' + priorityText + '</span>' +
+                        '<strong>' + title + '</strong>' +
+                        '</div>' +
+                        '<p style="color: #666; margin: 8px 0;">' + desc + '</p>' +
+                        (comment ? '<div class="selected-item-comment"><div class="selected-item-comment-title">📝 修改意见：</div><div class="selected-item-comment-text">' + comment + '</div></div>' : '') +
+                        '</div>';
+                });
+                
+                const summaryCards = '<div class="summary-cards">' +
+                    '<div class="summary-card p0"><div class="summary-card-title">P0 紧急</div><div class="summary-card-value">' + p0Count + '</div></div>' +
+                    '<div class="summary-card p1"><div class="summary-card-title">P1 重要</div><div class="summary-card-value">' + p1Count + '</div></div>' +
+                    '<div class="summary-card p2"><div class="summary-card-title">P2 一般</div><div class="summary-card-value">' + p2Count + '</div></div>' +
+                    '</div>';
+                
+                list.innerHTML = summaryCards + html;
+            }
+            
+            document.getElementById('summaryModal').classList.add('active');
+        }
+
+        function closeModal() {
+            document.getElementById('summaryModal').classList.remove('active');
+        }
+
+        function exportSelected() {
+            const selectedItems = document.querySelectorAll('.item-checkbox:checked');
+            
+            if (selectedItems.length === 0) {
+                alert('请先选择需要修改的项目');
+                return;
+            }
+
+            let markdown = '# 舞栖舞蹈社系统修改执行清单\n\n';
+            markdown += '> 生成时间：' + new Date().toLocaleString('zh-CN') + '\n\n';
+            markdown += '---\n\n';
+            
+            let p0Count = 0, p1Count = 0, p2Count = 0;
+            
+            selectedItems.forEach(cb => {
+                const item = cb.closest('.item');
+                const priority = item.dataset.priority || 'p0';
+                if (priority === 'p0') p0Count++;
+                else if (priority === 'p1') p1Count++;
+                else if (priority === 'p2') p2Count++;
+            });
+
+            markdown += '## 📊 概览\n\n';
+            markdown += '- 🔴 P0 紧急：' + p0Count + ' 项\n';
+            markdown += '- 🟡 P1 重要：' + p1Count + ' 项\n';
+            markdown += '- 🟢 P2 一般：' + p2Count + ' 项\n';
+            markdown += '- **总计：' + selectedItems.length + ' 项**\n\n';
+            markdown += '---\n\n';
+
+            let currentPriority = '';
+            selectedItems.forEach(cb => {
+                const item = cb.closest('.item');
+                const title = item.querySelector('.item-title').textContent;
+                const desc = item.querySelector('.item-description').textContent;
+                const priority = item.dataset.priority || 'p0';
+                const id = item.dataset.id;
+                const meta = item.querySelector('.item-meta');
+                const metaText = meta ? meta.textContent : '';
+                const comment = comments[id] || '';
+
+                if (priority !== currentPriority) {
+                    currentPriority = priority;
+                    const label = priority === 'p0' ? '🔴 P0 紧急' : priority === 'p1' ? '🟡 P1 重要' : '🟢 P2 一般';
+                    markdown += '## ' + label + '\n\n';
+                }
+
+                markdown += '### ' + title + '\n\n';
+                markdown += desc + '\n\n';
+                markdown += '**说明：** ' + metaText + '\n\n';
+                if (comment) {
+                    markdown += '**📝 修改意见：** ' + comment + '\n\n';
+                }
+                markdown += '---\n\n';
+            });
+
+            const blob = new Blob([markdown], { type: 'text/markdown;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = '舞栖舞蹈社系统修改执行清单.md';
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        function saveToStorage() {
+            const selectedItems = [];
+            document.querySelectorAll('.item-checkbox:checked').forEach(cb => {
+                const item = cb.closest('.item');
+                selectedItems.push(item.dataset.id);
+            });
+            localStorage.setItem('wuqi-audit-selections', JSON.stringify(selectedItems));
+            localStorage.setItem('wuqi-audit-comments', JSON.stringify(comments));
+        }
+
+        function loadFromStorage() {
+            const savedSelections = localStorage.getItem('wuqi-audit-selections');
+            const savedComments = localStorage.getItem('wuqi-audit-comments');
+            
+            if (savedSelections) {
+                const selectedIds = JSON.parse(savedSelections);
+                document.querySelectorAll('.item').forEach(item => {
+                    const id = item.dataset.id;
+                    const checkbox = item.querySelector('.item-checkbox');
+                    if (selectedIds.includes(id)) {
+                        checkbox.checked = true;
+                    }
+                });
+            }
+            
+            if (savedComments) {
+                comments = JSON.parse(savedComments);
+                document.querySelectorAll('.item').forEach(item => {
+                    const id = item.dataset.id;
+                    const textarea = item.querySelector('.item-comment-input');
+                    if (textarea && comments[id]) {
+                        textarea.value = comments[id];
+                    }
+                });
+            }
+        }
+
+        function renderAllItems() {
+            const container = document.getElementById('all-items-container');
+            if (!container) return;
+            
+            const p0Content = document.getElementById('tab-p0').innerHTML;
+            const p1Content = document.getElementById('tab-p1').innerHTML;
+            const p2Content = document.getElementById('tab-p2').innerHTML;
+            
+            container.innerHTML = '<div class="category"><div class="category-header"><div class="category-title">🔴 P0 紧急</div></div></div>' + 
+                '<div class="category"><div class="category-header"><div class="category-title">🟡 P1 重要</div></div></div>' + 
+                '<div class="category"><div class="category-header"><div class="category-title">🟢 P2 一般</div></div></div>';
+        }
+
+        document.getElementById('summaryModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeModal();
+            }
+        });
+    </script>
+</body>
+</html>

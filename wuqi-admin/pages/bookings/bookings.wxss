@@ -1,0 +1,267 @@
+.bookings-page {
+  padding: 20rpx;
+  padding-bottom: 40rpx;
+}
+
+.schedule-header {
+  padding: 30rpx;
+  margin-bottom: 20rpx;
+}
+
+.header-top {
+  margin-bottom: 20rpx;
+}
+
+.back-btn {
+  font-size: 28rpx;
+  color: var(--color-primary);
+}
+
+.schedule-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16rpx;
+}
+
+.course-name {
+  font-size: 36rpx;
+  color: var(--text-primary);
+  font-weight: bold;
+}
+
+.schedule-status {
+  font-size: 24rpx;
+  padding: 8rpx 20rpx;
+  border-radius: var(--radius-sm);
+}
+
+.schedule-status.available {
+  background-color: var(--color-success-bg);
+  color: var(--color-success);
+}
+
+.schedule-status.full {
+  background-color: var(--color-danger-bg);
+  color: var(--color-danger);
+}
+
+.schedule-status.cancelled,
+.schedule-status.offline {
+  background-color: rgba(184, 175, 158, 0.2);
+  color: var(--text-tertiary);
+}
+
+.schedule-detail {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16rpx;
+  margin-bottom: 24rpx;
+}
+
+.detail-item {
+  font-size: 26rpx;
+  color: var(--text-secondary);
+}
+
+.booking-stats {
+  display: flex;
+  justify-content: space-around;
+  padding-top: 20rpx;
+  border-top: 1rpx solid var(--border);
+}
+
+.stat-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.stat-num {
+  font-size: 40rpx;
+  color: var(--color-primary);
+  font-weight: bold;
+}
+
+.stat-label {
+  font-size: 24rpx;
+  color: var(--text-secondary);
+  margin-top: 8rpx;
+}
+
+.tab-bar {
+  display: flex;
+  background-color: var(--bg-card);
+  border-radius: var(--radius-lg);
+  margin-bottom: 20rpx;
+  overflow: hidden;
+}
+
+.tab-item {
+  flex: 1;
+  padding: 24rpx 0;
+  text-align: center;
+  border-bottom: 4rpx solid transparent;
+}
+
+.tab-item text {
+  font-size: 28rpx;
+  color: var(--text-secondary);
+}
+
+.tab-item.active {
+  border-bottom-color: var(--color-primary);
+}
+
+.tab-item.active text {
+  color: var(--color-primary);
+  font-weight: bold;
+}
+
+.booking-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16rpx;
+}
+
+.booking-item {
+  padding: 24rpx;
+}
+
+.booking-item.cancelled {
+  opacity: 0.7;
+}
+
+.booking-item.exempted {
+  border-left: 6rpx solid var(--color-warning);
+}
+
+.user-info {
+  display: flex;
+  align-items: center;
+  margin-bottom: 16rpx;
+}
+
+.user-avatar {
+  width: 80rpx;
+  height: 80rpx;
+  border-radius: 40rpx;
+  margin-right: 20rpx;
+  background-color: var(--border);
+}
+
+.user-detail {
+  flex: 1;
+}
+
+.user-name {
+  font-size: 30rpx;
+  color: var(--text-primary);
+  font-weight: bold;
+  display: block;
+  margin-bottom: 8rpx;
+}
+
+.user-phone {
+  font-size: 24rpx;
+  color: var(--text-secondary);
+  display: block;
+  margin-bottom: 4rpx;
+}
+
+.booking-time {
+  font-size: 22rpx;
+  color: var(--text-tertiary);
+}
+
+.booking-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 16rpx;
+  border-top: 1rpx solid var(--border);
+}
+
+.credits {
+  font-size: 26rpx;
+  color: var(--color-primary);
+}
+
+.credits.refunded {
+  color: var(--color-success);
+}
+
+.cancel-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.cancel-time {
+  font-size: 24rpx;
+  color: var(--text-secondary);
+}
+
+.cancel-reason {
+  font-size: 22rpx;
+  color: var(--text-tertiary);
+  margin-top: 4rpx;
+}
+
+.exempt-tag {
+  font-size: 24rpx;
+  color: var(--color-warning);
+  background-color: var(--color-warning-bg);
+  padding: 6rpx 16rpx;
+  border-radius: var(--radius-sm);
+}
+
+.action-btn {
+  padding: 12rpx 24rpx;
+  background-color: var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.action-btn text {
+  font-size: 24rpx;
+  color: var(--text-primary);
+}
+
+.action-btn.danger {
+  background-color: var(--color-danger-bg);
+}
+
+.action-btn.danger text {
+  color: var(--color-danger);
+}
+
+.empty-state {
+  display: flex;
+  justify-content: center;
+  padding: 80rpx 0;
+}
+
+.empty-text {
+  font-size: 28rpx;
+  color: var(--text-tertiary);
+}
+
+.check-in-method {
+  font-size: 24rpx;
+  padding: 8rpx 20rpx;
+  border-radius: var(--radius-sm);
+}
+
+.check-in-method.method-scan {
+  background-color: rgba(77, 184, 160, 0.1);
+  color: #4DB8A0;
+}
+
+.check-in-method.method-auto {
+  background-color: rgba(212, 120, 110, 0.1);
+  color: #D4786E;
+}
+
+.check-in-method.method-exempt_cancel {
+  background-color: rgba(181, 165, 165, 0.15);
+  color: #9A8C8D;
+}

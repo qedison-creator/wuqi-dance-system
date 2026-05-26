@@ -1,0 +1,120 @@
+<view class="page">
+  <view class="hero">
+    <view class="hero-row">
+      <view class="hero-greet">
+        <text class="hero-hi">{{greeting}}</text>
+        <text class="hero-name">{{userInfo.nick_name || userInfo.real_name || userInfo.name || userInfo.username || '管理员'}}</text>
+      </view>
+      <picker mode="selector" range="{{storeList}}" range-key="name" value="{{currentStoreIndex}}" bindchange="onStoreChange">
+        <view class="store-chip">
+          <text class="store-chip-label">{{currentStoreName}}</text>
+          <text class="store-chip-arrow">▼</text>
+        </view>
+      </picker>
+    </view>
+    <view class="hero-foot">
+      <text class="hero-date">{{currentDate}}</text>
+      <view class="hero-role">{{userRoleName}}</view>
+    </view>
+  </view>
+
+  <view class="stats">
+    <view class="stat stat-sched" bindtap="onStatTap" data-type="today">
+      <view class="stat-head">
+        <text class="stat-dot dot-sched"></text>
+        <text class="stat-title">今日课程</text>
+      </view>
+      <text class="stat-val">{{stats.todaySchedules || 0}}</text>
+    </view>
+    <view class="stat stat-member" bindtap="onStatTap" data-type="members">
+      <view class="stat-head">
+        <text class="stat-dot dot-member"></text>
+        <text class="stat-title">会员总数</text>
+      </view>
+      <text class="stat-val">{{stats.totalMembers || 0}}</text>
+    </view>
+    <view class="stat stat-wait" bindtap="onStatTap" data-type="waitlist">
+      <view class="stat-head">
+        <text class="stat-dot dot-wait"></text>
+        <text class="stat-title">候补排队</text>
+      </view>
+      <text class="stat-val val-warn">{{stats.waitlistCount || 0}}</text>
+    </view>
+    <view class="stat stat-review" bindtap="onStatTap" data-type="reviews">
+      <view class="stat-head">
+        <text class="stat-dot dot-review"></text>
+        <text class="stat-title">待审核</text>
+      </view>
+      <text class="stat-val val-danger">{{stats.pendingReviews || 0}}</text>
+    </view>
+  </view>
+
+  <view class="alert" wx:if="{{scheduleEndAlert.visible}}" bindtap="onViewSchedule">
+    <view class="alert-left">
+      <text class="alert-dot"></text>
+      <text class="alert-msg">
+        <text wx:if="{{scheduleEndAlert.weeksLeft > 0}}">还剩<text class="alert-bold">{{scheduleEndAlert.weeksLeft}}</text>周</text>
+        <text wx:else>还剩<text class="alert-bold">{{scheduleEndAlert.daysLeft}}</text>天</text>
+        排课即将到期
+      </text>
+    </view>
+    <text class="alert-go">查看 ›</text>
+  </view>
+
+  <view class="section">
+    <view class="sec-hd">
+      <text class="sec-title">待办事项</text>
+      <text class="sec-more" bindtap="onViewAllTodos">全部 ›</text>
+    </view>
+    <view class="todos" wx:if="{{todos.length > 0}}">
+      <view class="todo {{item.urgent ? 'todo-urgent' : ''}}" wx:for="{{todos}}" wx:key="_id" wx:if="{{index < 4}}" data-item="{{item}}" bindtap="onTodoTap">
+        <view class="todo-left">
+          <view class="todo-dot {{item.urgent ? 'todo-dot-danger' : 'todo-dot-muted'}}"></view>
+          <text class="todo-text">{{item.title}}</text>
+        </view>
+        <view class="todo-right">
+          <text class="todo-badge" wx:if="{{item.count > 0}}">{{item.count}}{{item.unit}}</text>
+          <text class="todo-chevron">›</text>
+        </view>
+      </view>
+    </view>
+    <view class="empty" wx:else>
+      <text class="empty-text">暂无待办事项</text>
+    </view>
+  </view>
+
+  <view class="bnav">
+    <view class="bnav-item" bindtap="onGoToSchedule">
+      <text class="bnav-icon">◷</text>
+      <text class="bnav-label">排课</text>
+    </view>
+    <view class="bnav-item bnav-scan" bindtap="onScanSignIn">
+      <text class="bnav-icon bnav-scan-icon">◎</text>
+      <text class="bnav-label bnav-scan-label">扫码签到</text>
+    </view>
+    <view class="bnav-item" bindtap="onGoToBookings">
+      <text class="bnav-icon">☰</text>
+      <text class="bnav-label">预约</text>
+    </view>
+  </view>
+
+  <view class="modal-mask" wx:if="{{showDetailModal}}" bindtap="onCloseDetail">
+    <view class="modal" catchtap="onDetailTap">
+      <view class="modal-hd">
+        <text class="modal-title">{{detailTitle}}</text>
+        <view class="modal-close" bindtap="onCloseDetail">✕</view>
+      </view>
+      <scroll-view class="modal-bd" scroll-y>
+        <view class="modal-row" wx:for="{{detailList}}" wx:key="_id">
+          <view class="modal-cell">
+            <text class="modal-name">{{item.name || item.real_name || item.course_name || '--'}}</text>
+            <text class="modal-sub">{{item.course_name || item.time || item.phone || '--'}}</text>
+          </view>
+          <text class="modal-val {{item.status === 'pending' ? 'clr-warn' : 'clr-ok'}}">
+            {{item.status === 'pending' ? '待审核' : item.remaining ? item.remaining + '次 · 剩' + item.daysLeft + '天' : '正常'}}
+          </text>
+        </view>
+      </scroll-view>
+    </view>
+  </view>
+</view>

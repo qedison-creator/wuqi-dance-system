@@ -1,0 +1,108 @@
+<view class="package-logs-page">
+  <view class="tab-bar">
+    <view class="tab-item {{activeTab === 'activation' ? 'active' : ''}}" bindtap="onTabChange" data-tab="activation">
+      <text>激活记录</text>
+    </view>
+    <view class="tab-item {{activeTab === 'extension' ? 'active' : ''}}" bindtap="onTabChange" data-tab="extension">
+      <text>延长记录</text>
+    </view>
+  </view>
+
+  <view class="tab-content" wx:if="{{activeTab === 'activation'}}">
+    <view class="page-header">
+      <text class="page-title text-heading">套餐激活记录</text>
+    </view>
+
+    <view class="logs-list" wx:if="{{activationList.length > 0}}">
+      <view class="log-item card" wx:for="{{activationList}}" wx:key="_id">
+        <view class="log-header">
+          <text class="log-title">{{item.user_name || '未知会员'}}</text>
+          <text class="log-type">{{item.typeLabel}}</text>
+        </view>
+        <view class="log-body">
+          <view class="log-row">
+            <text class="log-label">套餐名称</text>
+            <text class="log-value">{{item.package_name || '-'}}</text>
+          </view>
+          <view class="log-row">
+            <text class="log-label">激活时间</text>
+            <text class="log-value">{{item.activated_at_display || '-'}}</text>
+          </view>
+          <view class="log-row">
+            <text class="log-label">生效日期</text>
+            <text class="log-value">{{item.effective_date_display || '-'}}</text>
+          </view>
+          <view class="log-row">
+            <text class="log-label">到期日期</text>
+            <text class="log-value">{{item.expire_date_display || '-'}}</text>
+          </view>
+          <view class="log-row" wx:if="{{item.operator_name}}">
+            <text class="log-label">操作人</text>
+            <text class="log-value">{{item.operator_name}}</text>
+          </view>
+          <view class="log-row" wx:if="{{item.remark}}">
+            <text class="log-label">备注</text>
+            <text class="log-value">{{item.remark}}</text>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <empty-state wx:if="{{!loading && activationList.length === 0}}" icon="📋" text="暂无激活记录"></empty-state>
+  </view>
+
+  <view class="tab-content" wx:if="{{activeTab === 'extension'}}">
+    <view class="page-header">
+      <text class="page-title text-heading">套餐有效期延长记录</text>
+    </view>
+
+    <view class="logs-list" wx:if="{{extensionList.length > 0}}">
+      <view class="log-item card" wx:for="{{extensionList}}" wx:key="_id">
+        <view class="log-header">
+          <text class="log-title">{{item.user_name || '未知会员'}}</text>
+          <text class="log-type">{{item.typeLabel}}</text>
+        </view>
+        <view class="log-body">
+          <view class="log-row">
+            <text class="log-label">套餐名称</text>
+            <text class="log-value">{{item.package_name || '-'}}</text>
+          </view>
+          <view class="log-row">
+            <text class="log-label">延长时间</text>
+            <text class="log-value">{{item.created_at_display || '-'}}</text>
+          </view>
+          <view class="log-row">
+            <text class="log-label">延长天数</text>
+            <text class="log-value highlight">+{{item.extend_days}}天</text>
+          </view>
+          <view class="log-row">
+            <text class="log-label">原到期日</text>
+            <text class="log-value">{{item.original_expire_display || '-'}}</text>
+          </view>
+          <view class="log-row">
+            <text class="log-label">新到期日</text>
+            <text class="log-value">{{item.new_expire_display || '-'}}</text>
+          </view>
+          <view class="log-row" wx:if="{{item.holiday_name}}">
+            <text class="log-label">关联放假</text>
+            <text class="log-value">{{item.holiday_name}}</text>
+          </view>
+          <view class="log-row" wx:if="{{item.operator_name}}">
+            <text class="log-label">操作人</text>
+            <text class="log-value">{{item.operator_name}}</text>
+          </view>
+          <view class="log-row" wx:if="{{item.remark}}">
+            <text class="log-label">备注</text>
+            <text class="log-value">{{item.remark}}</text>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <empty-state wx:if="{{!loading && extensionList.length === 0}}" icon="📋" text="暂无延长记录"></empty-state>
+  </view>
+
+  <view class="loading" wx:if="{{loading}}">
+    <text class="load-more">加载中...</text>
+  </view>
+</view>

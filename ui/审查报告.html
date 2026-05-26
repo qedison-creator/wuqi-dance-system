@@ -1,0 +1,690 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>舞栖舞蹈社系统审查报告</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px;
+            text-align: center;
+        }
+        .header h1 { font-size: 32px; margin-bottom: 10px; }
+        .summary-bar {
+            background: #f8f9fa;
+            padding: 20px 40px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+        .summary-stats { display: flex; gap: 30px; }
+        .stat { text-align: center; }
+        .stat-number { font-size: 32px; font-weight: bold; color: #667eea; }
+        .stat-label { font-size: 14px; color: #666; margin-top: 5px; }
+        .actions { display: flex; gap: 10px; }
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .btn-secondary { background: #f0f0f0; color: #333; }
+        .nav-tabs {
+            display: flex;
+            background: #f8f9fa;
+            border-bottom: 1px solid #e0e0e0;
+            padding: 0 40px;
+            overflow-x: auto;
+        }
+        .nav-tab {
+            padding: 16px 24px;
+            cursor: pointer;
+            border: none;
+            background: none;
+            font-size: 15px;
+            font-weight: 500;
+            color: #666;
+            position: relative;
+            white-space: nowrap;
+        }
+        .nav-tab.active { color: #667eea; }
+        .nav-tab.active::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .tab-content { padding: 40px; display: none; }
+        .tab-content.active { display: block; }
+        .category { margin-bottom: 40px; }
+        .category-title {
+            font-size: 20px;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #667eea;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .item-list { display: flex; flex-direction: column; gap: 12px; }
+        .item {
+            display: flex;
+            align-items: flex-start;
+            padding: 16px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            border: 2px solid transparent;
+            transition: all 0.3s;
+        }
+        .item.checked { background: #e8f5e9; border-color: #4caf50; }
+        .item-checkbox {
+            margin-right: 16px;
+            margin-top: 4px;
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+            accent-color: #667eea;
+        }
+        .item-content { flex: 1; }
+        .item-header { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+        .item-priority {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .priority-p0 { background: #ffebee; color: #c62828; }
+        .priority-p1 { background: #fff3e0; color: #e65100; }
+        .priority-p2 { background: #e3f2fd; color: #1565c0; }
+        .item-title { font-size: 16px; font-weight: 600; color: #333; }
+        .item-description { font-size: 14px; color: #666; line-height: 1.6; }
+        .item-meta {
+            margin-top: 10px;
+            display: flex;
+            gap: 20px;
+            font-size: 13px;
+            color: #888;
+        }
+        .progress-section {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px;
+            margin: 0 -40px 40px -40px;
+        }
+        .progress-bar {
+            height: 12px;
+            background: rgba(255,255,255,0.3);
+            border-radius: 6px;
+            overflow: hidden;
+            margin-top: 10px;
+        }
+        .progress-fill {
+            height: 100%;
+            background: white;
+            border-radius: 6px;
+            transition: width 0.3s;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal.active { display: flex; }
+        .modal-content {
+            background: white;
+            border-radius: 16px;
+            max-width: 700px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+            padding: 40px;
+        }
+        .modal-title { font-size: 24px; font-weight: bold; margin-bottom: 20px; }
+        .modal-footer { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
+        .selected-item {
+            padding: 12px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            margin-bottom: 8px;
+        }
+        @media (max-width: 768px) {
+            .container { border-radius: 0; }
+            .header { padding: 30px 20px; }
+            .summary-bar { padding: 20px; flex-direction: column; }
+            .tab-content { padding: 20px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>💃 舞栖舞蹈社系统审查报告</h1>
+            <p>请勾选您需要修改的项目，勾选后可导出清单</p>
+        </div>
+
+        <div class="summary-bar">
+            <div class="summary-stats">
+                <div class="stat">
+                    <div class="stat-number" id="totalCount">48</div>
+                    <div class="stat-label">总项目</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-number" id="selectedCount">0</div>
+                    <div class="stat-label">已选中</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-number" id="p0Count">0</div>
+                    <div class="stat-label">P0 紧急</div>
+                </div>
+            </div>
+            <div class="actions">
+                <button class="btn btn-secondary" onclick="selectAll()">全选</button>
+                <button class="btn btn-secondary" onclick="deselectAll()">取消全选</button>
+                <button class="btn btn-primary" onclick="showSummary()">查看已选</button>
+                <button class="btn btn-primary" onclick="exportSelected()">导出清单</button>
+            </div>
+        </div>
+
+        <div class="nav-tabs">
+            <button class="nav-tab active" onclick="switchTab('p0')">🔴 P0 紧急</button>
+            <button class="nav-tab" onclick="switchTab('p1')">🟡 P1 重要</button>
+            <button class="nav-tab" onclick="switchTab('p2')">🟢 P2 一般</button>
+            <button class="nav-tab" onclick="switchTab('all')">📋 全部</button>
+        </div>
+
+        <!-- P0 紧急 -->
+        <div class="tab-content active" id="tab-p0">
+            <div class="progress-section">
+                <div>P0 紧急项目进度</div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progress-p0" style="width: 0%"></div>
+                </div>
+                <div style="margin-top:8px;opacity:0.9;" id="progress-text-p0">已选 0 / 20 项</div>
+            </div>
+            <div class="category">
+                <div class="category-title">
+                    <span>1. 数据模型补充</span>
+                    <button class="btn btn-secondary" style="padding:6px 12px;font-size:12px;" onclick="selectCategory('data-model')">全选此分类</button>
+                </div>
+                <div class="item-list" data-category="data-model">
+                    <div class="item" data-priority="p0">
+                        <input type="checkbox" class="item-checkbox" onchange="updateStats()">
+                        <div class="item-content">
+                            <div class="item-header">
+                                <span class="item-priority priority-p0">P0</span>
+                                <span class="item-title">User模型添加双手机号字段</span>
+                            </div>
+                            <div class="item-description">添加 wechat_phone（微信授权手机号）和 reserve_phone（用户自主填写手机号）字段</div>
+                            <div class="item-meta">
+                                <span>📍 涉及文件：User.js</span>
+                                <span>⏱️ 预计工作量：0.5天</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="item" data-priority="p0">
+                        <input type="checkbox" class="item-checkbox" onchange="updateStats()">
+                        <div class="item-content">
+                            <div class="item-header">
+                                <span class="item-priority priority-p0">P0</span>
+                                <span class="item-title">User模型添加会员信息字段</span>
+                            </div>
+                            <div class="item-description">添加 member_code（会员编码）、info_completed（信息是否完整）</div>
+                            <div class="item-meta">
+                                <span>📍 涉及文件：User.js</span>
+                                <span>⏱️ 预计工作量：0.5天</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="item" data-priority="p0">
+                        <input type="checkbox" class="item-checkbox" onchange="updateStats()">
+                        <div class="item-content">
+                            <div class="item-header">
+                                <span class="item-priority priority-p0">P0</span>
+                                <span class="item-title">创建套餐激活记录表 PackageActivation</span>
+                            </div>
+                            <div class="item-description">用于区分首次预约激活和强制激活，单独留存激活记录</div>
+                            <div class="item-meta">
+                                <span>📍 涉及文件：新建</span>
+                                <span>⏱️ 预计工作量：1天</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="item" data-priority="p0">
+                        <input type="checkbox" class="item-checkbox" onchange="updateStats()">
+                        <div class="item-content">
+                            <div class="item-header">
+                                <span class="item-priority priority-p0">P0</span>
+                                <span class="item-title">创建套餐有效期延长记录表 PackageExtension</span>
+                            </div>
+                            <div class="item-description">记录放假期间套餐有效期延长和撤销的历史，便于追溯</div>
+                            <div class="item-meta">
+                                <span>📍 涉及文件：新建</span>
+                                <span>⏱️ 预计工作量：1天</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="category">
+                <div class="category-title">
+                    <span>2. 会员状态与身份体系</span>
+                    <button class="btn btn-secondary" style="padding:6px 12px;font-size:12px;" onclick="selectCategory('member-status')">全选此分类</button>
+                </div>
+                <div class="item-list" data-category="member-status">
+                    <div class="item" data-priority="p0">
+                        <input type="checkbox" class="item-checkbox" onchange="updateStats()">
+                        <div class="item-content">
+                            <div class="item-header">
+                                <span class="item-priority priority-p0">P0</span>
+                                <span class="item-title">实现会员自主填写信息强制校验</span>
+                            </div>
+                            <div class="item-description">审核通过的会员必须先自主填写完整信息才能预约</div>
+                            <div class="item-meta">
+                                <span>📍 涉及文件：member.service.js, booking.service.js</span>
+                                <span>⏱️ 预计工作量：1天</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="item" data-priority="p0">
+                        <input type="checkbox" class="item-checkbox" onchange="updateStats()">
+                        <div class="item-content">
+                            <div class="item-header">
+                                <span class="item-priority priority-p0">P0</span>
+                                <span class="item-title">实现套餐强制激活定时任务（2个月）</span>
+                            </div>
+                            <div class="item-description">录入套餐后2个月未激活则系统自动强制激活</div>
+                            <div class="item-meta">
+                                <span>📍 涉及文件：scheduler.js, package.service.js</span>
+                                <span>⏱️ 预计工作量：1天</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="item" data-priority="p0">
+                        <input type="checkbox" class="item-checkbox" onchange="updateStats()">
+                        <div class="item-content">
+                            <div class="item-header">
+                                <span class="item-priority priority-p0">P0</span>
+                                <span class="item-title">实现未激活会员预约弹窗提示激活</span>
+                            </div>
+                            <div class="item-description">未激活会员点击预约时弹窗提示"您的套餐已首次预约自动激活"</div>
+                            <div class="item-meta">
+                                <span>📍 涉及文件：会员端booking页面</span>
+                                <span>⏱️ 预计工作量：1天</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="item" data-priority="p0">
+                        <input type="checkbox" class="item-checkbox" onchange="updateStats()">
+                        <div class="item-content">
+                            <div class="item-header">
+                                <span class="item-priority priority-p0">P0</span>
+                                <span class="item-title">完善5种会员状态的业务逻辑</span>
+                            </div>
+                            <div class="item-description">未激活、使用中、节次耗尽、已过期、已停卡状态的完整流转和判断逻辑</div>
+                            <div class="item-meta">
+                                <span>📍 涉及文件：package.service.js, member.service.js</span>
+                                <span>⏱️ 预计工作量：1天</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- P1 重要 -->
+        <div class="tab-content" id="tab-p1">
+            <div class="progress-section">
+                <div>P1 重要项目进度</div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progress-p1" style="width: 0%"></div>
+                </div>
+                <div style="margin-top:8px;opacity:0.9;" id="progress-text-p1">已选 0 / 16 项</div>
+            </div>
+            <div class="category">
+                <div class="category-title">
+                    <span>6. 会员信息管理</span>
+                    <button class="btn btn-secondary" style="padding:6px 12px;font-size:12px;" onclick="selectCategory('member-info')">全选此分类</button>
+                </div>
+                <div class="item-list" data-category="member-info">
+                    <div class="item" data-priority="p1">
+                        <input type="checkbox" class="item-checkbox" onchange="updateStats()">
+                        <div class="item-content">
+                            <div class="item-header">
+                                <span class="item-priority priority-p1">P1</span>
+                                <span class="item-title">实现双手机号独立存储与展示</span>
+                            </div>
+                            <div class="item-description">微信授权手机号和用户自主填写手机号独立存储</div>
+                            <div class="item-meta">
+                                <span>📍 涉及文件：User.js, 管理端会员页</span>
+                                <span>⏱️ 预计工作量：1天</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="item" data-priority="p1">
+                        <input type="checkbox" class="item-checkbox" onchange="updateStats()">
+                        <div class="item-content">
+                            <div class="item-header">
+                                <span class="item-priority priority-p1">P1</span>
+                                <span class="item-title">实现动态防截图二维码</span>
+                            </div>
+                            <div class="item-description">会员端生成动态二维码用于签到，防止截图盗用</div>
+                            <div class="item-meta">
+                                <span>📍 涉及文件：会员端个人中心</span>
+                                <span>⏱️ 预计工作量：1天</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- P2 一般 -->
+        <div class="tab-content" id="tab-p2">
+            <div class="progress-section">
+                <div>P2 一般项目进度</div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progress-p2" style="width: 0%"></div>
+                </div>
+                <div style="margin-top:8px;opacity:0.9;" id="progress-text-p2">已选 0 / 12 项</div>
+            </div>
+            <div class="category">
+                <div class="category-title">
+                    <span>11. 教练薪酬管理</span>
+                    <button class="btn btn-secondary" style="padding:6px 12px;font-size:12px;" onclick="selectCategory('coach-salary')">全选此分类</button>
+                </div>
+                <div class="item-list" data-category="coach-salary">
+                    <div class="item" data-priority="p2">
+                        <input type="checkbox" class="item-checkbox" onchange="updateStats()">
+                        <div class="item-content">
+                            <div class="item-header">
+                                <span class="item-priority priority-p2">P2</span>
+                                <span class="item-title">实现教练薪酬设置功能</span>
+                            </div>
+                            <div class="item-description">按课程时长为教练单独设置薪酬单价</div>
+                            <div class="item-meta">
+                                <span>📍 涉及文件：新建薪酬设置页</span>
+                                <span>⏱️ 预计工作量：2天</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 全部 -->
+        <div class="tab-content" id="tab-all">
+            <div class="progress-section">
+                <div>全部项目进度</div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progress-all" style="width: 0%"></div>
+                </div>
+                <div style="margin-top:8px;opacity:0.9;" id="progress-text-all">已选 0 / 48 项</div>
+            </div>
+            <div id="all-items-container"></div>
+        </div>
+    </div>
+
+    <!-- 汇总弹窗 -->
+    <div class="modal" id="summaryModal">
+        <div class="modal-content">
+            <h2 class="modal-title">📋 已选中项目汇总</h2>
+            <div id="selectedList"></div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal()">关闭</button>
+                <button class="btn btn-primary" onclick="exportSelected()">导出清单</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const totalP0 = 20;
+        const totalP1 = 16;
+        const totalP2 = 12;
+        const totalAll = 48;
+
+        document.addEventListener('DOMContentLoaded', function() {
+            loadFromStorage();
+            updateStats();
+            renderAllItems();
+        });
+
+        function switchTab(tab) {
+            document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            document.querySelector(`[onclick="switchTab('${tab}')"]`).classList.add('active');
+            document.getElementById(`tab-${tab}`).classList.add('active');
+        }
+
+        function updateStats() {
+            const allItems = document.querySelectorAll('.item-checkbox');
+            const p0Items = document.querySelectorAll('.item[data-priority="p0"] .item-checkbox:checked');
+            const p1Items = document.querySelectorAll('.item[data-priority="p1"] .item-checkbox:checked');
+            const p2Items = document.querySelectorAll('.item[data-priority="p2"] .item-checkbox:checked');
+            const selectedCount = allItems.filter(i => i.checked).length;
+
+            document.getElementById('totalCount').textContent = totalAll;
+            document.getElementById('selectedCount').textContent = selectedCount;
+            document.getElementById('p0Count').textContent = p0Items.length;
+
+            updateProgress('p0', p0Items.length, totalP0);
+            updateProgress('p1', p1Items.length, totalP1);
+            updateProgress('p2', p2Items.length, totalP2);
+            updateProgress('all', selectedCount, totalAll);
+
+            document.querySelectorAll('.item').forEach(item => {
+                const checkbox = item.querySelector('.item-checkbox');
+                if (checkbox.checked) item.classList.add('checked');
+                else item.classList.remove('checked');
+            });
+
+            saveToStorage();
+        }
+
+        function updateProgress(priority, selected, total) {
+            const percent = Math.round((selected / total) * 100);
+            const fill = document.getElementById(`progress-${priority}`);
+            const text = document.getElementById(`progress-text-${priority}`);
+            if (fill) fill.style.width = percent + '%';
+            if (text) text.textContent = `已选 ${selected} / ${total} 项`;
+        }
+
+        function selectAll() {
+            document.querySelectorAll('.item-checkbox').forEach(cb => cb.checked = true);
+            updateStats();
+        }
+
+        function deselectAll() {
+            document.querySelectorAll('.item-checkbox').forEach(cb => cb.checked = false);
+            updateStats();
+        }
+
+        function selectCategory(category) {
+            document.querySelectorAll(`[data-category="${category}"] .item-checkbox`).forEach(cb => cb.checked = true);
+            updateStats();
+        }
+
+        function showSummary() {
+            const selectedItems = document.querySelectorAll('.item-checkbox:checked');
+            const list = document.getElementById('selectedList');
+            
+            if (selectedItems.length === 0) {
+                list.innerHTML = '<p style="text-align:center;color:#888;padding:40px;">暂未选择任何项目</p>';
+            } else {
+                let html = '';
+                let p0Count = 0, p1Count = 0, p2Count = 0;
+                
+                selectedItems.forEach(cb => {
+                    const item = cb.closest('.item');
+                    const title = item.querySelector('.item-title').textContent;
+                    const desc = item.querySelector('.item-description').textContent;
+                    const priority = item.dataset.priority || 'p0';
+                    
+                    if (priority === 'p0') p0Count++;
+                    else if (priority === 'p1') p1Count++;
+                    else if (priority === 'p2') p2Count++;
+                    
+                    const priorityClass = `priority-${priority}`;
+                    const priorityText = priority.toUpperCase();
+                    
+                    html += `
+                        <div class="selected-item">
+                            <span class="item-priority ${priorityClass}">${priorityText}</span>
+                            <strong>${title}</strong>
+                            <p style="margin-top:8px;color:#666;font-size:14px;">${desc}</p>
+                        </div>
+                    `;
+                });
+                
+                const summary = `
+                    <div style="margin-bottom:20px;padding:16px;background:#f8f9fa;border-radius:10px;">
+                        <strong>统计：</strong> P0: ${p0Count} 项 | P1: ${p1Count} 项 | P2: ${p2Count} 项 | 总计: ${selectedItems.length} 项
+                    </div>
+                `;
+                list.innerHTML = summary + html;
+            }
+            
+            document.getElementById('summaryModal').classList.add('active');
+        }
+
+        function closeModal() {
+            document.getElementById('summaryModal').classList.remove('active');
+        }
+
+        function exportSelected() {
+            const selectedItems = document.querySelectorAll('.item-checkbox:checked');
+            
+            if (selectedItems.length === 0) {
+                alert('请先选择需要修改的项目');
+                return;
+            }
+
+            let markdown = '# 舞栖舞蹈社系统修改清单\n\n';
+            markdown += `> 生成时间：${new Date().toLocaleString('zh-CN')}\n\n`;
+            
+            let p0Count = 0, p1Count = 0, p2Count = 0;
+            selectedItems.forEach(cb => {
+                const item = cb.closest('.item');
+                const priority = item.dataset.priority || 'p0';
+                if (priority === 'p0') p0Count++;
+                else if (priority === 'p1') p1Count++;
+                else if (priority === 'p2') p2Count++;
+            });
+
+            markdown += `## 统计\n\n`;
+            markdown += `- P0 紧急: ${p0Count} 项\n`;
+            markdown += `- P1 重要: ${p1Count} 项\n`;
+            markdown += `- P2 一般: ${p2Count} 项\n`;
+            markdown += `- **总计: ${selectedItems.length} 项**\n\n`;
+            markdown += `---\n\n`;
+
+            let currentPriority = '';
+            selectedItems.forEach(cb => {
+                const item = cb.closest('.item');
+                const title = item.querySelector('.item-title').textContent;
+                const desc = item.querySelector('.item-description').textContent;
+                const priority = item.dataset.priority || 'p0';
+                const meta = item.querySelector('.item-meta');
+                const metaText = meta ? meta.textContent : '';
+
+                if (priority !== currentPriority) {
+                    currentPriority = priority;
+                    const label = priority === 'p0' ? 'P0 紧急' : priority === 'p1' ? 'P1 重要' : 'P2 一般';
+                    markdown += `## ${label}\n\n`;
+                }
+
+                markdown += `### ${title}\n\n`;
+                markdown += `${desc}\n\n`;
+                markdown += `**说明:** ${metaText}\n\n`;
+                markdown += `---\n\n`;
+            });
+
+            const blob = new Blob([markdown], { type: 'text/markdown;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = '舞栖舞蹈社系统修改清单.md';
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        function saveToStorage() {
+            const selected = [];
+            document.querySelectorAll('.item-checkbox').forEach((cb, index) => {
+                if (cb.checked) selected.push(index);
+            });
+            localStorage.setItem('wuqi-audit-selection', JSON.stringify(selected));
+        }
+
+        function loadFromStorage() {
+            const saved = localStorage.getItem('wuqi-audit-selection');
+            if (saved) {
+                const selected = JSON.parse(saved);
+                document.querySelectorAll('.item-checkbox').forEach((cb, index) => {
+                    if (selected.includes(index)) cb.checked = true;
+                });
+            }
+        }
+
+        function renderAllItems() {
+            const container = document.getElementById('all-items-container');
+            const allTabs = ['tab-p0', 'tab-p1', 'tab-p2'];
+            let html = '';
+            
+            allTabs.forEach(tabId => {
+                const tab = document.getElementById(tabId);
+                if (tab) {
+                    const categories = tab.querySelectorAll('.category');
+                    categories.forEach(category => {
+                        html += category.outerHTML;
+                    });
+                }
+            });
+            
+            container.innerHTML = html;
+            
+            container.querySelectorAll('.item-checkbox').forEach(cb => {
+                cb.onchange = updateStats;
+            });
+        }
+    </script>
+</body>
+</html>

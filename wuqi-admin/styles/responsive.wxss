@@ -1,0 +1,42 @@
+/* ===== 素练流影 — 响应式布局 ===== */
+
+page {
+  --container-padding: 24rpx;
+  --card-gap: 16rpx;
+  --section-spacing: 32rpx;
+}
+
+@media (min-width: 667px) {
+  page {
+    --container-padding: 32rpx;
+    --card-gap: 20rpx;
+  }
+  .stats-grid { grid-template-columns: repeat(4, 1fr) !important; }
+  .grid-2 { grid-template-columns: repeat(4, 1fr) !important; }
+}
+
+@media (min-width: 768px) {
+  page {
+    --container-padding: 48rpx;
+  }
+  .container {
+    padding: 0 var(--container-padding);
+    max-width: 960rpx;
+    margin: 0 auto;
+  }
+  .modal-content { width: min(75%, 700rpx) !important; }
+}
+
+@media (min-width: 1024px) {
+  page { --container-padding: 64rpx; }
+  .container { max-width: 1200rpx; }
+}
+
+@media (max-width: 375px) {
+  .stats-grid { grid-template-columns: repeat(2, 1fr) !important; gap: 12rpx; }
+  .grid-2 { grid-template-columns: repeat(2, 1fr) !important; gap: 12rpx; }
+  .container { padding: 0 16rpx; }
+}
+
+.safe-area-bottom { padding-bottom: env(safe-area-inset-bottom); }
+.safe-area-top { padding-top: env(safe-area-inset-top); }

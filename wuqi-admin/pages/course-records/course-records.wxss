@@ -1,0 +1,403 @@
+.course-records-page {
+  padding: 20rpx;
+  padding-bottom: 40rpx;
+}
+
+/* 页面标题 */
+.page-header {
+  margin-bottom: 24rpx;
+}
+
+.page-title {
+  font-size: 36rpx;
+  font-weight: bold;
+  color: var(--text-primary);
+}
+
+/* 门店切换 */
+.store-tabs {
+  margin-bottom: 20rpx;
+}
+
+.store-scroll {
+  white-space: nowrap;
+}
+
+.store-list {
+  display: flex;
+  gap: 16rpx;
+  padding: 10rpx 0;
+}
+
+.store-item {
+  padding: 16rpx 32rpx;
+  background-color: var(--bg-card);
+  border-radius: 32rpx;
+  border: 2rpx solid transparent;
+}
+
+.store-item.active {
+  background-color: rgba(197, 116, 75, 0.15);
+  border-color: var(--color-primary);
+}
+
+.store-item text {
+  font-size: 28rpx;
+  color: var(--text-primary);
+}
+
+.store-item.active text {
+  color: var(--color-primary);
+  font-weight: bold;
+}
+
+/* 月视图 */
+.month-section {
+  background-color: var(--bg-card);
+  border-radius: 20rpx;
+  padding: 20rpx;
+  margin-bottom: 20rpx;
+  border: 1rpx solid var(--border);
+}
+
+.month-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20rpx;
+}
+
+.month-nav-btn {
+  width: 60rpx;
+  height: 60rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--border);
+  border-radius: 30rpx;
+}
+
+.month-nav-btn text {
+  font-size: 24rpx;
+  color: var(--text-primary);
+}
+
+.month-title {
+  font-size: 32rpx;
+  color: var(--text-primary);
+  font-weight: bold;
+}
+
+/* 图例容器 */
+.legend-container {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 24rpx;
+  padding: 20rpx 0;
+  margin-bottom: 8rpx;
+  border-bottom: 1rpx solid var(--border);
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 10rpx;
+}
+
+.legend-box {
+  width: 32rpx;
+  height: 32rpx;
+  border-radius: 8rpx;
+}
+
+.legend-normal {
+  background-color: #4DB8A0;
+}
+
+.legend-cancelled {
+  background-color: #D4786E;
+}
+
+.legend-mixed {
+  background: linear-gradient(90deg, #4DB8A0 0%, #D4786E 50%, #B89CDA 100%);
+}
+
+.legend-holiday {
+  background-color: #B89CDA;
+}
+
+.legend-text {
+  font-size: 24rpx;
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.weekday-header {
+  display: flex;
+  flex-wrap: wrap;
+  padding: 16rpx 0;
+  border-bottom: 1rpx solid var(--border);
+}
+
+.weekday-header text {
+  font-size: 24rpx;
+  color: var(--text-secondary);
+  width: 14.28%;
+  text-align: center;
+}
+
+.month-calendar {
+  padding-top: 16rpx;
+}
+
+.calendar-week {
+  display: flex;
+  flex-wrap: nowrap;
+}
+
+.calendar-cell {
+  width: 14.28%;
+  height: 80rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.calendar-cell.empty {
+  background-color: transparent;
+}
+
+.calendar-cell.date {
+  background-color: var(--border);
+  border-radius: 12rpx;
+  margin: 4rpx;
+  width: calc(14.28% - 8rpx);
+  box-sizing: border-box;
+}
+
+/* 日期状态边框 */
+.calendar-cell.day-status-normal {
+  background-color: rgba(77, 184, 160, 0.12);
+  border: 2rpx solid transparent;
+}
+
+.calendar-cell.day-status-cancelled {
+  background-color: rgba(212, 120, 110, 0.12);
+  border: 2rpx solid transparent;
+}
+
+.calendar-cell.day-status-mixed {
+  background-color: rgba(255, 193, 7, 0.12);
+  border: 2rpx solid transparent;
+}
+
+.calendar-cell.day-status-holiday {
+  background-color: rgba(184, 156, 218, 0.12);
+  border: 2rpx solid transparent;
+}
+
+/* 日期状态横条 */
+.status-bar {
+  position: absolute;
+  bottom: 4rpx;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 50rpx;
+  height: 10rpx;
+  border-radius: 5rpx;
+}
+
+.status-bar-normal {
+  background-color: #4DB8A0;
+}
+
+.status-bar-cancelled {
+  background-color: #D4786E;
+}
+
+.status-bar-mixed {
+  background: linear-gradient(90deg, #4DB8A0 0%, #FFD700 33%, #D4786E 66%, #B89CDA 100%);
+}
+
+.status-bar-holiday {
+  background-color: #B89CDA;
+}
+
+.calendar-cell.date text {
+  font-size: 28rpx;
+  color: var(--text-primary);
+}
+
+.calendar-cell.past {
+  background-color: var(--bg-root);
+}
+
+.calendar-cell.past text {
+  color: var(--text-tertiary);
+}
+
+.calendar-cell.today {
+  background-color: rgba(197, 116, 75, 0.2);
+  border: 1rpx solid var(--color-primary);
+}
+
+.calendar-cell.today text {
+  color: var(--color-primary);
+  font-weight: bold;
+}
+
+.calendar-cell.selected {
+  background-color: var(--color-primary);
+}
+
+.calendar-cell.selected text {
+  color: var(--text-inverse);
+  font-weight: bold;
+}
+
+/* 日期显示 */
+.date-display {
+  background-color: rgba(94, 85, 120, 0.2);
+  border-left: 4rpx solid var(--color-primary);
+  padding: 16rpx 24rpx;
+  margin-bottom: 20rpx;
+  border-radius: 8rpx;
+}
+
+.date-label {
+  font-size: 28rpx;
+  color: var(--color-primary);
+}
+
+/* 历史课程样式 */
+.schedule-item.history {
+  background-color: var(--bg-card);
+  opacity: 1;
+}
+
+.schedule-item.history .course-name {
+  color: var(--text-primary);
+}
+
+.schedule-item.history .info-row .value {
+  color: var(--text-secondary);
+}
+
+.schedule-status.history-status {
+  background-color: rgba(94, 85, 120, 0.3) !important;
+  color: var(--text-secondary) !important;
+}
+
+/* 课程列表 */
+.schedule-list {
+  display: flex;
+  flex-direction: column;
+  gap: 20rpx;
+}
+
+.schedule-item {
+  padding: 24rpx;
+}
+
+.schedule-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16rpx;
+}
+
+.course-name {
+  font-size: 32rpx;
+  color: var(--text-primary);
+  font-weight: bold;
+}
+
+.schedule-status {
+  font-size: 24rpx;
+  padding: 6rpx 16rpx;
+  border-radius: 8rpx;
+}
+
+.schedule-status.available {
+  background-color: rgba(6, 214, 160, 0.2);
+  color: var(--color-success);
+}
+
+.schedule-status.full {
+  background-color: rgba(196, 75, 75, 0.2);
+  color: var(--color-danger);
+}
+
+.schedule-status.cancelled,
+.schedule-status.offline {
+  background-color: rgba(155, 147, 184, 0.2);
+  color: var(--text-secondary);
+}
+
+.schedule-status.not_open {
+  background-color: rgba(255, 107, 53, 0.2);
+  color: var(--color-warning);
+}
+
+.schedule-info {
+  margin-bottom: 20rpx;
+}
+
+.info-row {
+  display: flex;
+  margin-bottom: 10rpx;
+}
+
+.info-row .label {
+  font-size: 26rpx;
+  color: var(--text-secondary);
+  width: 140rpx;
+}
+
+.info-row .value {
+  font-size: 26rpx;
+  color: var(--text-primary);
+  flex: 1;
+}
+
+.schedule-actions {
+  display: flex;
+  gap: 16rpx;
+  padding-top: 16rpx;
+  border-top: 1rpx solid var(--border);
+}
+
+.action-btn {
+  padding: 12rpx 24rpx;
+  background-color: var(--border);
+  border-radius: 14rpx;
+}
+
+.action-btn text {
+  font-size: 26rpx;
+  color: var(--text-primary);
+}
+
+.action-btn.history-action {
+  background-color: rgba(197, 116, 75, 0.15);
+}
+
+.action-btn.history-action text {
+  color: var(--color-primary);
+}
+
+/* 空状态 */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 80rpx 0;
+}
+
+.empty-text {
+  font-size: 28rpx;
+  color: var(--text-tertiary);
+  margin-bottom: 30rpx;
+}

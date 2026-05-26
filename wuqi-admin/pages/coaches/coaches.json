@@ -1,0 +1,6 @@
+{
+  "navigationBarTitleText": "教练管理",
+  "usingComponents": {
+    "empty-state": "/components/empty-state/empty-state"
+  }
+}

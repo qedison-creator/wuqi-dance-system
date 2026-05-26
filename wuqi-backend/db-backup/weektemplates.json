@@ -1,0 +1,322 @@
+[
+  {
+    "_id": "6a05903fe9afbf8080508389",
+    "store_id": "69fbf63456465be2d1b67aeb",
+    "template": {
+      "0": [
+        {
+          "template_id": "1778754819634",
+          "course_name": "古典舞",
+          "dance_style_id": "69fbf63456465be2d1b67aed",
+          "dance_style_name": "古典舞",
+          "coach_id": "69fc15060a51d5b9d9f2a43b",
+          "coach_name": "滚滚",
+          "start_time": "19:45",
+          "end_time": "21:00",
+          "duration": 75,
+          "classroom": "",
+          "max_bookings": 20,
+          "min_bookings": 5,
+          "booking_deadline": 180,
+          "cancel_booking_deadline": 120
+        }
+      ],
+      "1": [
+        {
+          "template_id": "1778754399790",
+          "course_name": "爵士舞",
+          "dance_style_id": "69fbf63456465be2d1b67aec",
+          "dance_style_name": "爵士舞",
+          "coach_id": "69fc1548f334a30b19eeb560",
+          "coach_name": "Ling",
+          "start_time": "19:15",
+          "end_time": "20:30",
+          "duration": 75,
+          "classroom": "",
+          "max_bookings": 20,
+          "min_bookings": 5,
+          "booking_deadline": 180,
+          "cancel_deadline": 120,
+          "credits_cost": 1,
+          "enabled": true
+        },
+        {
+          "template_id": "1778754422239",
+          "course_name": "古典舞",
+          "dance_style_id": "69fbf63456465be2d1b67aed",
+          "dance_style_name": "古典舞",
+          "coach_id": "69fc15060a51d5b9d9f2a43b",
+          "coach_name": "滚滚",
+          "start_time": "20:35",
+          "end_time": "21:50",
+          "duration": 75,
+          "classroom": "",
+          "max_bookings": 20,
+          "min_bookings": 5,
+          "booking_deadline": 180,
+          "cancel_booking_deadline": 120
+        }
+      ],
+      "2": [
+        {
+          "template_id": "1778754839220",
+          "course_name": "爵士舞",
+          "dance_style_id": "69fbf63456465be2d1b67aec",
+          "dance_style_name": "爵士舞",
+          "coach_id": "69fc0ffb0a51d5b9d9f2a43a",
+          "coach_name": "茉莉",
+          "start_time": "19:15",
+          "end_time": "20:30",
+          "duration": 75,
+          "classroom": "",
+          "max_bookings": 20,
+          "min_bookings": 5,
+          "booking_deadline": 180,
+          "cancel_booking_deadline": 120
+        }
+      ],
+      "3": [
+        {
+          "template_id": "1778754447997",
+          "course_name": "街舞基本功",
+          "dance_style_id": "69fbf63456465be2d1b67aee",
+          "dance_style_name": "街舞",
+          "coach_id": "69fc0ffb0a51d5b9d9f2a43a",
+          "coach_name": "茉莉",
+          "start_time": "19:30",
+          "end_time": "20:30",
+          "duration": 60,
+          "classroom": "",
+          "max_bookings": 20,
+          "min_bookings": 5,
+          "booking_deadline": 180,
+          "cancel_booking_deadline": 120
+        }
+      ],
+      "4": [
+        {
+          "template_id": "1778754574284",
+          "course_name": "韩舞",
+          "dance_style_id": "69fbf63456465be2d1b67aef",
+          "dance_style_name": "韩舞",
+          "coach_id": "69fc152ad21fc3cbc4563b5f",
+          "coach_name": "雅婷",
+          "start_time": "19:15",
+          "end_time": "20:30",
+          "duration": 75,
+          "classroom": "",
+          "max_bookings": 20,
+          "min_bookings": 5,
+          "booking_deadline": 180,
+          "cancel_booking_deadline": 120
+        }
+      ],
+      "5": [
+        {
+          "template_id": "1778754600301",
+          "course_name": "抖音舞",
+          "dance_style_id": "69fc0f010a51d5b9d9f2a437",
+          "dance_style_name": "抖音舞",
+          "coach_id": "69fc0ffb0a51d5b9d9f2a43a",
+          "coach_name": "茉莉",
+          "start_time": "19:15",
+          "end_time": "20:30",
+          "duration": 75,
+          "classroom": "",
+          "max_bookings": 20,
+          "min_bookings": 5,
+          "booking_deadline": 180,
+          "cancel_booking_deadline": 120
+        },
+        {
+          "template_id": "1778754630784",
+          "course_name": "街舞",
+          "dance_style_id": "69fbf63456465be2d1b67aee",
+          "dance_style_name": "街舞",
+          "coach_id": "69fc152ad21fc3cbc4563b5f",
+          "coach_name": "雅婷",
+          "start_time": "20:30",
+          "end_time": "21:45",
+          "duration": 75,
+          "classroom": "",
+          "max_bookings": 20,
+          "min_bookings": 5,
+          "booking_deadline": 180,
+          "cancel_booking_deadline": 120
+        }
+      ],
+      "6": [
+        {
+          "template_id": "1778754802870",
+          "course_name": "古典舞",
+          "dance_style_id": "69fbf63456465be2d1b67aed",
+          "dance_style_name": "古典舞",
+          "coach_id": "69fc15060a51d5b9d9f2a43b",
+          "coach_name": "滚滚",
+          "start_time": "19:45",
+          "end_time": "21:00",
+          "duration": 75,
+          "classroom": "",
+          "max_bookings": 20,
+          "min_bookings": 5,
+          "booking_deadline": 180,
+          "cancel_booking_deadline": 120
+        }
+      ]
+    },
+    "created_at": "2026-05-14T09:05:03.821Z",
+    "updated_at": "2026-05-17T18:02:59.602Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a059cafe9afbf808050838a",
+    "store_id": "69fbf63456465be2d1b67aea",
+    "template": {
+      "0": [
+        {
+          "template_id": "1778754754715",
+          "course_name": "爵士舞基本功",
+          "dance_style_id": "69fbf63456465be2d1b67aec",
+          "dance_style_name": "爵士舞",
+          "coach_id": "69fc0ffb0a51d5b9d9f2a43a",
+          "coach_name": "茉莉",
+          "start_time": "19:30",
+          "end_time": "20:30",
+          "duration": 60,
+          "classroom": "",
+          "max_bookings": 20,
+          "min_bookings": 5,
+          "booking_deadline": 180,
+          "cancel_booking_deadline": 120
+        }
+      ],
+      "1": [
+        {
+          "template_id": "1778754506429",
+          "course_name": "流行舞",
+          "dance_style_id": "69fc0f0c0a51d5b9d9f2a438",
+          "dance_style_name": "流行舞",
+          "coach_id": "69fc151fd21fc3cbc4563b5e",
+          "coach_name": "可可",
+          "start_time": "19:30",
+          "end_time": "20:45",
+          "duration": 75,
+          "classroom": "",
+          "max_bookings": 20,
+          "min_bookings": 5,
+          "booking_deadline": 180,
+          "cancel_booking_deadline": 120
+        }
+      ],
+      "2": [
+        {
+          "template_id": "1778754543387",
+          "course_name": "古典舞基本功",
+          "dance_style_id": "69fbf63456465be2d1b67aed",
+          "dance_style_name": "古典舞",
+          "coach_id": "69fc1535d21fc3cbc4563b60",
+          "coach_name": "花花",
+          "start_time": "19:30",
+          "end_time": "20:45",
+          "duration": 75,
+          "classroom": "",
+          "max_bookings": 20,
+          "min_bookings": 5,
+          "booking_deadline": 180,
+          "cancel_booking_deadline": 120
+        }
+      ],
+      "3": [
+        {
+          "template_id": "1778754711156",
+          "course_name": "古典舞",
+          "dance_style_id": "69fbf63456465be2d1b67aed",
+          "dance_style_name": "古典舞",
+          "coach_id": "69fc1535d21fc3cbc4563b60",
+          "coach_name": "花花",
+          "start_time": "19:30",
+          "end_time": "20:45",
+          "duration": 75,
+          "classroom": "",
+          "max_bookings": 20,
+          "min_bookings": 5,
+          "booking_deadline": 180,
+          "cancel_booking_deadline": 120
+        }
+      ],
+      "4": [
+        {
+          "template_id": "1778754470413",
+          "course_name": "爵士舞",
+          "dance_style_id": "69fbf63456465be2d1b67aec",
+          "dance_style_name": "爵士舞",
+          "coach_id": "69fc151fd21fc3cbc4563b5e",
+          "coach_name": "可可",
+          "start_time": "19:0",
+          "end_time": "20:15",
+          "duration": 75,
+          "classroom": "",
+          "max_bookings": 20,
+          "min_bookings": 5,
+          "booking_deadline": 180,
+          "cancel_booking_deadline": 120
+        }
+      ],
+      "5": [
+        {
+          "template_id": "1778754688378",
+          "course_name": "古典舞",
+          "dance_style_id": "69fbf63456465be2d1b67aed",
+          "dance_style_name": "古典舞",
+          "coach_id": "69fc1535d21fc3cbc4563b60",
+          "coach_name": "花花",
+          "start_time": "19:15",
+          "end_time": "20:30",
+          "duration": 75,
+          "classroom": "",
+          "max_bookings": 20,
+          "min_bookings": 5,
+          "booking_deadline": 180,
+          "cancel_booking_deadline": 120
+        }
+      ],
+      "6": [
+        {
+          "template_id": "1778754773833",
+          "course_name": "古典舞",
+          "dance_style_id": "69fbf63456465be2d1b67aed",
+          "dance_style_name": "古典舞",
+          "coach_id": "69fc1535d21fc3cbc4563b60",
+          "coach_name": "花花",
+          "start_time": "19:30",
+          "end_time": "20:45",
+          "duration": 75,
+          "classroom": "",
+          "max_bookings": 20,
+          "min_bookings": 5,
+          "booking_deadline": 180,
+          "cancel_booking_deadline": 120
+        },
+        {
+          "template_id": "1778754875067",
+          "course_name": "爵士舞",
+          "dance_style_id": "69fbf63456465be2d1b67aec",
+          "dance_style_name": "爵士舞",
+          "coach_id": "69fc151fd21fc3cbc4563b5e",
+          "coach_name": "可可",
+          "start_time": "20:45",
+          "end_time": "22:00",
+          "duration": 75,
+          "classroom": "",
+          "max_bookings": 20,
+          "min_bookings": 5,
+          "booking_deadline": 180,
+          "cancel_booking_deadline": 120
+        }
+      ]
+    },
+    "created_at": "2026-05-14T09:58:07.442Z",
+    "updated_at": "2026-05-14T10:34:49.751Z",
+    "__v": 0
+  }
+]

@@ -1,0 +1,63 @@
+<view class="todo-list-page">
+  <!-- 顶部标题栏 -->
+  <view class="header">
+    <text class="page-title">📋 待办事项</text>
+    <text class="refresh-btn" bindtap="onRefresh">刷新</text>
+  </view>
+
+  <!-- 分类标签 -->
+  <view class="tabs">
+    <view 
+      class="tab-item {{currentTab === item.key ? 'active' : ''}}" 
+      wx:for="{{tabs}}" 
+      wx:key="key"
+      bindtap="onTabChange"
+      data-tab="{{item.key}}"
+    >
+      {{item.label}}
+    </view>
+  </view>
+
+  <!-- 加载状态 -->
+  <view class="loading-state" wx:if="{{loading}}">
+    <text class="loading-text">加载中...</text>
+  </view>
+
+  <!-- 待办列表 -->
+  <view class="list-container" wx:else>
+    <view class="todo-list" wx:if="{{todoList.length > 0}}">
+      <view 
+        class="todo-item card" 
+        wx:for="{{todoList}}" 
+        wx:key="id"
+        wx:if="{{currentTab === 'all' || (currentTab === 'urgent' && item.urgent) || (currentTab === 'normal' && !item.urgent)}}"
+        bindtap="onTodoItemClick"
+        data-todo="{{item}}"
+      >
+        <view class="todo-left">
+          <view class="todo-icon">{{item.icon}}</view>
+          <view class="todo-content">
+            <view class="todo-header">
+              <text class="todo-title">{{item.title}}</text>
+              <view class="todo-tag {{item.urgent ? 'tag-urgent' : 'tag-normal'}}">
+                {{item.urgent ? '紧急' : '常规'}}
+              </view>
+            </view>
+            <text class="todo-desc">{{item.desc}}</text>
+          </view>
+        </view>
+        <view class="todo-right">
+          <text class="todo-action">{{item.action}}</text>
+          <text class="todo-arrow">›</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 空状态 -->
+    <view class="empty-state" wx:else>
+      <text class="empty-icon">📋</text>
+      <text class="empty-text">暂无待办事项</text>
+      <text class="empty-desc">所有事情都处理好了~</text>
+    </view>
+  </view>
+</view>

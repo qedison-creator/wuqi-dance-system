@@ -1,0 +1,75 @@
+<view class="profile-page">
+  <view class="profile-card">
+    <view class="avatar-wrapper">
+      <view class="avatar-ring">
+        <view class="avatar-inner">
+          <text class="avatar-char">{{userInfo.nick_name ? userInfo.nick_name[0] : '管'}}</text>
+        </view>
+      </view>
+    </view>
+    <text class="profile-name">{{userInfo.nick_name || userInfo.username || '管理员'}}</text>
+    <view class="profile-meta">
+      <text class="profile-role">{{userInfo.role === 'super_admin' ? '超级管理员' : (userInfo.role === 'store_manager' ? '店长' : '员工')}}</text>
+      <text class="profile-dot" wx:if="{{currentStore}}">·</text>
+      <text class="profile-store" wx:if="{{currentStore}}">{{currentStore.name}}</text>
+    </view>
+  </view>
+
+  <view class="menu-card">
+    <view class="menu-item" wx:if="{{permAccount}}" bindtap="onManageAccounts">
+      <view class="menu-icon-wrap">
+        <image class="menu-icon" src="/images/icons/users.svg" mode="aspectFit"></image>
+      </view>
+      <text class="menu-label">账号及权限管理</text>
+      <image class="menu-arrow" src="/images/icons/chevron-right.svg" mode="aspectFit"></image>
+    </view>
+
+    <view class="menu-item" wx:if="{{permConfig}}" bindtap="onGoToConfig">
+      <view class="menu-icon-wrap">
+        <image class="menu-icon" src="/images/icons/settings.svg" mode="aspectFit"></image>
+      </view>
+      <text class="menu-label">系统参数配置</text>
+      <image class="menu-arrow" src="/images/icons/chevron-right.svg" mode="aspectFit"></image>
+    </view>
+
+    <view class="menu-item" wx:if="{{permConfig}}" bindtap="onGoToSettings">
+      <view class="menu-icon-wrap">
+        <image class="menu-icon" src="/images/icons/settings.svg" mode="aspectFit"></image>
+      </view>
+      <text class="menu-label">消息推送设置</text>
+      <image class="menu-arrow" src="/images/icons/chevron-right.svg" mode="aspectFit"></image>
+    </view>
+
+    <view class="menu-item" wx:if="{{isAdmin}}" bindtap="onSystemReset">
+      <view class="menu-icon-wrap">
+        <image class="menu-icon" src="/images/icons/settings.svg" mode="aspectFit"></image>
+      </view>
+      <text class="menu-label">系统数据设置</text>
+      <image class="menu-arrow" src="/images/icons/chevron-right.svg" mode="aspectFit"></image>
+    </view>
+
+    <view class="menu-item" wx:if="{{permLog}}" bindtap="onOperationLog">
+      <view class="menu-icon-wrap">
+        <image class="menu-icon" src="/images/icons/file-text.svg" mode="aspectFit"></image>
+      </view>
+      <text class="menu-label">操作日志</text>
+      <image class="menu-arrow" src="/images/icons/chevron-right.svg" mode="aspectFit"></image>
+    </view>
+
+    <view class="menu-item" bindtap="onAbout">
+      <view class="menu-icon-wrap">
+        <image class="menu-icon" src="/images/icons/info.svg" mode="aspectFit"></image>
+      </view>
+      <text class="menu-label">关于系统</text>
+      <image class="menu-arrow" src="/images/icons/chevron-right.svg" mode="aspectFit"></image>
+    </view>
+  </view>
+
+  <view class="logout-section">
+    <button class="logout-btn" bindtap="onLogout">退出登录</button>
+  </view>
+
+  <view class="version-info">
+    <text>舞栖舞蹈社管理端 v1.0.0</text>
+  </view>
+</view>

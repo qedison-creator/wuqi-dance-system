@@ -1,0 +1,83 @@
+{
+  "pages": [
+    "pages/splash/splash",
+    "pages/login/login",
+    "pages/dashboard/dashboard",
+    "pages/operations/operations",
+    "pages/schedule/schedule",
+    "pages/members/members",
+    "pages/shop/shop",
+    "pages/shop/store-maintenance/store-maintenance",
+    "pages/todo-list/todo-list",
+    "pages/members/member-detail/member-detail",
+    "pages/members/booking-list/booking-list",
+    "pages/members/member-review/member-review",
+    "pages/members/phone-review/phone-review",
+    "pages/members/info-review/info-review",
+    "pages/bookings/bookings",
+    "pages/check-in/check-in",
+    "pages/salary/salary",
+    "pages/waitlist/waitlist",
+    "pages/transfers/transfers",
+    "pages/package-logs/package-logs",
+    "pages/videos/videos",
+    "pages/banner/banner",
+    "pages/settings/settings",
+    "pages/settings/roles/roles",
+    "pages/settings/accounts/accounts",
+    "pages/settings/config/config",
+    "pages/settings/exemption/exemption",
+    "pages/logs/logs",
+    "pages/coaches/coaches",
+    "pages/holidays/holidays",
+    "pages/announcements/announcements",
+    "pages/profile/profile",
+    "pages/course-records/course-records",
+    "pages/system-reset/system-reset"
+  ],
+  "window": {
+    "navigationBarBackgroundColor": "#F6F3F0",
+    "navigationBarTitleText": "舞栖预约管理系统",
+    "navigationBarTextStyle": "black",
+    "backgroundColor": "#FAF8F5",
+    "backgroundTextStyle": "dark"
+  },
+  "tabBar": {
+    "custom": true,
+    "color": "#B8AF9E",
+    "selectedColor": "#C5744B",
+    "backgroundColor": "#FAF8F5",
+    "borderStyle": "white",
+    "list": [
+      {
+        "pagePath": "pages/dashboard/dashboard",
+        "text": "首页"
+      },
+      {
+        "pagePath": "pages/operations/operations",
+        "text": "运营"
+      },
+      {
+        "pagePath": "pages/members/members",
+        "text": "会员"
+      },
+      {
+        "pagePath": "pages/shop/shop",
+        "text": "店务"
+      },
+      {
+        "pagePath": "pages/profile/profile",
+        "text": "我的"
+      }
+    ]
+  },
+  "sitemapLocation": "sitemap.json",
+  "style": "v2",
+  "resizable": false,
+  "lazyCodeLoading": "requiredComponents",
+  "permission": {
+    "scope.userLocation": {
+      "desc": "获取位置信息用于导航"
+    }
+  }
+}

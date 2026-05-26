@@ -1,0 +1,139 @@
+.container {
+  padding: 20rpx;
+}
+
+/* 筛选栏 */
+.filter-bar {
+  display: flex;
+  padding: 20rpx 24rpx;
+  margin-bottom: 20rpx;
+  gap: 20rpx;
+}
+
+.filter-item {
+  flex: 1;
+}
+
+.filter-label {
+  font-size: 24rpx;
+  color: var(--text-secondary);
+  display: block;
+  margin-bottom: 8rpx;
+}
+
+.filter-picker {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background-color: var(--border);
+  border: 1rpx solid var(--border);
+  border-radius: 8rpx;
+  padding: 16rpx 20rpx;
+  font-size: 26rpx;
+  color: var(--text-primary);
+}
+
+.picker-arrow {
+  font-size: 22rpx;
+  color: var(--text-secondary);
+  margin-left: 8rpx;
+}
+
+/* 日志列表 */
+.log-list {
+  margin-top: 20rpx;
+}
+
+.log-item {
+  margin-bottom: 20rpx;
+  padding: 24rpx;
+}
+
+.log-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16rpx;
+}
+
+.log-action-row {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+}
+
+.log-module-tag {
+  font-size: 22rpx;
+  color: var(--color-primary);
+  background: rgba(197, 116, 75, 0.15);
+  padding: 4rpx 12rpx;
+  border-radius: 6rpx;
+}
+
+.log-action {
+  font-size: 28rpx;
+  color: var(--text-primary);
+  font-weight: bold;
+}
+
+.log-result {
+  font-size: 24rpx;
+  padding: 4rpx 16rpx;
+  border-radius: 20rpx;
+}
+
+.log-result.success {
+  color: var(--color-success);
+  background: rgba(6, 214, 160, 0.15);
+}
+
+.log-result.failure {
+  color: var(--color-warning);
+  background: rgba(255, 107, 53, 0.15);
+}
+
+.log-detail {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 8rpx;
+}
+
+.log-operator {
+  font-size: 26rpx;
+  color: var(--text-primary);
+}
+
+.log-time {
+  font-size: 24rpx;
+  color: var(--text-secondary);
+}
+
+.log-info {
+  margin-top: 12rpx;
+  padding-top: 12rpx;
+  border-top: 1rpx solid var(--border);
+}
+
+.log-detail-text {
+  font-size: 24rpx;
+  color: var(--text-secondary);
+}
+
+/* 加载更多 */
+.load-more {
+  text-align: center;
+  padding: 30rpx;
+  font-size: 26rpx;
+  color: var(--text-secondary);
+}
+
+/* 空状态 */
+.empty-state {
+  text-align: center;
+  padding: 100rpx 0;
+}
+
+.empty-text {
+  font-size: 28rpx;
+  color: var(--text-tertiary);
+}

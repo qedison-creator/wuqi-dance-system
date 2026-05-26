@@ -1,0 +1,128 @@
+<view class="waitlist-page">
+  <view class="page-header">
+    <text class="page-title text-heading">候补排队管理</text>
+  </view>
+
+  <view class="summary-bar" wx:if="{{waitlistList.length > 0}}">
+    <view class="summary-item">
+      <text class="summary-num">{{totalWaitlistCount}}</text>
+      <text class="summary-label">总候补人数</text>
+    </view>
+    <view class="summary-divider"></view>
+    <view class="summary-item">
+      <text class="summary-num">{{waitlistList.length}}</text>
+      <text class="summary-label">待处理课程</text>
+    </view>
+  </view>
+
+  <view class="waitlist-list" wx:if="{{waitlistList.length > 0}}">
+    <view class="waitlist-item card" wx:for="{{waitlistList}}" wx:key="_id" bindtap="onViewScheduleWaitlist" data-item="{{item}}">
+      <view class="waitlist-header">
+        <text class="waitlist-course">{{item.course_name || '未知课程'}}</text>
+        <view class="waitlist-badge" wx:if="{{item.waitlist_count > 0}}">
+          <text>{{item.waitlist_count}}人排队</text>
+        </view>
+      </view>
+      <view class="waitlist-body">
+        <view class="waitlist-row">
+          <text class="waitlist-label">日期</text>
+          <text class="waitlist-value">{{item.date ? item.date.split('T')[0] : '-'}}</text>
+        </view>
+        <view class="waitlist-row">
+          <text class="waitlist-label">时间</text>
+          <text class="waitlist-value">{{item.start_time || '-'}} - {{item.end_time || '-'}}</text>
+        </view>
+        <view class="waitlist-row">
+          <text class="waitlist-label">教练</text>
+          <text class="waitlist-value">{{item.coach_name || '-'}}</text>
+        </view>
+        <view class="waitlist-row">
+          <text class="waitlist-label">教室</text>
+          <text class="waitlist-value">{{item.classroom || '-'}}</text>
+        </view>
+      </view>
+      <view class="waitlist-footer">
+        <text class="waitlist-arrow">查看详情 ></text>
+      </view>
+    </view>
+  </view>
+
+  <view class="empty-state" wx:if="{{!loading && waitlistList.length === 0}}">
+    <text class="empty-icon">📋</text>
+    <text class="empty-text">暂无候补排队</text>
+    <text class="empty-desc">当有会员加入候补中时，会在此处显示</text>
+  </view>
+
+  <view class="loading" wx:if="{{loading}}">
+    <text class="load-more">加载中...</text>
+  </view>
+
+  <!-- 候补详情弹窗 -->
+  <view class="modal-mask" wx:if="{{showScheduleModal && currentSchedule}}" bindtap="onCloseModal">
+    <view class="modal-content-large" catchtap="onModalTap">
+      <view class="modal-header">
+        <text class="modal-title">{{currentSchedule.course_name || '课程候补名单'}}</text>
+        <text class="modal-close" bindtap="onCloseModal">✕</text>
+      </view>
+      <view class="modal-body">
+        <view class="modal-info-row">
+          <text class="modal-info-label">日期</text>
+          <text class="modal-info-value">{{currentSchedule.date ? currentSchedule.date.split('T')[0] : '-'}} {{currentSchedule.start_time || '-'}} - {{currentSchedule.end_time || '-'}}</text>
+        </view>
+        <view class="modal-info-row">
+          <text class="modal-info-label">教练</text>
+          <text class="modal-info-value">{{currentSchedule.coach_name || '-'}}</text>
+        </view>
+        <view class="modal-info-row">
+          <text class="modal-info-label">教室</text>
+          <text class="modal-info-value">{{currentSchedule.classroom || '-'}}</text>
+        </view>
+
+        <view class="status-summary-bar">
+          <view class="summary-chip chip-waiting">
+            <text class="chip-num">{{statusSummary.waiting}}</text>
+            <text class="chip-label">等待中</text>
+          </view>
+          <view class="summary-chip chip-notified">
+            <text class="chip-num">{{statusSummary.notified}}</text>
+            <text class="chip-label">已通知</text>
+          </view>
+          <view class="summary-chip chip-confirmed">
+            <text class="chip-num">{{statusSummary.confirmed}}</text>
+            <text class="chip-label">已确认</text>
+          </view>
+        </view>
+
+        <view class="modal-section">
+          <text class="modal-section-title">候补名单</text>
+          <view class="modal-section-right">
+            <text class="modal-section-count">共{{scheduleWaitlist.length}}人</text>
+            <view class="export-btn" bindtap="onExportWaitlist">
+              <text>导出CSV</text>
+            </view>
+          </view>
+        </view>
+
+        <view class="waitlist-detail-list" wx:if="{{scheduleWaitlist.length > 0}}">
+          <view class="waitlist-detail-item" wx:for="{{scheduleWaitlist}}" wx:key="_id">
+            <view class="waitlist-detail-rank {{item.position && item.position <= 3 ? 'rank-top' : ''}}">{{item.position || index + 1}}</view>
+            <view class="waitlist-detail-info">
+              <view class="waitlist-detail-name">{{item.user_id && item.user_id.nick_name ? item.user_id.nick_name : item.user_id && item.user_id.real_name ? item.user_id.real_name : '未知会员'}}</view>
+              <view class="waitlist-detail-phone">{{item.user_id && item.user_id.phone ? item.user_id.phone : '-'}}</view>
+            </view>
+            <view class="waitlist-detail-status {{getStatusClass(item.status)}}">{{getStatusText(item.status)}}</view>
+            <view class="waitlist-detail-time">{{formatWaitlistTime(item.created_at)}}</view>
+            <view class="waitlist-detail-actions">
+              <view class="action-btn promote" bindtap="onPromoteWaitlist" data-id="{{item._id}}" data-name="{{item.user_id && item.user_id.nick_name ? item.user_id.nick_name : item.user_id && item.user_id.real_name ? item.user_id.real_name : '未知会员'}}">转正</view>
+              <view class="action-btn remove" bindtap="onRemoveWaitlist" data-id="{{item._id}}" data-name="{{item.user_id && item.user_id.nick_name ? item.user_id.nick_name : item.user_id && item.user_id.real_name ? item.user_id.real_name : '未知会员'}}">移除</view>
+            </view>
+          </view>
+        </view>
+
+        <view class="empty-state-small" wx:else>
+          <text class="empty-text">暂无候补人员</text>
+        </view>
+      </view>
+    </view>
+  </view>
+</view>

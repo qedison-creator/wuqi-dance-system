@@ -1,0 +1,1280 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>舞栖舞蹈社会员预约系统</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  background: #0a0a0a;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  min-height: 100vh;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+  padding: 20px 0;
+}
+/* Phone Frame */
+.phone-frame {
+  width: 375px;
+  height: 812px;
+  background: #121212;
+  border-radius: 40px;
+  overflow: hidden;
+  position: relative;
+  box-shadow: 0 0 0 3px #333, 0 0 0 6px #1a1a1a, 0 20px 60px rgba(0,0,0,0.5);
+}
+/* Top Navigation Bar */
+.top-nav {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 44px;
+  background: #1E1E1E;
+  border-bottom: 1px solid #333333;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  padding: 0 10px;
+}
+.top-nav .nav-title {
+  font-size: 13px;
+  color: #E5E5E5;
+  font-weight: 500;
+}
+.top-nav .page-tabs {
+  display: flex;
+  gap: 4px;
+  overflow-x: auto;
+  max-width: 100%;
+  scrollbar-width: none;
+}
+.top-nav .page-tabs::-webkit-scrollbar { display: none; }
+.top-nav .page-tab {
+  flex-shrink: 0;
+  padding: 4px 10px;
+  font-size: 11px;
+  color: #999999;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+  border: none;
+  background: none;
+}
+.top-nav .page-tab.active {
+  color: #121212;
+  background: #FFCC00;
+  font-weight: 600;
+}
+.top-nav .page-tab:hover:not(.active) {
+  color: #E5E5E5;
+}
+/* Status Bar */
+.status-bar {
+  height: 44px;
+  background: #121212;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  padding: 0 20px 4px;
+  font-size: 12px;
+  color: #FFFFFF;
+}
+/* Content Area */
+.content-area {
+  position: absolute;
+  top: 44px;
+  left: 0;
+  right: 0;
+  bottom: 50px;
+  overflow: hidden;
+}
+.page {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 0 10px 15px;
+  display: none;
+  scrollbar-width: none;
+}
+.page::-webkit-scrollbar { display: none; }
+.page.active { display: block; }
+/* Bottom Tab Bar */
+.tab-bar {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 50px;
+  background: #1E1E1E;
+  border-top: 1px solid #333333;
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  z-index: 100;
+}
+.tab-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  cursor: pointer;
+  border: none;
+  background: none;
+  padding: 4px 0;
+}
+.tab-item svg { width: 22px; height: 22px; }
+.tab-item span { font-size: 10px; }
+.tab-item.active svg path, .tab-item.active svg circle, .tab-item.active svg rect, .tab-item.active svg line, .tab-item.active svg polyline {
+  stroke: #FFCC00;
+}
+.tab-item.active span { color: #FFCC00; }
+.tab-item:not(.active) svg path, .tab-item:not(.active) svg circle, .tab-item:not(.active) svg rect, .tab-item:not(.active) svg line, .tab-item:not(.active) svg polyline {
+  stroke: #999999;
+}
+.tab-item:not(.active) span { color: #999999; }
+/* Common Styles */
+.section-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: #FFFFFF;
+  margin: 15px 0 10px;
+}
+.card {
+  background: #1E1E1E;
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 10px;
+}
+.btn-primary {
+  background: #FFCC00;
+  color: #121212;
+  border: none;
+  border-radius: 6px;
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+.btn-primary:hover { opacity: 0.85; }
+.btn-primary:disabled {
+  background: #333333;
+  color: #666666;
+  cursor: not-allowed;
+}
+.btn-secondary {
+  background: transparent;
+  color: #E5E5E5;
+  border: 1px solid #333333;
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.btn-secondary:hover { border-color: #FFCC00; color: #FFCC00; }
+.tag {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 500;
+}
+.tag-yellow { background: rgba(255,204,0,0.15); color: #FFCC00; }
+.tag-orange { background: rgba(255,149,0,0.15); color: #FF9500; }
+.tag-gray { background: rgba(153,153,153,0.15); color: #999999; }
+/* Modal */
+.modal-overlay {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.6);
+  z-index: 200;
+  display: none;
+  align-items: center;
+  justify-content: center;
+}
+.modal-overlay.show { display: flex; }
+.modal {
+  background: #1E1E1E;
+  border-radius: 8px;
+  width: 300px;
+  padding: 20px;
+  text-align: center;
+}
+.modal h3 { font-size: 16px; color: #FFFFFF; margin-bottom: 10px; }
+.modal p { font-size: 13px; color: #999999; margin-bottom: 20px; line-height: 1.5; }
+.modal .modal-btns { display: flex; gap: 10px; }
+.modal .modal-btns button { flex: 1; }
+/* Scrollable row */
+.scroll-row {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  padding-bottom: 5px;
+  scrollbar-width: none;
+}
+.scroll-row::-webkit-scrollbar { display: none; }
+
+/* ========== PAGE 1: HOME ========== */
+.home-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 0;
+  position: relative;
+}
+.home-header .title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #FFFFFF;
+}
+.home-header .store-btn {
+  position: absolute;
+  right: 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: none;
+  border: none;
+  color: #E5E5E5;
+  font-size: 12px;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+.home-header .store-btn:hover { background: rgba(255,255,255,0.05); }
+/* Banner */
+.banner-wrap {
+  position: relative;
+  width: 100%;
+  height: 100px;
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 10px;
+}
+.banner-track {
+  display: flex;
+  width: 300%;
+  height: 100%;
+  transition: transform 0.4s ease;
+}
+.banner-slide {
+  width: 100%;
+  height: 100%;
+  border-radius: 8px;
+  flex-shrink: 0;
+}
+.banner-slide:nth-child(1) { background: linear-gradient(135deg, #FFCC00, #FF6B00); }
+.banner-slide:nth-child(2) { background: linear-gradient(135deg, #E91E63, #9C27B0); }
+.banner-slide:nth-child(3) { background: linear-gradient(135deg, #00BCD4, #4CAF50); }
+.banner-dots {
+  position: absolute;
+  bottom: 6px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 5px;
+}
+.banner-dots .dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.4);
+  transition: all 0.3s;
+}
+.banner-dots .dot.active {
+  background: #FFFFFF;
+  width: 16px;
+  border-radius: 3px;
+}
+/* Store Info Card */
+.store-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.store-card .store-info { flex: 1; }
+.store-card .store-name { font-size: 14px; color: #FFFFFF; font-weight: 600; margin-bottom: 4px; }
+.store-card .store-detail { font-size: 12px; color: #999999; line-height: 1.6; }
+.store-card .store-detail svg { width: 12px; height: 12px; vertical-align: -2px; margin-right: 3px; }
+/* Coach Card */
+.coach-card {
+  flex-shrink: 0;
+  width: 100px;
+  text-align: center;
+  background: #1E1E1E;
+  border-radius: 8px;
+  padding: 12px 8px;
+}
+.coach-card .avatar {
+  width: 50px; height: 50px;
+  border-radius: 50%;
+  margin: 0 auto 6px;
+  overflow: hidden;
+}
+.coach-card .avatar svg { width: 100%; height: 100%; }
+.coach-card .name { font-size: 12px; color: #FFFFFF; margin-bottom: 2px; }
+.coach-card .style { font-size: 10px; color: #999999; }
+/* Course Recommend Card */
+.course-rec-card {
+  flex-shrink: 0;
+  width: 140px;
+  background: #1E1E1E;
+  border-radius: 8px;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+.course-rec-card .rec-name { font-size: 13px; color: #FFFFFF; font-weight: 500; margin-bottom: 4px; }
+.course-rec-card .rec-time { font-size: 11px; color: #999999; margin-bottom: 6px; }
+.course-rec-card .rec-tag { font-size: 10px; color: #FFCC00; background: rgba(255,204,0,0.1); padding: 2px 6px; border-radius: 3px; display: inline-block; align-self: flex-start; }
+/* Video Card */
+.video-card {
+  width: 100%;
+  height: 110px;
+  border-radius: 8px;
+  overflow: hidden;
+  position: relative;
+  margin-bottom: 10px;
+  cursor: pointer;
+}
+.video-card .video-cover {
+  width: 100%; height: 100%;
+}
+.video-card .video-cover:nth-child(1) { background: linear-gradient(135deg, #1a1a2e, #16213e); }
+.video-card .video-info {
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  padding: 8px 10px;
+  background: linear-gradient(transparent, rgba(0,0,0,0.8));
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.video-card .video-title { font-size: 12px; color: #FFFFFF; }
+.video-card .play-btn {
+  width: 32px; height: 32px;
+  border-radius: 50%;
+  background: rgba(255,204,0,0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  cursor: pointer;
+}
+.video-card .play-btn svg { width: 14px; height: 14px; }
+
+/* ========== PAGE 2: BOOKING ========== */
+.booking-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 0;
+}
+.booking-header .title { font-size: 16px; font-weight: 600; color: #FFFFFF; }
+/* Category Tags */
+.category-bar {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 8px 0;
+  scrollbar-width: none;
+}
+.category-bar::-webkit-scrollbar { display: none; }
+.category-tag {
+  flex-shrink: 0;
+  padding: 5px 14px;
+  border-radius: 16px;
+  font-size: 12px;
+  cursor: pointer;
+  border: none;
+  transition: all 0.2s;
+}
+.category-tag.active { background: #FFCC00; color: #121212; font-weight: 600; }
+.category-tag:not(.active) { background: #2a2a2a; color: #999999; }
+.category-tag:not(.active):hover { color: #E5E5E5; }
+/* Date Selector */
+.date-bar {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding: 8px 0;
+  scrollbar-width: none;
+}
+.date-bar::-webkit-scrollbar { display: none; }
+.date-item {
+  flex-shrink: 0;
+  width: 44px;
+  text-align: center;
+  padding: 6px 0;
+  border-radius: 8px;
+  cursor: pointer;
+  border: none;
+  background: none;
+  transition: all 0.2s;
+}
+.date-item.active { background: #FFCC00; }
+.date-item .day { font-size: 10px; color: #999999; margin-bottom: 2px; }
+.date-item .num { font-size: 16px; color: #E5E5E5; font-weight: 600; }
+.date-item.active .day, .date-item.active .num { color: #121212; }
+/* Course List Card */
+.course-card {
+  background: #1E1E1E;
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.course-card .course-info { flex: 1; }
+.course-card .course-name { font-size: 14px; color: #FFFFFF; font-weight: 500; margin-bottom: 4px; }
+.course-card .course-meta { font-size: 11px; color: #999999; line-height: 1.6; }
+.course-card .course-meta svg { width: 12px; height: 12px; vertical-align: -2px; margin-right: 2px; }
+.course-card .course-count { font-size: 11px; color: #E5E5E5; margin-top: 4px; }
+.course-card .course-count em { color: #FFCC00; font-style: normal; font-weight: 600; }
+.course-card .book-btn { flex-shrink: 0; margin-left: 10px; }
+
+/* ========== PAGE 3: COURSE DETAIL ========== */
+.detail-cover {
+  width: 100%;
+  height: 120px;
+  border-radius: 8px;
+  margin-bottom: 10px;
+  background: linear-gradient(135deg, #FFCC00, #FF6B00, #E91E63);
+}
+.detail-info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+  color: #E5E5E5;
+  padding: 6px 0;
+  border-bottom: 1px solid #2a2a2a;
+}
+.detail-info-row:last-child { border-bottom: none; }
+.detail-info-row .label { color: #999999; flex-shrink: 0; width: 70px; }
+.detail-info-row .value { color: #FFFFFF; flex: 1; text-align: right; }
+.detail-intro {
+  font-size: 13px;
+  color: #E5E5E5;
+  line-height: 1.8;
+}
+.detail-bottom-bar {
+  position: absolute;
+  bottom: 50px;
+  left: 0; right: 0;
+  padding: 8px 10px;
+  background: #1E1E1E;
+  border-top: 1px solid #333333;
+}
+.detail-bottom-bar .btn-primary { width: 100%; height: 42px; font-size: 15px; }
+
+/* ========== PAGE 4: PROFILE ========== */
+.profile-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 15px 0;
+}
+.profile-avatar {
+  width: 50px; height: 50px;
+  border-radius: 50%;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.profile-name { font-size: 16px; color: #FFFFFF; font-weight: 600; margin-bottom: 4px; }
+.profile-id-tag { display: inline-block; }
+.package-card .pkg-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+  color: #E5E5E5;
+  padding: 6px 0;
+}
+.package-card .pkg-row .pkg-label { color: #999999; }
+.package-card .pkg-row .pkg-value { color: #FFFFFF; }
+.package-card .pkg-row .pkg-value.highlight { color: #FFCC00; font-weight: 700; font-size: 18px; }
+.menu-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 12px;
+  background: #1E1E1E;
+  border-radius: 8px;
+  margin-bottom: 8px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.menu-item:hover { background: #252525; }
+.menu-item .menu-left { display: flex; align-items: center; gap: 10px; }
+.menu-item .menu-left svg { width: 20px; height: 20px; }
+.menu-item .menu-left span { font-size: 14px; color: #E5E5E5; }
+.menu-item .menu-right svg { width: 16px; height: 16px; }
+.logout-btn {
+  width: 100%;
+  margin-top: 15px;
+  padding: 12px;
+  text-align: center;
+}
+
+/* ========== PAGE 5: RECORDS ========== */
+.record-tabs {
+  display: flex;
+  gap: 0;
+  margin-bottom: 10px;
+  background: #1E1E1E;
+  border-radius: 8px;
+  overflow: hidden;
+}
+.record-tab {
+  flex: 1;
+  padding: 10px;
+  text-align: center;
+  font-size: 13px;
+  color: #999999;
+  cursor: pointer;
+  border: none;
+  background: none;
+  transition: all 0.2s;
+}
+.record-tab.active { color: #FFCC00; background: rgba(255,204,0,0.1); font-weight: 600; }
+.filter-bar {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding: 8px 0;
+  scrollbar-width: none;
+}
+.filter-bar::-webkit-scrollbar { display: none; }
+.filter-tag {
+  flex-shrink: 0;
+  padding: 4px 12px;
+  border-radius: 14px;
+  font-size: 11px;
+  cursor: pointer;
+  border: none;
+  transition: all 0.2s;
+}
+.filter-tag.active { background: #FFCC00; color: #121212; font-weight: 600; }
+.filter-tag:not(.active) { background: #2a2a2a; color: #999999; }
+.record-item {
+  background: #1E1E1E;
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 8px;
+}
+.record-item .rec-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+.record-item .rec-name { font-size: 14px; color: #FFFFFF; font-weight: 500; }
+.record-item .rec-meta { font-size: 11px; color: #999999; line-height: 1.6; }
+
+/* ========== PAGE 6: COACH DETAIL ========== */
+.coach-detail-header {
+  text-align: center;
+  padding: 20px 0 15px;
+}
+.coach-detail-avatar {
+  width: 60px; height: 60px;
+  border-radius: 50%;
+  border: 1px solid #FFCC00;
+  margin: 0 auto 10px;
+  overflow: hidden;
+}
+.coach-detail-name { font-size: 16px; color: #FFFFFF; font-weight: 600; margin-bottom: 4px; }
+.coach-detail-style { font-size: 14px; color: #FFCC00; }
+.coach-detail-intro {
+  font-size: 13px;
+  color: #E5E5E5;
+  line-height: 1.8;
+}
+</style>
+</head>
+<body>
+
+<div class="phone-frame">
+  <!-- Top Navigation -->
+  <div class="top-nav">
+    <div class="page-tabs">
+      <button class="page-tab active" onclick="switchPage(0)">首页</button>
+      <button class="page-tab" onclick="switchPage(1)">课程预约</button>
+      <button class="page-tab" onclick="switchPage(2)">课程详情</button>
+      <button class="page-tab" onclick="switchPage(3)">个人中心</button>
+      <button class="page-tab" onclick="switchPage(4)">记录列表</button>
+      <button class="page-tab" onclick="switchPage(5)">教练详情</button>
+    </div>
+  </div>
+
+  <!-- Content Area -->
+  <div class="content-area">
+
+    <!-- PAGE 1: HOME -->
+    <div class="page active" id="page-0">
+      <div class="home-header">
+        <div class="title">舞栖舞蹈社</div>
+        <button class="store-btn" onclick="showModal('store-modal')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+          <span id="current-store">福永店</span>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+      </div>
+
+      <!-- Banner -->
+      <div class="banner-wrap">
+        <div class="banner-track" id="bannerTrack">
+          <div class="banner-slide"></div>
+          <div class="banner-slide"></div>
+          <div class="banner-slide"></div>
+        </div>
+        <div class="banner-dots" id="bannerDots">
+          <div class="dot active"></div>
+          <div class="dot"></div>
+          <div class="dot"></div>
+        </div>
+      </div>
+
+      <!-- Store Info -->
+      <div class="card store-card">
+        <div class="store-info">
+          <div class="store-name">舞栖舞蹈社（福永店）</div>
+          <div class="store-detail">
+            <div><svg viewBox="0 0 24 24" fill="none" stroke="#999" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>深圳市宝安区福永街道怀德社区</div>
+            <div><svg viewBox="0 0 24 24" fill="none" stroke="#999" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>0755-8888-9999</div>
+          </div>
+        </div>
+        <button class="btn-primary" style="flex-shrink:0;align-self:center;font-size:12px;padding:6px 12px;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px;margin-right:2px;"><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg>
+          导航
+        </button>
+      </div>
+
+      <!-- Hot Coaches -->
+      <div class="section-title">热门教练</div>
+      <div class="scroll-row">
+        <div class="coach-card" onclick="switchPage(5)">
+          <div class="avatar">
+            <svg viewBox="0 0 50 50"><circle cx="25" cy="25" r="25" fill="#2a2a2a"/><circle cx="25" cy="20" r="8" fill="#555"/><ellipse cx="25" cy="38" rx="14" ry="10" fill="#555"/></svg>
+          </div>
+          <div class="name">阿KEN</div>
+          <div class="style">Hip-Hop</div>
+        </div>
+        <div class="coach-card" onclick="switchPage(5)">
+          <div class="avatar">
+            <svg viewBox="0 0 50 50"><circle cx="25" cy="25" r="25" fill="#2a2a2a"/><circle cx="25" cy="20" r="8" fill="#664"/><ellipse cx="25" cy="38" rx="14" ry="10" fill="#664"/></svg>
+          </div>
+          <div class="name">小雨</div>
+          <div class="style">Jazz</div>
+        </div>
+        <div class="coach-card" onclick="switchPage(5)">
+          <div class="avatar">
+            <svg viewBox="0 0 50 50"><circle cx="25" cy="25" r="25" fill="#2a2a2a"/><circle cx="25" cy="20" r="8" fill="#446"/><ellipse cx="25" cy="38" rx="14" ry="10" fill="#446"/></svg>
+          </div>
+          <div class="name">阿杰</div>
+          <div class="style">Breaking</div>
+        </div>
+        <div class="coach-card" onclick="switchPage(5)">
+          <div class="avatar">
+            <svg viewBox="0 0 50 50"><circle cx="25" cy="25" r="25" fill="#2a2a2a"/><circle cx="25" cy="20" r="8" fill="#464"/><ellipse cx="25" cy="38" rx="14" ry="10" fill="#464"/></svg>
+          </div>
+          <div class="name">Luna</div>
+          <div class="style">Popping</div>
+        </div>
+      </div>
+
+      <!-- Hot Courses -->
+      <div class="section-title">热门课程</div>
+      <div class="scroll-row">
+        <div class="course-rec-card" onclick="switchPage(2)">
+          <div>
+            <div class="rec-name">Hip-Hop基础班</div>
+            <div class="rec-time">周三 19:00-20:30</div>
+          </div>
+          <div class="rec-tag">Hip-Hop</div>
+        </div>
+        <div class="course-rec-card" onclick="switchPage(2)">
+          <div>
+            <div class="rec-name">Jazz性感律动</div>
+            <div class="rec-time">周五 20:00-21:30</div>
+          </div>
+          <div class="rec-tag">Jazz</div>
+        </div>
+        <div class="course-rec-card" onclick="switchPage(2)">
+          <div>
+            <div class="rec-name">Breaking进阶</div>
+            <div class="rec-time">周六 14:00-16:00</div>
+          </div>
+          <div class="rec-tag">Breaking</div>
+        </div>
+      </div>
+
+      <!-- Coach Videos -->
+      <div class="section-title">教练作品</div>
+      <div class="video-card" style="background:linear-gradient(135deg,#1a1a2e,#16213e);">
+        <div class="video-info">
+          <div>
+            <div class="video-title">阿KEN - Hip-Hop Freestyle</div>
+          </div>
+          <button class="play-btn">
+            <svg viewBox="0 0 24 24" fill="#121212" stroke="none"><polygon points="8 5 20 12 8 19"/></svg>
+          </button>
+        </div>
+      </div>
+      <div class="video-card" style="background:linear-gradient(135deg,#2d1b2e,#1b2e2d);">
+        <div class="video-info">
+          <div>
+            <div class="video-title">小雨 - Jazz Choreography</div>
+          </div>
+          <button class="play-btn">
+            <svg viewBox="0 0 24 24" fill="#121212" stroke="none"><polygon points="8 5 20 12 8 19"/></svg>
+          </button>
+        </div>
+      </div>
+      <div class="video-card" style="background:linear-gradient(135deg,#1b2e1b,#2e2d1b);">
+        <div class="video-info">
+          <div>
+            <div class="video-title">阿杰 - Breaking Battle</div>
+          </div>
+          <button class="play-btn">
+            <svg viewBox="0 0 24 24" fill="#121212" stroke="none"><polygon points="8 5 20 12 8 19"/></svg>
+          </button>
+        </div>
+      </div>
+      <div style="height:15px;"></div>
+    </div>
+
+    <!-- PAGE 2: BOOKING -->
+    <div class="page" id="page-1">
+      <div class="booking-header">
+        <div class="title">课程预约</div>
+        <button class="btn-secondary" onclick="showModal('store-modal')">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-1px;margin-right:2px;"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+          <span id="current-store-2">福永店</span>
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-1px;margin-left:2px;"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+      </div>
+
+      <!-- Category Tags -->
+      <div class="category-bar" id="categoryBar">
+        <button class="category-tag active" onclick="selectCategory(this)">全部</button>
+        <button class="category-tag" onclick="selectCategory(this)">Hip-Hop</button>
+        <button class="category-tag" onclick="selectCategory(this)">Jazz</button>
+        <button class="category-tag" onclick="selectCategory(this)">Breaking</button>
+        <button class="category-tag" onclick="selectCategory(this)">Popping</button>
+        <button class="category-tag" onclick="selectCategory(this)">Locking</button>
+      </div>
+
+      <!-- Date Selector -->
+      <div class="date-bar" id="dateBar"></div>
+
+      <!-- Course List -->
+      <div id="courseList">
+        <div class="course-card">
+          <div class="course-info">
+            <div style="margin-bottom:4px;"><span class="tag tag-yellow">Hip-Hop</span></div>
+            <div class="course-name">Hip-Hop基础班</div>
+            <div class="course-meta">
+              <svg viewBox="0 0 24 24" fill="none" stroke="#999" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>教练: 阿KEN
+            </div>
+            <div class="course-meta">
+              <svg viewBox="0 0 24 24" fill="none" stroke="#999" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>19:00-20:30
+              <svg viewBox="0 0 24 24" fill="none" stroke="#999" stroke-width="2" style="margin-left:8px;"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/></svg>A教室
+            </div>
+            <div class="course-count">已预约 <em>12</em>/20人</div>
+          </div>
+          <button class="btn-primary book-btn" onclick="showModal('book-modal')">预约</button>
+        </div>
+
+        <div class="course-card">
+          <div class="course-info">
+            <div style="margin-bottom:4px;"><span class="tag tag-yellow">Jazz</span></div>
+            <div class="course-name">Jazz性感律动</div>
+            <div class="course-meta">
+              <svg viewBox="0 0 24 24" fill="none" stroke="#999" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>教练: 小雨
+            </div>
+            <div class="course-meta">
+              <svg viewBox="0 0 24 24" fill="none" stroke="#999" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>20:00-21:30
+              <svg viewBox="0 0 24 24" fill="none" stroke="#999" stroke-width="2" style="margin-left:8px;"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/></svg>B教室
+            </div>
+            <div class="course-count">已预约 <em>18</em>/20人</div>
+          </div>
+          <button class="btn-primary book-btn" onclick="showModal('book-modal')">预约</button>
+        </div>
+
+        <div class="course-card">
+          <div class="course-info">
+            <div style="margin-bottom:4px;"><span class="tag tag-yellow">Breaking</span></div>
+            <div class="course-name">Breaking进阶</div>
+            <div class="course-meta">
+              <svg viewBox="0 0 24 24" fill="none" stroke="#999" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>教练: 阿杰
+            </div>
+            <div class="course-meta">
+              <svg viewBox="0 0 24 24" fill="none" stroke="#999" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>14:00-16:00
+              <svg viewBox="0 0 24 24" fill="none" stroke="#999" stroke-width="2" style="margin-left:8px;"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/></svg>C教室
+            </div>
+            <div class="course-count">已预约 <em>20</em>/20人</div>
+          </div>
+          <button class="btn-primary book-btn" disabled>已满</button>
+        </div>
+
+        <div class="course-card">
+          <div class="course-info">
+            <div style="margin-bottom:4px;"><span class="tag tag-yellow">Popping</span></div>
+            <div class="course-name">Popping入门</div>
+            <div class="course-meta">
+              <svg viewBox="0 0 24 24" fill="none" stroke="#999" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>教练: Luna
+            </div>
+            <div class="course-meta">
+              <svg viewBox="0 0 24 24" fill="none" stroke="#999" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>16:00-17:30
+              <svg viewBox="0 0 24 24" fill="none" stroke="#999" stroke-width="2" style="margin-left:8px;"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/></svg>A教室
+            </div>
+            <div class="course-count">已预约 <em>8</em>/15人</div>
+          </div>
+          <button class="btn-primary book-btn" onclick="showModal('book-modal')">预约</button>
+        </div>
+      </div>
+      <div style="height:15px;"></div>
+    </div>
+
+    <!-- PAGE 3: COURSE DETAIL -->
+    <div class="page" id="page-2">
+      <div class="detail-cover"></div>
+
+      <div class="card">
+        <div style="font-size:17px;color:#FFFFFF;font-weight:600;margin-bottom:10px;">Hip-Hop基础班</div>
+        <div class="detail-info-row">
+          <span class="label">舞种</span>
+          <span class="value"><span class="tag tag-yellow">Hip-Hop</span></span>
+        </div>
+        <div class="detail-info-row">
+          <span class="label">教练</span>
+          <span class="value">阿KEN</span>
+        </div>
+        <div class="detail-info-row">
+          <span class="label">时间</span>
+          <span class="value">周三 19:00-20:30</span>
+        </div>
+        <div class="detail-info-row">
+          <span class="label">教室</span>
+          <span class="value">A教室</span>
+        </div>
+        <div class="detail-info-row">
+          <span class="label">已预约</span>
+          <span class="value"><em style="color:#FFCC00;font-style:normal;font-weight:600;">12</em> / 20人</span>
+        </div>
+        <div class="detail-info-row">
+          <span class="label">消耗课时</span>
+          <span class="value">1课时</span>
+        </div>
+      </div>
+
+      <div class="card">
+        <div style="font-size:14px;color:#FFFFFF;font-weight:600;margin-bottom:8px;">课程介绍</div>
+        <div class="detail-intro">
+          本课程适合零基础及初学者，从Hip-Hop的基本律动(Bounce、Rock、Roll)入手，循序渐进地教授基础步法和身体控制技巧。通过系统训练，帮助学员建立扎实的舞蹈基础，提升节奏感和表现力。
+        </div>
+      </div>
+      <div style="height:60px;"></div>
+
+      <div class="detail-bottom-bar">
+        <button class="btn-primary" id="detailBookBtn" onclick="toggleDetailBook()">立即预约</button>
+      </div>
+    </div>
+
+    <!-- PAGE 4: PROFILE -->
+    <div class="page" id="page-3">
+      <div class="profile-header">
+        <div class="profile-avatar">
+          <svg viewBox="0 0 50 50"><circle cx="25" cy="25" r="25" fill="#2a2a2a"/><circle cx="25" cy="20" r="8" fill="#555"/><ellipse cx="25" cy="38" rx="14" ry="10" fill="#555"/></svg>
+        </div>
+        <div>
+          <div class="profile-name">舞蹈爱好者</div>
+          <div class="profile-id-tag"><span class="tag tag-yellow">正式会员</span></div>
+        </div>
+      </div>
+
+      <div class="card package-card">
+        <div style="font-size:14px;color:#FFFFFF;font-weight:600;margin-bottom:8px;">我的套餐</div>
+        <div class="pkg-row">
+          <span class="pkg-label">套餐类型</span>
+          <span class="pkg-value">次卡</span>
+        </div>
+        <div class="pkg-row">
+          <span class="pkg-label">有效期</span>
+          <span class="pkg-value">2026.01.01 - 2026.12.31</span>
+        </div>
+        <div class="pkg-row">
+          <span class="pkg-label">剩余课时</span>
+          <span class="pkg-value highlight">28</span>
+        </div>
+        <div class="pkg-row">
+          <span class="pkg-label">剩余豁免次数</span>
+          <span class="pkg-value highlight">3</span>
+        </div>
+      </div>
+
+      <div style="margin-top:15px;">
+        <div class="menu-item" onclick="switchPage(4)">
+          <div class="menu-left">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#FFCC00" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            <span>预约记录</span>
+          </div>
+          <div class="menu-right">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#999" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+          </div>
+        </div>
+        <div class="menu-item" onclick="switchPage(4)">
+          <div class="menu-left">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#FFCC00" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+            <span>上课记录</span>
+          </div>
+          <div class="menu-right">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#999" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+          </div>
+        </div>
+      </div>
+
+      <button class="btn-secondary logout-btn" onclick="showModal('logout-modal')">退出登录</button>
+      <div style="height:15px;"></div>
+    </div>
+
+    <!-- PAGE 5: RECORDS -->
+    <div class="page" id="page-4">
+      <div class="record-tabs">
+        <button class="record-tab active" onclick="switchRecordTab(this, 0)">预约记录</button>
+        <button class="record-tab" onclick="switchRecordTab(this, 1)">上课记录</button>
+      </div>
+
+      <div class="filter-bar" id="filterBar">
+        <button class="filter-tag active" onclick="selectFilter(this)">全部</button>
+        <button class="filter-tag" onclick="selectFilter(this)">已预约</button>
+        <button class="filter-tag" onclick="selectFilter(this)">已完成</button>
+        <button class="filter-tag" onclick="selectFilter(this)">已取消</button>
+        <button class="filter-tag" onclick="selectFilter(this)">超时</button>
+      </div>
+
+      <div class="record-item">
+        <div class="rec-header">
+          <span class="rec-name">Hip-Hop基础班</span>
+          <span class="tag tag-yellow">已预约</span>
+        </div>
+        <div class="rec-meta">
+          <div>2026-05-07 周三 19:00-20:30</div>
+          <div>福永店 · A教室 · 教练: 阿KEN</div>
+        </div>
+      </div>
+
+      <div class="record-item">
+        <div class="rec-header">
+          <span class="rec-name">Jazz性感律动</span>
+          <span class="tag tag-gray">已完成</span>
+        </div>
+        <div class="rec-meta">
+          <div>2026-05-02 周五 20:00-21:30</div>
+          <div>福永店 · B教室 · 教练: 小雨</div>
+        </div>
+      </div>
+
+      <div class="record-item">
+        <div class="rec-header">
+          <span class="rec-name">Breaking进阶</span>
+          <span class="tag tag-orange">超时</span>
+        </div>
+        <div class="rec-meta">
+          <div>2026-04-28 周一 14:00-16:00</div>
+          <div>福永店 · C教室 · 教练: 阿杰</div>
+        </div>
+      </div>
+
+      <div class="record-item">
+        <div class="rec-header">
+          <span class="rec-name">Popping入门</span>
+          <span class="tag tag-gray">已取消</span>
+        </div>
+        <div class="rec-meta">
+          <div>2026-04-25 周五 16:00-17:30</div>
+          <div>福永店 · A教室 · 教练: Luna</div>
+        </div>
+      </div>
+
+      <div class="record-item">
+        <div class="rec-header">
+          <span class="rec-name">Hip-Hop基础班</span>
+          <span class="tag tag-gray">已完成</span>
+        </div>
+        <div class="rec-meta">
+          <div>2026-04-23 周三 19:00-20:30</div>
+          <div>福永店 · A教室 · 教练: 阿KEN</div>
+        </div>
+      </div>
+      <div style="height:15px;"></div>
+    </div>
+
+    <!-- PAGE 6: COACH DETAIL -->
+    <div class="page" id="page-5">
+      <div class="coach-detail-header">
+        <div class="coach-detail-avatar">
+          <svg viewBox="0 0 60 60"><circle cx="30" cy="30" r="30" fill="#2a2a2a"/><circle cx="30" cy="24" r="10" fill="#555"/><ellipse cx="30" cy="46" rx="16" ry="12" fill="#555"/></svg>
+        </div>
+        <div class="coach-detail-name">阿KEN</div>
+        <div class="coach-detail-style">擅长: Hip-Hop / Locking</div>
+      </div>
+
+      <div class="card">
+        <div style="font-size:14px;color:#FFFFFF;font-weight:600;margin-bottom:8px;">个人简介</div>
+        <div class="coach-detail-intro">
+          从业8年，曾获全国街舞大赛Hip-Hop组冠军。擅长将基础律动与高难度技巧结合，教学风格严谨又不失趣味，深受学员喜爱。多次受邀担任各大赛事评委，致力于推广街舞文化。
+        </div>
+      </div>
+
+      <div class="section-title">教学视频</div>
+      <div class="video-card" style="background:linear-gradient(135deg,#1a1a2e,#16213e);">
+        <div class="video-info">
+          <div>
+            <div class="video-title">Hip-Hop基础律动教学</div>
+          </div>
+          <button class="play-btn">
+            <svg viewBox="0 0 24 24" fill="#121212" stroke="none"><polygon points="8 5 20 12 8 19"/></svg>
+          </button>
+        </div>
+      </div>
+      <div class="video-card" style="background:linear-gradient(135deg,#2e1b2e,#1b2e2d);">
+        <div class="video-info">
+          <div>
+            <div class="video-title">Locking组合编排</div>
+          </div>
+          <button class="play-btn">
+            <svg viewBox="0 0 24 24" fill="#121212" stroke="none"><polygon points="8 5 20 12 8 19"/></svg>
+          </button>
+        </div>
+      </div>
+      <div class="video-card" style="background:linear-gradient(135deg,#2e2d1b,#1b2e1b);">
+        <div class="video-info">
+          <div>
+            <div class="video-title">2026街舞大赛冠军表演</div>
+          </div>
+          <button class="play-btn">
+            <svg viewBox="0 0 24 24" fill="#121212" stroke="none"><polygon points="8 5 20 12 8 19"/></svg>
+          </button>
+        </div>
+      </div>
+      <div style="height:15px;"></div>
+    </div>
+
+  </div>
+
+  <!-- Bottom Tab Bar -->
+  <div class="tab-bar">
+    <button class="tab-item active" onclick="switchTab(0, 0)">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+      <span>首页</span>
+    </button>
+    <button class="tab-item" onclick="switchTab(1, 1)">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+      <span>预约</span>
+    </button>
+    <button class="tab-item" onclick="switchTab(3, 3)">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      <span>我的</span>
+    </button>
+  </div>
+
+  <!-- MODALS -->
+  <!-- Store Select Modal -->
+  <div class="modal-overlay" id="store-modal" onclick="closeModalOutside(event, 'store-modal')">
+    <div class="modal">
+      <h3>选择门店</h3>
+      <p>请选择您要预约的门店</p>
+      <div style="text-align:left;margin-bottom:16px;">
+        <div class="menu-item" style="margin-bottom:6px;" onclick="selectStore('福永店')">
+          <div class="menu-left">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#FFCC00" stroke-width="2" width="18" height="18"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+            <span style="font-size:13px;">福永店</span>
+          </div>
+          <span class="tag tag-yellow" id="store-check-fuyong">当前</span>
+        </div>
+        <div class="menu-item" style="margin-bottom:6px;" onclick="selectStore('西乡店')">
+          <div class="menu-left">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#999" stroke-width="2" width="18" height="18"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+            <span style="font-size:13px;">西乡店</span>
+          </div>
+        </div>
+        <div class="menu-item" onclick="selectStore('龙华店')">
+          <div class="menu-left">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#999" stroke-width="2" width="18" height="18"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+            <span style="font-size:13px;">龙华店</span>
+          </div>
+        </div>
+      </div>
+      <div class="modal-btns">
+        <button class="btn-secondary" onclick="hideModal('store-modal')">取消</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Booking Confirm Modal -->
+  <div class="modal-overlay" id="book-modal" onclick="closeModalOutside(event, 'book-modal')">
+    <div class="modal">
+      <h3>确认预约</h3>
+      <p>确认预约该课程？预约成功后将消耗1课时。</p>
+      <div class="modal-btns">
+        <button class="btn-secondary" onclick="hideModal('book-modal')">取消</button>
+        <button class="btn-primary" onclick="confirmBook()">确认预约</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Logout Confirm Modal -->
+  <div class="modal-overlay" id="logout-modal" onclick="closeModalOutside(event, 'logout-modal')">
+    <div class="modal">
+      <h3>退出登录</h3>
+      <p>确定要退出登录吗？</p>
+      <div class="modal-btns">
+        <button class="btn-secondary" onclick="hideModal('logout-modal')">取消</button>
+        <button class="btn-primary" onclick="confirmLogout()">确定</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div id="toast" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(0,0,0,0.8);color:#fff;padding:10px 20px;border-radius:6px;font-size:13px;z-index:300;display:none;pointer-events:none;"></div>
+</div>
+
+<script>
+// Page switching
+const pageTabMap = { 0: 0, 1: 1, 2: 2, 3: 3, 4: 4, 5: 5 };
+const tabToPage = { 0: 0, 1: 1, 3: 3 };
+
+function switchPage(idx) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById('page-' + idx).classList.add('active');
+  document.querySelectorAll('.page-tab').forEach((t, i) => {
+    t.classList.toggle('active', i === idx);
+  });
+  // Update tab bar
+  document.querySelectorAll('.tab-item').forEach((t, i) => {
+    t.classList.toggle('active', tabToPage[i] === idx);
+  });
+}
+
+function switchTab(tabIdx, pageIdx) {
+  switchPage(pageIdx);
+}
+
+// Banner carousel
+let bannerIdx = 0;
+const bannerCount = 3;
+function slideBanner() {
+  bannerIdx = (bannerIdx + 1) % bannerCount;
+  document.getElementById('bannerTrack').style.transform = `translateX(-${bannerIdx * (100 / bannerCount)}%)`;
+  document.querySelectorAll('#bannerDots .dot').forEach((d, i) => d.classList.toggle('active', i === bannerIdx));
+}
+setInterval(slideBanner, 3000);
+
+// Category selection
+function selectCategory(el) {
+  document.querySelectorAll('#categoryBar .category-tag').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+}
+
+// Date bar generation
+(function() {
+  const bar = document.getElementById('dateBar');
+  const days = ['日','一','二','三','四','五','六'];
+  const now = new Date();
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(now);
+    d.setDate(now.getDate() + i);
+    const btn = document.createElement('button');
+    btn.className = 'date-item' + (i === 0 ? ' active' : '');
+    btn.innerHTML = `<div class="day">周${days[d.getDay()]}</div><div class="num">${d.getDate()}</div>`;
+    btn.onclick = function() {
+      document.querySelectorAll('#dateBar .date-item').forEach(t => t.classList.remove('active'));
+      this.classList.add('active');
+    };
+    bar.appendChild(btn);
+  }
+})();
+
+// Record tab switching
+function switchRecordTab(el, idx) {
+  document.querySelectorAll('.record-tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+}
+
+// Filter selection
+function selectFilter(el) {
+  document.querySelectorAll('#filterBar .filter-tag').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+}
+
+// Detail book toggle
+let isBooked = false;
+function toggleDetailBook() {
+  const btn = document.getElementById('detailBookBtn');
+  if (!isBooked) {
+    showModal('book-modal');
+  } else {
+    isBooked = false;
+    btn.textContent = '立即预约';
+    btn.style.background = '#FFCC00';
+    btn.style.color = '#121212';
+  }
+}
+
+// Modal functions
+function showModal(id) {
+  document.getElementById(id).classList.add('show');
+}
+function hideModal(id) {
+  document.getElementById(id).classList.remove('show');
+}
+function closeModalOutside(e, id) {
+  if (e.target === document.getElementById(id)) hideModal(id);
+}
+
+// Store selection
+function selectStore(name) {
+  document.getElementById('current-store').textContent = name;
+  document.getElementById('current-store-2').textContent = name;
+  hideModal('store-modal');
+  showToast('已切换到' + name);
+}
+
+// Booking confirm
+function confirmBook() {
+  hideModal('book-modal');
+  const detailBtn = document.getElementById('detailBookBtn');
+  if (detailBtn) {
+    isBooked = true;
+    detailBtn.textContent = '取消预约';
+    detailBtn.style.background = '#FF9500';
+    detailBtn.style.color = '#FFFFFF';
+  }
+  showToast('预约成功！');
+}
+
+// Logout
+function confirmLogout() {
+  hideModal('logout-modal');
+  showToast('已退出登录');
+}
+
+// Toast
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.style.display = 'block';
+  setTimeout(() => { t.style.display = 'none'; }, 1500);
+}
+</script>
+</body>
+</html>

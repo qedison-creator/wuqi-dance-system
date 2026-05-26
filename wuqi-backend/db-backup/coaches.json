@@ -1,0 +1,114 @@
+[
+  {
+    "_id": "69fc0ffb0a51d5b9d9f2a43a",
+    "name": "茉莉",
+    "avatar_url": "",
+    "gender": 2,
+    "dance_styles": [
+      "69fbf63456465be2d1b67aec",
+      "69fbf63456465be2d1b67aee",
+      "69fc0f0c0a51d5b9d9f2a438"
+    ],
+    "status": "active",
+    "created_at": "2026-05-07T04:07:23.127Z",
+    "updated_at": "2026-05-07T04:29:10.656Z",
+    "__v": 1
+  },
+  {
+    "_id": "69fc15060a51d5b9d9f2a43b",
+    "name": "滚滚",
+    "avatar_url": "http://localhost:3000/uploads/coaches/1779568900246-una64q.jpg",
+    "gender": 2,
+    "dance_styles": [
+      "69fbf63456465be2d1b67aed",
+      "69fbf63456465be2d1b67af0"
+    ],
+    "status": "active",
+    "created_at": "2026-05-07T04:28:54.769Z",
+    "updated_at": "2026-05-23T20:41:49.909Z",
+    "__v": 3,
+    "gallery": [
+      "http://localhost:3000/uploads/1779568905961-jdlgmt.JPG",
+      "http://localhost:3000/uploads/1779568909859-8gpt3i.jpg"
+    ]
+  },
+  {
+    "_id": "69fc151fd21fc3cbc4563b5e",
+    "name": "可可",
+    "avatar_url": "http://localhost:3000/uploads/coaches/1779568890329-vjijho.jpg",
+    "gender": 2,
+    "dance_styles": [
+      "69fbf63456465be2d1b67aec"
+    ],
+    "status": "active",
+    "created_at": "2026-05-07T04:29:19.747Z",
+    "updated_at": "2026-05-23T20:41:30.384Z",
+    "__v": 1,
+    "gallery": []
+  },
+  {
+    "_id": "69fc152ad21fc3cbc4563b5f",
+    "name": "雅婷",
+    "avatar_url": "http://localhost:3000/uploads/coaches/1779568881554-2fd7vo.jpg",
+    "gender": 2,
+    "dance_styles": [
+      "69fbf63456465be2d1b67aec",
+      "69fbf63456465be2d1b67aee",
+      "69fbf63456465be2d1b67aef",
+      "69fc0f0c0a51d5b9d9f2a438"
+    ],
+    "status": "active",
+    "created_at": "2026-05-07T04:29:30.477Z",
+    "updated_at": "2026-05-23T20:41:21.828Z",
+    "__v": 1,
+    "gallery": []
+  },
+  {
+    "_id": "69fc1535d21fc3cbc4563b60",
+    "name": "花花",
+    "avatar_url": "http://localhost:3000/uploads/coaches/1779568853443-dejcx2.jpg",
+    "gender": 2,
+    "dance_styles": [
+      "69fbf63456465be2d1b67aed",
+      "69fbf63456465be2d1b67af0"
+    ],
+    "status": "active",
+    "created_at": "2026-05-07T04:29:41.436Z",
+    "updated_at": "2026-05-23T20:41:01.505Z",
+    "__v": 6,
+    "gallery": []
+  },
+  {
+    "_id": "69fc1548f334a30b19eeb560",
+    "name": "Ling",
+    "avatar_url": "http://localhost:3000/uploads/coaches/1779568845498-2rdnyw.JPG",
+    "gender": 2,
+    "dance_styles": [
+      "69fbf63456465be2d1b67aec",
+      "69fbf63456465be2d1b67aef",
+      "69fbf63456465be2d1b67af1",
+      "69fc0f010a51d5b9d9f2a437",
+      "69fc0f0c0a51d5b9d9f2a438"
+    ],
+    "status": "active",
+    "created_at": "2026-05-07T04:30:00.910Z",
+    "updated_at": "2026-05-24T13:23:24.558Z",
+    "__v": 4,
+    "gallery": []
+  },
+  {
+    "_id": "6a05e87bc9d13d9cf8fc8314",
+    "name": "韩子",
+    "avatar_url": "http://localhost:3000/uploads/coaches/1779568835057-o175hi.JPG",
+    "gender": 2,
+    "dance_styles": [
+      "69fbf63456465be2d1b67aec",
+      "69fbf63456465be2d1b67aee"
+    ],
+    "gallery": [],
+    "status": "active",
+    "created_at": "2026-05-14T15:21:31.384Z",
+    "updated_at": "2026-05-23T20:40:35.082Z",
+    "__v": 0
+  }
+]

@@ -1,0 +1,110 @@
+<view class="course-records-page">
+  <!-- 门店切换 -->
+  <view class="store-tabs">
+    <scroll-view scroll-x class="store-scroll">
+      <view class="store-list">
+        <view class="store-item {{currentStoreId === item._id ? 'active' : ''}}" wx:for="{{stores}}" wx:key="_id" data-id="{{item._id}}" bindtap="onSwitchStore">
+          <text>{{item.name}}</text>
+        </view>
+      </view>
+    </scroll-view>
+  </view>
+
+  <!-- 页面标题 -->
+  <view class="page-header">
+    <text class="page-title">课程记录</text>
+  </view>
+
+  <!-- 月视图：日历网格 -->
+  <view class="month-section">
+    <view class="month-header">
+      <view class="month-nav-btn" bindtap="onChangeMonth" data-direction="prev">
+        <text>◀</text>
+      </view>
+      <text class="month-title">{{currentMonthName}}</text>
+      <view class="month-nav-btn" bindtap="onChangeMonth" data-direction="next">
+        <text>▶</text>
+      </view>
+    </view>
+    
+    <!-- 图例说明 -->
+    <view class="legend-container">
+      <view class="legend-item">
+        <view class="legend-box legend-normal"></view>
+        <text class="legend-text">正常开课</text>
+      </view>
+      <view class="legend-item">
+        <view class="legend-box legend-cancelled"></view>
+        <text class="legend-text">取消课程</text>
+      </view>
+      <view class="legend-item">
+        <view class="legend-box legend-mixed"></view>
+        <text class="legend-text">混合状态</text>
+      </view>
+      <view class="legend-item">
+        <view class="legend-box legend-holiday"></view>
+        <text class="legend-text">放假</text>
+      </view>
+    </view>
+    
+    <view class="weekday-header">
+      <text wx:for="{{weekdays}}" wx:key="index">{{item}}</text>
+    </view>
+    <view class="month-calendar">
+      <view class="calendar-week" wx:for="{{monthCalendar}}" wx:for-item="week" wx:key="index">
+        <view class="calendar-cell {{day.type}} {{day.isToday ? 'today' : ''}} {{day.isSelected ? 'selected' : ''}} {{day.isPast ? 'past' : ''}} {{day.dayStatus ? 'day-status-' + day.dayStatus : ''}}" wx:for="{{week}}" wx:for-item="day" wx:key="index" data-date="{{day.date}}" bindtap="onSelectMonthDate">
+          <text wx:if="{{day.type === 'date'}}">{{day.day}}</text>
+          <view class="status-bar status-bar-{{day.dayStatus}}" wx:if="{{day.type === 'date' && day.dayStatus}}"></view>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 当前选中日期显示 -->
+  <view class="date-display" wx:if="{{isCurrentDatePast}}">
+    <text class="date-label">{{currentDate}} 的课程记录</text>
+  </view>
+
+  <!-- 课程记录列表 -->
+  <view class="schedule-list">
+    <view class="schedule-item card history" wx:for="{{schedules}}" wx:key="_id">
+      <view class="schedule-header">
+        <text class="course-name">{{item.course_name || item.danceStyleName + '课程'}}</text>
+        <text class="schedule-status {{item.status}} history-status">{{item.statusText}}</text>
+      </view>
+      <view class="schedule-info">
+        <view class="info-row">
+          <text class="label">时间:</text>
+          <text class="value">{{item.start_time}} - {{item.end_time}} ({{item.duration}}分钟)</text>
+        </view>
+        <view class="info-row">
+          <text class="label">舞种:</text>
+          <text class="value">{{item.danceStyleName}}</text>
+        </view>
+        <view class="info-row">
+          <text class="label">教练:</text>
+          <text class="value">{{item.coachName}}</text>
+        </view>
+        <view class="info-row">
+          <text class="label">教室:</text>
+          <text class="value">{{item.classroom || '未指定'}}</text>
+        </view>
+        <view class="info-row">
+          <text class="label">预约:</text>
+          <text class="value">{{item.current_bookings}}/{{item.max_bookings}}人(最低{{item.min_bookings || 5}}人)</text>
+        </view>
+      </view>
+      <view class="schedule-actions">
+        <view class="action-btn" data-id="{{item._id}}" bindtap="onViewBookings">
+          <text>查看预约</text>
+        </view>
+        <view class="action-btn history-action" data-id="{{item._id}}" bindtap="onViewAttendance">
+          <text>上课记录</text>
+        </view>
+      </view>
+    </view>
+    <view class="empty-state" wx:if="{{schedules.length === 0}}">
+      <text class="empty-text">暂无课程记录</text>
+    </view>
+  </view>
+</view>

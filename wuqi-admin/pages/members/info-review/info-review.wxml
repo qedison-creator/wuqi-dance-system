@@ -1,0 +1,46 @@
+<view class="container">
+  <view class="page-header">
+    <text class="page-title">信息修改审核</text>
+  </view>
+
+  <view class="reviews-list" wx:if="{{!loading && reviews.length > 0}}">
+    <view class="review-item" wx:for="{{reviews}}" wx:key="_id">
+      <view class="member-info">
+        <text class="member-name">{{item.real_name || item.nick_name || '未知'}}</text>
+        <text class="member-code" wx:if="{{item.phone}}">{{item.phone}}</text>
+      </view>
+
+      <view class="change-section">
+        <view class="change-row" wx:for="{{item.changeFields}}" wx:for-item="field" wx:key="label">
+          <view class="change-field">
+            <text class="change-label">{{field.label}}</text>
+            <view class="change-values">
+              <text class="change-old">{{field.currentValue || '未填写'}}</text>
+              <text class="change-arrow">→</text>
+              <text class="change-new">{{field.newValue}}</text>
+            </view>
+          </view>
+        </view>
+      </view>
+
+      <view class="request-time">
+        <text class="time-label">申请时间：</text>
+        <text class="time-value">{{item.requestTimeStr}}</text>
+      </view>
+
+      <view class="action-section">
+        <view class="action-btn reject" data-member="{{item}}" data-action="reject" bindtap="onReview">拒绝</view>
+        <view class="action-btn approve" data-member="{{item}}" data-action="approve" bindtap="onReview">通过</view>
+      </view>
+    </view>
+  </view>
+
+  <view class="empty-state" wx:if="{{!loading && reviews.length === 0}}">
+    <text class="empty-icon">📋</text>
+    <text class="empty-text">暂无待审核的信息修改申请</text>
+  </view>
+
+  <view class="loading-state" wx:if="{{loading}}">
+    <text class="loading-text">加载中...</text>
+  </view>
+</view>

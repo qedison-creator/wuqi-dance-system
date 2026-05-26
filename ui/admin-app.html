@@ -1,0 +1,1413 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>舞栖舞蹈社预约管理系统 - 管理端原型</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:#000;display:flex;justify-content:center;align-items:flex-start;min-height:100vh;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Hiragino Sans GB','Microsoft YaHei',sans-serif;padding:20px 0;}
+.phone-frame{width:375px;height:812px;background:#121212;border-radius:40px;overflow:hidden;position:relative;box-shadow:0 0 0 3px #333,0 0 0 6px #111,0 20px 60px rgba(0,0,0,.8);display:flex;flex-direction:column;}
+.status-bar{height:44px;background:#121212;display:flex;align-items:center;justify-content:space-between;padding:0 20px;flex-shrink:0;z-index:100;}
+.status-bar .time{color:#fff;font-size:15px;font-weight:600;}
+.status-bar .icons{display:flex;gap:6px;align-items:center;}
+.status-bar .icons svg{width:16px;height:16px;fill:#fff;}
+.page-top-nav{height:40px;background:#1E1E1E;display:flex;align-items:center;overflow-x:auto;flex-shrink:0;border-bottom:1px solid #333;z-index:90;-webkit-overflow-scrolling:touch;}
+.page-top-nav::-webkit-scrollbar{display:none;}
+.page-top-nav .nav-item{flex-shrink:0;padding:0 12px;height:40px;display:flex;align-items:center;font-size:12px;color:#999;cursor:pointer;border-bottom:2px solid transparent;transition:all .2s;white-space:nowrap;}
+.page-top-nav .nav-item.active{color:#FFCC00;border-bottom-color:#FFCC00;}
+.page-container{flex:1;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;scroll-behavior:smooth;}
+.page-container::-webkit-scrollbar{display:none;}
+.page{display:none;padding-bottom:60px;min-height:100%;}
+.page.active{display:block;}
+/* Bottom Tab */
+.bottom-tab{height:50px;background:#1E1E1E;border-top:1px solid #333;display:flex;align-items:center;justify-content:space-around;flex-shrink:0;z-index:100;position:absolute;bottom:0;left:0;right:0;}
+.bottom-tab .tab-item{display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer;transition:color .2s;}
+.bottom-tab .tab-item svg{width:22px;height:22px;transition:fill .2s;}
+.bottom-tab .tab-item span{font-size:10px;transition:color .2s;}
+.bottom-tab .tab-item.active svg{fill:#FFCC00;}
+.bottom-tab .tab-item.active span{color:#FFCC00;}
+.bottom-tab .tab-item:not(.active) svg{fill:#999;}
+.bottom-tab .tab-item:not(.active) span{color:#999;}
+.bottom-tab.hidden{display:none;}
+/* Common */
+.section-title{font-size:15px;font-weight:600;color:#fff;padding:15px 10px 10px;}
+.card{background:#1E1E1E;border-radius:8px;margin:0 10px 10px;padding:12px;}
+.btn-primary{background:#FFCC00;color:#121212;border:none;border-radius:6px;padding:10px 20px;font-size:14px;font-weight:600;cursor:pointer;transition:opacity .2s;}
+.btn-primary:active{opacity:.8;}
+.btn-secondary{background:transparent;color:#E5E5E5;border:1px solid #333;border-radius:6px;padding:8px 16px;font-size:12px;cursor:pointer;transition:all .2s;}
+.btn-secondary:active{background:#333;}
+.btn-danger{background:transparent;color:#FF4D4F;border:1px solid #FF4D4F;border-radius:6px;padding:8px 16px;font-size:12px;cursor:pointer;}
+.tag{display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:500;}
+.tag-yellow{background:rgba(255,204,0,.15);color:#FFCC00;}
+.tag-orange{background:rgba(255,149,0,.15);color:#FF9500;}
+.tag-gray{background:rgba(153,153,153,.15);color:#999;}
+.tag-white{background:rgba(229,229,229,.1);color:#E5E5E5;}
+.input-field{width:100%;background:#1E1E1E;border:1px solid #333;border-radius:6px;padding:10px 12px;color:#fff;font-size:14px;outline:none;transition:border-color .2s;}
+.input-field:focus{border-color:#FFCC00;}
+.input-field::placeholder{color:#666;}
+/* Modal */
+.modal-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.7);z-index:200;display:none;align-items:flex-end;justify-content:center;}
+.modal-overlay.show{display:flex;}
+.modal-content{background:#1E1E1E;border-radius:12px 12px 0 0;width:375px;max-height:80%;overflow-y:auto;padding:20px 15px;animation:slideUp .3s ease;}
+@keyframes slideUp{from{transform:translateY(100%);}to{transform:translateY(0);}}
+.modal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:15px;}
+.modal-header h3{font-size:16px;color:#fff;font-weight:600;}
+.modal-close{width:28px;height:28px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#999;border-radius:50%;background:#333;border:none;}
+.modal-close svg{width:16px;height:16px;fill:#999;}
+.form-group{margin-bottom:12px;}
+.form-group label{display:block;font-size:12px;color:#999;margin-bottom:6px;}
+.form-group select{width:100%;background:#1E1E1E;border:1px solid #333;border-radius:6px;padding:10px 12px;color:#fff;font-size:14px;outline:none;appearance:none;}
+.form-group select option{background:#1E1E1E;color:#fff;}
+/* Toast */
+.toast{position:fixed;top:60px;left:50%;transform:translateX(-50%);background:rgba(30,30,30,.95);color:#fff;padding:10px 20px;border-radius:8px;font-size:13px;z-index:300;display:none;transition:opacity .3s;border:1px solid #333;}
+.toast.show{display:block;animation:fadeInOut 2s ease;}
+@keyframes fadeInOut{0%{opacity:0;}15%{opacity:1;}85%{opacity:1;}100%{opacity:0;}}
+/* Switch */
+.switch{position:relative;width:44px;height:24px;background:#333;border-radius:12px;cursor:pointer;transition:background .3s;flex-shrink:0;}
+.switch.on{background:#FFCC00;}
+.switch::after{content:'';position:absolute;width:20px;height:20px;background:#fff;border-radius:50%;top:2px;left:2px;transition:transform .3s;}
+.switch.on::after{transform:translateX(20px);}
+/* Filter tabs */
+.filter-bar{display:flex;gap:8px;padding:0 10px 10px;overflow-x:auto;}
+.filter-bar::-webkit-scrollbar{display:none;}
+.filter-tab{flex-shrink:0;padding:6px 14px;border-radius:16px;font-size:12px;color:#999;background:#1E1E1E;border:1px solid #333;cursor:pointer;transition:all .2s;}
+.filter-tab.active{color:#121212;background:#FFCC00;border-color:#FFCC00;}
+/* List item */
+.list-item{display:flex;align-items:center;padding:12px 10px;border-bottom:1px solid #1a1a1a;gap:10px;}
+.list-item:last-child{border-bottom:none;}
+.avatar{width:40px;height:40px;border-radius:50%;background:#333;display:flex;align-items:center;justify-content:center;flex-shrink:0;overflow:hidden;}
+.avatar svg{width:20px;height:20px;fill:#999;}
+.avatar img{width:100%;height:100%;object-fit:cover;}
+/* Arrow */
+.arrow-right{width:16px;height:16px;fill:#666;flex-shrink:0;}
+/* Page 1: Login */
+.page-login{display:none;flex-direction:column;align-items:center;justify-content:center;min-height:100%;padding:40px 30px;}
+.page-login.active{display:flex;}
+.login-logo{margin-bottom:50px;text-align:center;}
+.login-logo .logo-icon{width:80px;height:80px;background:#FFCC00;border-radius:20px;display:flex;align-items:center;justify-content:center;margin:0 auto 15px;}
+.login-logo .logo-icon svg{width:40px;height:40px;fill:#121212;}
+.login-logo h1{color:#fff;font-size:22px;font-weight:700;}
+.login-logo p{color:#999;font-size:13px;margin-top:4px;}
+.login-form{width:100%;max-width:300px;}
+.login-form .form-group{margin-bottom:16px;}
+.login-form .btn-primary{width:80%;display:block;margin:20px auto 0;padding:12px;}
+.login-hint{text-align:center;color:#999;font-size:12px;margin-top:30px;}
+/* Page 2: Dashboard */
+.admin-bar{display:flex;align-items:center;padding:12px 10px;gap:10px;}
+.admin-bar .avatar{width:44px;height:44px;}
+.stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:0 10px;margin-bottom:10px;}
+.stat-card{background:#1E1E1E;border-radius:8px;padding:15px;text-align:center;}
+.stat-card .stat-num{font-size:28px;font-weight:700;color:#FFCC00;line-height:1.2;}
+.stat-card .stat-label{font-size:12px;color:#999;margin-top:4px;}
+.todo-item{display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border-bottom:1px solid #2a2a2a;}
+.todo-item:last-child{border-bottom:none;}
+.todo-item .todo-text{font-size:13px;color:#E5E5E5;}
+.rank-item{display:flex;align-items:center;padding:10px 12px;gap:10px;border-bottom:1px solid #2a2a2a;}
+.rank-item:last-child{border-bottom:none;}
+.rank-num{width:24px;height:24px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:#121212;background:#FFCC00;flex-shrink:0;}
+.rank-num.top3{background:#FFCC00;}
+.rank-info{flex:1;}
+.rank-info .rank-name{font-size:13px;color:#fff;}
+.rank-info .rank-sub{font-size:11px;color:#999;margin-top:2px;}
+.rank-count{font-size:13px;color:#FFCC00;font-weight:600;}
+/* Page 3: Schedule */
+.page-header{display:flex;justify-content:space-between;align-items:center;padding:10px 10px 0;gap:8px;}
+.page-header .btn-primary{font-size:12px;padding:8px 14px;}
+.page-header .btn-secondary{font-size:12px;padding:8px 14px;}
+.schedule-card{background:#1E1E1E;border-radius:8px;margin:10px;padding:12px;}
+.schedule-card .sc-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;}
+.schedule-card .sc-title{font-size:15px;color:#fff;font-weight:600;}
+.schedule-card .sc-info{font-size:12px;color:#999;line-height:1.8;}
+.schedule-card .sc-info span{margin-right:12px;}
+.schedule-card .sc-footer{display:flex;justify-content:space-between;align-items:center;margin-top:10px;padding-top:10px;border-top:1px solid #2a2a2a;}
+.schedule-card .sc-actions{display:flex;gap:6px;}
+.schedule-card .sc-actions .btn-secondary{font-size:11px;padding:5px 10px;}
+/* Page 4: Members */
+.member-card{display:flex;align-items:center;padding:12px;background:#1E1E1E;border-radius:8px;margin:0 10px 10px;gap:10px;}
+.member-card .member-info{flex:1;min-width:0;}
+.member-card .member-name{font-size:14px;color:#fff;font-weight:500;}
+.member-card .member-phone{font-size:12px;color:#999;margin-top:2px;}
+.member-card .member-actions{display:flex;gap:6px;flex-shrink:0;flex-wrap:wrap;justify-content:flex-end;}
+/* Page 5: Records */
+.filter-row{display:flex;gap:8px;padding:0 10px 10px;flex-wrap:wrap;align-items:center;}
+.filter-row select,.filter-row input{background:#1E1E1E;border:1px solid #333;border-radius:6px;padding:6px 10px;color:#fff;font-size:12px;outline:none;flex:1;min-width:0;}
+.filter-row select option{background:#1E1E1E;}
+.record-card{background:#1E1E1E;border-radius:8px;margin:0 10px 10px;padding:12px;}
+.record-card .rc-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;}
+.record-card .rc-name{font-size:14px;color:#fff;font-weight:500;}
+.record-card .rc-info{font-size:12px;color:#999;line-height:1.8;}
+/* Page 6: Videos */
+.video-card{display:flex;gap:10px;padding:12px;background:#1E1E1E;border-radius:8px;margin:0 10px 10px;align-items:center;}
+.video-thumb{width:120px;height:80px;border-radius:6px;background:#2a2a2a;flex-shrink:0;display:flex;align-items:center;justify-content:center;overflow:hidden;}
+.video-thumb svg{width:32px;height:32px;fill:#555;}
+.video-info{flex:1;min-width:0;}
+.video-info .vi-title{font-size:14px;color:#fff;font-weight:500;margin-bottom:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.video-info .vi-sub{font-size:12px;color:#999;margin-bottom:6px;}
+.video-actions{display:flex;gap:6px;align-items:center;}
+.video-actions .btn-secondary{font-size:11px;padding:4px 8px;}
+/* Page 7: Settings */
+.settings-item{display:flex;align-items:center;justify-content:space-between;padding:14px 15px;border-bottom:1px solid #1a1a1a;cursor:pointer;transition:background .2s;}
+.settings-item:active{background:#2a2a2a;}
+.settings-item .si-left{display:flex;align-items:center;gap:10px;}
+.settings-item .si-left svg{width:20px;height:20px;fill:#999;}
+.settings-item .si-text{font-size:14px;color:#E5E5E5;}
+.sub-account-item{display:flex;align-items:center;justify-content:space-between;padding:12px 15px;border-bottom:1px solid #2a2a2a;}
+.sub-account-item .sa-info{flex:1;}
+.sub-account-item .sa-name{font-size:14px;color:#fff;}
+.sub-account-item .sa-role{font-size:12px;color:#999;margin-top:2px;}
+/* Page 8: Coach & Store */
+.tab-switch{display:flex;background:#1E1E1E;border-radius:8px;margin:10px;padding:3px;}
+.tab-switch .ts-item{flex:1;text-align:center;padding:8px;border-radius:6px;font-size:13px;color:#999;cursor:pointer;transition:all .2s;}
+.tab-switch .ts-item.active{background:#FFCC00;color:#121212;font-weight:600;}
+.coach-card{display:flex;align-items:center;padding:12px;background:#1E1E1E;border-radius:8px;margin:0 10px 10px;gap:10px;}
+.coach-card .coach-info{flex:1;}
+.coach-card .coach-name{font-size:14px;color:#fff;font-weight:500;}
+.coach-card .coach-style{font-size:12px;color:#999;margin-top:2px;}
+.store-card{background:#1E1E1E;border-radius:8px;margin:0 10px 10px;padding:12px;}
+.store-card .store-name{font-size:15px;color:#fff;font-weight:600;margin-bottom:6px;}
+.store-card .store-info{font-size:12px;color:#999;line-height:1.8;}
+/* Page 9: Holiday */
+.holiday-card{background:#1E1E1E;border-radius:8px;margin:0 10px 10px;padding:12px;}
+.holiday-card .hc-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px;}
+.holiday-card .hc-title{font-size:14px;color:#fff;font-weight:500;}
+.holiday-card .hc-info{font-size:12px;color:#999;line-height:1.8;}
+.holiday-card .hc-footer{display:flex;justify-content:space-between;align-items:center;margin-top:8px;padding-top:8px;border-top:1px solid #2a2a2a;}
+/* Page 10: Profile */
+.profile-card{display:flex;align-items:center;padding:20px 15px;background:#1E1E1E;margin:10px;border-radius:8px;gap:12px;}
+.profile-card .profile-info{flex:1;}
+.profile-card .profile-name{font-size:16px;color:#fff;font-weight:600;}
+.profile-card .profile-role{font-size:12px;color:#999;margin-top:2px;}
+.profile-card .profile-store{font-size:12px;color:#FFCC00;margin-top:2px;}
+.profile-list{margin:10px;border-radius:8px;overflow:hidden;background:#1E1E1E;}
+.profile-list .settings-item{border-bottom-color:#2a2a2a;}
+.profile-list .settings-item:last-child{border-bottom:none;}
+.profile-list .logout-item .si-text{color:#FF4D4F;}
+/* Scrollbar for modals */
+.modal-content::-webkit-scrollbar{display:none;}
+/* Sub page transition */
+.sub-page{display:none;}
+.sub-page.active{display:block;}
+</style>
+</head>
+<body>
+
+<div class="phone-frame">
+  <!-- Status Bar -->
+  <div class="status-bar">
+    <span class="time">9:41</span>
+    <div class="icons">
+      <svg viewBox="0 0 24 24"><path d="M1 9l2 2c4.97-4.97 13.03-4.97 18 0l2-2C16.93 2.93 7.08 2.93 1 9zm8 8l3 3 3-3c-1.65-1.66-4.34-1.66-6 0zm-4-4l2 2c2.76-2.76 7.24-2.76 10 0l2-2C15.14 9.14 8.87 9.14 5 13z"/></svg>
+      <svg viewBox="0 0 24 24"><path d="M15.67 4H14V2h-4v2H8.33C7.6 4 7 4.6 7 5.33v15.33C7 21.4 7.6 22 8.33 22h7.33c.74 0 1.34-.6 1.34-1.33V5.33C17 4.6 16.4 4 15.67 4z"/></svg>
+    </div>
+  </div>
+
+  <!-- Top Page Navigation -->
+  <div class="page-top-nav" id="topNav">
+    <div class="nav-item active" data-page="login">登录</div>
+    <div class="nav-item" data-page="dashboard">数据首页</div>
+    <div class="nav-item" data-page="schedule">课程排课</div>
+    <div class="nav-item" data-page="members">会员管理</div>
+    <div class="nav-item" data-page="records">预约记录</div>
+    <div class="nav-item" data-page="videos">视频管理</div>
+    <div class="nav-item" data-page="settings">系统设置</div>
+    <div class="nav-item" data-page="coach-store">教练门店</div>
+    <div class="nav-item" data-page="holiday">放假管理</div>
+    <div class="nav-item" data-page="profile">个人中心</div>
+  </div>
+
+  <!-- Page Container -->
+  <div class="page-container" id="pageContainer">
+
+    <!-- Page 1: Login -->
+    <div class="page page-login active" id="page-login">
+      <div class="login-logo">
+        <div class="logo-icon">
+          <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
+        </div>
+        <h1>舞栖舞蹈社</h1>
+        <p>预约管理系统 - 管理端</p>
+      </div>
+      <div class="login-form">
+        <div class="form-group">
+          <label style="font-size:12px;color:#999;margin-bottom:6px;display:block;">账号</label>
+          <input class="input-field" type="text" placeholder="请输入账号" value="admin">
+        </div>
+        <div class="form-group">
+          <label style="font-size:12px;color:#999;margin-bottom:6px;display:block;">密码</label>
+          <input class="input-field" type="password" placeholder="请输入密码" value="123456">
+        </div>
+        <button class="btn-primary" style="width:80%;display:block;margin:20px auto 0;padding:12px;" onclick="doLogin()">登 录</button>
+      </div>
+      <div class="login-hint">初始账号: admin 密码: 123456</div>
+    </div>
+
+    <!-- Page 2: Dashboard -->
+    <div class="page" id="page-dashboard">
+      <div class="admin-bar">
+        <div class="avatar">
+          <svg viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+        </div>
+        <div style="flex:1;">
+          <div style="font-size:15px;color:#fff;font-weight:600;">张舞蹈</div>
+          <div style="font-size:11px;color:#999;">超级管理员</div>
+        </div>
+        <button class="btn-secondary" onclick="showToast('已切换到固戍店')">
+          <span>福永店</span>
+          <svg style="width:12px;height:12px;fill:#999;vertical-align:middle;margin-left:4px;" viewBox="0 0 24 24"><path d="M7 10l5 5 5-5z"/></svg>
+        </button>
+      </div>
+
+      <div class="stat-grid">
+        <div class="stat-card">
+          <div class="stat-num">12</div>
+          <div class="stat-label">今日预约数</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-num">5</div>
+          <div class="stat-label">本周新增会员</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-num">86</div>
+          <div class="stat-label">本月课时消耗</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-num">38</div>
+          <div class="stat-label">活跃会员数</div>
+        </div>
+      </div>
+
+      <div class="section-title">待办事项</div>
+      <div class="card" style="padding:0;">
+        <div class="todo-item">
+          <span class="todo-text">3位会员待审核</span>
+          <span class="tag tag-orange">待处理</span>
+        </div>
+        <div class="todo-item">
+          <span class="todo-text">2节课待确认上课</span>
+          <span class="tag tag-orange">待处理</span>
+        </div>
+        <div class="todo-item">
+          <span class="todo-text">1个套餐即将到期提醒</span>
+          <span class="tag tag-yellow">提醒</span>
+        </div>
+        <div class="todo-item">
+          <span class="todo-text">本周排课数据待导出</span>
+          <span class="tag tag-gray">可延后</span>
+        </div>
+      </div>
+
+      <div class="section-title">热门课程排行</div>
+      <div class="card" style="padding:0;">
+        <div class="rank-item">
+          <div class="rank-num top3">1</div>
+          <div class="rank-info">
+            <div class="rank-name">爵士基础班</div>
+            <div class="rank-sub">周三 19:00-20:30</div>
+          </div>
+          <div class="rank-count">28次</div>
+        </div>
+        <div class="rank-item">
+          <div class="rank-num top3">2</div>
+          <div class="rank-info">
+            <div class="rank-name">Hip-Hop进阶</div>
+            <div class="rank-sub">周五 20:00-21:30</div>
+          </div>
+          <div class="rank-count">24次</div>
+        </div>
+        <div class="rank-item">
+          <div class="rank-num top3">3</div>
+          <div class="rank-info">
+            <div class="rank-name">韩舞成品舞</div>
+            <div class="rank-sub">周六 14:00-15:30</div>
+          </div>
+          <div class="rank-count">21次</div>
+        </div>
+        <div class="rank-item">
+          <div class="rank-num" style="background:#333;color:#999;">4</div>
+          <div class="rank-info">
+            <div class="rank-name">拉丁舞入门</div>
+            <div class="rank-sub">周日 10:00-11:30</div>
+          </div>
+          <div class="rank-count">18次</div>
+        </div>
+        <div class="rank-item">
+          <div class="rank-num" style="background:#333;color:#999;">5</div>
+          <div class="rank-info">
+            <div class="rank-name">芭蕾形体</div>
+            <div class="rank-sub">周二 19:00-20:30</div>
+          </div>
+          <div class="rank-count">15次</div>
+        </div>
+      </div>
+      <div style="height:20px;"></div>
+    </div>
+
+    <!-- Page 3: Schedule -->
+    <div class="page" id="page-schedule">
+      <div class="page-header">
+        <button class="btn-secondary" onclick="switchPage('holiday')">
+          <svg style="width:14px;height:14px;fill:#999;vertical-align:middle;margin-right:4px;" viewBox="0 0 24 24"><path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11z"/></svg>
+          门店放假
+        </button>
+        <button class="btn-primary" onclick="openModal('modal-add-schedule')">+ 新增排课</button>
+      </div>
+
+      <div style="padding:0 10px 5px;">
+        <button class="btn-secondary" style="font-size:12px;" onclick="showToast('已切换到固戍店')">
+          福永店
+          <svg style="width:12px;height:12px;fill:#999;vertical-align:middle;margin-left:4px;" viewBox="0 0 24 24"><path d="M7 10l5 5 5-5z"/></svg>
+        </button>
+      </div>
+
+      <div class="schedule-card">
+        <div class="sc-header">
+          <div class="sc-title">爵士基础班</div>
+          <span class="tag tag-yellow">可预约</span>
+        </div>
+        <div class="sc-info">
+          <div><span class="tag tag-gray" style="margin-right:0;">爵士</span></div>
+          <div>教练: 小美 | 教室: A教室</div>
+          <div>2026-05-08 周五 19:00-20:30</div>
+          <div>已预约: <span style="color:#FFCC00;">8</span>/15人</div>
+        </div>
+        <div class="sc-footer">
+          <span style="font-size:11px;color:#999;">剩余7个名额</span>
+          <div class="sc-actions">
+            <button class="btn-secondary" onclick="openModal('modal-roster')">查看名单</button>
+            <button class="btn-secondary" onclick="showToast('已标记上课')">标记上课</button>
+            <button class="btn-secondary" style="color:#FF4D4F;border-color:#FF4D4F;" onclick="showToast('课程已取消')">取消</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="schedule-card">
+        <div class="sc-header">
+          <div class="sc-title">Hip-Hop进阶</div>
+          <span class="tag tag-orange">已满</span>
+        </div>
+        <div class="sc-info">
+          <div><span class="tag tag-gray" style="margin-right:0;">街舞</span></div>
+          <div>教练: 阿杰 | 教室: B教室</div>
+          <div>2026-05-09 周六 20:00-21:30</div>
+          <div>已预约: <span style="color:#FF9500;">20</span>/20人</div>
+        </div>
+        <div class="sc-footer">
+          <span style="font-size:11px;color:#FF9500;">名额已满</span>
+          <div class="sc-actions">
+            <button class="btn-secondary" onclick="openModal('modal-roster')">查看名单</button>
+            <button class="btn-secondary" onclick="showToast('已标记上课')">标记上课</button>
+            <button class="btn-secondary" style="color:#FF4D4F;border-color:#FF4D4F;" onclick="showToast('课程已取消')">取消</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="schedule-card">
+        <div class="sc-header">
+          <div class="sc-title">韩舞成品舞</div>
+          <span class="tag tag-yellow">可预约</span>
+        </div>
+        <div class="sc-info">
+          <div><span class="tag tag-gray" style="margin-right:0;">韩舞</span></div>
+          <div>教练: 小琳 | 教室: A教室</div>
+          <div>2026-05-10 周日 14:00-15:30</div>
+          <div>已预约: <span style="color:#FFCC00;">12</span>/18人</div>
+        </div>
+        <div class="sc-footer">
+          <span style="font-size:11px;color:#999;">剩余6个名额</span>
+          <div class="sc-actions">
+            <button class="btn-secondary" onclick="openModal('modal-roster')">查看名单</button>
+            <button class="btn-secondary" onclick="showToast('已标记上课')">标记上课</button>
+            <button class="btn-secondary" style="color:#FF4D4F;border-color:#FF4D4F;" onclick="showToast('课程已取消')">取消</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="schedule-card">
+        <div class="sc-header">
+          <div class="sc-title">拉丁舞入门</div>
+          <span class="tag tag-gray">已结束</span>
+        </div>
+        <div class="sc-info">
+          <div><span class="tag tag-gray" style="margin-right:0;">拉丁</span></div>
+          <div>教练: 王老师 | 教室: C教室</div>
+          <div>2026-05-06 周三 10:00-11:30</div>
+          <div>已预约: <span style="color:#999;">10</span>/15人</div>
+        </div>
+        <div class="sc-footer">
+          <span style="font-size:11px;color:#999;">课程已结束</span>
+          <div class="sc-actions">
+            <button class="btn-secondary" onclick="openModal('modal-roster')">查看名单</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="schedule-card">
+        <div class="sc-header">
+          <div class="sc-title">芭蕾形体</div>
+          <span class="tag tag-yellow">可预约</span>
+        </div>
+        <div class="sc-info">
+          <div><span class="tag tag-gray" style="margin-right:0;">芭蕾</span></div>
+          <div>教练: 李老师 | 教室: A教室</div>
+          <div>2026-05-11 周一 19:00-20:30</div>
+          <div>已预约: <span style="color:#FFCC00;">5</span>/12人</div>
+        </div>
+        <div class="sc-footer">
+          <span style="font-size:11px;color:#999;">剩余7个名额</span>
+          <div class="sc-actions">
+            <button class="btn-secondary" onclick="openModal('modal-roster')">查看名单</button>
+            <button class="btn-secondary" onclick="showToast('已标记上课')">标记上课</button>
+            <button class="btn-secondary" style="color:#FF4D4F;border-color:#FF4D4F;" onclick="showToast('课程已取消')">取消</button>
+          </div>
+        </div>
+      </div>
+      <div style="height:20px;"></div>
+    </div>
+
+    <!-- Page 4: Members -->
+    <div class="page" id="page-members">
+      <div class="filter-bar" style="padding-top:10px;">
+        <div class="filter-tab active" onclick="switchFilter(this)">全部</div>
+        <div class="filter-tab" onclick="switchFilter(this)">待审核</div>
+        <div class="filter-tab" onclick="switchFilter(this)">正式会员</div>
+      </div>
+
+      <div class="member-card">
+        <div class="avatar"><svg viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg></div>
+        <div class="member-info">
+          <div class="member-name">李小舞</div>
+          <div class="member-phone">138****5678</div>
+        </div>
+        <span class="tag tag-orange">待审核</span>
+        <div class="member-actions">
+          <button class="btn-primary" style="font-size:11px;padding:5px 10px;" onclick="openModal('modal-audit')">审核</button>
+        </div>
+      </div>
+
+      <div class="member-card">
+        <div class="avatar"><svg viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg></div>
+        <div class="member-info">
+          <div class="member-name">王美琪</div>
+          <div class="member-phone">139****1234</div>
+        </div>
+        <span class="tag tag-orange">待审核</span>
+        <div class="member-actions">
+          <button class="btn-primary" style="font-size:11px;padding:5px 10px;" onclick="openModal('modal-audit')">审核</button>
+        </div>
+      </div>
+
+      <div class="member-card">
+        <div class="avatar"><svg viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg></div>
+        <div class="member-info">
+          <div class="member-name">张小燕</div>
+          <div class="member-phone">136****9876</div>
+        </div>
+        <span class="tag tag-yellow">正式会员</span>
+        <div class="member-actions">
+          <button class="btn-secondary" style="font-size:11px;padding:5px 10px;" onclick="showToast('查看会员详情')">详情</button>
+          <button class="btn-secondary" style="font-size:11px;padding:5px 10px;" onclick="openModal('modal-package')">录入套餐</button>
+        </div>
+      </div>
+
+      <div class="member-card">
+        <div class="avatar"><svg viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg></div>
+        <div class="member-info">
+          <div class="member-name">陈思思</div>
+          <div class="member-phone">137****4567</div>
+        </div>
+        <span class="tag tag-yellow">正式会员</span>
+        <div class="member-actions">
+          <button class="btn-secondary" style="font-size:11px;padding:5px 10px;" onclick="showToast('查看会员详情')">详情</button>
+          <button class="btn-secondary" style="font-size:11px;padding:5px 10px;" onclick="openModal('modal-package')">录入套餐</button>
+        </div>
+      </div>
+
+      <div class="member-card">
+        <div class="avatar"><svg viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg></div>
+        <div class="member-info">
+          <div class="member-name">刘雨彤</div>
+          <div class="member-phone">135****7890</div>
+        </div>
+        <span class="tag tag-yellow">正式会员</span>
+        <div class="member-actions">
+          <button class="btn-secondary" style="font-size:11px;padding:5px 10px;" onclick="showToast('查看会员详情')">详情</button>
+          <button class="btn-secondary" style="font-size:11px;padding:5px 10px;" onclick="openModal('modal-package')">录入套餐</button>
+        </div>
+      </div>
+
+      <div class="member-card">
+        <div class="avatar"><svg viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg></div>
+        <div class="member-info">
+          <div class="member-name">赵佳佳</div>
+          <div class="member-phone">133****3456</div>
+        </div>
+        <span class="tag tag-orange">待审核</span>
+        <div class="member-actions">
+          <button class="btn-primary" style="font-size:11px;padding:5px 10px;" onclick="openModal('modal-audit')">审核</button>
+        </div>
+      </div>
+      <div style="height:20px;"></div>
+    </div>
+
+    <!-- Page 5: Records -->
+    <div class="page" id="page-records">
+      <div class="filter-row" style="padding-top:10px;">
+        <select><option>全部门店</option><option>福永店</option><option>固戍店</option></select>
+        <input type="date" value="2026-05-01">
+        <input type="date" value="2026-05-07">
+      </div>
+      <div class="filter-row">
+        <select><option>全部状态</option><option>正常</option><option>豁免</option><option>超时</option></select>
+      </div>
+
+      <div class="record-card">
+        <div class="rc-top">
+          <span class="rc-name">张小燕</span>
+          <span class="tag tag-yellow">正常</span>
+        </div>
+        <div class="rc-info">
+          <div>课程: 爵士基础班</div>
+          <div>时间: 2026-05-07 19:00-20:30</div>
+          <div>门店: 福永店 | 扣课: 1节</div>
+        </div>
+        <div style="margin-top:8px;text-align:right;">
+          <button class="btn-secondary" style="font-size:11px;padding:4px 10px;" onclick="showToast('已手动取消预约')">手动取消</button>
+        </div>
+      </div>
+
+      <div class="record-card">
+        <div class="rc-top">
+          <span class="rc-name">陈思思</span>
+          <span class="tag tag-yellow">正常</span>
+        </div>
+        <div class="rc-info">
+          <div>课程: Hip-Hop进阶</div>
+          <div>时间: 2026-05-07 20:00-21:30</div>
+          <div>门店: 福永店 | 扣课: 1节</div>
+        </div>
+        <div style="margin-top:8px;text-align:right;">
+          <button class="btn-secondary" style="font-size:11px;padding:4px 10px;" onclick="showToast('已手动取消预约')">手动取消</button>
+        </div>
+      </div>
+
+      <div class="record-card">
+        <div class="rc-top">
+          <span class="rc-name">刘雨彤</span>
+          <span class="tag tag-white">豁免</span>
+        </div>
+        <div class="rc-info">
+          <div>课程: 韩舞成品舞</div>
+          <div>时间: 2026-05-06 14:00-15:30</div>
+          <div>门店: 固戍店 | 扣课: 豁免</div>
+        </div>
+        <div style="margin-top:8px;text-align:right;">
+          <button class="btn-secondary" style="font-size:11px;padding:4px 10px;opacity:.5;" disabled>已完成</button>
+        </div>
+      </div>
+
+      <div class="record-card">
+        <div class="rc-top">
+          <span class="rc-name">王美琪</span>
+          <span class="tag tag-orange">超时</span>
+        </div>
+        <div class="rc-info">
+          <div>课程: 拉丁舞入门</div>
+          <div>时间: 2026-05-05 10:00-11:30</div>
+          <div>门店: 福永店 | 扣课: 1节(超时扣课)</div>
+        </div>
+        <div style="margin-top:8px;text-align:right;">
+          <button class="btn-secondary" style="font-size:11px;padding:4px 10px;opacity:.5;" disabled>已完成</button>
+        </div>
+      </div>
+
+      <div class="record-card">
+        <div class="rc-top">
+          <span class="rc-name">张小燕</span>
+          <span class="tag tag-yellow">正常</span>
+        </div>
+        <div class="rc-info">
+          <div>课程: 芭蕾形体</div>
+          <div>时间: 2026-05-04 19:00-20:30</div>
+          <div>门店: 福永店 | 扣课: 1节</div>
+        </div>
+        <div style="margin-top:8px;text-align:right;">
+          <button class="btn-secondary" style="font-size:11px;padding:4px 10px;opacity:.5;" disabled>已完成</button>
+        </div>
+      </div>
+
+      <div class="record-card">
+        <div class="rc-top">
+          <span class="rc-name">陈思思</span>
+          <span class="tag tag-yellow">正常</span>
+        </div>
+        <div class="rc-info">
+          <div>课程: 爵士基础班</div>
+          <div>时间: 2026-05-03 19:00-20:30</div>
+          <div>门店: 固戍店 | 扣课: 1节</div>
+        </div>
+        <div style="margin-top:8px;text-align:right;">
+          <button class="btn-secondary" style="font-size:11px;padding:4px 10px;opacity:.5;" disabled>已完成</button>
+        </div>
+      </div>
+      <div style="height:20px;"></div>
+    </div>
+
+    <!-- Page 6: Videos -->
+    <div class="page" id="page-videos">
+      <div style="padding:10px;">
+        <button class="btn-primary" style="width:100%;padding:12px;" onclick="showToast('选择视频文件上传')">
+          <svg style="width:16px;height:16px;fill:#121212;vertical-align:middle;margin-right:6px;" viewBox="0 0 24 24"><path d="M9 16h6v-6h4l-7-7-7 7h4v6zm-4 2h14v2H5v-2z"/></svg>
+          上传视频
+        </button>
+      </div>
+
+      <div class="video-card">
+        <div class="video-thumb">
+          <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+        </div>
+        <div class="video-info">
+          <div class="vi-title">爵士基础 - 身体隔离训练</div>
+          <div class="vi-sub">教练: 小美 | 福永店</div>
+          <div class="video-actions">
+            <div class="switch on" onclick="toggleSwitch(this)"></div>
+            <button class="btn-secondary" onclick="openModal('modal-video-edit')">编辑</button>
+            <button class="btn-danger" onclick="showToast('视频已删除')">删除</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="video-card">
+        <div class="video-thumb">
+          <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+        </div>
+        <div class="video-info">
+          <div class="vi-title">Hip-Hop基础律动教学</div>
+          <div class="vi-sub">教练: 阿杰 | 福永店</div>
+          <div class="video-actions">
+            <div class="switch on" onclick="toggleSwitch(this)"></div>
+            <button class="btn-secondary" onclick="openModal('modal-video-edit')">编辑</button>
+            <button class="btn-danger" onclick="showToast('视频已删除')">删除</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="video-card">
+        <div class="video-thumb">
+          <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+        </div>
+        <div class="video-info">
+          <div class="vi-title">韩舞BLACKPINK翻跳</div>
+          <div class="vi-sub">教练: 小琳 | 固戍店</div>
+          <div class="video-actions">
+            <div class="switch" onclick="toggleSwitch(this)"></div>
+            <button class="btn-secondary" onclick="openModal('modal-video-edit')">编辑</button>
+            <button class="btn-danger" onclick="showToast('视频已删除')">删除</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="video-card">
+        <div class="video-thumb">
+          <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+        </div>
+        <div class="video-info">
+          <div class="vi-title">拉丁恰恰基本步</div>
+          <div class="vi-sub">教练: 王老师 | 福永店</div>
+          <div class="video-actions">
+            <div class="switch on" onclick="toggleSwitch(this)"></div>
+            <button class="btn-secondary" onclick="openModal('modal-video-edit')">编辑</button>
+            <button class="btn-danger" onclick="showToast('视频已删除')">删除</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="video-card">
+        <div class="video-thumb">
+          <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+        </div>
+        <div class="video-info">
+          <div class="vi-title">芭蕾把杆组合训练</div>
+          <div class="vi-sub">教练: 李老师 | 固戍店</div>
+          <div class="video-actions">
+            <div class="switch on" onclick="toggleSwitch(this)"></div>
+            <button class="btn-secondary" onclick="openModal('modal-video-edit')">编辑</button>
+            <button class="btn-danger" onclick="showToast('视频已删除')">删除</button>
+          </div>
+        </div>
+      </div>
+      <div style="height:20px;"></div>
+    </div>
+
+    <!-- Page 7: Settings -->
+    <div class="page" id="page-settings">
+      <div class="sub-page active" id="settings-main">
+        <div class="section-title" style="margin-top:10px;">系统设置</div>
+        <div class="card" style="padding:0;">
+          <div class="settings-item" onclick="openModal('modal-password')">
+            <div class="si-left">
+              <svg viewBox="0 0 24 24"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/></svg>
+              <span class="si-text">修改密码</span>
+            </div>
+            <svg class="arrow-right" viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>
+          </div>
+          <div class="settings-item" onclick="showSubPage('settings-sub-accounts')">
+            <div class="si-left">
+              <svg viewBox="0 0 24 24"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>
+              <span class="si-text">员工子账号管理</span>
+            </div>
+            <svg class="arrow-right" viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>
+          </div>
+          <div class="settings-item" onclick="showToast('角色权限管理')">
+            <div class="si-left">
+              <svg viewBox="0 0 24 24"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z"/></svg>
+              <span class="si-text">角色权限管理</span>
+            </div>
+            <svg class="arrow-right" viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>
+          </div>
+          <div class="settings-item" onclick="showToast('全局系统参数配置')">
+            <div class="si-left">
+              <svg viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.07.62-.07.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>
+              <span class="si-text">全局系统参数配置</span>
+            </div>
+            <svg class="arrow-right" viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>
+          </div>
+        </div>
+      </div>
+
+      <div class="sub-page" id="settings-sub-accounts">
+        <div style="padding:10px;">
+          <button class="btn-secondary" onclick="showSubPage('settings-main')" style="font-size:12px;margin-bottom:10px;">
+            <svg style="width:14px;height:14px;fill:#999;vertical-align:middle;margin-right:4px;" viewBox="0 0 24 24"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
+            返回
+          </button>
+        </div>
+        <div class="section-title">员工子账号管理</div>
+        <div class="card" style="padding:0;">
+          <div class="sub-account-item">
+            <div class="sa-info">
+              <div class="sa-name">小美</div>
+              <div class="sa-role">教练 | 福永店</div>
+            </div>
+            <div class="switch on" onclick="toggleSwitch(this);showToast(this.classList.contains('on')?'已启用':'已禁用')"></div>
+          </div>
+          <div class="sub-account-item">
+            <div class="sa-info">
+              <div class="sa-name">阿杰</div>
+              <div class="sa-role">前台 | 固戍店</div>
+            </div>
+            <div class="switch on" onclick="toggleSwitch(this);showToast(this.classList.contains('on')?'已启用':'已禁用')"></div>
+          </div>
+          <div class="sub-account-item">
+            <div class="sa-info">
+              <div class="sa-name">小琳</div>
+              <div class="sa-role">教练 | 福永店</div>
+            </div>
+            <div class="switch" onclick="toggleSwitch(this);showToast(this.classList.contains('on')?'已启用':'已禁用')"></div>
+          </div>
+        </div>
+      </div>
+      <div style="height:20px;"></div>
+    </div>
+
+    <!-- Page 8: Coach & Store -->
+    <div class="page" id="page-coach-store">
+      <div class="tab-switch" style="margin-top:10px;">
+        <div class="ts-item active" onclick="switchTab(this,'coach-panel')">教练管理</div>
+        <div class="ts-item" onclick="switchTab(this,'store-panel')">门店管理</div>
+      </div>
+
+      <div class="sub-page active" id="coach-panel">
+        <div class="page-header">
+          <div></div>
+          <button class="btn-primary" style="font-size:12px;padding:8px 14px;" onclick="openModal('modal-coach-edit')">+ 新增教练</button>
+        </div>
+
+        <div class="coach-card">
+          <div class="avatar"><svg viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg></div>
+          <div class="coach-info">
+            <div class="coach-name">小美</div>
+            <div class="coach-style">擅长: 爵士、韩舞</div>
+          </div>
+          <div class="switch on" onclick="toggleSwitch(this)"></div>
+          <button class="btn-secondary" style="font-size:11px;padding:5px 10px;" onclick="openModal('modal-coach-edit')">编辑</button>
+        </div>
+
+        <div class="coach-card">
+          <div class="avatar"><svg viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg></div>
+          <div class="coach-info">
+            <div class="coach-name">阿杰</div>
+            <div class="coach-style">擅长: Hip-Hop、Breaking</div>
+          </div>
+          <div class="switch on" onclick="toggleSwitch(this)"></div>
+          <button class="btn-secondary" style="font-size:11px;padding:5px 10px;" onclick="openModal('modal-coach-edit')">编辑</button>
+        </div>
+
+        <div class="coach-card">
+          <div class="avatar"><svg viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg></div>
+          <div class="coach-info">
+            <div class="coach-name">小琳</div>
+            <div class="coach-style">擅长: 韩舞、Urban</div>
+          </div>
+          <div class="switch" onclick="toggleSwitch(this)"></div>
+          <button class="btn-secondary" style="font-size:11px;padding:5px 10px;" onclick="openModal('modal-coach-edit')">编辑</button>
+        </div>
+
+        <div class="coach-card">
+          <div class="avatar"><svg viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg></div>
+          <div class="coach-info">
+            <div class="coach-name">王老师</div>
+            <div class="coach-style">擅长: 拉丁、芭蕾</div>
+          </div>
+          <div class="switch on" onclick="toggleSwitch(this)"></div>
+          <button class="btn-secondary" style="font-size:11px;padding:5px 10px;" onclick="openModal('modal-coach-edit')">编辑</button>
+        </div>
+      </div>
+
+      <div class="sub-page" id="store-panel">
+        <div class="store-card">
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <div class="store-name">福永店</div>
+            <button class="btn-secondary" style="font-size:11px;padding:5px 10px;" onclick="showToast('编辑门店信息')">编辑</button>
+          </div>
+          <div class="store-info">
+            <div>地址: 深圳市宝安区福永街道XX路XX号</div>
+            <div>电话: 0755-12345678</div>
+            <div>状态: <span class="tag tag-yellow">营业中</span></div>
+          </div>
+        </div>
+
+        <div class="store-card">
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <div class="store-name">固戍店</div>
+            <button class="btn-secondary" style="font-size:11px;padding:5px 10px;" onclick="showToast('编辑门店信息')">编辑</button>
+          </div>
+          <div class="store-info">
+            <div>地址: 深圳市宝安区固戍街道XX路XX号</div>
+            <div>电话: 0755-87654321</div>
+            <div>状态: <span class="tag tag-yellow">营业中</span></div>
+          </div>
+        </div>
+      </div>
+      <div style="height:20px;"></div>
+    </div>
+
+    <!-- Page 9: Holiday -->
+    <div class="page" id="page-holiday">
+      <div class="page-header">
+        <div></div>
+        <button class="btn-primary" style="font-size:12px;padding:8px 14px;" onclick="openModal('modal-holiday-add')">+ 新增放假</button>
+      </div>
+
+      <div class="holiday-card">
+        <div class="hc-header">
+          <div class="hc-title">五一劳动节放假</div>
+          <span class="tag tag-yellow">生效中</span>
+        </div>
+        <div class="hc-info">
+          <div>门店范围: 全部门店</div>
+          <div>2026-05-01 至 2026-05-05</div>
+          <div>共 5 天</div>
+        </div>
+        <div class="hc-footer">
+          <span style="font-size:11px;color:#999;">创建于 2026-04-20</span>
+          <div style="display:flex;gap:6px;">
+            <button class="btn-secondary" style="font-size:11px;padding:5px 10px;" onclick="showToast('编辑放假信息')">编辑</button>
+            <button class="btn-secondary" style="font-size:11px;padding:5px 10px;color:#FF4D4F;border-color:#FF4D4F;" onclick="showToast('已撤销放假安排')">撤销</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="holiday-card">
+        <div class="hc-header">
+          <div class="hc-title">端午节放假</div>
+          <span class="tag tag-gray">已结束</span>
+        </div>
+        <div class="hc-info">
+          <div>门店范围: 全部门店</div>
+          <div>2026-04-30 至 2026-04-30</div>
+          <div>共 1 天</div>
+        </div>
+        <div class="hc-footer">
+          <span style="font-size:11px;color:#999;">创建于 2026-04-15</span>
+          <div style="display:flex;gap:6px;">
+            <button class="btn-secondary" style="font-size:11px;padding:5px 10px;opacity:.5;" disabled>已结束</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="holiday-card">
+        <div class="hc-header">
+          <div class="hc-title">福永店装修放假</div>
+          <span class="tag tag-yellow">生效中</span>
+        </div>
+        <div class="hc-info">
+          <div>门店范围: 福永店</div>
+          <div>2026-05-10 至 2026-05-12</div>
+          <div>共 3 天</div>
+        </div>
+        <div class="hc-footer">
+          <span style="font-size:11px;color:#999;">创建于 2026-05-01</span>
+          <div style="display:flex;gap:6px;">
+            <button class="btn-secondary" style="font-size:11px;padding:5px 10px;" onclick="showToast('编辑放假信息')">编辑</button>
+            <button class="btn-secondary" style="font-size:11px;padding:5px 10px;color:#FF4D4F;border-color:#FF4D4F;" onclick="showToast('已撤销放假安排')">撤销</button>
+          </div>
+        </div>
+      </div>
+      <div style="height:20px;"></div>
+    </div>
+
+    <!-- Page 10: Profile -->
+    <div class="page" id="page-profile">
+      <div class="profile-card">
+        <div class="avatar" style="width:56px;height:56px;">
+          <svg viewBox="0 0 24 24" style="width:28px;height:28px;"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+        </div>
+        <div class="profile-info">
+          <div class="profile-name">张舞蹈</div>
+          <div class="profile-role">超级管理员</div>
+          <div class="profile-store">所属门店: 福永店</div>
+        </div>
+      </div>
+
+      <div class="profile-list">
+        <div class="settings-item" onclick="openModal('modal-password')">
+          <div class="si-left">
+            <svg viewBox="0 0 24 24"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/></svg>
+            <span class="si-text">修改密码</span>
+          </div>
+          <svg class="arrow-right" viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>
+        </div>
+        <div class="settings-item" onclick="showToast('操作日志查看')">
+          <div class="si-left">
+            <svg viewBox="0 0 24 24"><path d="M13 3c-4.97 0-9 4.03-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42C8.27 19.99 10.51 21 13 21c4.97 0 9-4.03 9-9s-4.03-9-9-9zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z"/></svg>
+            <span class="si-text">操作日志查看</span>
+          </div>
+          <svg class="arrow-right" viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>
+        </div>
+        <div class="settings-item" onclick="showToast('关于系统 v1.0.0')">
+          <div class="si-left">
+            <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
+            <span class="si-text">关于系统</span>
+          </div>
+          <svg class="arrow-right" viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>
+        </div>
+        <div class="settings-item logout-item" onclick="doLogout()">
+          <div class="si-left">
+            <svg viewBox="0 0 24 24" style="fill:#FF4D4F;"><path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"/></svg>
+            <span class="si-text">退出登录</span>
+          </div>
+          <svg class="arrow-right" viewBox="0 0 24 24" style="fill:#FF4D4F;"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>
+        </div>
+      </div>
+      <div style="height:20px;"></div>
+    </div>
+
+  </div><!-- end page-container -->
+
+  <!-- Bottom Tab -->
+  <div class="bottom-tab hidden" id="bottomTab">
+    <div class="tab-item active" data-tab="dashboard" onclick="switchTabNav(this)">
+      <svg viewBox="0 0 24 24"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
+      <span>数据首页</span>
+    </div>
+    <div class="tab-item" data-tab="schedule" onclick="switchTabNav(this)">
+      <svg viewBox="0 0 24 24"><path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11zM9 10H7v2h2v-2zm4 0h-2v2h2v-2zm4 0h-2v2h2v-2z"/></svg>
+      <span>课程排课</span>
+    </div>
+    <div class="tab-item" data-tab="members" onclick="switchTabNav(this)">
+      <svg viewBox="0 0 24 24"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>
+      <span>会员管理</span>
+    </div>
+    <div class="tab-item" data-tab="profile" onclick="switchTabNav(this)">
+      <svg viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+      <span>个人中心</span>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div class="toast" id="toast"></div>
+
+  <!-- Modal: Roster -->
+  <div class="modal-overlay" id="modal-roster" onclick="closeModalOverlay(event)">
+    <div class="modal-content" onclick="event.stopPropagation()">
+      <div class="modal-header">
+        <h3>预约名单</h3>
+        <button class="modal-close" onclick="closeModal('modal-roster')"><svg viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg></button>
+      </div>
+      <div style="color:#999;font-size:12px;margin-bottom:10px;">爵士基础班 | 2026-05-08 19:00 | 已预约 8/15</div>
+      <div class="list-item" style="background:#121212;border-radius:6px;margin-bottom:6px;">
+        <div class="avatar" style="width:32px;height:32px;"><svg viewBox="0 0 24 24" style="width:16px;height:16px;"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg></div>
+        <div style="flex:1;"><div style="font-size:13px;color:#fff;">张小燕</div><div style="font-size:11px;color:#999;">138****5678</div></div>
+        <span class="tag tag-yellow">已签到</span>
+      </div>
+      <div class="list-item" style="background:#121212;border-radius:6px;margin-bottom:6px;">
+        <div class="avatar" style="width:32px;height:32px;"><svg viewBox="0 0 24 24" style="width:16px;height:16px;"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg></div>
+        <div style="flex:1;"><div style="font-size:13px;color:#fff;">陈思思</div><div style="font-size:11px;color:#999;">137****4567</div></div>
+        <span class="tag tag-yellow">已签到</span>
+      </div>
+      <div class="list-item" style="background:#121212;border-radius:6px;margin-bottom:6px;">
+        <div class="avatar" style="width:32px;height:32px;"><svg viewBox="0 0 24 24" style="width:16px;height:16px;"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg></div>
+        <div style="flex:1;"><div style="font-size:13px;color:#fff;">刘雨彤</div><div style="font-size:11px;color:#999;">135****7890</div></div>
+        <span class="tag tag-gray">未签到</span>
+      </div>
+      <div class="list-item" style="background:#121212;border-radius:6px;margin-bottom:6px;">
+        <div class="avatar" style="width:32px;height:32px;"><svg viewBox="0 0 24 24" style="width:16px;height:16px;"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg></div>
+        <div style="flex:1;"><div style="font-size:13px;color:#fff;">赵佳佳</div><div style="font-size:11px;color:#999;">133****3456</div></div>
+        <span class="tag tag-gray">未签到</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Add Schedule -->
+  <div class="modal-overlay" id="modal-add-schedule" onclick="closeModalOverlay(event)">
+    <div class="modal-content" onclick="event.stopPropagation()">
+      <div class="modal-header">
+        <h3>新增排课</h3>
+        <button class="modal-close" onclick="closeModal('modal-add-schedule')"><svg viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg></button>
+      </div>
+      <div class="form-group">
+        <label>门店</label>
+        <select><option>福永店</option><option>固戍店</option></select>
+      </div>
+      <div class="form-group">
+        <label>课程名称</label>
+        <input class="input-field" placeholder="请输入课程名称">
+      </div>
+      <div class="form-group">
+        <label>舞种</label>
+        <select><option>爵士</option><option>街舞/Hip-Hop</option><option>韩舞</option><option>拉丁</option><option>芭蕾</option><option>Urban</option></select>
+      </div>
+      <div class="form-group">
+        <label>教练</label>
+        <select><option>小美</option><option>阿杰</option><option>小琳</option><option>王老师</option><option>李老师</option></select>
+      </div>
+      <div class="form-group">
+        <label>日期</label>
+        <input class="input-field" type="date" value="2026-05-08">
+      </div>
+      <div style="display:flex;gap:10px;">
+        <div class="form-group" style="flex:1;">
+          <label>开始时间</label>
+          <input class="input-field" type="time" value="19:00">
+        </div>
+        <div class="form-group" style="flex:1;">
+          <label>结束时间</label>
+          <input class="input-field" type="time" value="20:30">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>教室</label>
+        <select><option>A教室</option><option>B教室</option><option>C教室</option></select>
+      </div>
+      <div class="form-group">
+        <label>最大人数</label>
+        <input class="input-field" type="number" placeholder="请输入最大人数" value="15">
+      </div>
+      <button class="btn-primary" style="width:100%;margin-top:10px;" onclick="closeModal('modal-add-schedule');showToast('排课已添加')">确认添加</button>
+    </div>
+  </div>
+
+  <!-- Modal: Audit -->
+  <div class="modal-overlay" id="modal-audit" onclick="closeModalOverlay(event)">
+    <div class="modal-content" onclick="event.stopPropagation()">
+      <div class="modal-header">
+        <h3>会员审核</h3>
+        <button class="modal-close" onclick="closeModal('modal-audit')"><svg viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg></button>
+      </div>
+      <div style="background:#121212;border-radius:6px;padding:12px;margin-bottom:15px;">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+          <div class="avatar" style="width:36px;height:36px;"><svg viewBox="0 0 24 24" style="width:18px;height:18px;"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg></div>
+          <div><div style="font-size:14px;color:#fff;">李小舞</div><div style="font-size:12px;color:#999;">138****5678</div></div>
+        </div>
+        <div style="font-size:12px;color:#999;">申请时间: 2026-05-07 09:30</div>
+      </div>
+      <div style="display:flex;gap:10px;">
+        <button class="btn-primary" style="flex:1;" onclick="closeModal('modal-audit');showToast('审核通过')">通过</button>
+        <button class="btn-danger" style="flex:1;" onclick="closeModal('modal-audit');showToast('已拒绝申请')">拒绝</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Package -->
+  <div class="modal-overlay" id="modal-package" onclick="closeModalOverlay(event)">
+    <div class="modal-content" onclick="event.stopPropagation()">
+      <div class="modal-header">
+        <h3>录入套餐</h3>
+        <button class="modal-close" onclick="closeModal('modal-package')"><svg viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg></button>
+      </div>
+      <div class="form-group">
+        <label>套餐类型</label>
+        <select id="packageType" onchange="togglePackageFields()">
+          <option value="count">次卡</option>
+          <option value="time">时间卡</option>
+        </select>
+      </div>
+      <div class="form-group" id="packageCountGroup">
+        <label>课时数</label>
+        <input class="input-field" type="number" placeholder="请输入课时数" value="10">
+      </div>
+      <div class="form-group" id="packageTimeGroup" style="display:none;">
+        <label>有效时长</label>
+        <select><option>1个月</option><option>3个月</option><option>6个月</option><option>12个月</option></select>
+      </div>
+      <div class="form-group">
+        <label>有效期至</label>
+        <input class="input-field" type="date" value="2026-08-07">
+      </div>
+      <div class="form-group">
+        <label>备注</label>
+        <input class="input-field" placeholder="选填">
+      </div>
+      <button class="btn-primary" style="width:100%;margin-top:10px;" onclick="closeModal('modal-package');showToast('套餐已录入')">确认录入</button>
+    </div>
+  </div>
+
+  <!-- Modal: Password -->
+  <div class="modal-overlay" id="modal-password" onclick="closeModalOverlay(event)">
+    <div class="modal-content" onclick="event.stopPropagation()">
+      <div class="modal-header">
+        <h3>修改密码</h3>
+        <button class="modal-close" onclick="closeModal('modal-password')"><svg viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg></button>
+      </div>
+      <div class="form-group">
+        <label>旧密码</label>
+        <input class="input-field" type="password" placeholder="请输入旧密码">
+      </div>
+      <div class="form-group">
+        <label>新密码</label>
+        <input class="input-field" type="password" placeholder="请输入新密码">
+      </div>
+      <div class="form-group">
+        <label>确认密码</label>
+        <input class="input-field" type="password" placeholder="请再次输入新密码">
+      </div>
+      <button class="btn-primary" style="width:100%;margin-top:10px;" onclick="closeModal('modal-password');showToast('密码修改成功')">确认修改</button>
+    </div>
+  </div>
+
+  <!-- Modal: Video Edit -->
+  <div class="modal-overlay" id="modal-video-edit" onclick="closeModalOverlay(event)">
+    <div class="modal-content" onclick="event.stopPropagation()">
+      <div class="modal-header">
+        <h3>编辑视频</h3>
+        <button class="modal-close" onclick="closeModal('modal-video-edit')"><svg viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg></button>
+      </div>
+      <div class="form-group">
+        <label>视频标题</label>
+        <input class="input-field" placeholder="请输入视频标题" value="爵士基础 - 身体隔离训练">
+      </div>
+      <div class="form-group">
+        <label>教练</label>
+        <select><option>小美</option><option>阿杰</option><option>小琳</option><option>王老师</option><option>李老师</option></select>
+      </div>
+      <div class="form-group">
+        <label>门店</label>
+        <select><option>福永店</option><option>固戍店</option></select>
+      </div>
+      <div class="form-group">
+        <label>上架状态</label>
+        <div style="display:flex;align-items:center;gap:10px;margin-top:4px;">
+          <div class="switch on" onclick="toggleSwitch(this)"></div>
+          <span style="font-size:13px;color:#E5E5E5;">已上架</span>
+        </div>
+      </div>
+      <button class="btn-primary" style="width:100%;margin-top:10px;" onclick="closeModal('modal-video-edit');showToast('视频已更新')">保存</button>
+    </div>
+  </div>
+
+  <!-- Modal: Coach Edit -->
+  <div class="modal-overlay" id="modal-coach-edit" onclick="closeModalOverlay(event)">
+    <div class="modal-content" onclick="event.stopPropagation()">
+      <div class="modal-header">
+        <h3>编辑教练</h3>
+        <button class="modal-close" onclick="closeModal('modal-coach-edit')"><svg viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg></button>
+      </div>
+      <div class="form-group">
+        <label>教练姓名</label>
+        <input class="input-field" placeholder="请输入姓名" value="小美">
+      </div>
+      <div class="form-group">
+        <label>擅长舞种</label>
+        <input class="input-field" placeholder="多个舞种用逗号分隔" value="爵士, 韩舞">
+      </div>
+      <div class="form-group">
+        <label>所属门店</label>
+        <select><option>福永店</option><option>固戍店</option></select>
+      </div>
+      <div class="form-group">
+        <label>状态</label>
+        <div style="display:flex;align-items:center;gap:10px;margin-top:4px;">
+          <div class="switch on" onclick="toggleSwitch(this)"></div>
+          <span style="font-size:13px;color:#E5E5E5;">启用</span>
+        </div>
+      </div>
+      <button class="btn-primary" style="width:100%;margin-top:10px;" onclick="closeModal('modal-coach-edit');showToast('教练信息已保存')">保存</button>
+    </div>
+  </div>
+
+  <!-- Modal: Holiday Add -->
+  <div class="modal-overlay" id="modal-holiday-add" onclick="closeModalOverlay(event)">
+    <div class="modal-content" onclick="event.stopPropagation()">
+      <div class="modal-header">
+        <h3>新增放假</h3>
+        <button class="modal-close" onclick="closeModal('modal-holiday-add')"><svg viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg></button>
+      </div>
+      <div class="form-group">
+        <label>放假标题</label>
+        <input class="input-field" placeholder="如: 五一劳动节放假">
+      </div>
+      <div class="form-group">
+        <label>门店范围</label>
+        <select><option>全部门店</option><option>福永店</option><option>固戍店</option></select>
+      </div>
+      <div style="display:flex;gap:10px;">
+        <div class="form-group" style="flex:1;">
+          <label>开始日期</label>
+          <input class="input-field" type="date" value="2026-05-01">
+        </div>
+        <div class="form-group" style="flex:1;">
+          <label>结束日期</label>
+          <input class="input-field" type="date" value="2026-05-05">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>备注</label>
+        <input class="input-field" placeholder="选填">
+      </div>
+      <button class="btn-primary" style="width:100%;margin-top:10px;" onclick="closeModal('modal-holiday-add');showToast('放假安排已添加')">确认添加</button>
+    </div>
+  </div>
+
+</div><!-- end phone-frame -->
+
+<script>
+// Page switching via top nav
+const navItems = document.querySelectorAll('#topNav .nav-item');
+const pages = document.querySelectorAll('.page');
+const bottomTab = document.getElementById('bottomTab');
+
+const tabMapping = {
+  'dashboard': 'dashboard',
+  'schedule': 'schedule',
+  'members': 'members',
+  'records': 'records',
+  'videos': 'videos',
+  'settings': 'settings',
+  'coach-store': 'coach-store',
+  'holiday': 'holiday',
+  'profile': 'profile'
+};
+
+const bottomTabPages = ['dashboard', 'schedule', 'members', 'profile'];
+
+function switchPage(pageId) {
+  // Update top nav
+  navItems.forEach(item => {
+    item.classList.toggle('active', item.dataset.page === pageId);
+  });
+  // Show/hide pages
+  pages.forEach(page => {
+    page.classList.toggle('active', page.id === 'page-' + pageId);
+  });
+  // Show/hide bottom tab
+  if (pageId === 'login') {
+    bottomTab.classList.add('hidden');
+  } else {
+    bottomTab.classList.remove('hidden');
+  }
+  // Update bottom tab active state
+  const tabItems = bottomTab.querySelectorAll('.tab-item');
+  tabItems.forEach(item => {
+    item.classList.toggle('active', item.dataset.tab === pageId);
+  });
+  // Scroll to top
+  document.getElementById('pageContainer').scrollTop = 0;
+  // Scroll top nav to make active item visible
+  const activeNav = document.querySelector('#topNav .nav-item.active');
+  if (activeNav) {
+    activeNav.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+  }
+}
+
+navItems.forEach(item => {
+  item.addEventListener('click', () => switchPage(item.dataset.page));
+});
+
+function switchTabNav(el) {
+  switchPage(el.dataset.tab);
+}
+
+// Login
+function doLogin() {
+  showToast('登录成功');
+  setTimeout(() => switchPage('dashboard'), 500);
+}
+
+function doLogout() {
+  showToast('已退出登录');
+  setTimeout(() => switchPage('login'), 500);
+}
+
+// Modal
+function openModal(id) {
+  document.getElementById(id).classList.add('show');
+}
+function closeModal(id) {
+  document.getElementById(id).classList.remove('show');
+}
+function closeModalOverlay(e) {
+  if (e.target === e.currentTarget) {
+    e.currentTarget.classList.remove('show');
+  }
+}
+
+// Toast
+function showToast(msg) {
+  const toast = document.getElementById('toast');
+  toast.textContent = msg;
+  toast.classList.remove('show');
+  void toast.offsetWidth; // force reflow
+  toast.classList.add('show');
+  setTimeout(() => toast.classList.remove('show'), 2000);
+}
+
+// Switch toggle
+function toggleSwitch(el) {
+  el.classList.toggle('on');
+}
+
+// Filter tabs
+function switchFilter(el) {
+  el.parentElement.querySelectorAll('.filter-tab').forEach(tab => tab.classList.remove('active'));
+  el.classList.add('active');
+  showToast('筛选: ' + el.textContent);
+}
+
+// Tab switch (coach/store)
+function switchTab(el, panelId) {
+  el.parentElement.querySelectorAll('.ts-item').forEach(item => item.classList.remove('active'));
+  el.classList.add('active');
+  // Hide all sibling sub-pages
+  const parent = el.closest('.page');
+  parent.querySelectorAll(':scope > .sub-page').forEach(p => p.classList.remove('active'));
+  document.getElementById(panelId).classList.add('active');
+}
+
+// Sub page (settings)
+function showSubPage(id) {
+  const page = document.getElementById('page-settings');
+  page.querySelectorAll(':scope > .sub-page').forEach(p => p.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+// Package type toggle
+function togglePackageFields() {
+  const type = document.getElementById('packageType').value;
+  document.getElementById('packageCountGroup').style.display = type === 'count' ? 'block' : 'none';
+  document.getElementById('packageTimeGroup').style.display = type === 'time' ? 'block' : 'none';
+}
+</script>
+
+</body>
+</html>

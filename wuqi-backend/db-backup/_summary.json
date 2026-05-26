@@ -1,0 +1,104 @@
+{
+  "exportTime": "2026-05-26T18:15:20.032Z",
+  "database": "wuqi_dance",
+  "totalCollections": 24,
+  "totalDocuments": 229,
+  "collections": [
+    {
+      "collection": "operationlogs",
+      "count": 36
+    },
+    {
+      "collection": "dancestyles",
+      "count": 9
+    },
+    {
+      "collection": "packageextensions",
+      "count": 0
+    },
+    {
+      "collection": "stores",
+      "count": 2
+    },
+    {
+      "collection": "packages",
+      "count": 0
+    },
+    {
+      "collection": "waitlists",
+      "count": 0
+    },
+    {
+      "collection": "configs",
+      "count": 13
+    },
+    {
+      "collection": "attendances",
+      "count": 0
+    },
+    {
+      "collection": "transferrequests",
+      "count": 0
+    },
+    {
+      "collection": "userpackages",
+      "count": 23
+    },
+    {
+      "collection": "banners",
+      "count": 3
+    },
+    {
+      "collection": "coaches",
+      "count": 7
+    },
+    {
+      "collection": "schedules",
+      "count": 78
+    },
+    {
+      "collection": "exemptionlogs",
+      "count": 0
+    },
+    {
+      "collection": "coachsalaries",
+      "count": 6
+    },
+    {
+      "collection": "systemconfigs",
+      "count": 0
+    },
+    {
+      "collection": "holidays",
+      "count": 2
+    },
+    {
+      "collection": "coachsalarystats",
+      "count": 0
+    },
+    {
+      "collection": "bookings",
+      "count": 5
+    },
+    {
+      "collection": "announcements",
+      "count": 3
+    },
+    {
+      "collection": "packageactivations",
+      "count": 7
+    },
+    {
+      "collection": "videos",
+      "count": 0
+    },
+    {
+      "collection": "users",
+      "count": 33
+    },
+    {
+      "collection": "weektemplates",
+      "count": 2
+    }
+  ]
+}

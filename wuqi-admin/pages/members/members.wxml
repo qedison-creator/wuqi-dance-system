@@ -1,0 +1,251 @@
+<view class="page {{showPackageModal || showReviewModal ? 'page-scroll-disabled' : ''}}">
+  <view class="page-header">
+    <text class="page-title">会员管理</text>
+    <view class="header-actions">
+      <view class="header-chip-wrap" bindtap="onGoReview">
+        <view class="header-chip header-chip-review">
+          <text class="header-chip-text">待审核</text>
+        </view>
+        <view class="review-badge" wx:if="{{pendingCount > 0}}">{{pendingCount}}</view>
+      </view>
+      <view class="header-btn" bindtap="onRefresh">
+        <text class="header-btn-icon">↻</text>
+      </view>
+    </view>
+  </view>
+
+  <view class="store-bar">
+    <text class="store-bar-label">门店</text>
+    <scroll-view class="store-scroll" scroll-x enhanced show-scrollbar="{{false}}" enable-flex>
+      <view class="store-chips">
+        <view class="store-chip {{currentStoreId === '' ? 'store-chip-active' : ''}}" data-id="" bindtap="onStoreFilterChange">
+          <text class="store-chip-text">全部</text>
+        </view>
+        <view class="store-chip {{currentStoreId === item._id ? 'store-chip-active' : ''}}" wx:for="{{storeList}}" wx:key="_id" data-id="{{item._id}}" bindtap="onStoreFilterChange">
+          <text class="store-chip-text">{{item.name}}</text>
+        </view>
+      </view>
+    </scroll-view>
+  </view>
+
+  <view class="stats-section">
+    <view class="stats-chips">
+      <view class="stats-chip">
+        <text class="stats-chip-val">{{totalMembers || 0}}</text>
+        <text class="stats-chip-label">{{filterLabel || '总会员'}}</text>
+      </view>
+      <view class="stats-chip stats-chip-warning">
+        <text class="stats-chip-val">{{pendingCount || 0}}</text>
+        <text class="stats-chip-label">待审核</text>
+      </view>
+    </view>
+  </view>
+
+  <view class="search-section">
+    <view class="search-input-wrap">
+      <text class="search-icon">🔍</text>
+      <input class="search-input" placeholder="搜索会员姓名/手机号" value="{{keyword}}" bindinput="onSearchInput" confirm-type="search" bindconfirm="onSearch" />
+      <view class="search-clear" wx:if="{{keyword}}" catchtap="onClearSearch">
+        <text>✕</text>
+      </view>
+    </view>
+  </view>
+
+  <view class="distribution-section">
+    <view class="section-label" bindtap="onToggleDashboard">
+      <text class="section-label-text">套餐状态分布</text>
+      <view class="toggle-icon {{showDashboard ? 'expanded' : ''}}">
+        <text class="toggle-arrow">{{showDashboard ? '▲' : '▼'}}</text>
+      </view>
+    </view>
+    <view class="distribution-content" wx:if="{{showDashboard}}">
+      <scroll-view class="dist-cards-scroll" scroll-x enhanced show-scrollbar="{{false}}" enable-flex>
+        <view class="dist-cards">
+          <view class="dist-card {{activeFilter === 'active' ? 'dist-card-active' : ''}}" data-filter="active" bindtap="onDashFilterTap">
+            <view class="dist-card-dot dot-success"></view>
+            <text class="dist-card-val">{{packageDistribution.active}}</text>
+            <text class="dist-card-label">使用中</text>
+          </view>
+          <view class="dist-card {{activeFilter === 'unactivated' ? 'dist-card-active' : ''}}" data-filter="unactivated" bindtap="onDashFilterTap">
+            <view class="dist-card-dot dot-warning"></view>
+            <text class="dist-card-val">{{packageDistribution.pending}}</text>
+            <text class="dist-card-label">待激活</text>
+          </view>
+          <view class="dist-card {{activeFilter === 'expired' ? 'dist-card-active' : ''}}" data-filter="expired" bindtap="onDashFilterTap">
+            <view class="dist-card-dot dot-danger"></view>
+            <text class="dist-card-val">{{packageDistribution.expired}}</text>
+            <text class="dist-card-label">已过期</text>
+          </view>
+          <view class="dist-card {{activeFilter === 'exhausted' ? 'dist-card-active' : ''}}" data-filter="exhausted" bindtap="onDashFilterTap">
+            <view class="dist-card-dot dot-info"></view>
+            <text class="dist-card-val">{{packageDistribution.exhausted}}</text>
+            <text class="dist-card-label">已用完</text>
+          </view>
+        </view>
+      </scroll-view>
+    </view>
+  </view>
+
+  <scroll-view class="filter-bar" scroll-x enhanced show-scrollbar="{{false}}" enable-flex>
+    <view class="filter-item {{activeFilter === 'all' ? 'active' : ''}}" data-filter="all" bindtap="onFilterChange">
+      <text>全部</text>
+    </view>
+    <view class="filter-item {{activeFilter === 'no-package' ? 'active' : ''}}" data-filter="no-package" bindtap="onFilterChange">
+      <text>未录套餐</text>
+    </view>
+    <view class="filter-item {{activeFilter === 'active' ? 'active' : ''}}" data-filter="active" bindtap="onFilterChange">
+      <text>使用中</text>
+    </view>
+    <view class="filter-item {{activeFilter === 'unactivated' ? 'active' : ''}}" data-filter="unactivated" bindtap="onFilterChange">
+      <text>待激活</text>
+    </view>
+    <view class="filter-item {{activeFilter === 'expired' ? 'active' : ''}}" data-filter="expired" bindtap="onFilterChange">
+      <text>已过期</text>
+    </view>
+    <view class="filter-item {{activeFilter === 'exhausted' ? 'active' : ''}}" data-filter="exhausted" bindtap="onFilterChange">
+      <text>已用完</text>
+    </view>
+  </scroll-view>
+
+  <view class="member-list" wx:if="{{!loading && members.length > 0}}">
+    <view class="member-card" wx:for="{{members}}" wx:key="_id" data-member="{{item}}" bindtap="onViewDetail">
+      <view class="member-card-top">
+          <image class="member-avatar" src="{{item.avatar || '/images/default-avatar.svg'}}" mode="aspectFill"></image>
+          <view class="member-info">
+            <view class="member-name-row">
+              <text class="member-name">{{item.real_name || item.nickname || '未知'}}</text>
+              <view class="member-status {{item.status === 'active' ? 'status-active' : item.status === 'unactivated' ? 'status-warning' : item.status === 'pending' ? 'status-warning' : item.status === 'disabled' ? 'status-danger' : 'status-default'}}">
+                <text>{{item.status === 'active' ? '已激活' : item.status === 'unactivated' ? '待激活' : item.status === 'pending' ? '待审核' : item.status === 'disabled' ? '已停卡' : item.status === 'no-package' ? '未录套餐' : (item.status === 'expired' ? '已过期' : (item.status === 'exhausted' ? '已用完' : '未激活'))}}</text>
+              </view>
+            </view>
+            <text class="member-phone">{{item.phone || '未绑定手机号'}}</text>
+          </view>
+        </view>
+        <view class="member-card-bottom" wx:if="{{item.package_info}}">
+          <text class="meta-text">{{item.package_info}}</text>
+        </view>
+        <view class="member-actions">
+          <view class="member-action-btn" catchtap="onViewDetail" data-member="{{item}}">
+            <text class="member-action-text">查看详情</text>
+          </view>
+          <view class="member-action-btn member-action-contact" wx:if="{{!item.has_package}}" catchtap="onAddPackage" data-member="{{item}}">
+            <text class="member-action-text">录入套餐</text>
+          </view>
+          <view class="member-action-btn member-action-contact" wx:else catchtap="onAddPackage" data-member="{{item}}">
+            <text class="member-action-text">编辑套餐</text>
+          </view>
+        </view>
+    </view>
+    <view class="load-more" wx:if="{{hasMore}}">
+      <text class="load-more-text">加载更多</text>
+    </view>
+  </view>
+
+  <view class="loading-area" wx:if="{{loading}}">
+    <text class="loading-text">加载中...</text>
+  </view>
+
+  <view class="empty-state" wx:if="{{!loading && members.length === 0}}">
+    <text class="empty-icon">👥</text>
+    <text class="empty-text">暂无会员数据</text>
+    <text class="empty-hint">下拉刷新或切换筛选条件试试</text>
+  </view>
+
+  <!-- 审核弹窗 -->
+  <view class="modal-mask" wx:if="{{showReviewModal}}" bindtap="onCloseReviewModal">
+    <view class="review-modal-content" catchtap="onModalTap">
+      <view class="modal-header">
+        <text class="modal-title">审核会员</text>
+        <text class="modal-close" bindtap="onCloseReviewModal">✕</text>
+      </view>
+      <view class="review-options">
+        <view class="review-option {{reviewAction === 'approve' ? 'active' : ''}}" data-action="approve" bindtap="onReviewAction">
+          <text class="review-option-text">通过</text>
+        </view>
+        <view class="review-option {{reviewAction === 'reject' ? 'active' : ''}}" data-action="reject" bindtap="onReviewAction">
+          <text class="review-option-text">拒绝</text>
+        </view>
+      </view>
+      <button class="btn-primary submit-btn" bindtap="onSubmitReview">确认</button>
+    </view>
+  </view>
+
+  <!-- 套餐弹窗 -->
+  <view class="modal-mask" wx:if="{{showPackageModal}}" bindtap="onClosePackageModal">
+    <view class="package-modal-content" catchtap="onPackageModalTap">
+      <view class="modal-header">
+        <text class="modal-title">{{packageMember && packageMember.has_package ? '编辑套餐' : '新增套餐'}}</text>
+        <text class="modal-close" bindtap="onClosePackageModal">✕</text>
+      </view>
+
+      <view class="form-group">
+        <text class="form-label">所属门店 *</text>
+        <picker mode="selector" range="{{storeListForPicker}}" range-key="name" value="{{packageFormStoreIndex}}" bindchange="onPackageStoreChange">
+          <view class="picker-field">
+            <text class="picker-text">{{packageForm.store_name || '请选择门店'}}</text>
+            <text class="picker-arrow">▼</text>
+          </view>
+        </picker>
+      </view>
+
+      <view class="form-group">
+        <text class="form-label">套餐类型 *</text>
+        <view class="package-type-selector">
+          <view class="type-option {{packageForm.package_type === 'count_card' ? 'active' : ''}}" data-type="count_card" bindtap="onPackageTypeChange">
+            <text>次卡</text>
+          </view>
+          <view class="type-option {{packageForm.package_type === 'time_card' ? 'active' : ''}}" data-type="time_card" bindtap="onPackageTypeChange">
+            <text>时间卡</text>
+          </view>
+        </view>
+      </view>
+
+      <view class="form-group" wx:if="{{packageForm.package_type === 'count_card'}}">
+        <text class="form-label">次数 *</text>
+        <input class="input-field" type="number" placeholder="请输入次数" value="{{packageForm.total_credits}}" data-field="total_credits" bindinput="onPackageInput" />
+      </view>
+
+      <view class="form-group">
+        <text class="form-label">服务有效期 *</text>
+        <view class="duration-input-row">
+          <input class="input-field duration-input" type="number" placeholder="请输入时长" value="{{packageForm.duration_value}}" data-field="duration_value" bindinput="onPackageInput" />
+          <view class="duration-unit-selector">
+            <view class="unit-option {{packageForm.duration_unit === 'month' ? 'active' : ''}}" data-unit="month" bindtap="onPackageDurationUnitChange">
+              <text>月</text>
+            </view>
+            <view class="unit-option {{packageForm.duration_unit === 'day' ? 'active' : ''}}" data-unit="day" bindtap="onPackageDurationUnitChange">
+              <text>天</text>
+            </view>
+          </view>
+        </view>
+      </view>
+
+      <view class="form-group" wx:if="{{packageForm.package_type === 'time_card'}}">
+        <text class="form-label">限制方式 *</text>
+        <view class="package-type-selector">
+          <view class="type-option {{packageForm.limit_type === 'daily' ? 'active' : ''}}" data-type="daily" bindtap="onPackageLimitTypeChange">
+            <text>每日限制</text>
+          </view>
+          <view class="type-option {{packageForm.limit_type === 'weekly' ? 'active' : ''}}" data-type="weekly" bindtap="onPackageLimitTypeChange">
+            <text>每周限制</text>
+          </view>
+          <view class="type-option {{packageForm.limit_type === 'unlimited' ? 'active' : ''}}" data-type="unlimited" bindtap="onPackageLimitTypeChange">
+            <text>无限次</text>
+          </view>
+        </view>
+      </view>
+
+      <view class="form-group" wx:if="{{packageForm.package_type === 'time_card' && packageForm.limit_type !== 'unlimited'}}">
+        <text class="form-label">{{packageForm.limit_type === 'daily' ? '每日限制' : '每周限制'}} *</text>
+        <input class="input-field" type="number" placeholder="{{packageForm.limit_type === 'daily' ? '每日限制次数' : '每周限制次数'}}" value="{{packageForm.limit_value}}" data-field="limit_value" bindinput="onPackageInput" />
+      </view>
+
+      <view class="form-group">
+        <text class="form-label">备注</text>
+        <input class="input-field" placeholder="选填" value="{{packageForm.remark}}" data-field="remark" bindinput="onPackageInput" />
+      </view>
+
+      <button class="btn-primary submit-btn" bindtap="onSubmitPackage">确认录入</button>
+    </view>
+  </view>
+</view>

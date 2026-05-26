@@ -1,0 +1,47 @@
+<view class="container">
+  <!-- 页面标题 -->
+  <view class="page-header">
+    <text class="page-title">手机号修改审核</text>
+  </view>
+
+  <!-- 审核列表 -->
+  <view class="reviews-list">
+    <view class="review-item" wx:for="{{reviews}}" wx:key="_id">
+      <view class="member-info">
+        <view class="member-name">{{item.real_name || item.nickname}}</view>
+        <view class="member-code" wx:if="{{item.member_code}}">{{item.member_code}}</view>
+      </view>
+
+      <view class="phone-section">
+        <view class="phone-row">
+          <text class="phone-label">原手机号</text>
+          <text class="phone-value">{{item.reserve_phone || '-'}}</text>
+        </view>
+        <view class="phone-row">
+          <text class="phone-label">新手机号</text>
+          <text class="phone-value new">{{item.phone_audit_pending}}</text>
+        </view>
+      </view>
+
+      <view class="request-time">
+        <text class="time-label">申请时间：</text>
+        <text class="time-value">{{item.requestTimeStr}}</text>
+      </view>
+
+      <view class="action-section">
+        <view class="action-btn reject" bindtap="onReview" data-member="{{item}}" data-action="reject">
+          <text>拒绝</text>
+        </view>
+        <view class="action-btn approve" bindtap="onReview" data-member="{{item}}" data-action="approve">
+          <text>通过</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 空状态 -->
+    <view class="empty-state" wx:if="{{!loading && reviews.length === 0}}">
+      <text class="empty-icon">📝</text>
+      <text class="empty-text">暂无待审核的申请</text>
+    </view>
+  </view>
+</view>

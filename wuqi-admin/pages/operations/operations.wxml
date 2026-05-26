@@ -1,0 +1,269 @@
+<view class="ops-page">
+  <view class="store-tabs">
+    <scroll-view class="store-scroll" scroll-x enhanced show-scrollbar="{{false}}">
+      <view class="store-pills">
+        <view class="store-pill {{currentStoreId === item._id ? 'on' : ''}}" wx:for="{{stores}}" wx:key="_id" data-id="{{item._id}}" bindtap="onSwitchStore">
+          <text>{{item.name}}</text>
+        </view>
+      </view>
+    </scroll-view>
+  </view>
+
+  <view class="today-block" wx:if="{{todaySchedules.length > 0}}">
+    <view class="block-head">
+      <view class="block-head-left">
+        <text class="block-title">今日预约</text>
+      </view>
+      <text class="block-date">{{todayDateText}}</text>
+    </view>
+
+    <view class="course-card {{item.status}}" wx:for="{{todaySchedules}}" wx:key="_id" bindtap="onOpenBookingPanel" data-schedule="{{item}}">
+      <view class="card-main">
+        <view class="card-left">
+          <text class="card-name">{{item.course_name || item.dance_style_name || '课程'}}</text>
+          <view class="card-meta">
+            <text class="card-time">{{item.start_time}} - {{item.end_time}}</text>
+            <text wx:if="{{item.coach_name}}" class="card-coach">教练：{{item.coach_name}}</text>
+          </view>
+        </view>
+        <view class="card-right">
+          <view class="status-chip {{item.status === 'cancelled' ? 'chip-danger' : item.status === 'available' ? 'chip-success' : item.status === 'full' ? 'chip-warning' : 'chip-info'}}">
+            <text>{{item.status === 'cancelled' ? '已取消' : item.status === 'available' ? '可预约' : item.status === 'full' ? '已满' : '进行中'}}</text>
+          </view>
+          <text class="card-progress-text" wx:if="{{item.status !== 'cancelled'}}">{{item.bookedCount || 0}}/{{item.capacity || 15}} 已预约</text>
+        </view>
+      </view>
+      <view class="card-stats" wx:if="{{item.status !== 'cancelled'}}">
+        <view class="stat-item">
+          <text class="stat-num stat-booked">{{item.bookedCount || 0}}</text>
+          <text class="stat-label">已预约</text>
+        </view>
+        <view class="stat-item">
+          <text class="stat-num stat-checked">{{item.checkedInCount || 0}}</text>
+          <text class="stat-label">已签到</text>
+        </view>
+        <view class="stat-item">
+          <text class="stat-num stat-cancelled">{{item.cancelledCount || 0}}</text>
+          <text class="stat-label">已取消</text>
+        </view>
+        <view class="stat-item">
+          <text class="stat-num stat-exempted">{{item.exemptedCount || 0}}</text>
+          <text class="stat-label">已豁免</text>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <view class="today-block today-empty" wx:else>
+    <view class="block-head">
+      <view class="block-head-left">
+        <text class="block-title">今日运营</text>
+      </view>
+    </view>
+    <view class="empty-hint">
+      <text>今日暂无课程</text>
+    </view>
+  </view>
+
+  <view class="calendar-block">
+    <view class="block-head">
+      <view class="block-head-left">
+        <text class="block-title">课程日历</text>
+      </view>
+    </view>
+
+    <view class="month-row">
+      <view class="month-arrow" bindtap="onChangeMonth" data-direction="prev">
+        <text>◀</text>
+      </view>
+      <text class="month-name">{{currentMonthName}}</text>
+      <view class="month-arrow" bindtap="onChangeMonth" data-direction="next">
+        <text>▶</text>
+      </view>
+    </view>
+
+    <view class="legend-row">
+      <view class="legend-item">
+        <view class="legend-dot dot-normal"></view>
+        <text class="legend-text">正常开课</text>
+      </view>
+      <view class="legend-item">
+        <view class="legend-dot dot-cancelled"></view>
+        <text class="legend-text">取消课程</text>
+      </view>
+      <view class="legend-item">
+        <view class="legend-dot dot-mixed"></view>
+        <text class="legend-text">混合状态</text>
+      </view>
+      <view class="legend-item">
+        <view class="legend-dot dot-holiday"></view>
+        <text class="legend-text">放假</text>
+      </view>
+    </view>
+
+    <view class="weekday-row">
+      <text wx:for="{{weekdays}}" wx:key="index">{{item}}</text>
+    </view>
+
+    <view class="cal-grid">
+      <view class="cal-week" wx:for="{{monthCalendar}}" wx:for-item="week" wx:key="index">
+        <view class="cal-cell {{day.type}} {{day.isToday ? 'is-today' : ''}} {{day.isSelected ? 'is-selected' : ''}} {{day.dayStatus ? 'has-' + day.dayStatus : ''}}" wx:for="{{week}}" wx:for-item="day" wx:key="index" data-date="{{day.date}}" bindtap="onSelectMonthDate">
+          <text wx:if="{{day.type === 'date'}}">{{day.day}}</text>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <view class="date-block" wx:if="{{currentDate !== todayDate && dateSchedules.length > 0}}">
+    <view class="block-head">
+      <text class="date-block-title">{{currentDate}} 的课程</text>
+    </view>
+
+    <view class="course-card {{item.status}}" wx:for="{{dateSchedules}}" wx:key="_id" bindtap="onOpenBookingPanel" data-schedule="{{item}}">
+      <view class="card-row-top">
+        <view class="card-info">
+          <text class="card-name">{{item.course_name || item.dance_style_name || '课程'}}</text>
+          <text class="card-time">{{item.start_time}} - {{item.end_time}}</text>
+        </view>
+        <view class="status-chip {{item.status === 'cancelled' ? 'chip-danger' : item.status === 'available' ? 'chip-success' : item.status === 'full' ? 'chip-warning' : item.status === 'completed' ? 'chip-muted' : 'chip-info'}}">
+          <text>{{item.status === 'cancelled' ? '已取消' : item.status === 'available' ? '可预约' : item.status === 'full' ? '已满' : item.status === 'completed' ? '已结束' : '未开始'}}</text>
+        </view>
+      </view>
+
+      <view class="card-progress">
+        <view class="progress-track">
+          <view class="progress-fill {{item.status === 'full' ? 'fill-warning' : 'fill-accent'}}" style="width: {{((item.bookedCount || 0) / (item.capacity || 15)) * 100}}%"></view>
+        </view>
+        <text class="progress-label">{{item.bookedCount || 0}}/{{item.capacity || 15}} 已预约</text>
+      </view>
+
+      <view class="card-stats">
+        <view class="stat-item">
+          <text class="stat-num stat-booked">{{item.bookedCount || 0}}</text>
+          <text class="stat-label">已预约</text>
+        </view>
+        <view class="stat-item">
+          <text class="stat-num stat-checked">{{item.checkedInCount || 0}}</text>
+          <text class="stat-label">已签到</text>
+        </view>
+        <view class="stat-item">
+          <text class="stat-num stat-cancelled">{{item.cancelledCount || 0}}</text>
+          <text class="stat-label">已取消</text>
+        </view>
+        <view class="stat-item">
+          <text class="stat-num stat-exempted">{{item.exemptedCount || 0}}</text>
+          <text class="stat-label">已豁免</text>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <view class="date-block date-empty" wx:if="{{currentDate !== todayDate && dateSchedules.length === 0}}">
+    <text class="empty-date-text">{{currentDate}} {{isSelectedDateHoliday ? '今日放假' : '暂无课程'}}</text>
+  </view>
+
+  <view class="sheet-mask {{showBookingPanel ? 'show' : ''}}" bindtap="onCloseBookingPanel">
+    <view class="sheet-panel" catchtap="onPanelTap">
+      <view class="sheet-handle"></view>
+
+      <view class="sheet-head">
+        <text class="sheet-title">预约详情</text>
+        <view class="sheet-close" bindtap="onCloseBookingPanel">
+          <text>✕</text>
+        </view>
+      </view>
+
+      <view class="sheet-course" wx:if="{{panelSchedule}}">
+        <text class="sheet-course-name">{{panelSchedule.course_name || panelSchedule.dance_style_name || '课程'}}</text>
+        <view class="sheet-meta">
+          <text class="sheet-meta-text">{{panelSchedule.date}}</text>
+          <text class="sheet-meta-text">{{panelSchedule.start_time}} - {{panelSchedule.end_time}}</text>
+          <text class="sheet-meta-text">教练：{{panelSchedule.coach_name}}</text>
+        </view>
+        <view class="sheet-stats">
+          <view class="sheet-stat">
+            <text class="sheet-stat-num">{{bookedList.length}}</text>
+            <text class="sheet-stat-label">已预约</text>
+          </view>
+          <view class="sheet-stat">
+            <text class="sheet-stat-num">{{cancelledList.length}}</text>
+            <text class="sheet-stat-label">已取消</text>
+          </view>
+          <view class="sheet-stat">
+            <text class="sheet-stat-num">{{exemptedList.length}}</text>
+            <text class="sheet-stat-label">已豁免</text>
+          </view>
+        </view>
+      </view>
+
+      <view class="sheet-tabs">
+        <view class="sheet-tab {{activeTab === 'booked' ? 'on' : ''}}" data-tab="booked" bindtap="onTabChange">
+          <text>已预约({{bookedList.length}})</text>
+        </view>
+        <view class="sheet-tab {{activeTab === 'cancelled' ? 'on' : ''}}" data-tab="cancelled" bindtap="onTabChange">
+          <text>已取消({{cancelledList.length}})</text>
+        </view>
+        <view class="sheet-tab {{activeTab === 'exempted' ? 'on' : ''}}" data-tab="exempted" bindtap="onTabChange">
+          <text>已豁免({{exemptedList.length}})</text>
+        </view>
+      </view>
+
+      <scroll-view class="sheet-list" scroll-y wx:if="{{activeTab === 'booked'}}">
+        <view class="booking-row" wx:for="{{bookedList}}" wx:key="_id">
+          <view class="booking-user">
+            <image class="booking-avatar" src="{{item.userAvatar || '/images/default-avatar.svg'}}" mode="aspectFill"></image>
+            <view class="booking-user-info">
+              <text class="booking-user-name">{{item.userName}}</text>
+              <text class="booking-user-phone" wx:if="{{item.userPhone}}">{{item.userPhone}}</text>
+            </view>
+          </view>
+          <view class="booking-actions">
+            <text class="booking-credits">扣{{item.creditsDeducted}}次</text>
+            <view class="booking-btn btn-checkin" data-id="{{item._id}}" bindtap="onCheckIn">
+              <text>{{item.checkedIn ? '已签到' : '签到'}}</text>
+            </view>
+            <view class="booking-btn btn-cancel" data-id="{{item._id}}" bindtap="onCancelBooking">
+              <text>取消</text>
+            </view>
+          </view>
+        </view>
+        <view class="sheet-empty" wx:if="{{bookedList.length === 0}}">
+          <text>暂无已预约会员</text>
+        </view>
+      </scroll-view>
+
+      <scroll-view class="sheet-list" scroll-y wx:if="{{activeTab === 'cancelled'}}">
+        <view class="booking-row is-cancelled" wx:for="{{cancelledList}}" wx:key="_id">
+          <view class="booking-user">
+            <image class="booking-avatar" src="{{item.userAvatar || '/images/default-avatar.svg'}}" mode="aspectFill"></image>
+            <view class="booking-user-info">
+              <text class="booking-user-name">{{item.userName}}</text>
+              <text class="booking-user-phone" wx:if="{{item.userPhone}}">{{item.userPhone}}</text>
+            </view>
+          </view>
+          <view class="cancel-info">
+            <text class="cancel-time">取消时间：{{item.cancelTime}}</text>
+          </view>
+        </view>
+        <view class="sheet-empty" wx:if="{{cancelledList.length === 0}}">
+          <text>暂无已取消会员</text>
+        </view>
+      </scroll-view>
+
+      <scroll-view class="sheet-list" scroll-y wx:if="{{activeTab === 'exempted'}}">
+        <view class="booking-row" wx:for="{{exemptedList}}" wx:key="_id">
+          <view class="booking-user">
+            <image class="booking-avatar" src="{{item.userAvatar || '/images/default-avatar.svg'}}" mode="aspectFill"></image>
+            <view class="booking-user-info">
+              <text class="booking-user-name">{{item.userName}}</text>
+              <text class="booking-user-phone" wx:if="{{item.userPhone}}">{{item.userPhone}}</text>
+            </view>
+          </view>
+        </view>
+        <view class="sheet-empty" wx:if="{{exemptedList.length === 0}}">
+          <text>暂无已豁免会员</text>
+        </view>
+      </scroll-view>
+    </view>
+  </view>
+</view>

@@ -1,0 +1,70 @@
+<view class="review-page">
+  <!-- 顶部统计 -->
+  <view class="review-header">
+    <text class="review-title">待审核用户</text>
+    <text class="review-count">共 {{total}} 人</text>
+  </view>
+
+  <!-- 列表 -->
+  <view class="review-list" wx:if="{{members.length > 0}}">
+    <view class="swipe-card" wx:for="{{members}}" wx:key="_id">
+      <view class="swipe-action">
+        <view class="swipe-btn btn-delete" data-id="{{item._id}}" data-name="{{item.nickname}}" catchtap="onDelete">
+          <text class="swipe-btn-text">删除</text>
+        </view>
+      </view>
+      <view class="review-card" catchtouchstart="onTouchStart" catchtouchmove="onTouchMove" catchtouchend="onTouchEnd" data-id="{{item._id}}" style="transform: translateX(-{{swipeOffset[item._id] || 0}}rpx);">
+        <view class="card-top">
+          <image class="card-avatar" src="{{item.avatar || '/images/default-avatar.svg'}}" mode="aspectFill"></image>
+          <view class="card-info">
+            <view class="card-name-row">
+              <text class="card-name">{{item.nickname || '未知'}}</text>
+              <view class="card-tag tag-orange">
+                <text class="tag-text">待审核</text>
+              </view>
+            </view>
+            <text class="card-phone">{{item.phone || '未绑定手机号'}}</text>
+            <text class="card-date">申请时间 {{item.created_at}}</text>
+            <text class="card-store" wx:if="{{item.store_name}}">用户选择门店：{{item.store_name}}</text>
+          </view>
+        </view>
+        <view class="card-actions">
+          <view class="action-btn btn-approve" data-id="{{item._id}}" data-name="{{item.nickname}}" catchtap="onApprove">
+            <text class="btn-text">通过</text>
+          </view>
+          <view class="action-btn btn-reject" data-id="{{item._id}}" data-name="{{item.nickname}}" catchtap="onReject">
+            <text class="btn-text">拒绝</text>
+          </view>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 空状态 -->
+  <view class="empty-state" wx:else>
+    <text class="empty-icon">📋</text>
+    <text class="empty-text">暂无待审核用户</text>
+  </view>
+
+  <view class="load-more" wx:if="{{loading}}">加载中...</view>
+
+  <!-- 审核通过 - 门店选择弹窗 -->
+  <view class="modal-mask" wx:if="{{showStoreModal}}" bindtap="onCloseStoreModal">
+    <view class="store-modal-content" catchtap="onModalTap">
+      <view class="store-modal-header">
+        <text class="store-modal-title">分配门店</text>
+        <text class="store-modal-subtitle">为 {{approveMember.name || '该用户'}} 选择门店</text>
+        <text class="modal-close" bindtap="onCloseStoreModal">✕</text>
+      </view>
+      <view class="store-modal-list">
+        <view class="store-modal-item {{selectedStoreId === item._id ? 'active' : ''}}"
+              wx:for="{{storeList}}" wx:key="_id"
+              data-id="{{item._id}}"
+              bindtap="onStoreSelect">
+          <text>{{item.name}}</text>
+        </view>
+      </view>
+      <view class="store-modal-confirm {{selectedStoreId ? '' : 'disabled'}}" bindtap="onConfirmApprove">确认通过</view>
+    </view>
+  </view>
+</view>

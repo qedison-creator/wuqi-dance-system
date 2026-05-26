@@ -1,0 +1,628 @@
+<view class="schedule-page">
+  <!-- 门店切换 -->
+  <view class="store-tabs">
+    <scroll-view scroll-x class="store-scroll">
+      <view class="store-list">
+        <view class="store-item {{currentStoreId === item._id ? 'active' : ''}}" wx:for="{{stores}}" wx:key="_id" data-id="{{item._id}}" bindtap="onSwitchStore">
+          <text>{{item.name}}</text>
+        </view>
+      </view>
+    </scroll-view>
+  </view>
+
+  <!-- 视图切换栏 -->
+  <view class="view-mode-bar">
+    <view class="view-mode-tabs">
+      <view class="view-mode-item {{viewMode === 'day' ? 'active' : ''}}" data-mode="day" bindtap="onSwitchViewMode">
+        <text>排课设置</text>
+      </view>
+      <view class="view-mode-item {{viewMode === 'month' ? 'active' : ''}}" data-mode="month" bindtap="onSwitchViewMode">
+        <text>课程浏览</text>
+      </view>
+    </view>
+    <!-- 月视图显示今日按钮 -->
+    <view class="today-btn" wx:if="{{viewMode === 'month'}}" bindtap="onGoToToday">
+      <text>📍今日</text>
+    </view>
+    <view class="manage-btn" bindtap="onShowManageModal">
+      <text>⚙️管理</text>
+    </view>
+  </view>
+
+  <!-- 星期视图：固定的星期选择 -->
+  <view class="weekday-section" wx:if="{{viewMode === 'day'}}">
+    <view class="weekday-list">
+      <view class="weekday-item {{currentWeekdayIndex === index ? 'active' : ''}} {{item.isToday ? 'today' : ''}}" wx:for="{{weekdayList}}" wx:key="index" data-index="{{index}}" bindtap="onSelectWeekday">
+        <text class="weekday-name">{{item.name}}</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 月视图：日历网格 -->
+  <view class="month-section" wx:if="{{viewMode === 'month'}}">
+    <view class="month-header">
+      <view class="month-nav-btn" bindtap="onChangeMonth" data-direction="prev">
+        <text>◀</text>
+      </view>
+      <text class="month-title">{{currentMonthName}}</text>
+      <view class="month-nav-btn" bindtap="onChangeMonth" data-direction="next">
+        <text>▶</text>
+      </view>
+    </view>
+    <view class="weekday-header">
+      <text wx:for="{{weekdays}}" wx:key="index">{{item}}</text>
+    </view>
+    <view class="month-calendar">
+      <view class="calendar-week" wx:for="{{monthCalendar}}" wx:for-item="week" wx:key="index">
+        <view class="calendar-cell {{day.type}} {{day.isToday ? 'today' : ''}} {{day.isSelected ? 'selected' : ''}}" wx:for="{{week}}" wx:for-item="day" wx:key="index" data-date="{{day.date}}" bindtap="onSelectMonthDate">
+          <text wx:if="{{day.type === 'date'}}">{{day.day}}</text>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 历史日期提示 -->
+  <view class="history-notice" wx:if="{{isCurrentDatePast}}">
+    <text>📅 历史日期：{{currentDate}} 的课程记录</text>
+  </view>
+
+  <!-- 排课列表 -->
+  <view class="schedule-list">
+    <!-- 模板预览提示 -->
+    <view class="template-preview-hint" wx:if="{{viewMode === 'month' && schedules.length > 0 && schedules[0].isTemplatePreview}}">
+          <text>📋 以下课程来自排课设置，点击"创建此课"可生成为当日正式排课。已禁用的课程不会在批量排课中生成。</text>
+        </view>
+    
+    <view class="schedule-item card {{item.isHistory ? 'history' : ''}} {{item.isTemplatePreview ? 'template-preview' : ''}} {{item.enabled === false ? 'template-disabled' : ''}}" wx:for="{{schedules}}" wx:key="_id">
+      <view class="schedule-header">
+        <text class="course-name">{{item.course_name || item.danceStyleName + '课程'}}</text>
+        <view class="schedule-header-tags">
+          <text class="schedule-source-tag" wx:if="{{viewMode === 'month' && !item.isTemplatePreview && item.from_template}}">来自排课设置</text>
+          <text class="schedule-source-tag temp-tag" wx:if="{{viewMode === 'month' && !item.isTemplatePreview && !item.from_template}}">临时增设</text>
+          <text class="schedule-status {{item.status}} {{item.isHistory ? 'history-status' : ''}} {{item.isTemplatePreview ? 'template-status' : ''}} {{item.hasScheduled ? 'scheduled-status' : ''}}">{{item.statusText}}</text>
+        </view>
+      </view>
+      <view class="schedule-info">
+        <view class="info-row">
+          <text class="label">时间段</text>
+          <text class="value">{{item.start_time}} - {{item.end_time}} ({{item.duration}}分钟)</text>
+        </view>
+        <view class="info-row">
+          <text class="label">舞种</text>
+          <text class="value">{{item.danceStyleName}}</text>
+        </view>
+        <view class="info-row">
+          <text class="label">教练</text>
+          <text class="value">{{item.coachName}}</text>
+        </view>
+        <view class="info-row">
+          <text class="label">教室</text>
+          <text class="value">{{item.classroom || '未指定'}}</text>
+        </view>
+        <view class="info-row">
+          <text class="label">扣除次数</text>
+          <text class="value">{{item.credits_cost || 1}}次/节</text>
+        </view>
+        <view class="info-row" wx:if="{{item.status === 'cancelled' && item.cancel_reason}}">
+          <text class="label">取消原因</text>
+          <text class="value cancel-reason">{{item.cancel_reason}}</text>
+        </view>
+        <view class="info-row" wx:if="{{!item.isTemplatePreview}}">
+          <text class="label">预约人数</text>
+          <text class="value">{{item.current_bookings}}/{{item.max_bookings}}人(最低{{item.min_bookings || 5}}人)</text>
+        </view>
+      </view>
+      <view class="schedule-actions">
+        <!-- 月视图模板预览：显示快捷创建按钮 -->
+        <block wx:if="{{viewMode === 'month' && item.isTemplatePreview}}">
+          <view class="action-btn primary" wx:if="{{item.enabled !== false}}" data-index="{{index}}" bindtap="onCreateFromTemplate">
+            <text>创建此课</text>
+          </view>
+          <view class="action-btn disabled" wx:else>
+            <text>已禁用</text>
+          </view>
+        </block>
+        <!-- 月视图正常课程 -->
+        <block wx:elif="{{viewMode === 'month'}}">
+          <view class="action-btn" data-id="{{item._id}}" bindtap="onViewBookings">
+            <text>{{item.isHistory ? '查看预约' : '预约名单'}}</text>
+          </view>
+          <view class="action-btn {{item.isHistory ? 'disabled' : ''}}" data-index="{{index}}" bindtap="{{item.isHistory ? '' : 'onEditSchedule'}}">
+            <text>{{item.isHistory ? '已归档' : '编辑'}}</text>
+          </view>
+          <view class="action-btn {{item.isHistory ? 'history-action' : 'danger'}}" data-id="{{item._id}}" bindtap="{{item.isHistory ? 'onViewAttendance' : 'onCancelSchedule'}}">
+            <text>{{item.isHistory ? '上课记录' : '取消'}}</text>
+          </view>
+        </block>
+        <!-- 星期视图显示启用开关、编辑、删除 -->
+        <block wx:else>
+          <view class="action-btn toggle-btn {{item.enabled === false ? 'disabled-toggle' : ''}}" data-index="{{index}}" bindtap="onToggleTemplateItem">
+            <text>{{item.enabled === false ? '已禁用' : '已启用'}}</text>
+          </view>
+          <view class="action-btn" data-index="{{index}}" bindtap="onEditSchedule">
+            <text>编辑</text>
+          </view>
+          <view class="action-btn danger" data-index="{{index}}" bindtap="onCancelSchedule">
+            <text>删除</text>
+          </view>
+        </block>
+      </view>
+    </view>
+    
+    <!-- 模板预览的批量创建按钮 -->
+    <view class="template-actions-row" wx:if="{{viewMode === 'month' && schedules.length > 0 && schedules[0].isTemplatePreview}}">
+      <view class="create-all-btn" bindtap="onCreateAllFromTemplate">
+        <text>📋批量创建所有模板课程</text>
+      </view>
+    </view>
+    
+    <view class="empty-state" wx:if="{{schedules.length === 0}}">
+      <text class="empty-text">暂无排课</text>
+    </view>
+    <view class="schedule-actions-row">
+      <!-- 星期视图显示两个按钮 -->
+      <block wx:if="{{viewMode === 'day'}}">
+        <view class="copy-schedule-btn" bindtap="onShowCopyModal">
+          <text>📋 复制周排课</text>
+        </view>
+      </block>
+      <!-- 月视图显示新增排课 -->
+      <block wx:if="{{viewMode === 'month'}}">
+        <view class="add-schedule-btn" bindtap="onAddSchedule">
+          <text>+ 新增排课</text>
+        </view>
+      </block>
+      <!-- 星期视图的新增排课 -->
+      <view class="add-schedule-btn" wx:if="{{viewMode === 'day'}}" bindtap="onAddSchedule">
+        <text>+ 新增排课</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 新增/编辑排课弹窗 -->
+  <view class="modal-mask" wx:if="{{showAddModal}}" bindtap="onCloseModal">
+    <view class="modal-content" catchtap="onModalTap">
+      <view class="modal-header">
+        <text class="modal-title">{{formData._id ? '编辑排课' : '新增排课'}}</text>
+        <text class="modal-close" bindtap="onCloseModal">✕</text>
+      </view>
+      
+      <scroll-view class="modal-body-scroll" scroll-y="true">
+        <!-- 课程名称 -->
+        <view class="form-group">
+          <text class="form-label">课程名称</text>
+          <input class="input-field" placeholder="请输入课程名称" value="{{formData.course_name}}" data-field="course_name" bindinput="onFormInput" />
+        </view>
+
+        <!-- 舞种选择（点选） -->
+        <view class="form-group">
+          <text class="form-label">舞种 *</text>
+          <view class="select-list">
+            <view class="select-item {{formData.danceStyleId === item._id ? 'active' : ''}}" wx:for="{{danceStyles}}" wx:key="_id" data-id="{{item._id}}" data-name="{{item.name}}" bindtap="onSelectDanceStyle">
+              <text>{{item.name}}</text>
+            </view>
+          </view>
+        </view>
+
+        <!-- 教练选择（点选） -->
+        <view class="form-group">
+          <text class="form-label">教练 *</text>
+          <view class="select-list">
+            <view class="select-item {{formData.coachId === item._id ? 'active' : ''}}" wx:for="{{coaches}}" wx:key="_id" data-id="{{item._id}}" data-name="{{item.name}}" bindtap="onSelectCoach">
+              <text>{{item.name}}</text>
+            </view>
+          </view>
+        </view>
+
+        <!-- 开课时间 -->
+        <view class="form-group">
+          <text class="form-label">开课时间 *</text>
+          <input class="input-field" placeholder="请输入开课时间（格式：HH:MM）" value="{{formData.startTime}}" data-field="startTime" bindinput="onFormInput" />
+        </view>
+
+        <!-- 课程时长 -->
+        <view class="form-group">
+          <text class="form-label">课程时长</text>
+          <view class="duration-list">
+            <view class="duration-item {{formData.duration === item.value ? 'active' : ''}}" wx:for="{{courseDurations}}" wx:key="value" data-value="{{item.value}}" bindtap="onSelectDuration">
+              <text>{{item.label}}</text>
+            </view>
+            <view class="duration-item {{isCustomDuration ? 'active' : ''}}" bindtap="onShowCustomDuration">
+              <text>自定义</text>
+            </view>
+          </view>
+          <input wx:if="{{showCustomDuration}}" class="input-field" type="number" placeholder="请输入时长(分钟)" value="{{formData.customDuration}}" data-field="customDuration" bindinput="onFormInput" bindblur="onCustomDurationBlur" />
+        </view>
+
+        <!-- 扣除课时次 -->
+        <view class="form-group">
+          <text class="form-label">扣除次数</text>
+          <view class="credit-cost-list">
+            <view class="credit-cost-item {{formData.creditsCost === 1 ? 'active' : ''}}" bindtap="onSelectCreditsCost" data-value="1">
+              <text>1次</text>
+            </view>
+            <view class="credit-cost-item {{formData.creditsCost === 2 ? 'active' : ''}}" bindtap="onSelectCreditsCost" data-value="2">
+              <text>2次</text>
+            </view>
+            <view class="credit-cost-item {{formData.creditsCost === 3 ? 'active' : ''}}" bindtap="onSelectCreditsCost" data-value="3">
+              <text>3次</text>
+            </view>
+            <view class="credit-cost-item {{formData.creditsCost === -1 ? 'active' : ''}}" bindtap="onSelectCreditsCost" data-value="-1">
+              <text>自定义</text>
+            </view>
+          </view>
+          <input wx:if="{{formData.creditsCost === -1}}" class="input-field" type="number" placeholder="请输入次数" value="{{formData.customCreditsCost}}" data-field="customCreditsCost" bindinput="onFormInput" />
+          <text class="credit-cost-hint">预约此课程时扣除的次数，关联会员次卡/时间卡套餐</text>
+        </view>
+
+        <!-- 下课时间（自动计算） -->
+        <view class="form-group">
+          <text class="form-label">下课时间</text>
+          <view class="input-field disabled">
+            <text>{{formData.endTime || '自动计算'}}</text>
+          </view>
+        </view>
+
+        <!-- 教室 -->
+        <view class="form-group">
+          <text class="form-label">教室</text>
+          <input class="input-field" placeholder="请输入教室（可选）" value="{{formData.classroom}}" data-field="classroom" bindinput="onFormInput" />
+        </view>
+
+        <!-- 最大预约人数 -->
+        <view class="form-group">
+          <text class="form-label">最大可预约人数</text>
+          <slider class="slider" min="3" max="30" value="{{formData.max_bookings}}" block-size="20" activeColor="#FFCC00" backgroundColor="#333333" bindchange="onMaxBookingsChange"/>
+          <text class="slider-value">{{formData.max_bookings}}人</text>
+        </view>
+
+        <!-- 最低预约人数 -->
+        <view class="form-group">
+          <text class="form-label">最低预约人数（低于此人数不开课）</text>
+          <slider class="slider" min="1" max="15" value="{{formData.min_bookings}}" block-size="20" activeColor="#FFCC00" backgroundColor="#333333" bindchange="onMinBookingsChange"/>
+          <text class="slider-value">{{formData.min_bookings}}人</text>
+        </view>
+
+        <!-- 预约截止时间 -->
+        <view class="form-group">
+          <text class="form-label">预约截止时间（开课前）</text>
+          <view class="deadtime-list">
+            <view class="deadtime-item {{formData.bookingDeadline === 180 ? 'active' : ''}}" bindtap="onSelectBookingDeadline" data-value="180">
+              <text>3小时</text>
+            </view>
+            <view class="deadtime-item {{formData.bookingDeadline === 120 ? 'active' : ''}}" bindtap="onSelectBookingDeadline" data-value="120">
+              <text>2小时</text>
+            </view>
+            <view class="deadtime-item {{formData.bookingDeadline === 60 ? 'active' : ''}}" bindtap="onSelectBookingDeadline" data-value="60">
+              <text>1小时</text>
+            </view>
+            <view class="deadtime-item {{formData.bookingDeadline === -1 ? 'active' : ''}}" bindtap="onSelectBookingDeadline" data-value="-1">
+              <text>自定义</text>
+            </view>
+          </view>
+          <input wx:if="{{formData.bookingDeadline === -1}}" class="input-field" type="number" placeholder="请输入分钟数" value="{{formData.customBookingDeadline}}" data-field="customBookingDeadline" bindinput="onFormInput" />
+        </view>
+
+        <!-- 取消预约截止时间 -->
+        <view class="form-group">
+          <text class="form-label">取消预约截止时间（开课前）</text>
+          <view class="deadtime-list">
+            <view class="deadtime-item {{formData.cancelBookingDeadline === 120 ? 'active' : ''}}" bindtap="onSelectCancelBookingDeadline" data-value="120">
+              <text>2小时</text>
+            </view>
+            <view class="deadtime-item {{formData.cancelBookingDeadline === 60 ? 'active' : ''}}" bindtap="onSelectCancelBookingDeadline" data-value="60">
+              <text>1小时</text>
+            </view>
+            <view class="deadtime-item {{formData.cancelBookingDeadline === 30 ? 'active' : ''}}" bindtap="onSelectCancelBookingDeadline" data-value="30">
+              <text>30分钟</text>
+            </view>
+            <view class="deadtime-item {{formData.cancelBookingDeadline === -1 ? 'active' : ''}}" bindtap="onSelectCancelBookingDeadline" data-value="-1">
+              <text>自定义</text>
+            </view>
+          </view>
+          <input wx:if="{{formData.cancelBookingDeadline === -1}}" class="input-field" type="number" placeholder="请输入分钟数" value="{{formData.customCancelBookingDeadline}}" data-field="customCancelBookingDeadline" bindinput="onFormInput" />
+        </view>
+      </scroll-view>
+
+      <view class="modal-buttons">
+        <view class="btn-secondary" bindtap="onCloseModal"><text>取消</text></view>
+        <view class="btn-primary" bindtap="onSubmitSchedule"><text>确认</text></view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 批量管理弹窗 -->
+  <view class="modal-mask" wx:if="{{showManageModal}}" bindtap="onCloseManageModal">
+    <view class="modal-content manage-modal" catchtap="onModalTap">
+      <view class="modal-header">
+        <text class="modal-title">⚙️ 批量管理</text>
+        <text class="modal-close" bindtap="onCloseManageModal">✕</text>
+      </view>
+      
+      <scroll-view class="modal-body-scroll" scroll-y="true">
+        <!-- 清空排课区域 -->
+        <view class="manage-section">
+          <text class="manage-section-title">清空排课</text>
+          <text class="manage-section-desc">清空操作仅影响当前门店的排课数据，历史已结束的课程不受影响。</text>
+        </view>
+        
+        <view class="manage-options-list">
+          <view class="manage-option" bindtap="onManageClearToday">
+            <view class="manage-option-info">
+              <text class="manage-option-name">清空今日及未来所有排课</text>
+              <text class="manage-option-desc">删除今天及之后的所有排课记录</text>
+            </view>
+            <text class="manage-option-arrow">›</text>
+          </view>
+          
+          <view class="manage-option" bindtap="onManageClearAfterDate">
+            <view class="manage-option-info">
+              <text class="manage-option-name">清空指定日期之后的排课</text>
+              <text class="manage-option-desc">选择一个日期，删除该日期之后的所有排课</text>
+            </view>
+            <text class="manage-option-arrow">›</text>
+          </view>
+          
+          <view class="manage-option" bindtap="onManageClearThisWeek">
+            <view class="manage-option-info">
+              <text class="manage-option-name">清空本周排课</text>
+              <text class="manage-option-desc">只清空本周（周一到周日）的排课</text>
+            </view>
+            <text class="manage-option-arrow">›</text>
+          </view>
+        </view>
+
+        <!-- 模板管理区域 -->
+        <view class="manage-section">
+          <text class="manage-section-title">模板管理</text>
+        </view>
+        
+        <view class="manage-options-list">
+          <view class="manage-option" bindtap="onManageClearTemplate">
+            <view class="manage-option-info">
+              <text class="manage-option-name">清空星期课程模板</text>
+              <text class="manage-option-desc">清空当前门店的星期排课模板（不影响已生成的排课）</text>
+            </view>
+            <text class="manage-option-arrow">›</text>
+          </view>
+        </view>
+        
+        <!-- 指定日期选择器 -->
+        <view class="manage-date-picker" wx:if="{{showManageDatePicker}}">
+          <view class="form-group">
+            <text class="form-label">选择起始日期</text>
+            <picker mode="date" value="{{manageClearDate}}" bindchange="onManageClearDateChange">
+              <view class="input-field picker-field">
+                <text class="{{manageClearDate ? '' : 'placeholder'}}">{{manageClearDate || '请选择日期'}}</text>
+              </view>
+            </picker>
+          </view>
+          <view class="manage-confirm-row" wx:if="{{manageClearDate}}">
+            <view class="btn-danger" bindtap="onConfirmClearAfterDate">
+              <text>确认清空 {{manageClearDate}} 之后的排课</text>
+            </view>
+          </view>
+        </view>
+        
+        <!-- 二次确认区域 -->
+        <view class="manage-confirm-area" wx:if="{{showManageConfirm}}">
+          <view class="manage-warning">
+            <text class="manage-warning-icon">⚠️</text>
+            <text class="manage-warning-text">{{manageConfirmText}}</text>
+          </view>
+          <view class="form-group">
+            <text class="form-label">请输入"确认"以继续</text>
+            <input class="input-field manage-confirm-input" placeholder='请输入"确认"' value="{{manageConfirmInput}}" bindinput="onManageConfirmInput" />
+          </view>
+          <view class="manage-confirm-row">
+            <view class="btn-secondary" bindtap="onCancelManageConfirm"><text>取消</text></view>
+            <view class="btn-danger {{manageConfirmInput === '确认' ? '' : 'disabled'}}" bindtap="onExecuteManageClear"><text>执行清空</text></view>
+          </view>
+        </view>
+        
+        <!-- 底部间距 -->
+        <view class="manage-bottom-spacing"></view>
+      </scroll-view>
+    </view>
+  </view>
+
+  <!-- 复制周排课弹窗 -->
+  <view class="modal-mask" wx:if="{{showCopyModal}}" bindtap="onCloseCopyModal">
+    <view class="modal-content copy-modal" catchtap="onModalTap">
+      <view class="modal-header">
+        <text class="modal-title">📋 批量排课</text>
+        <text class="modal-close" bindtap="onCloseCopyModal">✕</text>
+      </view>
+      
+      <scroll-view class="modal-body-scroll" scroll-y="true">
+        <!-- 步骤指示器：根据视图模式调整 -->
+        <view class="step-bar" wx:if="{{viewMode === 'month'}}">
+          <view class="step-item {{copyStep >= 1 ? 'active' : ''}}">
+            <view class="step-dot">1</view>
+            <text class="step-text">选择源周</text>
+          </view>
+          <view class="step-line {{copyStep >= 2 ? 'active' : ''}}"></view>
+          <view class="step-item {{copyStep >= 2 ? 'active' : ''}}">
+            <view class="step-dot">2</view>
+            <text class="step-text">复制范围</text>
+          </view>
+          <view class="step-line {{copyStep >= 3 ? 'active' : ''}}"></view>
+          <view class="step-item {{copyStep >= 3 ? 'active' : ''}}">
+            <view class="step-dot">3</view>
+            <text class="step-text">确认</text>
+          </view>
+        </view>
+        <view class="step-bar" wx:else>
+          <view class="step-item {{copyStep >= 1 ? 'active' : ''}}">
+            <view class="step-dot">1</view>
+            <text class="step-text">确认模板</text>
+          </view>
+          <view class="step-line {{copyStep >= 2 ? 'active' : ''}}"></view>
+          <view class="step-item {{copyStep >= 2 ? 'active' : ''}}">
+            <view class="step-dot">2</view>
+            <text class="step-text">复制范围</text>
+          </view>
+        </view>
+
+        <!-- 月视图：第1步：选择源周 -->
+        <view class="step-content" wx:if="{{copyStep === 1 && viewMode === 'month'}}">
+          <view class="step-desc">
+            <text class="desc-text">选择要复制哪一周的排课</text>
+          </view>
+          <view class="form-group">
+            <text class="form-label">起始日期（周一）</text>
+            <picker mode="date" value="{{copyForm.source_start_date}}" bindchange="onCopyFormChange" data-field="source_start_date">
+              <view class="input-field picker-field">
+                <text class="{{copyForm.source_start_date ? '' : 'placeholder'}}">{{copyForm.source_start_date || '请选择'}}</text>
+              </view>
+            </picker>
+          </view>
+          <view class="form-group">
+            <text class="form-label">结束日期（周日）</text>
+            <picker mode="date" value="{{copyForm.source_end_date}}" bindchange="onCopyFormChange" data-field="source_end_date">
+              <view class="input-field picker-field">
+                <text class="{{copyForm.source_end_date ? '' : 'placeholder'}}">{{copyForm.source_end_date || '请选择'}}</text>
+              </view>
+            </picker>
+          </view>
+          <view class="source-preview" wx:if="{{copyForm.source_start_date && copyForm.source_end_date}}">
+            <text class="preview-label">源周范围</text>
+            <text class="preview-value">{{copyForm.source_start_date}} ~ {{copyForm.source_end_date}}</text>
+            <text class="preview-hint" wx:if="{{copySourceCount > 0}}">该周有{{copySourceCount}} 节课可复制</text>
+            <text class="preview-hint warn" wx:else>该周暂无排课，请选择有排课的周</text>
+          </view>
+        </view>
+
+        <!-- 星期视图：第1步：确认模板 -->
+        <view class="step-content" wx:if="{{copyStep === 1 && viewMode === 'day'}}">
+          <view class="step-desc">
+            <text class="desc-text">确认星期模板排课</text>
+          </view>
+          <view class="template-preview">
+            <text class="template-label">模板课程总数</text>
+            <text class="template-count">{{copySourceCount}} 节课</text>
+            <view class="template-weekdays">
+              <view class="template-weekday-item" wx:for="{{weekdayList}}" wx:key="index">
+                <text class="weekday-name">{{item.name}}</text>
+                <text class="weekday-count">{{weekTemplate[item.weekday] ? weekTemplate[item.weekday].length : 0}} 节</text>
+              </view>
+            </view>
+          </view>
+        </view>
+
+        <!-- 第2步：选择复制范围（两个模式共用） -->
+        <view class="step-content" wx:if="{{copyStep === 2 || (copyStep === 1 && viewMode === 'day') }}">
+          <view class="step-desc">
+            <text class="desc-text">选择复制到未来的范围</text>
+          </view>
+          <view class="form-group">
+            <text class="form-label">目标起始日</text>
+            <picker mode="date" value="{{copyForm.target_start_date}}" bindchange="onCopyFormChange" data-field="target_start_date">
+              <view class="input-field picker-field">
+                <text class="{{copyForm.target_start_date ? '' : 'placeholder'}}">{{copyForm.target_start_date || '请选择'}}</text>
+              </view>
+            </picker>
+          </view>
+          <view class="form-group">
+            <text class="form-label">复制方式</text>
+            <view class="copy-mode-list">
+              <view class="copy-mode-item {{copyForm.copyMode === 'weeks' ? 'active' : ''}}" bindtap="onCopyModeChange" data-mode="weeks">
+                <text class="mode-icon">📅</text>
+                <view class="mode-info">
+                  <text class="mode-name">按周复制</text>
+                  <text class="mode-desc">每周重复相同的排课</text>
+                </view>
+              </view>
+              <view class="copy-mode-item {{copyForm.copyMode === 'months' ? 'active' : ''}}" bindtap="onCopyModeChange" data-mode="months">
+                <text class="mode-icon">📆</text>
+                <view class="mode-info">
+                  <text class="mode-name">按月复制</text>
+                  <text class="mode-desc">每月重复相同的排课</text>
+                </view>
+              </view>
+            </view>
+          </view>
+          <view class="form-group">
+            <text class="form-label">{{copyForm.copyMode === 'weeks' ? '复制周数' : '复制月数'}}</text>
+            <view class="stepper">
+              <view class="stepper-btn" bindtap="onStepperMinus">
+                <text>-</text>
+              </view>
+              <view class="stepper-value">
+                <text>{{copyForm.copyCount}}</text>
+              </view>
+              <view class="stepper-btn" bindtap="onStepperPlus">
+                <text>+</text>
+              </view>
+            </view>
+            <text class="stepper-hint">{{copyForm.copyMode === 'weeks' ? '最多24周' : '最多12个月'}}</text>
+          </view>
+          <!-- 实时预览 -->
+          <view class="copy-preview-card" wx:if="{{copyPreviewText}}">
+            <text class="preview-label">📋 复制预览</text>
+            <text class="preview-value">{{copyPreviewText}}</text>
+          </view>
+        </view>
+
+        <!-- 月视图：第3步：确认 -->
+        <view class="step-content" wx:if="{{copyStep === 3 && viewMode === 'month'}}">
+          <view class="confirm-card">
+            <view class="confirm-row">
+              <text class="confirm-label">门店</text>
+              <text class="confirm-value">{{copyStoreName}}</text>
+            </view>
+            <view class="confirm-row">
+              <text class="confirm-label">源周</text>
+              <text class="confirm-value">{{copyForm.source_start_date}} ~ {{copyForm.source_end_date}}</text>
+            </view>
+            <view class="confirm-row">
+              <text class="confirm-label">源周课程</text>
+              <text class="confirm-value">{{copySourceCount}} 节</text>
+            </view>
+            <view class="confirm-row">
+              <text class="confirm-label">目标起始</text>
+              <text class="confirm-value">{{copyForm.target_start_date}}</text>
+            </view>
+            <view class="confirm-row">
+              <text class="confirm-label">复制方式</text>
+              <text class="confirm-value">{{copyForm.copyMode === 'weeks' ? '按周' : '按月'}} × {{copyForm.copyCount}}</text>
+            </view>
+            <view class="confirm-divider"></view>
+            <view class="confirm-row highlight">
+              <text class="confirm-label">预计生成</text>
+              <text class="confirm-value">{{copySourceCount}} × {{copyForm.copyCount}} = 约{{copySourceCount * copyForm.copyCount}} 节课</text>
+            </view>
+          </view>
+          <view class="confirm-notice">
+            <text class="confirm-notice-item">•跳过已有排课和放假日</text>
+            <text class="confirm-notice-item">•过去的日期不会生成排课</text>
+            <text class="confirm-notice-item">•生成后可在排课列表中编辑</text>
+          </view>
+        </view>
+      </scroll-view>
+
+      <!-- 底部按钮：根据视图模式调整 -->
+      <view class="modal-buttons">
+        <block wx:if="{{viewMode === 'month'}}">
+          <view class="btn-secondary" bindtap="{{copyStep === 1 ? 'onCloseCopyModal' : 'onCopyPrevStep'}}">
+            <text>{{copyStep === 1 ? '取消' : '上一步'}}</text>
+          </view>
+          <view class="btn-primary" bindtap="{{copyStep === 3 ? 'onSubmitCopy' : 'onCopyNextStep'}}">
+            <text>{{copyStep === 3 ? '确认复制' : '下一步'}}</text>
+          </view>
+        </block>
+        <block wx:else>
+          <view class="btn-secondary" bindtap="onCloseCopyModal">
+            <text>取消</text>
+          </view>
+          <view class="btn-primary" bindtap="onSubmitCopy" wx:if="{{copyForm.target_start_date}}">
+            <text>确认复制</text>
+          </view>
+          <view class="btn-primary disabled" wx:else>
+            <text>请选择起始日期</text>
+          </view>
+        </block>
+      </view>
+    </view>
+  </view>
+</view>

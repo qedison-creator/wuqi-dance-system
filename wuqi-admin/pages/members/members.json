@@ -1,0 +1,7 @@
+{
+  "navigationBarTitleText": "会员管理",
+  "usingComponents": {
+    "member-card": "/components/member-card/member-card",
+    "empty-state": "/components/empty-state/empty-state"
+  }
+}

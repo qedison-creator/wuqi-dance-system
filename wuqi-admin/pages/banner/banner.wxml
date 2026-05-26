@@ -1,0 +1,122 @@
+<view class="banner-page">
+  <!-- 页面头部 -->
+  <view class="page-header">
+    <view class="header-left">
+      <text class="page-title">轮播图管理</text>
+      <text class="page-desc">管理小程序首页轮播图展示</text>
+    </view>
+    <view class="add-btn" bindtap="onAddBanner">
+      <text class="add-icon">+</text>
+      <text>添加轮播图</text>
+    </view>
+  </view>
+
+  <!-- 轮播图列表 -->
+  <view class="banner-list" wx:if="{{banners.length > 0}}">
+    <view class="banner-item" wx:for="{{banners}}" wx:key="_id">
+      <view class="banner-preview">
+        <image class="banner-image" src="{{item.image_url}}" mode="aspectFill" />
+        <view class="banner-overlay">
+          <view class="banner-info">
+            <text class="banner-title">{{item.title}}</text>
+            <text class="banner-subtitle" wx:if="{{item.subtitle}}">{{item.subtitle}}</text>
+          </view>
+          <view class="banner-status {{item.status}}">
+            <text>{{item.status === 'active' ? '已启用' : '已禁用'}}</text>
+          </view>
+        </view>
+      </view>
+      <view class="banner-meta">
+        <view class="meta-item">
+          <text class="meta-label">排序</text>
+          <text class="meta-value">{{item.sort_order}}</text>
+        </view>
+        <view class="meta-item">
+          <text class="meta-label">链接</text>
+          <text class="meta-value link">{{item.link_url || '无'}}</text>
+        </view>
+      </view>
+      <view class="banner-actions">
+        <view class="action-btn primary" data-id="{{item._id}}" bindtap="onEditBanner">
+          <text>编辑</text>
+        </view>
+        <view class="action-btn {{item.status === 'active' ? 'warning' : 'success'}}" data-id="{{item._id}}" data-index="{{index}}" bindtap="onToggleStatus">
+          <text>{{item.status === 'active' ? '禁用' : '启用'}}</text>
+        </view>
+        <view class="action-btn danger" data-id="{{item._id}}" bindtap="onDeleteBanner">
+          <text>删除</text>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 空状态 -->
+  <view class="empty-state" wx:else>
+    <view class="empty-icon">🖼️</view>
+    <text class="empty-title">暂无轮播图</text>
+    <text class="empty-desc">点击上方按钮添加轮播图</text>
+    <view class="empty-btn" bindtap="onAddBanner">
+      <text>添加轮播图</text>
+    </view>
+  </view>
+
+  <!-- 添加/编辑弹窗 -->
+  <view class="modal-mask" wx:if="{{showModal}}" bindtap="onCloseModal">
+    <view class="modal-content" catchtap="onModalTap">
+      <view class="modal-header">
+        <text class="modal-title">{{editingBanner ? '编辑轮播图' : '添加轮播图'}}</text>
+        <text class="modal-close" bindtap="onCloseModal">✕</text>
+      </view>
+
+      <!-- 图片上传区域 -->
+      <view class="upload-section">
+        <view class="upload-area" bindtap="onChooseImage">
+          <image wx:if="{{formData.image_url}}" class="preview-image" src="{{formData.image_url}}" mode="aspectFill" />
+          <view wx:else class="upload-placeholder">
+            <text class="upload-icon">📷</text>
+            <text class="upload-text">点击上传图片</text>
+            <text class="upload-tip">建议尺寸: 750×320px</text>
+          </view>
+        </view>
+        <view class="upload-status" wx:if="{{uploading}}">
+          <text>上传中...</text>
+        </view>
+      </view>
+
+      <!-- 表单 -->
+      <view class="form-group">
+        <text class="form-label">标题 *</text>
+        <input class="form-input" placeholder="请输入轮播图标题" value="{{formData.title}}" data-field="title" bindinput="onInputChange" />
+      </view>
+
+      <view class="form-group">
+        <text class="form-label">副标题</text>
+        <input class="form-input" placeholder="请输入副标题（可选）" value="{{formData.subtitle}}" data-field="subtitle" bindinput="onInputChange" />
+      </view>
+
+      <view class="form-group">
+        <text class="form-label">跳转链接</text>
+        <input class="form-input" placeholder="点击后跳转的页面路径（可选）" value="{{formData.link_url}}" data-field="link_url" bindinput="onInputChange" />
+      </view>
+
+      <view class="form-row">
+        <view class="form-group half">
+          <text class="form-label">排序</text>
+          <input class="form-input" type="number" placeholder="数字越小越靠前" value="{{formData.sort_order}}" data-field="sort_order" bindinput="onInputChange" />
+        </view>
+        <view class="form-group half">
+          <text class="form-label">状态</text>
+          <view class="switch-row">
+            <text class="switch-label">{{formData.status === 'active' ? '启用' : '禁用'}}</text>
+            <switch checked="{{formData.status === 'active'}}" color="#FFCC00" bindchange="onStatusChange" />
+          </view>
+        </view>
+      </view>
+
+      <view class="modal-buttons">
+        <view class="btn-secondary" bindtap="onCloseModal"><text>取消</text></view>
+        <view class="btn-primary" bindtap="onSubmit"><text>保存</text></view>
+      </view>
+    </view>
+  </view>
+</view>

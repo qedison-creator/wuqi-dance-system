@@ -1,0 +1,247 @@
+<view class="coaches-page">
+  <!-- 顶部Tab切换 -->
+  <view class="tab-switch">
+    <view class="tab-item {{activeTab === 'coaches' ? 'active' : ''}}" data-tab="coaches" bindtap="onTabChange">
+      <text>教练管理</text>
+    </view>
+    <view class="tab-item {{activeTab === 'danceStyles' ? 'active' : ''}}" data-tab="danceStyles" bindtap="onTabChange">
+      <text>舞种管理</text>
+    </view>
+    <view class="tab-item {{activeTab === 'stores' ? 'active' : ''}}" data-tab="stores" bindtap="onTabChange">
+      <text>门店管理</text>
+    </view>
+  </view>
+
+  <!-- 教练管理 -->
+  <view class="tab-content" wx:if="{{activeTab === 'coaches'}}">
+    <view class="section-header">
+      <text class="text-heading">教练列表</text>
+      <view class="add-btn" bindtap="onAddCoach">
+        <text>+ 新增教练</text>
+      </view>
+    </view>
+
+    <view class="coach-list" wx:if="{{coaches.length > 0}}">
+      <view class="coach-item card" wx:for="{{coaches}}" wx:key="_id">
+        <view class="coach-main">
+          <image class="coach-avatar" src="{{item.avatar_url || '/images/default-avatar.svg'}}" mode="aspectFill"></image>
+          <view class="coach-info">
+            <view class="coach-name-row">
+              <text class="coach-name">{{item.name}}</text>
+              <text class="coach-gender">{{item.gender === 1 ? '男' : (item.gender === 2 ? '女' : '未知')}}</text>
+            </view>
+            <text class="coach-dance">擅长: {{item.dance_style_names || '未设置'}}</text>
+          </view>
+        </view>
+        <view class="coach-actions">
+          <view class="action-btn-small" data-index="{{index}}" bindtap="onCoachDetail">
+            <text>详情</text>
+          </view>
+          <view class="action-btn-small" data-index="{{index}}" bindtap="onEditCoach">
+            <text>编辑</text>
+          </view>
+          <view class="action-btn-small danger" data-index="{{index}}" bindtap="onDeleteCoach">
+            <text>删除</text>
+          </view>
+          <switch checked="{{item.status === 'active'}}" data-id="{{item._id}}" data-index="{{index}}" bindchange="onToggleCoach" color="#FFCC00"></switch>
+        </view>
+      </view>
+    </view>
+    <view class="empty-state" wx:else>
+      <text class="empty-text">暂无教练</text>
+      <view class="add-btn" bindtap="onAddCoach"><text>+ 新增教练</text></view>
+    </view>
+  </view>
+
+  <!-- 舞种管理 -->
+  <view class="tab-content" wx:if="{{activeTab === 'danceStyles'}}">
+    <view class="section-header">
+      <text class="text-heading">舞种列表</text>
+      <view class="add-btn" bindtap="onAddDanceStyle">
+        <text>+ 新增舞种</text>
+      </view>
+    </view>
+
+    <view class="dance-style-list" wx:if="{{danceStyles.length > 0}}">
+      <view class="dance-style-item card" wx:for="{{danceStyles}}" wx:key="_id">
+        <view class="dance-style-info">
+          <text class="dance-style-name">{{item.name}}</text>
+          <text class="dance-style-order">排序: {{item.sort_order || 0}}</text>
+        </view>
+        <view class="dance-style-actions">
+          <view class="action-btn-small" data-index="{{index}}" bindtap="onEditDanceStyle">
+            <text>编辑</text>
+          </view>
+          <view class="action-btn-small danger" data-index="{{index}}" bindtap="onDeleteDanceStyle">
+            <text>删除</text>
+          </view>
+        </view>
+      </view>
+    </view>
+    <view class="empty-state" wx:else>
+      <text class="empty-text">暂无舞种</text>
+      <view class="add-btn" bindtap="onAddDanceStyle"><text>+ 新增舞种</text></view>
+    </view>
+  </view>
+
+  <!-- 门店管理 -->
+  <view class="tab-content" wx:if="{{activeTab === 'stores'}}">
+    <view class="section-header">
+      <text class="text-heading">门店列表</text>
+      <view class="add-btn" bindtap="onAddStore">
+        <text>+ 新增门店</text>
+      </view>
+    </view>
+
+    <view class="store-list" wx:if="{{stores.length > 0}}">
+      <view class="store-item card" wx:for="{{stores}}" wx:key="_id">
+        <view class="store-info">
+          <text class="store-name">{{item.name}}</text>
+          <text class="store-address">地址: {{item.address || '未设置'}}</text>
+          <text class="store-phone">电话: {{item.phone || '未设置'}}</text>
+        </view>
+        <view class="store-actions">
+          <view class="action-btn-small" data-index="{{index}}" bindtap="onEditStore">
+            <text>编辑</text>
+          </view>
+        </view>
+      </view>
+    </view>
+    <view class="empty-state" wx:else>
+      <text class="empty-text">暂无门店</text>
+      <view class="add-btn" bindtap="onAddStore"><text>+ 新增门店</text></view>
+    </view>
+  </view>
+
+  <!-- 新增/编辑教练弹窗 -->
+  <view class="modal-mask" wx:if="{{showCoachModal}}" bindtap="onCloseCoachModal">
+    <view class="modal-content" catchtap="onModalTap">
+      <view class="modal-header">
+        <text class="modal-title">{{coachForm._id ? '编辑教练' : '新增教练'}}</text>
+        <text class="modal-close" bindtap="onCloseCoachModal">✕</text>
+      </view>
+      <view class="form-group">
+        <text class="form-label">头像</text>
+        <view class="avatar-upload" bindtap="onChooseAvatar">
+          <image class="avatar-preview" src="{{coachForm.avatar_url || '/images/default-avatar.svg'}}" mode="aspectFill"></image>
+          <text class="avatar-upload-text">点击上传</text>
+        </view>
+      </view>
+      <view class="form-group">
+        <text class="form-label">姓名 *</text>
+        <input class="input-field" placeholder="请输入教练姓名" value="{{coachForm.name}}" data-field="name" bindinput="onCoachInput" />
+      </view>
+      <view class="form-group">
+        <text class="form-label">性别</text>
+        <radio-group bindchange="onCoachGenderChange">
+          <label class="radio-label"><radio value="1" checked="{{coachForm.gender === '1'}}" color="#FFCC00"/> 男</label>
+          <label class="radio-label"><radio value="2" checked="{{coachForm.gender === '2'}}" color="#FFCC00"/> 女</label>
+        </radio-group>
+      </view>
+      <view class="form-group">
+        <text class="form-label">擅长舞种</text>
+        <view class="checkbox-list">
+          <view class="checkbox-item {{item.selected ? 'active' : ''}}" wx:for="{{danceStyleList}}" wx:key="_id" data-index="{{index}}" bindtap="onToggleDanceStyle">
+            <text>{{item.name}}</text>
+          </view>
+        </view>
+      </view>
+      <view class="modal-buttons">
+        <view class="btn-secondary" bindtap="onCloseCoachModal"><text>取消</text></view>
+        <view class="btn-primary" bindtap="onSubmitCoach"><text>确认</text></view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 教练详情弹窗（相册管理） -->
+  <view class="modal-mask" wx:if="{{showDetailModal}}" bindtap="onCloseDetailModal">
+    <view class="modal-content modal-large" catchtap="onModalTap">
+      <view class="modal-header">
+        <text class="modal-title">教练详情 - {{detailCoach.name}}</text>
+        <text class="modal-close" bindtap="onCloseDetailModal">✕</text>
+      </view>
+      <scroll-view scroll-y class="detail-scroll">
+        <!-- 头像 -->
+        <view class="detail-avatar-section">
+          <image class="detail-avatar" src="{{detailCoach.avatar_url || '/images/default-avatar.svg'}}" mode="aspectFill"></image>
+          <view class="btn-primary btn-small" bindtap="onDetailChooseAvatar">更换头像</view>
+        </view>
+        <!-- 基本信息 -->
+        <view class="detail-info-row">
+          <text class="detail-label">姓名：</text>
+          <text class="detail-value">{{detailCoach.name}}</text>
+        </view>
+        <view class="detail-info-row">
+          <text class="detail-label">性别：</text>
+          <text class="detail-value">{{detailCoach.gender === 1 ? '男' : (detailCoach.gender === 2 ? '女' : '未知')}}</text>
+        </view>
+        <view class="detail-info-row">
+          <text class="detail-label">擅长：</text>
+          <text class="detail-value">{{detailCoach.dance_style_names || '未设置'}}</text>
+        </view>
+        <!-- 相册管理 -->
+        <view class="detail-section">
+          <view class="detail-section-header">
+            <text class="detail-section-title">教练相册</text>
+            <view class="btn-primary btn-small" bindtap="onAddGalleryPhoto">+ 添加照片</view>
+          </view>
+          <view class="gallery-grid" wx:if="{{detailCoach.gallery && detailCoach.gallery.length > 0}}">
+            <view class="gallery-item" wx:for="{{detailCoach.gallery}}" wx:key="photoId">
+              <image class="gallery-img" src="{{item.url}}" mode="aspectFill" bindtap="onPreviewGallery" data-photoid="{{item.photoId}}" data-index="{{index}}"></image>
+              <view class="gallery-delete" data-photoid="{{item.photoId}}" data-index="{{index}}" catchtap="onDeleteGalleryPhoto">✕</view>
+            </view>
+          </view>
+          <view class="detail-empty" wx:else>暂无相册照片，点击上方按钮添加</view>
+        </view>
+      </scroll-view>
+    </view>
+  </view>
+
+  <!-- 新增/编辑舞种弹窗 -->
+  <view class="modal-mask" wx:if="{{showDanceStyleModal}}" bindtap="onCloseDanceStyleModal">
+    <view class="modal-content" catchtap="onModalTap">
+      <view class="modal-header">
+        <text class="modal-title">{{danceStyleForm._id ? '编辑舞种' : '新增舞种'}}</text>
+        <text class="modal-close" bindtap="onCloseDanceStyleModal">✕</text>
+      </view>
+      <view class="form-group">
+        <text class="form-label">舞种名称 *</text>
+        <input class="input-field" placeholder="请输入舞种名称" value="{{danceStyleForm.name}}" data-field="name" bindinput="onDanceStyleInput" />
+      </view>
+      <view class="form-group">
+        <text class="form-label">排序（数字越小越靠前）</text>
+        <input class="input-field" type="number" placeholder="0" value="{{danceStyleForm.sort_order}}" data-field="sort_order" bindinput="onDanceStyleInput" />
+      </view>
+      <view class="modal-buttons">
+        <view class="btn-secondary" bindtap="onCloseDanceStyleModal"><text>取消</text></view>
+        <view class="btn-primary" bindtap="onSubmitDanceStyle"><text>确认</text></view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 新增/编辑门店弹窗 -->
+  <view class="modal-mask" wx:if="{{showStoreModal}}" bindtap="onCloseStoreModal">
+    <view class="modal-content" catchtap="onModalTap">
+      <view class="modal-header">
+        <text class="modal-title">{{storeForm._id ? '编辑门店' : '新增门店'}}</text>
+        <text class="modal-close" bindtap="onCloseStoreModal">✕</text>
+      </view>
+      <view class="form-group">
+        <text class="form-label">门店名称 *</text>
+        <input class="input-field" placeholder="请输入门店名称" value="{{storeForm.name}}" data-field="name" bindinput="onStoreInput" />
+      </view>
+      <view class="form-group">
+        <text class="form-label">地址</text>
+        <input class="input-field" placeholder="请输入门店地址" value="{{storeForm.address}}" data-field="address" bindinput="onStoreInput" />
+      </view>
+      <view class="form-group">
+        <text class="form-label">联系电话</text>
+        <input class="input-field" type="number" placeholder="请输入联系电话" value="{{storeForm.phone}}" data-field="phone" bindinput="onStoreInput" />
+      </view>
+      <view class="modal-buttons">
+        <view class="btn-secondary" bindtap="onCloseStoreModal"><text>取消</text></view>
+        <view class="btn-primary" bindtap="onSubmitStore"><text>确认</text></view>
+      </view>
+    </view>
+  </view>
+</view>

@@ -1,0 +1,45 @@
+<view class="course-card card">
+  <view class="course-header">
+    <view class="course-info">
+      <text class="course-name text-heading">{{course.name}}</text>
+      <text class="course-dance text-caption">{{course.danceType}}</text>
+    </view>
+    <view class="course-status {{course.status === 'active' ? 'status-active' : course.status === 'cancelled' ? 'status-cancelled' : 'status-upcoming'}}">
+      <text class="status-text">{{course.status === 'active' ? '进行中' : course.status === 'cancelled' ? '已取消' : '未开始'}}</text>
+    </view>
+  </view>
+
+  <view class="course-details">
+    <view class="detail-row">
+      <text class="detail-icon">👤</text>
+      <text class="detail-text">{{course.coachName || '未指定'}}</text>
+    </view>
+    <view class="detail-row">
+      <text class="detail-icon">🕐</text>
+      <text class="detail-text">{{course.date}} {{course.startTime}}-{{course.endTime}}</text>
+    </view>
+    <view class="detail-row">
+      <text class="detail-icon">🏫</text>
+      <text class="detail-text">{{course.room || '未指定'}}</text>
+    </view>
+    <view class="detail-row">
+      <text class="detail-icon">👥</text>
+      <text class="detail-text">{{course.bookedCount || 0}}/{{course.maxCapacity || 0}}人</text>
+    </view>
+  </view>
+
+  <view class="course-actions" wx:if="{{course.status !== 'cancelled'}}">
+    <view class="action-btn btn-view" bindtap="onViewBookings">
+      <text>📋 预约名单</text>
+    </view>
+    <view class="action-btn btn-attendance" bindtap="onMarkAttendance">
+      <text>✓ 标记上课</text>
+    </view>
+    <view class="action-btn btn-edit" bindtap="onEditCourse">
+      <text>✏️ 编辑</text>
+    </view>
+    <view class="action-btn btn-cancel" bindtap="onCancelCourse">
+      <text>✕ 取消</text>
+    </view>
+  </view>
+</view>

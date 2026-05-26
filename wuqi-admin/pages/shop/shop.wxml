@@ -1,0 +1,85 @@
+<view class="shop-page">
+  <view class="page-header">
+    <text class="page-title">店务管理</text>
+    <text class="page-subtitle">管理门店日常运营事务</text>
+  </view>
+
+  <view class="grid-container">
+    <view class="grid-item" bindtap="onGoToStoreMaintenance">
+      <view class="grid-icon-bg terracotta">
+        <image class="grid-icon" src="/images/icons/store.svg" mode="aspectFit"></image>
+      </view>
+      <text class="grid-label">门店维护</text>
+    </view>
+
+    <view class="grid-item" wx:if="{{permSchedule}}" bindtap="onGoToSchedule">
+      <view class="grid-icon-bg sage">
+        <image class="grid-icon" src="/images/icons/settings.svg" mode="aspectFit"></image>
+      </view>
+      <text class="grid-label">排课设置</text>
+    </view>
+
+    <view class="grid-item" wx:if="{{permWaitlist}}" bindtap="onGoToWaitlist">
+      <view class="grid-icon-bg blue">
+        <image class="grid-icon" src="/images/icons/users.svg" mode="aspectFit"></image>
+      </view>
+      <text class="grid-label">候补排队</text>
+    </view>
+
+    <view class="grid-item" wx:if="{{permSalary}}" bindtap="onGoToSalary">
+      <view class="grid-icon-bg warm">
+        <image class="grid-icon" src="/images/icons/info.svg" mode="aspectFit"></image>
+      </view>
+      <text class="grid-label">教练薪酬</text>
+    </view>
+
+    <view class="grid-item" wx:if="{{permPackage}}" bindtap="onGoToPackageLogs">
+      <view class="grid-icon-bg terracotta">
+        <image class="grid-icon" src="/images/icons/file-text.svg" mode="aspectFit"></image>
+      </view>
+      <text class="grid-label">套餐记录</text>
+    </view>
+
+    <view class="grid-item" wx:if="{{permCoach}}" bindtap="onGoToCoaches">
+      <view class="grid-icon-bg sage">
+        <image class="grid-icon" src="/images/icons/person-dancing.svg" mode="aspectFit"></image>
+      </view>
+      <text class="grid-label">教练管理</text>
+    </view>
+
+    <view class="grid-item" wx:if="{{permVideo}}" bindtap="onGoToVideos">
+      <view class="grid-icon-bg blue">
+        <image class="grid-icon" src="/images/icons/video.svg" mode="aspectFit"></image>
+      </view>
+      <text class="grid-label">教练作品</text>
+    </view>
+
+    <view class="grid-item" wx:if="{{permBanner}}" bindtap="onGoToBanner">
+      <view class="grid-icon-bg warm">
+        <image class="grid-icon" src="/images/icons/image.svg" mode="aspectFit"></image>
+      </view>
+      <text class="grid-label">轮播图管理</text>
+    </view>
+
+    <view class="grid-item" wx:if="{{permHoliday}}" bindtap="onGoToHolidays">
+      <view class="grid-icon-bg terracotta">
+        <image class="grid-icon" src="/images/icons/calendar-off.svg" mode="aspectFit"></image>
+      </view>
+      <text class="grid-label">放假管理</text>
+    </view>
+
+    <view class="grid-item" bindtap="onGoToAnnouncements">
+      <view class="grid-icon-bg sage">
+        <image class="grid-icon" src="/images/icons/bell.svg" mode="aspectFit"></image>
+      </view>
+      <text class="grid-label">公告管理</text>
+    </view>
+
+    <view class="grid-item" wx:if="{{isAdmin}}" bindtap="onGoToExemption">
+      <view class="grid-icon-bg blue">
+        <image class="grid-icon" src="/images/icons/shield.svg" mode="aspectFit"></image>
+      </view>
+      <text class="grid-label">豁免设置</text>
+    </view>
+  </view>
+</view>

@@ -1,0 +1,6 @@
+{
+  "navigationBarTitleText": "视频管理",
+  "usingComponents": {
+    "empty-state": "/components/empty-state/empty-state"
+  }
+}

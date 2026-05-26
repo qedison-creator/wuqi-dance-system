@@ -1,0 +1,85 @@
+<view class="container">
+  <view class="page-header">
+    <text class="page-title">角色权限管理</text>
+  </view>
+
+  <view class="role-list" wx:if="{{roles.length > 0}}">
+    <view class="role-card card" wx:for="{{roles}}" wx:key="id">
+      <view class="role-header">
+        <view class="role-info">
+          <text class="role-name">{{item.name}}</text>
+          <text class="role-desc">{{item.desc}}</text>
+        </view>
+        <view class="role-action" wx:if="{{item.id !== 'super_admin'}}" bindtap="onEditPermissions" data-index="{{index}}">
+          <text class="action-text">配置权限</text>
+        </view>
+        <view class="role-action disabled" wx:else>
+          <text class="action-text disabled-text">全部权限</text>
+        </view>
+      </view>
+
+      <view class="permission-tags" wx:if="{{item.id === 'super_admin'}}">
+        <view class="perm-tag all-tag">
+          <text>全部权限</text>
+        </view>
+      </view>
+      <view class="permission-tags" wx:else>
+        <view class="perm-tag" wx:for="{{item.permissions}}" wx:for-item="perm" wx:key="*this">
+          <text>{{perm}}</text>
+        </view>
+        <text class="perm-count" wx:if="{{item.permissions.length > 0}}">共{{item.permissions.length}}项权限</text>
+        <text class="perm-count empty" wx:else>暂无权限</text>
+      </view>
+    </view>
+  </view>
+
+  <view class="empty-state card" wx:elif="{{!loading}}">
+    <text>暂无角色数据</text>
+  </view>
+
+  <view class="loading" wx:if="{{loading}}">
+    <text class="loading-text">加载中...</text>
+  </view>
+
+  <!-- 权限配置弹窗 -->
+  <view class="modal-mask" wx:if="{{showPermModal}}" bindtap="onCloseModal">
+    <view class="modal-content" catchtap="onModalTap">
+      <view class="modal-header">
+        <text class="modal-title">{{editingRole.name}} - 权限配置</text>
+        <text class="modal-close" bindtap="onCloseModal">×</text>
+      </view>
+
+      <view class="perm-quick-actions">
+        <view class="quick-btn" bindtap="onSelectAll">
+          <text>全选</text>
+        </view>
+        <view class="quick-btn" bindtap="onClearAll">
+          <text>清空</text>
+        </view>
+      </view>
+
+      <scroll-view scroll-y class="perm-scroll">
+        <view class="perm-module-item" wx:for="{{displayModules}}" wx:key="id">
+          <view class="perm-module-check {{item.checked ? 'checked' : ''}}" data-id="{{item.id}}" bindtap="onTogglePermission">
+            <view class="checkbox {{item.checked ? 'checked' : ''}}">
+              <text wx:if="{{item.checked}}">✓</text>
+            </view>
+            <view class="perm-module-info">
+              <text class="perm-module-name">{{item.name}}</text>
+              <text class="perm-module-desc">{{item.desc}}</text>
+            </view>
+          </view>
+        </view>
+      </scroll-view>
+
+      <view class="perm-summary">
+        <text>已选择 {{editingPermissions.length}} / {{permissionModules.length}} 项权限</text>
+      </view>
+
+      <view class="modal-buttons">
+        <view class="btn-secondary" bindtap="onCloseModal"><text>取消</text></view>
+        <view class="btn-primary" bindtap="onSavePermissions"><text>保存</text></view>
+      </view>
+    </view>
+  </view>
+</view>

@@ -1,0 +1,6 @@
+{
+  "navigationBarTitleText": "门店放假",
+  "usingComponents": {
+    "empty-state": "/components/empty-state/empty-state"
+  }
+}

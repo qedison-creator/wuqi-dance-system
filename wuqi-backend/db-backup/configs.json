@@ -1,0 +1,168 @@
+[
+  {
+    "_id": "6a02e0706fc1b74d40d98298",
+    "key": "default_exemption_count",
+    "value": "3",
+    "description": "新注册会员默认豁免次数",
+    "category": "general",
+    "created_at": "2026-05-12T08:10:24.177Z",
+    "updated_at": "2026-05-12T08:10:24.177Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a02e0706fc1b74d40d98299",
+    "key": "booking_cancel_deadline",
+    "value": "120",
+    "description": "预约取消截止时间（分钟）",
+    "category": "general",
+    "created_at": "2026-05-12T08:10:24.276Z",
+    "updated_at": "2026-05-12T08:10:24.276Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a02e0706fc1b74d40d9829a",
+    "key": "class_reminder_time",
+    "value": "30",
+    "description": "上课提醒时间（分钟）",
+    "category": "general",
+    "created_at": "2026-05-12T08:10:24.284Z",
+    "updated_at": "2026-05-12T08:10:24.284Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a0896a4534ee44680df4530",
+    "key": "default_booking_deadline",
+    "value": "180",
+    "description": "默认预约截止时间(分钟)",
+    "category": "general",
+    "created_at": "2026-05-16T16:09:08.103Z",
+    "updated_at": "2026-05-16T16:09:08.103Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a0896a4534ee44680df4531",
+    "key": "default_cancel_deadline",
+    "value": "120",
+    "description": "默认取消截止时间(分钟)",
+    "category": "general",
+    "created_at": "2026-05-16T16:09:08.135Z",
+    "updated_at": "2026-05-16T16:09:08.135Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a0896a4534ee44680df4532",
+    "key": "default_credits_cost",
+    "value": "1",
+    "description": "默认消耗次数",
+    "category": "general",
+    "created_at": "2026-05-16T16:09:08.147Z",
+    "updated_at": "2026-05-16T16:09:08.147Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a0896a4534ee44680df4533",
+    "key": "timeout_cancel_window",
+    "value": "10",
+    "description": "超时取消窗口(分钟)",
+    "category": "general",
+    "created_at": "2026-05-16T16:09:08.156Z",
+    "updated_at": "2026-05-16T16:09:08.156Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a0896a4534ee44680df4534",
+    "key": "default_schedule_duration",
+    "value": "75",
+    "description": "默认排课时长(分钟)",
+    "category": "general",
+    "created_at": "2026-05-16T16:09:08.159Z",
+    "updated_at": "2026-05-16T16:09:08.159Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a089ab83b2da133efbb4cbf",
+    "key": "package_expire_remind_days",
+    "value": "8",
+    "description": "套餐到期提前提醒天数",
+    "category": "general",
+    "created_at": "2026-05-16T16:26:32.921Z",
+    "updated_at": "2026-05-16T16:26:32.921Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a089ab83b2da133efbb4cc0",
+    "key": "count_card_low_remind",
+    "value": "5",
+    "description": "次卡剩余次数低于此值时提醒",
+    "category": "general",
+    "created_at": "2026-05-16T16:26:32.932Z",
+    "updated_at": "2026-05-16T16:26:32.932Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a089ab83b2da133efbb4cc1",
+    "key": "inactive_remind_days",
+    "value": "10",
+    "description": "会员未预约课程提醒天数",
+    "category": "general",
+    "created_at": "2026-05-16T16:26:32.934Z",
+    "updated_at": "2026-05-16T16:26:32.934Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a089e945e087ac420c45191",
+    "key": "reminder_send_time",
+    "value": "14:00",
+    "description": "套餐提醒推送时间",
+    "category": "general",
+    "created_at": "2026-05-16T16:43:00.724Z",
+    "updated_at": "2026-05-16T16:43:00.724Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a102516c169d166f3fb2f08",
+    "key": "role_permissions",
+    "value": {
+      "super_admin": {
+        "name": "超级管理员",
+        "desc": "拥有所有权限",
+        "permissions": [
+          "*"
+        ]
+      },
+      "store_manager": {
+        "name": "店长",
+        "desc": "门店全权管理",
+        "permissions": [
+          "dashboard",
+          "schedule",
+          "booking",
+          "member",
+          "video",
+          "coach",
+          "salary",
+          "package",
+          "waitlist",
+          "checkin",
+          "holiday",
+          "banner"
+        ]
+      },
+      "staff": {
+        "name": "员工",
+        "desc": "日常运营",
+        "permissions": [
+          "dashboard",
+          "schedule",
+          "booking",
+          "member",
+          "checkin"
+        ]
+      }
+    },
+    "category": "permission",
+    "created_at": "2026-05-22T09:42:46.516Z",
+    "updated_at": "2026-05-22T09:42:46.516Z",
+    "__v": 0
+  }
+]

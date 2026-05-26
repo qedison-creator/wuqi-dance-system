@@ -1,0 +1,286 @@
+.accounts-page {
+  padding: 20rpx;
+}
+
+.page-header {
+  margin-bottom: 24rpx;
+}
+
+.page-title {
+  font-size: 36rpx;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.entry-cards {
+  display: flex;
+  gap: 16rpx;
+  margin-bottom: 24rpx;
+}
+
+.entry-card {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  padding: 20rpx;
+  gap: 16rpx;
+}
+
+.entry-icon {
+  width: 64rpx;
+  height: 64rpx;
+  border-radius: 12rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 32rpx;
+  flex-shrink: 0;
+}
+
+.entry-icon.add-icon {
+  background-color: rgba(197, 116, 75, 0.15);
+  color: var(--color-primary);
+}
+
+.entry-icon.perm-icon {
+  background-color: rgba(76, 201, 240, 0.15);
+  color: var(--color-info);
+}
+
+.entry-info {
+  flex: 1;
+}
+
+.entry-name {
+  font-size: 28rpx;
+  font-weight: 500;
+  color: var(--text-primary);
+  display: block;
+}
+
+.entry-desc {
+  font-size: 22rpx;
+  color: var(--text-secondary);
+  display: block;
+  margin-top: 4rpx;
+}
+
+.section-title {
+  font-size: 28rpx;
+  color: var(--text-secondary);
+  margin-bottom: 16rpx;
+  padding-left: 4rpx;
+}
+
+.account-item {
+  padding: 20rpx 24rpx;
+  margin-bottom: 16rpx;
+}
+
+.account-main {
+  display: flex;
+  align-items: flex-start;
+  margin-bottom: 16rpx;
+}
+
+.account-avatar {
+  width: 72rpx;
+  height: 72rpx;
+  border-radius: 50%;
+  background-color: rgba(197, 116, 75, 0.15);
+  color: var(--color-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 30rpx;
+  font-weight: 600;
+  margin-right: 16rpx;
+  flex-shrink: 0;
+}
+
+.account-avatar.disabled {
+  background-color: rgba(237, 233, 245, 0.05);
+  color: var(--text-tertiary);
+}
+
+.account-info {
+  flex: 1;
+}
+
+.account-name-row {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  margin-bottom: 8rpx;
+}
+
+.account-name {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.role-badge {
+  padding: 2rpx 12rpx;
+  border-radius: 4rpx;
+  font-size: 20rpx;
+}
+
+.role-badge.super_admin {
+  background-color: rgba(197, 116, 75, 0.2);
+  color: var(--color-primary);
+}
+
+.role-badge.store_manager {
+  background-color: rgba(76, 201, 240, 0.2);
+  color: var(--color-info);
+}
+
+.role-badge.staff {
+  background-color: rgba(6, 214, 160, 0.2);
+  color: var(--color-success);
+}
+
+.status-dot {
+  width: 12rpx;
+  height: 12rpx;
+  border-radius: 50%;
+}
+
+.status-dot.active {
+  background-color: var(--color-success);
+}
+
+.status-dot.disabled {
+  background-color: var(--color-danger);
+}
+
+.account-detail {
+  font-size: 24rpx;
+  color: var(--text-secondary);
+  display: block;
+  margin-bottom: 2rpx;
+}
+
+.account-actions {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  justify-content: flex-end;
+}
+
+.action-btn {
+  padding: 10rpx 20rpx;
+  border-radius: 6rpx;
+  font-size: 24rpx;
+}
+
+.action-btn.edit {
+  background-color: rgba(197, 116, 75, 0.15);
+  color: var(--color-primary);
+}
+
+.action-btn.delete {
+  background-color: rgba(196, 75, 75, 0.15);
+  color: var(--color-danger);
+}
+
+.form-tip {
+  font-size: 24rpx;
+  color: var(--text-tertiary);
+  margin-top: 8rpx;
+  display: block;
+}
+
+.empty-state {
+  padding: 60rpx 20rpx;
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: 28rpx;
+}
+
+.modal-mask {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  width: 600rpx;
+  background-color: var(--bg-card);
+  border-radius: 20rpx;
+  padding: 30rpx;
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 30rpx;
+}
+
+.modal-title {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.modal-close {
+  font-size: 36rpx;
+  color: var(--text-secondary);
+  padding: 10rpx;
+}
+
+.form-group {
+  margin-bottom: 24rpx;
+}
+
+.form-label {
+  font-size: 28rpx;
+  color: var(--text-secondary);
+  display: block;
+  margin-bottom: 12rpx;
+}
+
+.input-field {
+  width: 100%;
+  height: 80rpx;
+  background-color: var(--bg-root);
+  border: 2rpx solid var(--border);
+  border-radius: 14rpx;
+  padding: 0 20rpx;
+  color: var(--text-primary);
+  font-size: 28rpx;
+  box-sizing: border-box;
+}
+
+.picker-field {
+  display: flex;
+  align-items: center;
+}
+
+.picker-field .placeholder {
+  color: var(--text-tertiary);
+}
+
+.picker-field.disabled {
+  background-color: rgba(237, 233, 245, 0.05);
+  color: var(--text-tertiary);
+}
+
+.submit-btn {
+  margin-top: 20rpx;
+  background: linear-gradient(135deg, var(--color-primary-hover), var(--color-primary));
+  color: var(--text-primary);
+  font-size: 30rpx;
+  font-weight: 500;
+  border-radius: 16rpx;
+  padding: 20rpx;
+}

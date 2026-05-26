@@ -1,0 +1,77 @@
+{
+  "info": {
+    "name": "舞栖舞蹈社 API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "舞栖舞蹈社系统 API 测试集合"
+  },
+  "item": [
+    {
+      "name": "健康检查",
+      "item": [
+        {
+          "name": "健康检查",
+          "request": {
+            "method": "GET",
+            "url": "http://localhost:3000/health"
+          }
+        }
+      ]
+    },
+    {
+      "name": "认证相关",
+      "item": [
+        {
+          "name": "管理员登录",
+          "request": {
+            "method": "POST",
+            "url": "http://localhost:3000/api/v1/auth/admin-login",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"username\": \"admin\", \"password\": \"admin123\"}"
+            }
+          }
+        },
+        {
+          "name": "获取当前用户",
+          "request": {
+            "method": "GET",
+            "url": "http://localhost:3000/api/v1/auth/me",
+            "header": [{"key": "Authorization", "value": "Bearer {{token}}"}]
+          }
+        }
+      ]
+    },
+    {
+      "name": "门店管理",
+      "item": [
+        {"name": "获取门店列表", "request": {"method": "GET", "url": "http://localhost:3000/api/v1/stores"}}
+      ]
+    },
+    {
+      "name": "会员管理",
+      "item": [
+        {"name": "获取会员列表", "request": {"method": "GET", "url": "http://localhost:3000/api/v1/members"}},
+        {"name": "获取会员统计", "request": {"method": "GET", "url": "http://localhost:3000/api/v1/members/stats/overview"}}
+      ]
+    },
+    {
+      "name": "套餐管理",
+      "item": [
+        {"name": "获取套餐模板", "request": {"method": "GET", "url": "http://localhost:3000/api/v1/packages"}}
+      ]
+    },
+    {
+      "name": "舞种管理",
+      "item": [
+        {"name": "获取舞种列表", "request": {"method": "GET", "url": "http://localhost:3000/api/v1/dance-styles"}}
+      ]
+    },
+    {
+      "name": "Banner管理",
+      "item": [
+        {"name": "获取Banner列表", "request": {"method": "GET", "url": "http://localhost:3000/api/v1/banners"}}
+      ]
+    }
+  ]
+}

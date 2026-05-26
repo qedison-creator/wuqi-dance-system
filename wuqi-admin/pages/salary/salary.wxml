@@ -1,0 +1,302 @@
+<view class="salary-page">
+  <!-- 标签切换 -->
+  <view class="tab-bar">
+    <view class="tab-item {{activeTab === 'config' ? 'active' : ''}}" bindtap="onTabChange" data-tab="config">
+      <text>薪酬配置</text>
+    </view>
+    <view class="tab-item {{activeTab === 'stats' ? 'active' : ''}}" bindtap="onTabChange" data-tab="stats">
+      <text>薪酬统计</text>
+    </view>
+  </view>
+
+  <!-- 薪酬配置 -->
+  <view class="tab-content" wx:if="{{activeTab === 'config'}}">
+    <view class="header-actions">
+      <text class="page-title text-heading">薪酬配置</text>
+      <view class="add-btn" bindtap="onAddConfig">
+        <text>+ 添加配置</text>
+      </view>
+    </view>
+
+    <view class="config-list" wx:if="{{salaryConfigList.length > 0}}">
+      <view class="config-item card" wx:for="{{salaryConfigList}}" wx:key="_id">
+        <view class="config-header">
+          <text class="config-name">{{item.coach_name}}</text>
+          <text class="config-status {{item.is_active ? 'status-active' : 'status-inactive'}}">{{item.is_active ? '生效中' : '已停用'}}</text>
+        </view>
+        <view class="config-summary">
+          <text class="summary-text" wx:for="{{item.configs}}" wx:key="_id" wx:for-item="cfg">{{cfg.duration}}分钟 · ¥{{cfg.salary_rate}}/节</text>
+        </view>
+        <view class="config-actions">
+          <view class="action-btn edit" bindtap="onEditConfig" data-item="{{item}}">编辑</view>
+          <view class="action-btn delete" bindtap="onDeleteConfig" data-id="{{item.configs[0]._id}}">删除</view>
+        </view>
+      </view>
+    </view>
+
+    <empty-state wx:if="{{!loading && salaryConfigList.length === 0}}" icon="📋" text="暂无薪酬配置"></empty-state>
+  </view>
+
+  <!-- 薪酬统计 -->
+  <view class="tab-content" wx:if="{{activeTab === 'stats'}}">
+    <!-- 汇总卡片 -->
+    <view class="summary-cards" wx:if="{{statsSummary}}">
+      <view class="summary-card card">
+        <text class="summary-icon">💰</text>
+        <text class="summary-value">¥{{statsSummary.total_amount || 0}}</text>
+        <text class="summary-label">本月薪酬总额</text>
+      </view>
+      <view class="summary-card card">
+        <text class="summary-icon">📊</text>
+        <text class="summary-value">{{statsSummary.total_classes || 0}}</text>
+        <text class="summary-label">本月课程数</text>
+      </view>
+      <view class="summary-card card">
+        <text class="summary-icon">👥</text>
+        <text class="summary-value">{{statsSummary.total_attendance || 0}}</text>
+        <text class="summary-label">总签到人数</text>
+      </view>
+      <view class="summary-card card">
+        <text class="summary-icon">⏳</text>
+        <text class="summary-value">{{statsSummary.pending_count || 0}}</text>
+        <text class="summary-label">待结算</text>
+      </view>
+    </view>
+
+    <!-- 时间选择器 -->
+    <view class="date-range-selector">
+      <view class="date-item">
+        <text class="date-label">开始日期</text>
+        <picker mode="date" value="{{statForm.startDate}}" bindchange="onStatStartDateChange">
+          <view class="date-picker">
+            <text>{{statForm.startDate || '选择日期'}}</text>
+          </view>
+        </picker>
+      </view>
+      <view class="date-separator">~</view>
+      <view class="date-item">
+        <text class="date-label">结束日期</text>
+        <picker mode="date" value="{{statForm.endDate}}" bindchange="onStatEndDateChange">
+          <view class="date-picker">
+            <text>{{statForm.endDate || '选择日期'}}</text>
+          </view>
+        </picker>
+      </view>
+      <view class="generate-btn" bindtap="onGenerateBill">
+        <text>生成账单</text>
+      </view>
+    </view>
+
+    <view class="header-actions">
+      <text class="page-title text-heading">薪酬记录</text>
+    </view>
+
+    <view class="stats-list" wx:if="{{salaryStatsList.length > 0}}">
+      <view class="stats-item card" wx:for="{{salaryStatsList}}" wx:key="_id" bindtap="onViewStat" data-item="{{item}}">
+        <view class="stats-header">
+          <text class="stats-coach">{{item.coach_id && item.coach_id.name ? item.coach_id.name : '未知教练'}}</text>
+          <text class="stats-status {{item.status === 'settled' ? 'status-settled' : item.status === 'cancelled' ? 'status-cancelled' : 'status-pending'}}">
+            {{item.status === 'settled' ? '已结算' : item.status === 'cancelled' ? '已取消' : '待结算'}}
+          </text>
+        </view>
+        <view class="stats-body">
+          <view class="stats-row">
+            <text class="stats-label">课程</text>
+            <text class="stats-value">{{item.schedule_id && item.schedule_id.course_name ? item.schedule_id.course_name : '-'}}</text>
+          </view>
+          <view class="stats-row">
+            <text class="stats-label">上课时间</text>
+            <text class="stats-value">{{item.class_date ? item.class_date.split('T')[0] : '-'}} {{item.schedule_id && item.schedule_id.start_time ? item.schedule_id.start_time : '-'}}</text>
+          </view>
+          <view class="stats-row">
+            <text class="stats-label">课程时长</text>
+            <text class="stats-value">{{item.duration || 0}}分钟</text>
+          </view>
+          <view class="stats-row">
+            <text class="stats-label">签到人数</text>
+            <text class="stats-value">{{item.attendance_count || 0}}人</text>
+          </view>
+          <view class="stats-row">
+            <text class="stats-label">应发金额</text>
+            <text class="stats-value highlight">¥{{item.total_salary || 0}}</text>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <empty-state wx:if="{{!loading && salaryStatsList.length === 0}}" icon="📋" text="暂无薪酬记录"></empty-state>
+  </view>
+
+  <!-- 加载中 -->
+  <view class="loading" wx:if="{{loading}}">
+    <text class="load-more">加载中...</text>
+  </view>
+
+  <!-- 配置弹窗 -->
+  <view class="modal-mask" wx:if="{{showConfigModal}}" bindtap="onCloseModal">
+    <view class="modal-content" catchtap="stopPropagation">
+      <view class="modal-header">
+        <text class="modal-title">{{editConfig ? '编辑薪酬配置' : '添加薪酬配置'}}</text>
+        <text class="modal-close" bindtap="onCloseModal">✕</text>
+      </view>
+      <view class="modal-body">
+        <view class="form-item">
+          <text class="form-label">教练</text>
+          <picker mode="selector" range="{{coachNames}}" bindchange="onCoachChange">
+            <view class="form-picker">
+              <text>{{selectedCoachName || '请选择教练'}}</text>
+            </view>
+          </picker>
+        </view>
+
+        <view class="form-item">
+          <view class="form-label-row">
+            <text class="form-label">时长配置</text>
+            <view class="add-item-btn" bindtap="addConfigItem">
+              <text>+ 添加</text>
+            </view>
+          </view>
+          
+          <view class="config-items-list">
+            <view class="config-item-row" wx:for="{{configItems}}" wx:key="index">
+              <view class="item-left">
+                <picker mode="selector" range="{{durationOptions}}" bindchange="onDurationItemChange" data-index="{{index}}">
+                  <view class="form-picker small">
+                    <text>{{item.duration}}分钟</text>
+                  </view>
+                </picker>
+                <text class="divider">/</text>
+                <input class="form-input small" type="digit" placeholder="薪酬" value="{{item.salary_rate}}" bindinput="onSalaryRateChange" data-index="{{index}}" />
+                <text class="unit">元/节</text>
+              </view>
+              <view class="item-right" wx:if="{{configItems.length > 1}}" bindtap="removeConfigItem" data-index="{{index}}">
+                <text class="remove-icon">✕</text>
+              </view>
+            </view>
+          </view>
+        </view>
+
+        <view class="form-item">
+          <text class="form-label">生效日期</text>
+          <picker mode="date" value="{{commonForm.effective_from}}" bindchange="onEffectiveFromChange">
+            <view class="form-picker">
+              <text>{{commonForm.effective_from || '请选择日期'}}</text>
+            </view>
+          </picker>
+        </view>
+
+        <view class="form-item">
+          <text class="form-label">备注</text>
+          <input class="form-input" type="text" placeholder="请输入备注" value="{{commonForm.remark}}" bindinput="onCommonInputChange" data-field="remark" />
+        </view>
+      </view>
+      <view class="modal-footer">
+        <view class="modal-btn cancel" bindtap="onCloseModal">取消</view>
+        <view class="modal-btn confirm" bindtap="onSaveConfig">保存</view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 统计详情弹窗 -->
+  <view class="modal-mask" wx:if="{{showStatModal && currentStat}}" bindtap="onCloseModal">
+    <view class="modal-content" catchtap="">
+      <view class="modal-header">
+        <text class="modal-title">薪酬详情</text>
+        <text class="modal-close" bindtap="onCloseModal">✕</text>
+      </view>
+      <view class="modal-body">
+        <view class="detail-row">
+          <text class="detail-label">教练</text>
+          <text class="detail-value">{{currentStat.coach_id && currentStat.coach_id.name ? currentStat.coach_id.name : '-'}}</text>
+        </view>
+        <view class="detail-row">
+          <text class="detail-label">课程名称</text>
+          <text class="detail-value">{{currentStat.schedule_id && currentStat.schedule_id.course_name ? currentStat.schedule_id.course_name : '-'}}</text>
+        </view>
+        <view class="detail-row">
+          <text class="detail-label">上课时间</text>
+          <text class="detail-value">{{currentStat.class_date ? currentStat.class_date.split('T')[0] : '-'}} {{currentStat.schedule_id && currentStat.schedule_id.start_time ? currentStat.schedule_id.start_time : '-'}}</text>
+        </view>
+        <view class="detail-row">
+          <text class="detail-label">课程时长</text>
+          <text class="detail-value">{{currentStat.duration || 0}}分钟</text>
+        </view>
+        <view class="detail-row">
+          <text class="detail-label">薪酬单价</text>
+          <text class="detail-value">¥{{currentStat.salary_rate || 0}}/节</text>
+        </view>
+        <view class="detail-row">
+          <text class="detail-label">签到人数</text>
+          <text class="detail-value">{{currentStat.attendance_count || 0}}人</text>
+        </view>
+        <view class="detail-row total">
+          <text class="detail-label">应发金额</text>
+          <text class="detail-value">¥{{currentStat.total_salary || 0}}</text>
+        </view>
+        <view class="detail-row">
+          <text class="detail-label">状态</text>
+          <text class="detail-value {{currentStat.status === 'settled' ? 'text-green' : currentStat.status === 'cancelled' ? 'text-red' : 'text-orange'}}">
+            {{currentStat.status === 'settled' ? '已结算' : currentStat.status === 'cancelled' ? '已取消' : '待结算'}}
+          </text>
+        </view>
+        <view class="detail-row" wx:if="{{currentStat.settled_at}}">
+          <text class="detail-label">结算时间</text>
+          <text class="detail-value">{{currentStat.settled_at ? currentStat.settled_at.split('T')[0] : '-'}}</text>
+        </view>
+        <view class="detail-row" wx:if="{{currentStat.remark}}">
+          <text class="detail-label">备注</text>
+          <text class="detail-value">{{currentStat.remark}}</text>
+        </view>
+      </view>
+      <view class="modal-footer" wx:if="{{currentStat.status !== 'settled' && currentStat.status !== 'cancelled'}}">
+        <view class="modal-btn cancel" bindtap="onCancelStat">取消统计</view>
+        <view class="modal-btn confirm" bindtap="onSettleStat">确认结算</view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 生成账单确认弹窗 -->
+  <view class="modal-mask" wx:if="{{showBillModal}}" bindtap="onCloseBillModal">
+    <view class="modal-content" catchtap="stopPropagation">
+      <view class="modal-header">
+        <text class="modal-title">确认生成账单</text>
+        <text class="modal-close" bindtap="onCloseBillModal">✕</text>
+      </view>
+      <view class="modal-body">
+        <view class="bill-summary" wx:if="{{billPreview}}">
+          <view class="bill-header">
+            <text class="bill-title">统计时间范围</text>
+            <text class="bill-date">{{statForm.startDate}} ~ {{statForm.endDate}}</text>
+          </view>
+          <view class="bill-coaches" wx:for="{{billPreview}}" wx:key="coach_id">
+            <view class="bill-coach-header">
+              <text class="coach-name">{{item.coach_name}}</text>
+              <text class="coach-total">¥{{item.total_amount}}</text>
+            </view>
+            <view class="bill-items" wx:for="{{item.items}}" wx:key="duration" wx:for-item="detail">
+              <view class="bill-item-row">
+                <text class="bill-item-label">{{detail.duration}}分钟课程 × {{detail.count}}节</text>
+                <text class="bill-item-value">¥{{detail.amount}}</text>
+              </view>
+              <view class="bill-item-rate">
+                <text>单价: ¥{{detail.rate}}/节</text>
+              </view>
+            </view>
+          </view>
+          <view class="bill-total-row">
+            <text class="bill-total-label">合计应发</text>
+            <text class="bill-total-value">¥{{totalBillAmount}}</text>
+          </view>
+        </view>
+        <view class="bill-warning" wx:if="{{settledWarning}}">
+          <text class="warning-icon">⚠️</text>
+          <text class="warning-text">{{settledWarning}}</text>
+        </view>
+      </view>
+      <view class="modal-footer">
+        <view class="modal-btn cancel" bindtap="onCloseBillModal">取消</view>
+        <view class="modal-btn confirm" bindtap="onConfirmGenerateBill">确认生成</view>
+      </view>
+    </view>
+  </view>
+</view>

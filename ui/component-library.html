@@ -1,0 +1,1194 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>舞栖舞蹈社 - 全局UI组件库</title>
+<style>
+/* ========== 全局重置 & 基础样式 ========== */
+*, *::before, *::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  background: #0A0A0A;
+  font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Helvetica Neue", "Microsoft YaHei", sans-serif;
+  color: #E5E5E5;
+  display: flex;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 20px 0;
+}
+
+/* ========== 自定义滚动条 ========== */
+::-webkit-scrollbar {
+  width: 2px;
+}
+::-webkit-scrollbar-track {
+  background: #333333;
+}
+::-webkit-scrollbar-thumb {
+  background: #FFCC00;
+  border-radius: 1px;
+}
+
+/* ========== 手机模拟器容器 ========== */
+.phone-frame {
+  width: 375px;
+  min-height: 100vh;
+  background: #121212;
+  position: relative;
+  overflow-y: auto;
+  overflow-x: hidden;
+  border-left: 1px solid #333333;
+  border-right: 1px solid #333333;
+}
+
+/* ========== 页面头部 ========== */
+.page-header {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: #121212;
+  padding: 15px 10px;
+  border-bottom: 1px solid #333333;
+  text-align: center;
+}
+.page-header h1 {
+  font-size: 18px;
+  color: #FFFFFF;
+  font-weight: 600;
+}
+.page-header p {
+  font-size: 12px;
+  color: #999999;
+  margin-top: 4px;
+}
+
+/* ========== 内容区域 ========== */
+.page-content {
+  padding: 0 10px 80px 10px;
+}
+
+/* ========== 组件区块 ========== */
+.component-section {
+  margin-top: 15px;
+}
+.component-section:first-child {
+  margin-top: 10px;
+}
+.section-title {
+  font-size: 16px;
+  color: #FFCC00;
+  font-weight: 600;
+  padding: 10px 0;
+  border-bottom: 1px solid #333333;
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.section-title .dot {
+  width: 6px;
+  height: 6px;
+  background: #FFCC00;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.component-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 10px;
+}
+.component-label {
+  font-size: 12px;
+  color: #999999;
+  margin-bottom: 6px;
+}
+
+/* ========== 1. 按钮组件 ========== */
+.btn {
+  height: 40px;
+  border-radius: 6px;
+  font-size: 15px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 20px;
+  border: none;
+  outline: none;
+  transition: all 0.2s ease;
+  font-family: inherit;
+  white-space: nowrap;
+}
+.btn-primary {
+  background: #FFCC00;
+  color: #FFFFFF;
+}
+.btn-primary:hover {
+  background: #E6B800;
+}
+.btn-primary:active {
+  opacity: 0.85;
+}
+.btn-primary:disabled {
+  background: #666666;
+  color: #999999;
+  cursor: not-allowed;
+}
+.btn-secondary {
+  background: transparent;
+  color: #FFCC00;
+  border: 1px solid #FFCC00;
+}
+.btn-secondary:hover {
+  background: #333333;
+}
+.btn-secondary:active {
+  opacity: 0.85;
+}
+.btn-secondary:disabled {
+  border-color: #666666;
+  color: #999999;
+  cursor: not-allowed;
+}
+.btn-small {
+  height: 32px;
+  font-size: 14px;
+  padding: 0 14px;
+}
+.btn-block {
+  width: 100%;
+}
+
+/* ========== 2. 输入框组件 ========== */
+.input-wrapper {
+  position: relative;
+  width: 100%;
+  margin-bottom: 10px;
+}
+.input-field {
+  width: 100%;
+  height: 40px;
+  background: #1E1E1E;
+  border: 1px solid #333333;
+  border-radius: 6px;
+  padding: 0 10px;
+  font-size: 14px;
+  color: #E5E5E5;
+  outline: none;
+  transition: border-color 0.2s ease;
+  font-family: inherit;
+}
+.input-field::placeholder {
+  color: #999999;
+}
+.input-field:focus {
+  border-color: #FFCC00;
+}
+.input-field.error {
+  border-color: #FF9500;
+}
+.input-field:disabled {
+  background: #333333;
+  color: #999999;
+  border-color: #444444;
+  cursor: not-allowed;
+}
+.input-error-msg {
+  font-size: 12px;
+  color: #FF9500;
+  margin-top: 4px;
+  padding-left: 2px;
+}
+.input-field-icon {
+  padding-left: 34px;
+}
+.input-icon {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 16px;
+  height: 16px;
+  color: #999999;
+  pointer-events: none;
+}
+.input-field:focus ~ .input-icon,
+.input-field-icon:focus + .input-icon {
+  color: #FFCC00;
+}
+
+/* ========== 3. 弹窗组件 ========== */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.6);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+.modal-overlay.active {
+  display: flex;
+}
+.modal-container {
+  background: #1E1E1E;
+  border-radius: 8px;
+  width: 90%;
+  max-width: 340px;
+  padding: 15px 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+  animation: modalIn 0.25s ease;
+}
+@keyframes modalIn {
+  from { opacity: 0; transform: scale(0.9); }
+  to { opacity: 1; transform: scale(1); }
+}
+.modal-title {
+  font-size: 16px;
+  color: #FFFFFF;
+  font-weight: 600;
+  margin-bottom: 10px;
+  text-align: center;
+}
+.modal-body {
+  font-size: 14px;
+  color: #E5E5E5;
+  line-height: 1.6;
+  margin-bottom: 15px;
+  text-align: center;
+}
+.modal-footer {
+  display: flex;
+  gap: 10px;
+}
+.modal-footer .btn {
+  flex: 1;
+}
+
+/* ========== 4. 选择器/开关组件 ========== */
+.selector-field {
+  width: 100%;
+  height: 40px;
+  background: #1E1E1E;
+  border: 1px solid #333333;
+  border-radius: 6px;
+  padding: 0 10px;
+  font-size: 14px;
+  color: #E5E5E5;
+  outline: none;
+  appearance: none;
+  -webkit-appearance: none;
+  cursor: pointer;
+  font-family: inherit;
+  transition: border-color 0.2s ease;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23999999' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  padding-right: 30px;
+}
+.selector-field:focus {
+  border-color: #FFCC00;
+}
+.selector-field option {
+  background: #1E1E1E;
+  color: #E5E5E5;
+}
+
+/* 开关 */
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 30px;
+  height: 15px;
+  flex-shrink: 0;
+}
+.switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+.switch-slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: #333333;
+  border-radius: 15px;
+  transition: all 0.3s ease;
+}
+.switch-slider::before {
+  content: '';
+  position: absolute;
+  height: 11px;
+  width: 11px;
+  left: 2px;
+  bottom: 2px;
+  background: #999999;
+  border-radius: 50%;
+  transition: all 0.3s ease;
+}
+.switch input:checked + .switch-slider {
+  background: #FFCC00;
+}
+.switch input:checked + .switch-slider::before {
+  transform: translateX(15px);
+  background: #FFFFFF;
+}
+.switch-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #1E1E1E;
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 10px;
+}
+.switch-row-label {
+  font-size: 14px;
+  color: #E5E5E5;
+}
+
+/* ========== 5. 列表/卡片组件 ========== */
+.list-item {
+  background: #1E1E1E;
+  border-radius: 8px;
+  padding: 12px 15px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+.list-item:hover {
+  background: #252525;
+}
+.list-item:active {
+  background: #2A2A2A;
+}
+.list-item-title {
+  font-size: 14px;
+  color: #E5E5E5;
+}
+.list-item-arrow {
+  width: 14px;
+  height: 14px;
+  color: #999999;
+  flex-shrink: 0;
+}
+
+.card {
+  background: #1E1E1E;
+  border-radius: 8px;
+  padding: 15px 12px;
+  margin-bottom: 10px;
+}
+.card-title {
+  font-size: 14px;
+  color: #FFFFFF;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+.card-desc {
+  font-size: 13px;
+  color: #999999;
+  line-height: 1.5;
+}
+.card-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+}
+.card-meta-item {
+  font-size: 12px;
+  color: #999999;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+.card-meta-item svg {
+  width: 12px;
+  height: 12px;
+}
+
+/* 课程卡片 */
+.course-card {
+  background: #1E1E1E;
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 10px;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+.course-card-img {
+  width: 60px;
+  height: 60px;
+  background: #333333;
+  border-radius: 6px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+.course-card-img svg {
+  width: 24px;
+  height: 24px;
+  color: #999999;
+}
+.course-card-info {
+  flex: 1;
+  min-width: 0;
+}
+.course-card-name {
+  font-size: 14px;
+  color: #FFFFFF;
+  font-weight: 500;
+  margin-bottom: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.course-card-detail {
+  font-size: 12px;
+  color: #999999;
+  margin-bottom: 2px;
+}
+
+/* ========== 6. 底部 Tab 导航 ========== */
+.tab-bar {
+  position: fixed;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 375px;
+  height: 50px;
+  background: #1E1E1E;
+  border-top: 1px solid #333333;
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  z-index: 200;
+}
+.tab-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  cursor: pointer;
+  padding: 4px 0;
+  transition: all 0.2s ease;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+.tab-item svg {
+  width: 20px;
+  height: 20px;
+  transition: color 0.2s ease;
+}
+.tab-item span {
+  font-size: 12px;
+  transition: color 0.2s ease;
+}
+.tab-item.active svg,
+.tab-item.active span {
+  color: #FFCC00;
+}
+.tab-item:not(.active) svg,
+.tab-item:not(.active) span {
+  color: #999999;
+}
+
+/* Tab 预览容器 */
+.tab-preview {
+  background: #1E1E1E;
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 10px;
+}
+.tab-preview-label {
+  font-size: 12px;
+  color: #999999;
+  padding: 8px 12px 4px;
+}
+.tab-preview-bar {
+  height: 50px;
+  background: #1E1E1E;
+  border-top: 1px solid #333333;
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+}
+
+/* ========== 7. 分割线 ========== */
+.divider {
+  height: 1px;
+  background: #333333;
+  margin: 10px 0;
+}
+.divider-with-text {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 10px 0;
+}
+.divider-with-text::before,
+.divider-with-text::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: #333333;
+}
+.divider-with-text span {
+  font-size: 12px;
+  color: #999999;
+  white-space: nowrap;
+}
+
+/* ========== 8. 标签/状态标签 ========== */
+.tag {
+  display: inline-flex;
+  align-items: center;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+.tag-normal {
+  background: rgba(255, 204, 0, 0.15);
+  color: #FFCC00;
+}
+.tag-warning {
+  background: rgba(255, 149, 0, 0.15);
+  color: #FF9500;
+}
+.tag-gray {
+  background: rgba(153, 153, 153, 0.15);
+  color: #999999;
+}
+.tag-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  margin-right: 4px;
+  flex-shrink: 0;
+}
+.tag-normal .tag-dot { background: #FFCC00; }
+.tag-warning .tag-dot { background: #FF9500; }
+.tag-gray .tag-dot { background: #999999; }
+
+/* ========== 9. 图片占位 ========== */
+.img-placeholder {
+  width: 100%;
+  height: 120px;
+  background: #333333;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+.img-placeholder svg {
+  width: 28px;
+  height: 28px;
+  color: #999999;
+}
+.img-placeholder span {
+  font-size: 12px;
+  color: #999999;
+}
+.img-placeholder.loaded {
+  background: #1E1E1E;
+  border: 1px solid #333333;
+}
+.img-placeholder.loaded svg {
+  display: none;
+}
+.img-placeholder.loaded span {
+  display: none;
+}
+.img-placeholder.loaded::after {
+  content: '';
+  width: 100%;
+  height: 100%;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #2A2A2A 0%, #1E1E1E 50%, #2A2A2A 100%);
+}
+
+/* ========== Toast 提示 ========== */
+.toast {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(30, 30, 30, 0.95);
+  color: #E5E5E5;
+  padding: 12px 20px;
+  border-radius: 8px;
+  font-size: 14px;
+  z-index: 2000;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+  text-align: center;
+  max-width: 200px;
+}
+.toast.show {
+  opacity: 1;
+}
+
+/* ========== 颜色色板展示 ========== */
+.color-palette {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.color-swatch {
+  width: 48px;
+  height: 48px;
+  border-radius: 6px;
+  display: flex;
+  align-items: flex-end;
+  padding: 3px;
+}
+.color-swatch span {
+  font-size: 9px;
+  color: #FFFFFF;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.8);
+  line-height: 1;
+}
+
+/* ========== 字号层级展示 ========== */
+.type-scale-item {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 6px 0;
+  border-bottom: 1px solid #1E1E1E;
+}
+.type-scale-label {
+  font-size: 12px;
+  color: #999999;
+  width: 80px;
+  flex-shrink: 0;
+}
+.type-scale-text {
+  flex: 1;
+}
+
+/* ========== 动画 ========== */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+</style>
+</head>
+<body>
+
+<!-- Toast 提示 -->
+<div class="toast" id="toast"></div>
+
+<!-- 弹窗 -->
+<div class="modal-overlay" id="modalOverlay" onclick="closeModal(event)">
+  <div class="modal-container" onclick="event.stopPropagation()">
+    <div class="modal-title" id="modalTitle">确认操作</div>
+    <div class="modal-body" id="modalBody">确定要执行此操作吗？此操作不可撤销。</div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal()">取消</button>
+      <button class="btn btn-primary" onclick="closeModal(); showToast('操作成功')">确定</button>
+    </div>
+  </div>
+</div>
+
+<!-- 手机模拟器 -->
+<div class="phone-frame">
+
+  <!-- 页面头部 -->
+  <div class="page-header">
+    <h1>舞栖舞蹈社</h1>
+    <p>全局 UI 组件库 - 交互原型预览</p>
+  </div>
+
+  <!-- 内容区域 -->
+  <div class="page-content">
+
+    <!-- ==================== 色值规范 ==================== -->
+    <div class="component-section">
+      <div class="section-title"><span class="dot"></span>全局色值规范</div>
+      <div class="color-palette">
+        <div class="color-swatch" style="background:#121212; border:1px solid #333;"><span>#121212</span></div>
+        <div class="color-swatch" style="background:#1E1E1E; border:1px solid #333;"><span>#1E1E1E</span></div>
+        <div class="color-swatch" style="background:#FFCC00;"><span>#FFCC00</span></div>
+        <div class="color-swatch" style="background:#FFFFFF;"><span>#FFFFFF</span></div>
+        <div class="color-swatch" style="background:#E5E5E5;"><span style="text-shadow:none;color:#333">#E5E5E5</span></div>
+        <div class="color-swatch" style="background:#999999;"><span>#999999</span></div>
+        <div class="color-swatch" style="background:#333333;"><span>#333333</span></div>
+        <div class="color-swatch" style="background:#FF9500;"><span>#FF9500</span></div>
+      </div>
+    </div>
+
+    <!-- ==================== 字号层级 ==================== -->
+    <div class="component-section">
+      <div class="section-title"><span class="dot"></span>文字字号层级</div>
+      <div class="type-scale-item">
+        <span class="type-scale-label">页面大标题</span>
+        <span class="type-scale-text" style="font-size:18px;color:#FFFFFF;font-weight:600;">18px / 36rpx</span>
+      </div>
+      <div class="type-scale-item">
+        <span class="type-scale-label">一级标题</span>
+        <span class="type-scale-text" style="font-size:16px;color:#FFFFFF;font-weight:600;">16px / 32rpx</span>
+      </div>
+      <div class="type-scale-item">
+        <span class="type-scale-label">二级标题</span>
+        <span class="type-scale-text" style="font-size:14px;color:#FFFFFF;">14px / 28rpx</span>
+      </div>
+      <div class="type-scale-item">
+        <span class="type-scale-label">三级标题</span>
+        <span class="type-scale-text" style="font-size:13px;color:#E5E5E5;">13px / 26rpx</span>
+      </div>
+      <div class="type-scale-item">
+        <span class="type-scale-label">常规正文</span>
+        <span class="type-scale-text" style="font-size:14px;color:#E5E5E5;">14px / 28rpx 正文内容</span>
+      </div>
+      <div class="type-scale-item">
+        <span class="type-scale-label">辅助小字</span>
+        <span class="type-scale-text" style="font-size:13px;color:#999999;">13px / 26rpx 辅助提示</span>
+      </div>
+      <div class="type-scale-item">
+        <span class="type-scale-label">标签文字</span>
+        <span class="type-scale-text" style="font-size:12px;color:#999999;">12px / 24rpx</span>
+      </div>
+      <div class="type-scale-item">
+        <span class="type-scale-label">按钮文字</span>
+        <span class="type-scale-text" style="font-size:15px;color:#FFCC00;">主按钮 15px / 次按钮 14px</span>
+      </div>
+    </div>
+
+    <!-- ==================== 1. 按钮组件 ==================== -->
+    <div class="component-section">
+      <div class="section-title"><span class="dot"></span>1. 按钮组件</div>
+
+      <div class="component-label">主按钮</div>
+      <div class="component-row">
+        <button class="btn btn-primary" onclick="showToast('点击了主按钮')">主按钮</button>
+        <button class="btn btn-primary btn-small" onclick="showToast('小号主按钮')">小号主按钮</button>
+        <button class="btn btn-primary" disabled>禁用态</button>
+      </div>
+
+      <div class="component-label">次要按钮</div>
+      <div class="component-row">
+        <button class="btn btn-secondary" onclick="showToast('点击了次要按钮')">次要按钮</button>
+        <button class="btn btn-secondary btn-small" onclick="showToast('小号次要按钮')">小号次要按钮</button>
+        <button class="btn btn-secondary" disabled>禁用态</button>
+      </div>
+
+      <div class="component-label">块级按钮</div>
+      <button class="btn btn-primary btn-block" onclick="showToast('块级主按钮')">块级主按钮</button>
+      <div style="height:10px;"></div>
+      <button class="btn btn-secondary btn-block" onclick="showToast('块级次要按钮')">块级次要按钮</button>
+    </div>
+
+    <!-- ==================== 2. 输入框组件 ==================== -->
+    <div class="component-section">
+      <div class="section-title"><span class="dot"></span>2. 输入框组件</div>
+
+      <div class="component-label">基础输入框</div>
+      <div class="input-wrapper">
+        <input type="text" class="input-field" placeholder="请输入内容">
+      </div>
+
+      <div class="component-label">带图标输入框</div>
+      <div class="input-wrapper">
+        <input type="text" class="input-field input-field-icon" placeholder="搜索课程...">
+        <svg class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      </div>
+
+      <div class="component-label">聚焦态（点击查看）</div>
+      <div class="input-wrapper">
+        <input type="text" class="input-field" placeholder="点击聚焦，边框变黄" value="">
+      </div>
+
+      <div class="component-label">错误态</div>
+      <div class="input-wrapper">
+        <input type="text" class="input-field error" value="错误的内容">
+        <div class="input-error-msg">请输入正确的手机号码</div>
+      </div>
+
+      <div class="component-label">禁用态</div>
+      <div class="input-wrapper">
+        <input type="text" class="input-field" placeholder="不可编辑" disabled value="禁用的内容">
+      </div>
+    </div>
+
+    <!-- ==================== 3. 弹窗组件 ==================== -->
+    <div class="component-section">
+      <div class="section-title"><span class="dot"></span>3. 弹窗组件</div>
+      <button class="btn btn-primary btn-block" onclick="openModal('确认预约', '确定要预约「周三爵士基础班」吗？预约成功后将收到通知提醒。')">打开弹窗</button>
+      <div style="height:10px;"></div>
+      <button class="btn btn-secondary btn-block" onclick="openModal('取消预约', '确定要取消已预约的课程吗？取消后名额将释放给其他会员。')">打开确认弹窗</button>
+    </div>
+
+    <!-- ==================== 4. 选择器/开关组件 ==================== -->
+    <div class="component-section">
+      <div class="section-title"><span class="dot"></span>4. 选择器/开关组件</div>
+
+      <div class="component-label">下拉选择器</div>
+      <div class="input-wrapper">
+        <select class="selector-field" onchange="showToast('选择了: ' + this.value)">
+          <option value="">请选择课程类型</option>
+          <option value="爵士舞">爵士舞</option>
+          <option value="街舞">街舞</option>
+          <option value="拉丁舞">拉丁舞</option>
+          <option value="芭蕾舞">芭蕾舞</option>
+          <option value="现代舞">现代舞</option>
+        </select>
+      </div>
+
+      <div class="component-label">开关组件</div>
+      <div class="switch-row">
+        <span class="switch-row-label">消息通知</span>
+        <label class="switch">
+          <input type="checkbox" checked onchange="showToast(this.checked ? '已开启通知' : '已关闭通知')">
+          <span class="switch-slider"></span>
+        </label>
+      </div>
+      <div class="switch-row">
+        <span class="switch-row-label">预约提醒</span>
+        <label class="switch">
+          <input type="checkbox" checked onchange="showToast(this.checked ? '已开启提醒' : '已关闭提醒')">
+          <span class="switch-slider"></span>
+        </label>
+      </div>
+      <div class="switch-row">
+        <span class="switch-row-label">自动续费</span>
+        <label class="switch">
+          <input type="checkbox" onchange="showToast(this.checked ? '已开启自动续费' : '已关闭自动续费')">
+          <span class="switch-slider"></span>
+        </label>
+      </div>
+    </div>
+
+    <!-- ==================== 5. 列表/卡片组件 ==================== -->
+    <div class="component-section">
+      <div class="section-title"><span class="dot"></span>5. 列表/卡片组件</div>
+
+      <div class="component-label">列表条目</div>
+      <div class="list-item" onclick="showToast('进入个人资料')">
+        <span class="list-item-title">个人资料</span>
+        <svg class="list-item-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+      </div>
+      <div class="list-item" onclick="showToast('进入预约记录')">
+        <span class="list-item-title">预约记录</span>
+        <svg class="list-item-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+      </div>
+      <div class="list-item" onclick="showToast('进入会员卡')">
+        <span class="list-item-title">会员卡</span>
+        <svg class="list-item-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+      </div>
+
+      <div class="component-label">信息卡片</div>
+      <div class="card">
+        <div class="card-title">周三爵士基础班</div>
+        <div class="card-desc">适合零基础学员，学习爵士舞基本律动和步伐，培养身体协调性和节奏感。</div>
+        <div class="card-meta">
+          <span class="card-meta-item">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            周三 19:00-20:30
+          </span>
+          <span class="card-meta-item">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            12/20人
+          </span>
+        </div>
+      </div>
+
+      <div class="component-label">课程卡片（带图）</div>
+      <div class="course-card" onclick="showToast('查看课程详情')">
+        <div class="course-card-img">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+        </div>
+        <div class="course-card-info">
+          <div class="course-card-name">Hip-Hop 进阶班</div>
+          <div class="course-card-detail">周六 14:00-15:30</div>
+          <div class="course-card-detail">教练：张老师</div>
+        </div>
+        <div style="flex-shrink:0;">
+          <span class="tag tag-warning"><span class="tag-dot"></span>满员</span>
+        </div>
+      </div>
+      <div class="course-card" onclick="showToast('查看课程详情')">
+        <div class="course-card-img">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+        </div>
+        <div class="course-card-info">
+          <div class="course-card-name">拉丁舞入门班</div>
+          <div class="course-card-detail">周日 10:00-11:30</div>
+          <div class="course-card-detail">教练：李老师</div>
+        </div>
+        <div style="flex-shrink:0;">
+          <span class="tag tag-normal"><span class="tag-dot"></span>可预约</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== 6. 底部 Tab 导航 ==================== -->
+    <div class="component-section">
+      <div class="section-title"><span class="dot"></span>6. 底部 Tab 导航</div>
+
+      <div class="component-label">会员端 Tab</div>
+      <div class="tab-preview">
+        <div class="tab-preview-label">点击切换 Tab 项</div>
+        <div class="tab-preview-bar" id="memberTabBar">
+          <div class="tab-item active" onclick="switchTab(this, 'memberTabBar')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+            <span>首页</span>
+          </div>
+          <div class="tab-item" onclick="switchTab(this, 'memberTabBar')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            <span>预约</span>
+          </div>
+          <div class="tab-item" onclick="switchTab(this, 'memberTabBar')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            <span>我的</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="component-label">管理端 Tab</div>
+      <div class="tab-preview">
+        <div class="tab-preview-label">点击切换 Tab 项</div>
+        <div class="tab-preview-bar" id="adminTabBar">
+          <div class="tab-item active" onclick="switchTab(this, 'adminTabBar')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/><path d="M3 5c0 1.66 4 3 9 3s9-1.34 9-3"/><path d="M3 12c0 1.66 4 3 9 3s9-1.34 9-3"/></svg>
+            <span>数据首页</span>
+          </div>
+          <div class="tab-item" onclick="switchTab(this, 'adminTabBar')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            <span>课程排课</span>
+          </div>
+          <div class="tab-item" onclick="switchTab(this, 'adminTabBar')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            <span>会员管理</span>
+          </div>
+          <div class="tab-item" onclick="switchTab(this, 'adminTabBar')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+            <span>个人中心</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== 7. 分割线 ==================== -->
+    <div class="component-section">
+      <div class="section-title"><span class="dot"></span>7. 分割线</div>
+
+      <div class="component-label">基础分割线</div>
+      <div class="divider"></div>
+
+      <div class="component-label">带文字分割线</div>
+      <div class="divider-with-text">
+        <span>推荐课程</span>
+      </div>
+
+      <div class="component-label">多行内容分割</div>
+      <div style="background:#1E1E1E;border-radius:8px;padding:12px;">
+        <div style="font-size:14px;color:#E5E5E5;">上方内容区域</div>
+        <div class="divider" style="margin:8px 0;"></div>
+        <div style="font-size:14px;color:#E5E5E5;">下方内容区域</div>
+      </div>
+    </div>
+
+    <!-- ==================== 8. 标签/状态标签 ==================== -->
+    <div class="component-section">
+      <div class="section-title"><span class="dot"></span>8. 标签/状态标签</div>
+
+      <div class="component-label">状态标签</div>
+      <div class="component-row">
+        <span class="tag tag-normal"><span class="tag-dot"></span>可预约</span>
+        <span class="tag tag-warning"><span class="tag-dot"></span>满员</span>
+        <span class="tag tag-warning"><span class="tag-dot"></span>即将开始</span>
+        <span class="tag tag-gray"><span class="tag-dot"></span>已取消</span>
+        <span class="tag tag-gray"><span class="tag-dot"></span>已结束</span>
+      </div>
+
+      <div class="component-label">课程类型标签</div>
+      <div class="component-row">
+        <span class="tag tag-normal">爵士舞</span>
+        <span class="tag tag-normal">街舞</span>
+        <span class="tag tag-normal">拉丁舞</span>
+        <span class="tag tag-normal">芭蕾舞</span>
+        <span class="tag tag-normal">现代舞</span>
+      </div>
+
+      <div class="component-label">会员等级标签</div>
+      <div class="component-row">
+        <span class="tag tag-warning"><span class="tag-dot"></span>VIP会员</span>
+        <span class="tag tag-normal"><span class="tag-dot"></span>普通会员</span>
+        <span class="tag tag-gray"><span class="tag-dot"></span>已过期</span>
+      </div>
+    </div>
+
+    <!-- ==================== 9. 图片占位 ==================== -->
+    <div class="component-section">
+      <div class="section-title"><span class="dot"></span>9. 图片占位</div>
+
+      <div class="component-label">加载失败占位</div>
+      <div class="img-placeholder">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+        <span>图片加载失败</span>
+      </div>
+
+      <div class="component-label">加载成功（模拟）</div>
+      <div class="img-placeholder loaded"></div>
+
+      <div class="component-label">小尺寸头像占位</div>
+      <div class="component-row">
+        <div style="width:40px;height:40px;background:#333333;border-radius:50%;display:flex;align-items:center;justify-content:center;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#999999" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px;"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        </div>
+        <div style="width:40px;height:40px;background:#333333;border-radius:50%;display:flex;align-items:center;justify-content:center;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#999999" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px;"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        </div>
+        <div style="width:40px;height:40px;background:#333333;border-radius:50%;display:flex;align-items:center;justify-content:center;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#999999" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px;"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== 综合示例 ==================== -->
+    <div class="component-section">
+      <div class="section-title"><span class="dot"></span>综合示例 - 预约页面</div>
+
+      <div style="background:#1E1E1E;border-radius:8px;padding:15px 12px;margin-bottom:10px;">
+        <div style="font-size:16px;color:#FFFFFF;font-weight:600;margin-bottom:12px;">课程预约</div>
+
+        <div class="input-wrapper" style="margin-bottom:12px;">
+          <input type="text" class="input-field" placeholder="搜索课程名称或教练">
+        </div>
+
+        <div class="course-card" style="margin-bottom:0;">
+          <div class="course-card-img">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+          </div>
+          <div class="course-card-info">
+            <div class="course-card-name">周三爵士基础班</div>
+            <div class="course-card-detail">周三 19:00-20:30 / 王老师</div>
+            <div style="display:flex;align-items:center;gap:6px;margin-top:4px;">
+              <span class="tag tag-normal" style="height:18px;font-size:11px;"><span class="tag-dot"></span>可预约</span>
+              <span style="font-size:11px;color:#999999;">剩余 8 个名额</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <div style="background:#1E1E1E;border-radius:8px;padding:15px 12px;margin-top:10px;">
+        <div style="font-size:14px;color:#FFFFFF;font-weight:500;margin-bottom:10px;">预约信息</div>
+        <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
+          <span style="font-size:13px;color:#999999;">课程</span>
+          <span style="font-size:13px;color:#E5E5E5;">周三爵士基础班</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
+          <span style="font-size:13px;color:#999999;">时间</span>
+          <span style="font-size:13px;color:#E5E5E5;">2026-05-14 19:00</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
+          <span style="font-size:13px;color:#999999;">教练</span>
+          <span style="font-size:13px;color:#E5E5E5;">王老师</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;margin-bottom:12px;">
+          <span style="font-size:13px;color:#999999;">费用</span>
+          <span style="font-size:13px;color:#FFCC00;font-weight:600;">会员免费</span>
+        </div>
+        <div class="divider" style="margin:0 0 12px;"></div>
+        <button class="btn btn-primary btn-block" onclick="openModal('确认预约', '确定要预约「周三爵士基础班」吗？\n时间：2026-05-14 19:00-20:30')">确认预约</button>
+      </div>
+    </div>
+
+    <!-- 底部留白 -->
+    <div style="height:20px;"></div>
+
+  </div>
+</div>
+
+<!-- 实际底部 Tab（模拟真实效果） -->
+<div class="tab-bar" id="realTabBar">
+  <div class="tab-item active" onclick="switchTab(this, 'realTabBar')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+    <span>首页</span>
+  </div>
+  <div class="tab-item" onclick="switchTab(this, 'realTabBar')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+    <span>预约</span>
+  </div>
+  <div class="tab-item" onclick="switchTab(this, 'realTabBar')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+    <span>我的</span>
+  </div>
+</div>
+
+<script>
+// ========== Toast 提示 ==========
+let toastTimer = null;
+function showToast(msg) {
+  const toast = document.getElementById('toast');
+  toast.textContent = msg;
+  toast.classList.add('show');
+  if (toastTimer) clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => {
+    toast.classList.remove('show');
+  }, 1500);
+}
+
+// ========== 弹窗 ==========
+function openModal(title, body) {
+  document.getElementById('modalTitle').textContent = title;
+  document.getElementById('modalBody').textContent = body;
+  document.getElementById('modalOverlay').classList.add('active');
+}
+function closeModal(e) {
+  if (e && e.target !== e.currentTarget) return;
+  document.getElementById('modalOverlay').classList.remove('active');
+}
+
+// ========== Tab 切换 ==========
+function switchTab(el, barId) {
+  const bar = document.getElementById(barId);
+  const items = bar.querySelectorAll('.tab-item');
+  items.forEach(item => item.classList.remove('active'));
+  el.classList.add('active');
+  const label = el.querySelector('span').textContent;
+  showToast('切换到: ' + label);
+}
+
+// ========== 输入框交互增强 ==========
+document.querySelectorAll('.input-field').forEach(input => {
+  input.addEventListener('focus', function() {
+    this.parentElement.querySelector('.input-icon')?.style.setProperty('color', '#FFCC00');
+  });
+  input.addEventListener('blur', function() {
+    this.parentElement.querySelector('.input-icon')?.style.setProperty('color', '#999999');
+  });
+});
+</script>
+
+</body>
+</html>

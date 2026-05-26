@@ -1,0 +1,30 @@
+<view class="store-picker" bindtap="onStoreTap">
+  <text class="store-icon">📍</text>
+  <text class="store-name">{{currentStore && currentStore.name ? currentStore.name : '全部门店'}}</text>
+  <text class="store-arrow">▼</text>
+</view>
+
+<view class="store-modal-mask" wx:if="{{showPicker}}" bindtap="onMaskTap">
+  <view class="store-modal" catchtap="onModalTap">
+    <view class="modal-header">
+      <text class="modal-title">选择门店</text>
+      <text class="modal-close" bindtap="onClose">✕</text>
+    </view>
+    <view class="store-list">
+      <view class="store-item {{(!currentStore || !currentStore._id) ? 'active' : ''}}" data-store="" bindtap="onSelectStore">
+        <text class="store-item-name">全部门店</text>
+        <view class="store-item-check {{(!currentStore || !currentStore._id) ? 'checked' : ''}}">
+          <text wx:if="{{!currentStore || !currentStore._id}}">✓</text>
+        </view>
+      </view>
+      <view class="store-item {{currentStore && currentStore._id === item._id ? 'active' : ''}}"
+            wx:for="{{storeList}}" wx:key="_id"
+            data-store="{{item}}" bindtap="onSelectStore">
+        <text class="store-item-name">{{item.name}}</text>
+        <view class="store-item-check {{currentStore && currentStore._id === item._id ? 'checked' : ''}}">
+          <text wx:if="{{currentStore && currentStore._id === item._id}}">✓</text>
+        </view>
+      </view>
+    </view>
+  </view>
+</view>

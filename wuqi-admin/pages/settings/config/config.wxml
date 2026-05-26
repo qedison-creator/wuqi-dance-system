@@ -1,0 +1,54 @@
+<view class="container">
+  <view class="tab-bar">
+    <view class="tab-item {{activeTab === 'general' ? 'active' : ''}}" data-tab="general" bindtap="onTabChange">
+      <text>系统配置</text>
+    </view>
+    <view class="tab-item {{activeTab === 'reminder' ? 'active' : ''}}" data-tab="reminder" bindtap="onTabChange">
+      <text>提醒设置</text>
+    </view>
+  </view>
+
+  <view class="card config-list" wx:if="{{!loading && activeTab === 'general'}}">
+    <view class="config-item" wx:for="{{configs}}" wx:key="config_key">
+      <view class="config-info">
+        <text class="config-desc">{{item.description}}</text>
+        <text class="config-key">{{item.config_key}}</text>
+      </view>
+      <view class="config-value">
+        <text class="value-text">{{item.config_value}}</text>
+        <text class="edit-icon" bindtap="onEditConfig" data-index="{{index}}" data-type="general">✎</text>
+      </view>
+    </view>
+  </view>
+
+  <view class="card config-list" wx:if="{{!loading && activeTab === 'reminder'}}">
+    <view class="section-desc">配置会员套餐提醒的触发条件和推送时间</view>
+    <view class="config-item" wx:for="{{reminderConfigs}}" wx:key="config_key">
+      <view class="config-info">
+        <text class="config-desc">{{item.description}}</text>
+        <text class="config-key">{{item.config_key}}</text>
+      </view>
+      <view class="config-value">
+        <text class="value-text">{{item.config_value}}</text>
+        <text class="edit-icon" bindtap="onEditConfig" data-index="{{index}}" data-type="reminder">✎</text>
+      </view>
+    </view>
+  </view>
+  
+  <!-- 编辑弹窗 -->
+  <view class="modal-mask" wx:if="{{showEditModal}}" bindtap="onCloseModal">
+    <view class="modal-content" catchtap="onModalTap">
+      <text class="modal-title">编辑参数</text>
+      
+      <view class="form-item">
+        <text class="form-label">{{editingConfig.description}}</text>
+        <input class="input-field" value="{{configValue}}" bindinput="onValueChange" placeholder="请输入参数值" />
+      </view>
+      
+      <view class="modal-buttons">
+        <view class="btn-secondary" bindtap="onCloseModal"><text>取消</text></view>
+        <view class="btn-primary" bindtap="onSaveConfig"><text>保存</text></view>
+      </view>
+    </view>
+  </view>
+</view>

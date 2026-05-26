@@ -1,0 +1,36 @@
+{
+  "name": "wuqi-backend",
+  "version": "1.0.0",
+  "description": "舞栖舞蹈社后端服务",
+  "main": "server.js",
+  "scripts": {
+    "dev": "nodemon server.js",
+    "start": "node server.js",
+    "test": "node test-api.js",
+    "seed": "node src/seed/init.seed.js",
+    "seed:stores": "node src/seed/stores.seed.js",
+    "seed:dance": "node src/seed/danceStyles.seed.js",
+    "seed:packages": "node src/seed/packages.seed.js",
+    "seed:coaches": "node src/seed/coaches.seed.js",
+    "seed:banners": "node src/seed/banners.seed.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "axios": "^1.16.0",
+    "bcryptjs": "^3.0.3",
+    "cors": "^2.8.6",
+    "dayjs": "^1.11.20",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "jsonwebtoken": "^9.0.3",
+    "mongoose": "^9.6.1",
+    "morgan": "^1.10.1",
+    "multer": "^2.1.1",
+    "node-cron": "^4.2.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.14"
+  }
+}

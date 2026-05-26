@@ -1,0 +1,251 @@
+.system-reset-page {
+  padding: 20rpx;
+  padding-bottom: 60rpx;
+}
+
+.warning-banner {
+  display: flex;
+  align-items: center;
+  background: rgba(196, 75, 75, 0.1);
+  border: 1px solid rgba(196, 75, 75, 0.3);
+  border-radius: 12rpx;
+  padding: 24rpx;
+  margin-bottom: 30rpx;
+}
+
+.warning-icon {
+  font-size: 36rpx;
+  margin-right: 16rpx;
+  flex-shrink: 0;
+}
+
+.warning-text {
+  font-size: 26rpx;
+  color: var(--color-danger);
+  line-height: 1.5;
+}
+
+.section-title {
+  font-size: 28rpx;
+  color: var(--text-secondary);
+  margin-bottom: 16rpx;
+  padding-left: 8rpx;
+}
+
+.section-title.danger {
+  color: var(--color-danger);
+  margin-top: 30rpx;
+}
+
+.reset-list {
+  background-color: var(--bg-card);
+  border-radius: 20rpx;
+  overflow: hidden;
+  border: 1rpx solid var(--border);
+}
+
+.reset-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 28rpx 24rpx;
+  border-bottom: 1px solid var(--border);
+}
+
+.reset-item:last-child {
+  border-bottom: none;
+}
+
+.reset-left {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  min-width: 0;
+}
+
+.reset-icon {
+  font-size: 40rpx;
+  margin-right: 20rpx;
+  flex-shrink: 0;
+}
+
+.reset-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.reset-label {
+  font-size: 30rpx;
+  color: var(--text-primary);
+  margin-bottom: 6rpx;
+}
+
+.reset-desc {
+  font-size: 22rpx;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+.reset-right {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  margin-left: 16rpx;
+}
+
+.reset-count {
+  font-size: 24rpx;
+  color: var(--text-tertiary);
+  margin-right: 16rpx;
+}
+
+.reset-btn-text {
+  font-size: 24rpx;
+  color: var(--color-danger);
+  background: rgba(196, 75, 75, 0.1);
+  padding: 8rpx 20rpx;
+  border-radius: 20rpx;
+  border: 1px solid rgba(196, 75, 75, 0.3);
+}
+
+.reset-all-card {
+  background-color: var(--bg-card);
+  border-radius: 20rpx;
+  padding: 32rpx 24rpx;
+  border: 1px solid rgba(196, 75, 75, 0.3);
+}
+
+.reset-all-info {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 24rpx;
+}
+
+.reset-all-label {
+  font-size: 32rpx;
+  color: var(--color-danger);
+  font-weight: bold;
+  margin-bottom: 10rpx;
+}
+
+.reset-all-desc {
+  font-size: 24rpx;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.reset-all-btn {
+  display: flex;
+  justify-content: center;
+}
+
+.reset-all-btn-text {
+  font-size: 28rpx;
+  color: var(--text-primary);
+  background: linear-gradient(135deg, var(--color-danger), var(--color-warning));
+  padding: 16rpx 60rpx;
+  border-radius: 40rpx;
+  font-weight: bold;
+}
+
+.confirm-mask {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.confirm-modal {
+  width: 85%;
+  max-width: 320px;
+  background-color: var(--bg-card);
+  border-radius: 24rpx;
+  overflow: hidden;
+}
+
+.confirm-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 30rpx;
+  border-bottom: 1px solid var(--border);
+}
+
+.confirm-modal-title {
+  font-size: 32rpx;
+  color: var(--color-danger);
+  font-weight: bold;
+}
+
+.confirm-modal-close {
+  font-size: 36rpx;
+  color: var(--text-secondary);
+  padding: 8rpx;
+}
+
+.confirm-modal-body {
+  padding: 30rpx;
+}
+
+.confirm-modal-desc {
+  font-size: 28rpx;
+  color: var(--text-primary);
+  display: block;
+  margin-bottom: 16rpx;
+}
+
+.confirm-modal-target {
+  font-size: 26rpx;
+  color: var(--color-danger);
+  display: block;
+  margin-bottom: 24rpx;
+}
+
+.confirm-modal-input {
+  width: 100%;
+  padding: 20rpx;
+  background-color: var(--border);
+  border-radius: 14rpx;
+  font-size: 28rpx;
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+  box-sizing: border-box;
+}
+
+.confirm-modal-footer {
+  display: flex;
+  border-top: 1px solid var(--border);
+}
+
+.confirm-modal-btn {
+  flex: 1;
+  padding: 28rpx;
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.confirm-modal-btn text {
+  font-size: 28rpx;
+}
+
+.confirm-modal-btn.cancel {
+  border-right: 1px solid var(--border);
+}
+
+.confirm-modal-btn.cancel text {
+  color: var(--text-secondary);
+}
+
+.confirm-modal-btn.execute text {
+  color: var(--color-danger);
+  font-weight: bold;
+}

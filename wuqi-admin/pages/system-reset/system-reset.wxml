@@ -1,0 +1,59 @@
+<view class="system-reset-page">
+  <view class="warning-banner">
+    <text class="warning-icon">⚠️</text>
+    <text class="warning-text">危险操作区域，所有初始化操作不可恢复</text>
+  </view>
+
+  <view class="section-title">单项数据初始化</view>
+
+  <view class="reset-list">
+    <view class="reset-item" wx:for="{{resetItems}}" wx:key="key" bindtap="onResetTap" data-key="{{item.key}}">
+      <view class="reset-left">
+        <text class="reset-icon">{{item.icon}}</text>
+        <view class="reset-info">
+          <text class="reset-label">{{item.label}}</text>
+          <text class="reset-desc">{{item.desc}}</text>
+        </view>
+      </view>
+      <view class="reset-right">
+        <text class="reset-count">{{item.key === 'schedules' ? stats.schedules : item.key === 'bookings' ? stats.bookings : item.key === 'attendance' ? stats.bookings : item.key === 'coaches' ? stats.coaches : item.key === 'danceStyles' ? stats.danceStyles : item.key === 'members' ? stats.members : item.key === 'packages' ? stats.userPackages : item.key === 'waitlists' ? stats.waitlists : stats.operationLogs}}条</text>
+        <text class="reset-btn-text">初始化</text>
+      </view>
+    </view>
+  </view>
+
+  <view class="section-title danger">一键全部初始化</view>
+
+  <view class="reset-all-card" bindtap="onResetAll">
+    <view class="reset-all-info">
+      <text class="reset-all-label">初始化所有业务数据</text>
+      <text class="reset-all-desc">清理课程、预约、教练、舞种、会员、套餐、候补、日志，仅保留管理员账号和系统配置</text>
+    </view>
+    <view class="reset-all-btn">
+      <text class="reset-all-btn-text">全部初始化</text>
+    </view>
+  </view>
+
+  <!-- 自定义二次确认弹窗 -->
+  <view class="confirm-mask" wx:if="{{showConfirmModal}}" bindtap="onCancelConfirm">
+    <view class="confirm-modal" catchtap="">
+      <view class="confirm-modal-header">
+        <text class="confirm-modal-title">⚠️ 二次确认</text>
+        <text class="confirm-modal-close" bindtap="onCancelConfirm">×</text>
+      </view>
+      <view class="confirm-modal-body">
+        <text class="confirm-modal-desc">请输入确认初始化以执行操作</text>
+        <text class="confirm-modal-target">即将清理：{{confirmLabel}}（{{confirmCount}}条）</text>
+        <input class="confirm-modal-input" placeholder="请输入确认初始化" value="{{confirmInput}}" bindinput="onConfirmInput" />
+      </view>
+      <view class="confirm-modal-footer">
+        <view class="confirm-modal-btn cancel" bindtap="onCancelConfirm">
+          <text>取消</text>
+        </view>
+        <view class="confirm-modal-btn execute" bindtap="onExecuteConfirm">
+          <text>执行初始化</text>
+        </view>
+      </view>
+    </view>
+  </view>
+</view>

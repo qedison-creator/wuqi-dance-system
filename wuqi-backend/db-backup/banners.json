@@ -1,0 +1,35 @@
+[
+  {
+    "_id": "69fdde2819e96e529eb2f767",
+    "title": "课堂瞬间",
+    "image_url": "/uploads/banners/1778245134388-j7mjvh.JPG",
+    "link_type": "none",
+    "sort_order": 1,
+    "status": "active",
+    "created_at": "2026-05-08T12:59:20.582Z",
+    "updated_at": "2026-05-08T12:59:20.582Z",
+    "__v": 0
+  },
+  {
+    "_id": "69fde01885495409430dede9",
+    "title": "课堂瞬间",
+    "image_url": "/uploads/banners/1778245587373-zxin0k.JPG",
+    "link_type": "none",
+    "sort_order": 2,
+    "status": "active",
+    "created_at": "2026-05-08T13:07:36.436Z",
+    "updated_at": "2026-05-08T13:07:36.436Z",
+    "__v": 0
+  },
+  {
+    "_id": "69fde3d64caeefd86515c1c3",
+    "title": "课堂瞬间",
+    "image_url": "http://localhost:3000/uploads/banners/1778246598719-y44nwm.jpg",
+    "link_type": "none",
+    "sort_order": 3,
+    "status": "active",
+    "created_at": "2026-05-08T13:23:34.539Z",
+    "updated_at": "2026-05-08T13:23:34.539Z",
+    "__v": 0
+  }
+]

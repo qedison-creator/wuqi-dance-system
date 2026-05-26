@@ -1,0 +1,109 @@
+<view class="accounts-page">
+  <view class="page-header">
+    <text class="page-title">账号及权限管理</text>
+  </view>
+
+  <!-- 功能入口 -->
+  <view class="entry-cards">
+    <view class="entry-card card" bindtap="onAddAccount">
+      <view class="entry-icon add-icon">
+        <text>+</text>
+      </view>
+      <view class="entry-info">
+        <text class="entry-name">新增账号</text>
+        <text class="entry-desc">创建店长或员工账号</text>
+      </view>
+    </view>
+    <view class="entry-card card" bindtap="onGoToRoles" wx:if="{{currentUserRole === 'super_admin'}}">
+      <view class="entry-icon perm-icon">
+        <text>🔑</text>
+      </view>
+      <view class="entry-info">
+        <text class="entry-name">角色权限配置</text>
+        <text class="entry-desc">配置各角色的功能权限</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 账号列表 -->
+  <view class="section-title">
+    <text>账号列表</text>
+  </view>
+
+  <view class="accounts-list" wx:if="{{accounts.length > 0}}">
+    <view class="account-item card" wx:for="{{accounts}}" wx:key="_id">
+      <view class="account-main">
+        <view class="account-avatar {{item.status !== 'active' ? 'disabled' : ''}}">
+          <text>{{item.nick_name ? item.nick_name[0] : (item.name ? item.name[0] : '?')}}</text>
+        </view>
+        <view class="account-info">
+          <view class="account-name-row">
+            <text class="account-name">{{item.nick_name || item.name}}</text>
+            <view class="role-badge {{item.role}}">
+              <text>{{item.roleName || item.role}}</text>
+            </view>
+            <view class="status-dot {{item.status === 'active' ? 'active' : 'disabled'}}"></view>
+          </view>
+          <text class="account-detail">账号: {{item.username}}</text>
+          <text class="account-detail" wx:if="{{item.store_id}}">门店: {{item.store_id.name || '未知'}}</text>
+          <text class="account-detail">权限: {{item.permCount}}</text>
+        </view>
+      </view>
+      <view class="account-actions">
+        <view class="action-btn edit" data-index="{{index}}" bindtap="onEditAccount">
+          <text>编辑</text>
+        </view>
+        <switch checked="{{item.status === 'active'}}" color="#FFCC00"
+                data-index="{{index}}"
+                bindchange="onToggleAccount">
+        </switch>
+        <view class="action-btn delete" data-id="{{item._id}}" bindtap="onDeleteAccount">
+          <text>删除</text>
+        </view>
+      </view>
+    </view>
+  </view>
+  <view class="empty-state card" wx:else>
+    <text>暂无子账号</text>
+  </view>
+
+  <!-- 新增/编辑弹窗 -->
+  <view class="modal-mask" wx:if="{{showModal}}" bindtap="onCloseModal">
+    <view class="modal-content" catchtap="onModalTap">
+      <view class="modal-header">
+        <text class="modal-title">{{editingAccount ? '编辑账号' : '新增账号'}}</text>
+        <text class="modal-close" bindtap="onCloseModal">×</text>
+      </view>
+      <view class="form-group">
+        <text class="form-label">姓名 *</text>
+        <input class="input-field" placeholder="请输入姓名" value="{{formData.name}}" data-field="name" bindinput="onFormInput" />
+      </view>
+      <view class="form-group">
+        <text class="form-label">用户名 *</text>
+        <input class="input-field" placeholder="请输入用户名" value="{{formData.username}}" data-field="username" bindinput="onFormInput" disabled="{{editingAccount}}" />
+      </view>
+      <view class="form-group" wx:if="{{!editingAccount}}">
+        <text class="form-label">密码 *</text>
+        <input class="input-field" type="password" placeholder="请输入密码（至少6位）" value="{{formData.password}}" data-field="password" bindinput="onFormInput" />
+      </view>
+      <view class="form-group">
+        <text class="form-label">角色 *</text>
+        <picker mode="selector" range="{{roles}}" range-key="name" value="{{roleIndex}}" bindchange="onRoleChange" disabled="{{editingAccount && currentUserRole !== 'super_admin'}}">
+          <view class="input-field picker-field {{editingAccount && currentUserRole !== 'super_admin' ? 'disabled' : ''}}">
+            <text>{{roleIndex >= 0 ? roles[roleIndex].name : '选择角色'}}</text>
+          </view>
+        </picker>
+        <text class="form-tip" wx:if="{{editingAccount && currentUserRole !== 'super_admin'}}">只有超级管理员可以修改角色</text>
+      </view>
+      <view class="form-group">
+        <text class="form-label">所属门店</text>
+        <picker mode="selector" range="{{stores}}" range-key="name" value="{{storeIndex}}" bindchange="onStoreChange">
+          <view class="input-field picker-field">
+            <text class="{{formData.store_id ? '' : 'placeholder'}}">{{formData.store_id ? (stores[storeIndex] && stores[storeIndex].name) : '请选择门店'}}</text>
+          </view>
+        </picker>
+      </view>
+      <button class="btn-primary submit-btn" bindtap="onSubmit">确认</button>
+    </view>
+  </view>
+</view>

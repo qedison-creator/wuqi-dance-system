@@ -1,0 +1,123 @@
+<view class="holidays-page">
+  <!-- 新增按钮（仅超管可见）-->
+  <view class="add-section" wx:if="{{isAdmin}}">
+    <view class="add-btn" bindtap="onAdd">
+      <text>+ 新增放假安排</text>
+    </view>
+  </view>
+
+  <!-- 放假列表 -->
+  <view class="holiday-list" wx:if="{{holidays.length > 0}}">
+    <view class="holiday-item card" wx:for="{{holidays}}" wx:key="_id">
+      <view class="holiday-header">
+        <text class="holiday-title text-subheading">{{item.name}}</text>
+        <view class="holiday-status {{item.status === 'active' ? 'status-active' : 'status-revoked'}}">
+          <text>{{item.status === 'active' ? '生效中' : '已撤销'}}</text>
+        </view>
+      </view>
+      <view class="holiday-details">
+        <view class="detail-row">
+          <text class="detail-icon">📍</text>
+          <view wx:if="{{item.store_scope === 'all'}}" class="detail-text">全部门店</view>
+          <view wx:elif="{{item.storeNames && item.storeNames.length}}" class="store-tags">
+            <view class="store-tag" wx:for="{{item.storeNames}}" wx:for-item="storeName" wx:key="*this">{{storeName}}</view>
+          </view>
+          <view wx:else class="detail-text">指定门店</view>
+        </view>
+        <view class="detail-row">
+          <text class="detail-icon">📅</text>
+          <text class="detail-text">{{item.start_date || item.date}} ~ {{item.end_date || item.date}}</text>
+        </view>
+        <view class="detail-row">
+          <text class="detail-icon">⏱️</text>
+          <text class="detail-text">共{{item.daysCount || 0}} 天</text>
+        </view>
+        <view class="detail-row" wx:if="{{item.description}}">
+          <text class="detail-icon">📝</text>
+          <text class="detail-text">{{item.description}}</text>
+        </view>
+      </view>
+      <view class="holiday-actions" wx:if="{{item.status === 'active' && isAdmin}}">
+        <view class="action-btn btn-edit" data-index="{{index}}" bindtap="onEdit">
+          <text>✏️ 编辑</text>
+        </view>
+        <view class="action-btn btn-revoke" data-id="{{item._id}}" bindtap="onRevoke">
+          <text>↩️ 撤销</text>
+        </view>
+      </view>
+      <view class="holiday-actions" wx:if="{{item.status !== 'active' && isAdmin}}">
+        <view class="action-btn btn-delete" data-id="{{item._id}}" bindtap="onDelete">
+          <text>🗑️ 删除</text>
+        </view>
+      </view>
+    </view>
+  </view>
+  <empty-state wx:else icon="🏖️" text="暂无放假安排"></empty-state>
+
+  <!-- 新增/编辑放假弹窗 -->
+  <view class="modal-mask" wx:if="{{showAddModal}}" bindtap="onCloseAddModal">
+    <view class="modal-content" catchtap="onModalTap">
+      <view class="modal-header">
+        <text class="modal-title text-heading">{{formData._id ? '编辑放假' : '新增放假'}}</text>
+        <text class="modal-close" bindtap="onCloseAddModal">✕</text>
+      </view>
+
+      <view class="form-group">
+        <text class="form-label">标题 *</text>
+        <input class="input-field" placeholder="如：春节放假" value="{{formData.title}}" data-field="title" bindinput="onFormInput" />
+      </view>
+
+      <!-- 适用范围选择 -->
+      <view class="form-group">
+        <text class="form-label">适用范围</text>
+        <view class="scope-options">
+          <view class="scope-item {{formData.storeScope === 'all' ? 'active' : ''}}" data-scope="all" bindtap="onScopeChange">
+            <text class="scope-icon">🏢</text>
+            <text class="scope-name">全部门店</text>
+          </view>
+          <view class="scope-item {{formData.storeScope === 'single' ? 'active' : ''}}" data-scope="single" bindtap="onScopeChange">
+            <text class="scope-icon">📍</text>
+            <text class="scope-name">指定门店</text>
+          </view>
+        </view>
+      </view>
+
+      <!-- 门店选择（仅指定门店时显示） -->
+      <view class="form-group" wx:if="{{formData.storeScope === 'single'}}">
+        <text class="form-label">选择门店 *</text>
+        <picker range="{{storeList}}" range-key="name" value="{{storePickerIndex}}" bindchange="onStorePickerChange">
+          <view class="input-field picker-field">
+            <text class="{{formData.selectedStoreId ? '' : 'placeholder'}}">{{selectedStoreName || '请选择门店'}}</text>
+          </view>
+        </picker>
+        <text class="form-hint text-caption" wx:if="{{!formData.selectedStoreId && formData.storeScope === 'single'}}">请选择适用门店</text>
+      </view>
+
+      <view class="form-row">
+        <view class="form-group flex-1">
+          <text class="form-label">开始日期 *</text>
+          <picker mode="date" value="{{formData.startDate}}" bindchange="onStartDateChange">
+            <view class="input-field picker-field">
+              <text class="{{formData.startDate ? '' : 'placeholder'}}">{{formData.startDate || '选择日期'}}</text>
+            </view>
+          </picker>
+        </view>
+        <view class="form-group flex-1">
+          <text class="form-label">结束日期 *</text>
+          <picker mode="date" value="{{formData.endDate}}" bindchange="onEndDateChange">
+            <view class="input-field picker-field">
+              <text class="{{formData.endDate ? '' : 'placeholder'}}">{{formData.endDate || '选择日期'}}</text>
+            </view>
+          </picker>
+        </view>
+      </view>
+
+      <view class="form-group">
+        <text class="form-label">原因</text>
+        <input class="input-field" placeholder="选填" value="{{formData.reason}}" data-field="reason" bindinput="onFormInput" />
+      </view>
+
+      <button class="btn-primary submit-btn" bindtap="onSubmitHoliday">确认</button>
+    </view>
+  </view>
+</view>

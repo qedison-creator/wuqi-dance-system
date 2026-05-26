@@ -1,0 +1,82 @@
+<view class="transfers-page">
+  <view class="page-header">
+    <text class="page-title">转卡申请管理</text>
+  </view>
+
+  <view class="tab-bar">
+    <view class="tab-item {{activeTab === 'pending' ? 'active' : ''}}" data-tab="pending" bindtap="onTabChange">
+      <text>待审核</text>
+    </view>
+    <view class="tab-item {{activeTab === 'approved' ? 'active' : ''}}" data-tab="approved" bindtap="onTabChange">
+      <text>已批准</text>
+    </view>
+    <view class="tab-item {{activeTab === 'rejected' ? 'active' : ''}}" data-tab="rejected" bindtap="onTabChange">
+      <text>已拒绝</text>
+    </view>
+  </view>
+
+  <view class="transfer-list" wx:if="{{transfers.length > 0}}">
+    <view class="transfer-item card" wx:for="{{transfers}}" wx:key="_id">
+      <view class="transfer-header">
+        <text class="transfer-user">{{item.user_id && (item.user_id.real_name || item.user_id.nick_name) || '未知会员'}}</text>
+        <text class="transfer-status {{getStatusClass(item.status)}}">{{getStatusText(item.status)}}</text>
+      </view>
+      <view class="transfer-body">
+        <view class="transfer-row">
+          <text class="transfer-label">当前门店</text>
+          <text class="transfer-value">{{item.from_store_id && item.from_store_id.name || '-'}}</text>
+        </view>
+        <view class="transfer-row">
+          <text class="transfer-label">目标门店</text>
+          <text class="transfer-value">{{item.to_store_id && item.to_store_id.name || '-'}}</text>
+        </view>
+        <view class="transfer-row" wx:if="{{item.reason}}">
+          <text class="transfer-label">申请原因</text>
+          <text class="transfer-value">{{item.reason}}</text>
+        </view>
+        <view class="transfer-row" wx:if="{{item.reject_reason}}">
+          <text class="transfer-label">拒绝原因</text>
+          <text class="transfer-value reject-text">{{item.reject_reason}}</text>
+        </view>
+        <view class="transfer-row">
+          <text class="transfer-label">申请时间</text>
+          <text class="transfer-value">{{formatTime(item.created_at)}}</text>
+        </view>
+      </view>
+
+      <view class="transfer-actions" wx:if="{{item.status === 'pending'}}">
+        <view class="action-btn approve" data-id="{{item._id}}" bindtap="onApprove">
+          <text>批准</text>
+        </view>
+        <view class="action-btn reject" data-id="{{item._id}}" bindtap="onShowReject">
+          <text>拒绝</text>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <view class="empty-state" wx:if="{{!loading && transfers.length === 0}}">
+    <text class="empty-icon">📋</text>
+    <text class="empty-text">暂无转卡申请</text>
+    <text class="empty-desc">当有会员提交转卡申请时，会在此处显示</text>
+  </view>
+
+  <view class="loading" wx:if="{{loading}}">
+    <text class="load-more">加载中...</text>
+  </view>
+
+  <view class="reject-modal-mask" wx:if="{{showRejectModal}}" bindtap="onCloseRejectModal">
+    <view class="reject-modal" catchtap="onModalTap">
+      <text class="modal-title">拒绝原因</text>
+      <textarea class="reject-input" value="{{rejectReason}}" bindinput="onRejectReasonInput" placeholder="请输入拒绝原因" maxlength="200" />
+      <view class="modal-buttons">
+        <view class="btn-secondary" bindtap="onCloseRejectModal">
+          <text>取消</text>
+        </view>
+        <view class="btn-primary" bindtap="onConfirmReject">
+          <text>确认拒绝</text>
+        </view>
+      </view>
+    </view>
+  </view>
+</view>

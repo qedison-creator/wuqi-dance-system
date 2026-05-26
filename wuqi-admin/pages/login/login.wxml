@@ -1,0 +1,29 @@
+<view class="login-page">
+  <!-- Logo区域 -->
+  <view class="logo-section">
+    <image class="logo-img" src="/images/logo.png" mode="aspectFit" />
+    <text class="logo-subtitle">会员预约系统管理后台</text>
+  </view>
+
+  <!-- 登录表单 -->
+  <view class="login-form">
+    <view class="form-item">
+      <text class="form-icon">👤</text>
+      <input class="form-input" type="text" placeholder="请输入管理员账号"
+             value="{{username}}" bindinput="onUsernameInput" />
+    </view>
+
+    <view class="form-item">
+      <text class="form-icon">🔒</text>
+      <input class="form-input" type="password" placeholder="请输入密码"
+             value="{{password}}" bindinput="onPasswordInput" />
+    </view>
+
+    <button class="login-btn {{loading ? 'disabled' : ''}}"
+            bindtap="onLogin" loading="{{loading}}" disabled="{{loading}}">
+      {{loading ? '登录中...' : '登录'}}
+    </button>
+  </view>
+
+
+</view>

@@ -1,0 +1,29 @@
+# 依赖
+node_modules/
+package-lock.json
+
+# 环境变量（包含数据库密码等敏感信息）
+.env
+
+# 微信小程序私有配置
+project.private.config.json
+
+# 临时文件
+*.log
+*.tmp
+.DS_Store
+Thumbs.db
+
+# 编辑器
+.vscode/
+.idea/
+
+# 临时脚本
+test-api.js
+test-coach-salary.js
+check-banners.js
+migrate-uploads.js
+
+# 临时文件
+wuqi-admin/pages/schedule/schedule_full.txt
+wuqi-admin/pages/schedule/schedule_temp.wxss
