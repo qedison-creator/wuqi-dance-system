@@ -1,9 +1,6 @@
 <view class="bookings-page">
   <!-- 排课信息头部 -->
   <view class="schedule-header card" wx:if="{{scheduleInfo}}">
-    <view class="header-top">
-      <text class="back-btn" bindtap="onBack">← 返回</text>
-    </view>
     <view class="schedule-title">
       <text class="course-name">{{scheduleInfo.course_name || (scheduleInfo.dance_style_id && scheduleInfo.dance_style_id.name ? scheduleInfo.dance_style_id.name + '课程' : '课程')}}</text>
       <text class="schedule-status {{scheduleInfo.status}}">{{scheduleInfo.status === 'available' ? '可预约' : scheduleInfo.status === 'full' ? '已满' : scheduleInfo.status === 'cancelled' ? '已取消' : scheduleInfo.status === 'offline' ? '已下架' : '未开课'}}</text>

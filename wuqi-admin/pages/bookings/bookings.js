@@ -109,12 +109,11 @@ Page({
   async loadAttendanceList() {
     try {
       const res = await request({
-        url: '/attendance',
-        method: 'GET',
-        data: { schedule_id: this.data.scheduleId }
+        url: `/attendance/schedule/${this.data.scheduleId}`,
+        method: 'GET'
       });
       
-      const list = res.data && Array.isArray(res.data.list) ? res.data.list : [];
+      const list = res.data && Array.isArray(res.data) ? res.data : [];
       
       const processedList = list.map(item => ({
         _id: item._id,

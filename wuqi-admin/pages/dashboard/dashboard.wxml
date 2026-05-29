@@ -1,20 +1,24 @@
 <view class="page">
   <view class="hero">
-    <view class="hero-row">
-      <view class="hero-greet">
-        <text class="hero-hi">{{greeting}}</text>
-        <text class="hero-name">{{userInfo.nick_name || userInfo.real_name || userInfo.name || userInfo.username || '管理员'}}</text>
-      </view>
-      <picker mode="selector" range="{{storeList}}" range-key="name" value="{{currentStoreIndex}}" bindchange="onStoreChange">
-        <view class="store-chip">
-          <text class="store-chip-label">{{currentStoreName}}</text>
-          <text class="store-chip-arrow">▼</text>
+    <view class="hero-bg"></view>
+    <view class="hero-greet">
+      <text class="hg-emoji">{{greeting.emoji}}</text>
+      <view class="hg-body">
+        <view class="hg-line1">
+          <text class="hg-text">{{greeting.text}}，</text>
+          <text class="hg-name">{{userInfo.nick_name || userInfo.real_name || userInfo.name || userInfo.username || '管理员'}}</text>
+          <view class="hg-role">{{userRoleName}}</view>
         </view>
-      </picker>
+        <text class="hg-sub">{{greeting.sub}}</text>
+      </view>
     </view>
     <view class="hero-foot">
-      <text class="hero-date">{{currentDate}}</text>
-      <view class="hero-role">{{userRoleName}}</view>
+      <text class="hf-date">{{currentDate}}</text>
+      <view class="hf-store" bindtap="onOpenStoreModal">
+        <text class="hfs-icon">⌂</text>
+        <text class="hfs-label">{{currentStoreName}}</text>
+        <text class="hfs-arrow">▾</text>
+      </view>
     </view>
   </view>
 
@@ -94,7 +98,7 @@
     </view>
     <view class="bnav-item" bindtap="onGoToBookings">
       <text class="bnav-icon">☰</text>
-      <text class="bnav-label">预约</text>
+      <text class="bnav-label">预约记录</text>
     </view>
   </view>
 
@@ -115,6 +119,23 @@
           </text>
         </view>
       </scroll-view>
+    </view>
+  </view>
+
+  <view class="modal-mask" wx:if="{{showStoreModal}}" bindtap="onCloseStoreModal">
+    <view class="store-modal" catchtap="">
+      <view class="stm-hd">
+        <text class="stm-title">选择门店</text>
+      </view>
+      <scroll-view class="stm-list" scroll-y>
+        <view class="stm-item {{currentStoreIndex === index ? 'stm-active' : ''}}" wx:for="{{storeList}}" wx:key="_id" data-index="{{index}}" bindtap="onSelectStore">
+          <text class="stm-name">{{item.name}}</text>
+          <view class="stm-check" wx:if="{{currentStoreIndex === index}}"></view>
+        </view>
+      </scroll-view>
+      <view class="stm-bottom">
+        <view class="stm-close-btn" bindtap="onCloseStoreModal">关闭</view>
+      </view>
     </view>
   </view>
 </view>

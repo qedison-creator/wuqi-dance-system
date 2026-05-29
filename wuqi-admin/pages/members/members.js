@@ -11,6 +11,20 @@ const formatDate = (dateStr) => {
   return `${y}-${m}-${day}`;
 };
 
+// 格式化审核通过日期为 YYYY-MM-DD 周X HH:mm
+const formatReviewDate = (dateStr) => {
+  if (!dateStr) return '';
+  const d = new Date(dateStr);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  const weekdays = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+  const weekday = weekdays[d.getDay()];
+  const hours = String(d.getHours()).padStart(2, '0');
+  const minutes = String(d.getMinutes()).padStart(2, '0');
+  return `${y}-${m}-${day} ${weekday} ${hours}:${minutes}`;
+};
+
 Page({
   data: {
     activeFilter: 'active',
@@ -321,6 +335,30 @@ Page({
           }
         }
 
+        // 处理门店标签
+        let storeLabels = [];
+        if (member.packages && member.packages.length > 0) {
+          // 有套餐：显示套餐所属门店
+          const storeMap = new Map();
+          member.packages.forEach(pkg => {
+            if (pkg.store_id && pkg.store_id._id && pkg.store_id.name) {
+              if (!storeMap.has(pkg.store_id._id)) {
+                storeMap.set(pkg.store_id._id, {
+                  id: pkg.store_id._id,
+                  name: pkg.store_id.name
+                });
+              }
+            }
+          });
+          storeLabels = Array.from(storeMap.values());
+        } else if (member.store_id && member.store_id._id && member.store_id.name) {
+          // 无套餐：显示用户选择或审核时选择的门店
+          storeLabels = [{
+            id: member.store_id._id,
+            name: member.store_id.name
+          }];
+        }
+
         let displayStatus = 'inactive';
         let canEditPackage = false;
         
@@ -357,11 +395,13 @@ Page({
           avatar: member.avatar_url,
           phone: phone,
           created_at: formatDate(member.created_at),
+          reviewed_at: formatReviewDate(member.updated_at || member.created_at),
           status: displayStatus,
           member_status: member.member_status,
           has_package: member.packages && member.packages.length > 0,
           can_edit_package: canEditPackage,
-          package_info: packageInfo
+          package_info: packageInfo,
+          store_labels: storeLabels
         };
       });
 

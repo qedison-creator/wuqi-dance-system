@@ -136,6 +136,34 @@
   box-sizing: border-box;
 }
 
+.location-input-row {
+  display: flex;
+  gap: 16rpx;
+  align-items: center;
+}
+
+.location-input-row .form-input {
+  flex: 1;
+}
+
+.location-btn {
+  padding: 16rpx 24rpx;
+  background: linear-gradient(135deg, var(--color-primary-hover), var(--color-primary));
+  border-radius: 14rpx;
+  white-space: nowrap;
+  font-size: 26rpx;
+  color: #fff;
+  font-weight: 500;
+}
+
+.location-btn.loading {
+  opacity: 0.6;
+}
+
+.location-btn:active {
+  opacity: 0.8;
+}
+
 .action-row {
   display: flex;
   gap: 20rpx;

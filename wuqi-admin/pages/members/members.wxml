@@ -8,6 +8,11 @@
         </view>
         <view class="review-badge" wx:if="{{pendingCount > 0}}">{{pendingCount}}</view>
       </view>
+      <view class="header-chip-wrap" bindtap="onGoInfoReview">
+        <view class="header-chip header-chip-info">
+          <text class="header-chip-text">信息修改</text>
+        </view>
+      </view>
       <view class="header-btn" bindtap="onRefresh">
         <text class="header-btn-icon">↻</text>
       </view>
@@ -114,11 +119,20 @@
           <view class="member-info">
             <view class="member-name-row">
               <text class="member-name">{{item.real_name || item.nickname || '未知'}}</text>
-              <view class="member-status {{item.status === 'active' ? 'status-active' : item.status === 'unactivated' ? 'status-warning' : item.status === 'pending' ? 'status-warning' : item.status === 'disabled' ? 'status-danger' : 'status-default'}}">
-                <text>{{item.status === 'active' ? '已激活' : item.status === 'unactivated' ? '待激活' : item.status === 'pending' ? '待审核' : item.status === 'disabled' ? '已停卡' : item.status === 'no-package' ? '未录套餐' : (item.status === 'expired' ? '已过期' : (item.status === 'exhausted' ? '已用完' : '未激活'))}}</text>
+              <view class="member-tags">
+                <!-- 门店标签 -->
+                <view class="store-tag" wx:for="{{item.store_labels}}" wx:key="id" wx:for-item="store">
+                  <text class="store-tag-text">{{store.name}}</text>
+                </view>
+                <!-- 状态标签 -->
+                <view class="member-status {{item.status === 'active' ? 'status-active' : item.status === 'unactivated' ? 'status-warning' : item.status === 'pending' ? 'status-warning' : item.status === 'disabled' ? 'status-danger' : 'status-default'}}">
+                  <text>{{item.status === 'active' ? '已激活' : item.status === 'unactivated' ? '待激活' : item.status === 'pending' ? '待审核' : item.status === 'disabled' ? '已停卡' : item.status === 'no-package' ? '未录套餐' : (item.status === 'expired' ? '已过期' : (item.status === 'exhausted' ? '已用完' : '未激活'))}}</text>
+                </view>
               </view>
             </view>
             <text class="member-phone">{{item.phone || '未绑定手机号'}}</text>
+            <!-- 未录入套餐的显示审核通过日期 -->
+            <text class="review-date" wx:if="{{!item.has_package && item.reviewed_at}}">{{item.reviewed_at}}</text>
           </view>
         </view>
         <view class="member-card-bottom" wx:if="{{item.package_info}}">

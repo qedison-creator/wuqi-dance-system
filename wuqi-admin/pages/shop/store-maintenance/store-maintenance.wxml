@@ -59,7 +59,15 @@
       <view class="form-group">
         <text class="form-label">纬度</text>
         <text class="form-hint">如：22.673711</text>
-        <input class="form-input" type="digit" placeholder="请输入纬度" value="{{editForm.latitude}}" data-field="latitude" bindinput="onFormInput" />
+        <view class="location-input-row">
+          <input class="form-input" type="digit" placeholder="请输入纬度" value="{{editForm.latitude}}" data-field="latitude" bindinput="onFormInput" />
+          <view class="location-btn" bindtap="onGetLocation" wx:if="{{!gettingLocation}}">
+            <text>获取当前位置</text>
+          </view>
+          <view class="location-btn loading" wx:if="{{gettingLocation}}">
+            <text>获取中...</text>
+          </view>
+        </view>
       </view>
       <view class="form-group">
         <text class="form-label">经度</text>

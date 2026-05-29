@@ -1,0 +1,62 @@
+<view class="page">
+  <view class="privacy-section">
+    <view class="privacy-title">舞栖预约管理系统 - 隐私保护指引</view>
+    <view class="privacy-date">更新日期：2026年5月27日</view>
+    <view class="privacy-date">生效日期：2026年5月27日</view>
+
+    <view class="privacy-text">
+      <text>舞栖预约管理系统（以下简称"本系统"）是舞栖舞蹈社用于管理会员信息、课程预约等业务的内部管理系统。本隐私保护指引旨在向您说明我们如何收集、使用、存储和保护在本系统中处理的个人信息。</text>
+    </view>
+
+    <view class="privacy-heading">一、我们收集的信息</view>
+    <view class="privacy-subheading">1.1 管理员信息</view>
+    <view class="privacy-text">
+      <text>• 登录信息：管理员的账号、密码等身份认证信息。\n</text>
+      <text>• 操作记录：管理员在系统中的操作日志，用于审计和安全追溯。\n</text>
+    </view>
+    <view class="privacy-subheading">1.2 会员信息</view>
+    <view class="privacy-text">
+      <text>• 基本信息：会员姓名、手机号码、性别、门店归属等。\n</text>
+      <text>• 套餐信息：会员购买的套餐类型、有效期、使用记录等。\n</text>
+      <text>• 课程信息：会员的课程预约记录、签到记录、候补记录等。\n</text>
+    </view>
+
+    <view class="privacy-heading">二、信息的使用</view>
+    <view class="privacy-text">
+      <text>本系统收集的信息仅用于以下目的：\n</text>
+      <text>• 会员审核和管理\n</text>
+      <text>• 课程排期和预约管理\n</text>
+      <text>• 签到和考勤管理\n</text>
+      <text>• 数据分析和服务优化\n</text>
+      <text>• 系统安全和审计\n</text>
+    </view>
+
+    <view class="privacy-heading">三、信息的存储与保护</view>
+    <view class="privacy-text">
+      <text>• 所有数据均存储于安全服务器中，采用加密传输和存储技术。\n</text>
+      <text>• 管理员需通过身份认证后方可访问系统。\n</text>
+      <text>• 实行严格的权限分级管理，仅授权人员可访问相应数据。\n</text>
+      <text>• 系统操作均有日志记录，确保操作可追溯。\n</text>
+    </view>
+
+    <view class="privacy-heading">四、信息的共享与披露</view>
+    <view class="privacy-text">
+      <text>本系统中的会员信息仅在舞栖舞蹈社内部使用，不会向任何第三方披露，但以下情况除外：\n</text>
+      <text>• 会员本人要求查询其个人信息\n</text>
+      <text>• 法律法规要求的披露\n</text>
+      <text>• 司法机关或监管机构的合法要求\n</text>
+    </view>
+
+    <view class="privacy-heading">五、管理员的责任</view>
+    <view class="privacy-text">
+      <text>• 管理员应妥善保管账号密码，不得转借他人使用。\n</text>
+      <text>• 管理员不得将系统内的会员信息用于工作以外的目的。\n</text>
+      <text>• 发现数据泄露或安全隐患应及时报告。\n</text>
+    </view>
+
+    <view class="privacy-heading">六、联系我们</view>
+    <view class="privacy-text">
+      <text>如对本隐私保护指引有任何疑问，请联系舞栖舞蹈社管理团队。</text>
+    </view>
+  </view>
+</view>

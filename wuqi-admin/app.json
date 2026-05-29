@@ -33,7 +33,9 @@
     "pages/announcements/announcements",
     "pages/profile/profile",
     "pages/course-records/course-records",
-    "pages/system-reset/system-reset"
+    "pages/booking-summary/booking-summary",
+    "pages/system-reset/system-reset",
+    "pages/privacy/privacy"
   ],
   "window": {
     "navigationBarBackgroundColor": "#F6F3F0",
@@ -79,5 +81,8 @@
     "scope.userLocation": {
       "desc": "获取位置信息用于导航"
     }
-  }
+  },
+  "requiredPrivateInfos": [
+    "getLocation"
+  ]
 }

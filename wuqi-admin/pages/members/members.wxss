@@ -58,6 +58,15 @@
   border: 1rpx solid rgba(91, 140, 90, 0.2);
 }
 
+.header-chip-info {
+  background: rgba(82, 125, 170, 0.08);
+  border: 1rpx solid rgba(82, 125, 170, 0.2);
+}
+
+.header-chip-info .header-chip-text {
+  color: #527DAA;
+}
+
 .header-chip-text {
   font-size: 24rpx;
   font-weight: 500;
@@ -602,7 +611,7 @@
 
 .member-name-row {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   margin-bottom: 6rpx;
 }
@@ -617,6 +626,29 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   margin-right: 16rpx;
+  margin-top: 2rpx;
+}
+
+.member-tags {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  gap: 8rpx;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.store-tag {
+  padding: 4rpx 16rpx;
+  border-radius: 20rpx;
+  font-size: 22rpx;
+  font-weight: 500;
+  background: rgba(197, 116, 75, 0.1);
+  color: #C5744B;
+}
+
+.store-tag-text {
+  font-size: 22rpx;
 }
 
 .member-status {
@@ -655,6 +687,13 @@
 .member-phone {
   font-size: 24rpx;
   color: #8B7E6A;
+}
+
+.review-date {
+  font-size: 22rpx;
+  color: #B8AF9E;
+  margin-top: 4rpx;
+  display: block;
 }
 
 .member-card-bottom {
@@ -823,7 +862,7 @@
   background-color: #FFFFFF;
   border-radius: 24rpx;
   padding: 40rpx;
-  padding-bottom: calc(80rpx + env(safe-area-inset-bottom));
+  padding-bottom: 80rpx;
   overflow-y: auto;
   box-sizing: border-box;
 }

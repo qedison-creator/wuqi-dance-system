@@ -23,12 +23,7 @@ Page({
     showStoreModal: false,
     approveMember: null,
     storeList: [],
-    selectedStoreId: '',
-    // 右滑删除相关
-    touchStartX: 0,
-    touchEndX: 0,
-    currentSwipeId: '',
-    swipeOffset: {}
+    selectedStoreId: ''
   },
 
   onShow() {
@@ -39,45 +34,6 @@ Page({
     this.loadPendingMembers().then(() => {
       wx.stopPullDownRefresh();
     });
-  },
-
-  onTouchStart(e) {
-    const id = e.currentTarget.dataset.id;
-    this.setData({
-      touchStartX: e.touches[0].clientX,
-      currentSwipeId: id
-    });
-  },
-
-  onTouchMove(e) {
-    const id = e.currentTarget.dataset.id;
-    if (this.data.currentSwipeId !== id) return;
-    
-    const touchEndX = e.touches[0].clientX;
-    const diff = this.data.touchStartX - touchEndX;
-    
-    if (diff > 0) {
-      const offset = Math.min(diff, 160);
-      this.setData({
-        [`swipeOffset.${id}`]: offset
-      });
-    }
-  },
-
-  onTouchEnd(e) {
-    const id = e.currentTarget.dataset.id;
-    const offset = this.data.swipeOffset[id] || 0;
-    
-    if (offset > 80) {
-      this.setData({
-        [`swipeOffset.${id}`]: 160
-      });
-    } else {
-      this.setData({
-        [`swipeOffset.${id}`]: 0
-      });
-    }
-    this.setData({ currentSwipeId: '' });
   },
 
   async loadPendingMembers() {
@@ -103,11 +59,12 @@ Page({
           avatar: member.avatar_url,
           phone: phone,
           created_at: formatDate(member.created_at),
-          store_name: member.store_id && member.store_id.name ? member.store_id.name : ''
+          store_name: member.store_id && member.store_id.name ? member.store_id.name : '',
+          store_id: member.store_id && member.store_id._id ? member.store_id._id : null
         };
       });
 
-      this.setData({ members, total, swipeOffset: {} });
+      this.setData({ members, total });
     } catch (err) {
       console.error('加载待审核列表失败', err);
     } finally {
@@ -124,9 +81,11 @@ Page({
       success: async (res) => {
         if (res.confirm) {
           try {
+            // 删除功能直接调用拒绝接口，或者用软删除
             await request({
-              url: `/members/${id}`,
-              method: 'DELETE'
+              url: `/members/${id}/review`,
+              method: 'PUT',
+              data: { action: 'reject' }
             });
             wx.showToast({ title: '已删除', icon: 'success' });
             this.loadPendingMembers();
@@ -140,15 +99,26 @@ Page({
 
   // 点击"通过"→ 弹出门店选择
   async onApprove(e) {
-    const { id, name } = e.currentTarget.dataset;
+    const { id, name, storeId } = e.currentTarget.dataset;
     // 加载门店列表
     try {
       const res = await request({ url: '/stores' });
       const storeList = res.data && Array.isArray(res.data.list) ? res.data.list : (Array.isArray(res.data) ? res.data : []);
+      
+      // 自动选中用户已选择的门店
+      let autoSelectedStoreId = '';
+      if (storeId) {
+        // 检查门店列表中是否存在这个门店
+        const targetStore = storeList.find(s => String(s._id) === String(storeId));
+        if (targetStore) {
+          autoSelectedStoreId = targetStore._id;
+        }
+      }
+      
       this.setData({
         approveMember: { id, name },
         storeList: storeList,
-        selectedStoreId: '',
+        selectedStoreId: autoSelectedStoreId,
         showStoreModal: true
       });
     } catch (err) {

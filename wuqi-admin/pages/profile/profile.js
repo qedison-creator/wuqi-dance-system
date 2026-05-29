@@ -81,6 +81,10 @@ Page({
     });
   },
 
+  onPrivacy() {
+    wx.navigateTo({ url: '/pages/privacy/privacy' });
+  },
+
   onLogout() {
     wx.showModal({
       title: '确认退出',

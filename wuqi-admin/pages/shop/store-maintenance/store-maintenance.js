@@ -14,6 +14,7 @@ Page({
       longitude: '',
     },
     saving: false,
+    gettingLocation: false,
   },
 
   onShow() {
@@ -58,6 +59,35 @@ Page({
     const editForm = { ...this.data.editForm };
     editForm[field] = e.detail.value;
     this.setData({ editForm });
+  },
+
+  onGetLocation() {
+    this.setData({ gettingLocation: true });
+    wx.getLocation({
+      type: 'gcj02',
+      altitude: true,
+      highAccuracyExpireTime: 10000,
+      success: (res) => {
+        const editForm = { ...this.data.editForm };
+        editForm.latitude = String(res.latitude);
+        editForm.longitude = String(res.longitude);
+        this.setData({ editForm, gettingLocation: false });
+        wx.showToast({ title: '获取位置成功', icon: 'success' });
+      },
+      fail: () => {
+        this.setData({ gettingLocation: false });
+        wx.showModal({
+          title: '提示',
+          content: '获取位置失败，请检查是否授权位置权限',
+          confirmText: '去设置',
+          success: (modalRes) => {
+            if (modalRes.confirm) {
+              wx.openSetting();
+            }
+          }
+        });
+      }
+    });
   },
 
   async onSave() {

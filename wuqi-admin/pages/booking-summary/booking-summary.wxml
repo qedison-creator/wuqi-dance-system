@@ -1,0 +1,93 @@
+<view class="page">
+  <view class="content">
+    <view class="date-list" wx:if="{{!loading && dateGroups.length > 0}}">
+      <view class="date-group" wx:for="{{dateGroups}}" wx:key="date" wx:for-index="dateIndex">
+        <view class="date-header">
+          <text class="date-label">{{item.dateLabel}}</text>
+          <text class="date-count">{{item.totalCount}}人预约</text>
+        </view>
+        
+        <view class="course-list">
+          <view class="course-item" wx:for="{{item.schedules}}" wx:for-item="course" wx:key="schedule_id" wx:for-index="courseIndex">
+            <view class="course-main" bindtap="onToggleCourse" data-date-index="{{dateIndex}}" data-course-index="{{courseIndex}}">
+              <view class="course-info">
+                <text class="course-name">{{course.schedule_info.course_name}}</text>
+                <text class="course-time">{{course.schedule_info.time}}</text>
+              </view>
+              <view class="course-stats">
+                <view class="stat-item booked">
+                  <text class="stat-num">{{course.bookedCount}}</text>
+                  <text class="stat-label">已预约</text>
+                </view>
+                <view class="stat-item completed">
+                  <text class="stat-num">{{course.completedCount}}</text>
+                  <text class="stat-label">已上课</text>
+                </view>
+                <view class="stat-item cancelled">
+                  <text class="stat-num">{{course.cancelledCount}}</text>
+                  <text class="stat-label">已取消</text>
+                </view>
+              </view>
+              <text class="toggle-icon {{course.expanded ? 'expanded' : ''}}">▾</text>
+            </view>
+            
+            <view class="member-list" wx:if="{{course.expanded}}">
+              <view class="member-tabs">
+                <view class="member-tab {{course.activeTab === 'booked' ? 'active' : ''}}" data-tab="booked" catchtap="onSwitchMemberTab" data-date-index="{{dateIndex}}" data-course-index="{{courseIndex}}">
+                  <text>已预约</text>
+                  <text class="tab-badge" wx:if="{{course.bookedCount > 0}}">{{course.bookedCount}}</text>
+                </view>
+                <view class="member-tab {{course.activeTab === 'completed' ? 'active' : ''}}" data-tab="completed" catchtap="onSwitchMemberTab" data-date-index="{{dateIndex}}" data-course-index="{{courseIndex}}">
+                  <text>已上课</text>
+                  <text class="tab-badge" wx:if="{{course.completedCount > 0}}">{{course.completedCount}}</text>
+                </view>
+                <view class="member-tab {{course.activeTab === 'cancelled' ? 'active' : ''}}" data-tab="cancelled" catchtap="onSwitchMemberTab" data-date-index="{{dateIndex}}" data-course-index="{{courseIndex}}">
+                  <text>已取消</text>
+                  <text class="tab-badge" wx:if="{{course.cancelledCount > 0}}">{{course.cancelledCount}}</text>
+                </view>
+              </view>
+              
+              <view class="members" wx:if="{{course.displayMembers.length > 0}}">
+                <view class="member-row" wx:for="{{course.displayMembers}}" wx:key="_id" wx:for-item="member">
+                  <image class="member-avatar" src="{{member.user_id.avatar_url || '/images/default-avatar.svg'}}" mode="aspectFill"></image>
+                  <view class="member-info">
+                    <text class="member-name">{{member.user_id.nick_name || '未知会员'}}</text>
+                    <text class="member-phone">{{member.user_id.phone || ''}}</text>
+                  </view>
+                  <view class="member-booking-time">
+                    <text class="booking-label">预约时间</text>
+                    <text class="booking-value">{{member.created_at_display}}</text>
+                  </view>
+                  <view class="member-status status-{{member.status}}">
+                    <text>{{getStatusText(member.status)}}</text>
+                  </view>
+                </view>
+                
+                <view class="load-more-btn" wx:if="{{course.members.length > course.displayCount}}" catchtap="onLoadMoreMembers" data-date-index="{{dateIndex}}" data-course-index="{{courseIndex}}">
+                  <text>展开更多 ({{course.members.length - course.displayCount}})</text>
+                </view>
+              </view>
+              
+              <view class="empty-members" wx:if="{{course.displayMembers.length === 0}}">
+                <text>暂无名单</text>
+              </view>
+            </view>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <view class="empty" wx:if="{{!loading && dateGroups.length === 0}}">
+      <text class="empty-icon">📅</text>
+      <text class="empty-text">暂无预约课程</text>
+    </view>
+
+    <view class="loading" wx:if="{{loading}}">
+      <text>加载中...</text>
+    </view>
+
+    <view class="load-more" wx:if="{{!loading && hasMore && dateGroups.length > 0}}" bindtap="loadMore">
+      <text>加载更多日期</text>
+    </view>
+  </view>
+</view>

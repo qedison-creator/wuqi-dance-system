@@ -103,14 +103,14 @@ Page({
       const fileName = `候补名单_${currentSchedule.course_name || '课程'}_${formatDate(new Date(), 'YYYYMMDD')}.csv`;
       const filePath = `${wx.env.USER_DATA_PATH}/${fileName}`;
       fs.writeFileSync(filePath, csv, 'utf8');
-      wx.shareFileMessage({
+      wx.openDocument({
         filePath: filePath,
-        fileName: fileName,
+        showMenu: true,
         success: () => {
-          wx.showToast({ title: '导出成功', icon: 'success' });
+          this.setData({ exportFilePath: filePath, exportFileName: fileName });
         },
         fail: () => {
-          wx.showToast({ title: '导出失败', icon: 'none' });
+          wx.showToast({ title: '文件已生成，请在文件中查看', icon: 'none' });
         }
       });
     } catch (err) {

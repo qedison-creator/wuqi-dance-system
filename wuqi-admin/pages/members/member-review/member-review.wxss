@@ -5,52 +5,6 @@
   min-height: 100vh;
 }
 
-.swipe-card {
-  position: relative;
-  margin-bottom: 20rpx;
-  overflow: hidden;
-}
-
-.swipe-action {
-  position: absolute;
-  right: 0;
-  top: 0;
-  bottom: 0;
-  width: 160rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1;
-}
-
-.swipe-btn {
-  width: 160rpx;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.btn-delete {
-  background-color: #C44B4B;
-}
-
-.swipe-btn-text {
-  font-size: 28rpx;
-  color: #FFFFFF;
-  font-weight: 500;
-}
-
-.review-card {
-  position: relative;
-  background-color: var(--bg-card);
-  border: 1rpx solid var(--border);
-  border-radius: var(--radius-xl);
-  padding: 28rpx;
-  z-index: 2;
-  transition: transform 0.2s ease;
-}
-
 .review-header {
   display: flex;
   align-items: baseline;
@@ -155,6 +109,7 @@
   align-items: center;
   justify-content: center;
   border-radius: var(--radius-lg);
+  transition: all 0.2s ease;
 }
 
 .btn-text {
@@ -163,19 +118,30 @@
 }
 
 .btn-approve {
-  background-color: var(--color-primary);
+  background-color: rgba(52, 199, 89, 0.12);
 }
 
 .btn-approve .btn-text {
-  color: var(--text-inverse);
+  color: #1D1D1F;
+  font-weight: 600;
 }
 
 .btn-reject {
-  background-color: var(--color-primary);
+  background-color: rgba(0, 122, 255, 0.12);
 }
 
 .btn-reject .btn-text {
-  color: var(--text-inverse);
+  color: #1D1D1F;
+  font-weight: 600;
+}
+
+.btn-delete {
+  background-color: rgba(255, 59, 48, 0.12);
+}
+
+.btn-delete .btn-text {
+  color: #1D1D1F;
+  font-weight: 600;
 }
 
 .empty-state {

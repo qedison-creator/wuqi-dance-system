@@ -18,6 +18,7 @@ router.get('/', async (req, res, next) => {
 router.get('/nearest', async (req, res, next) => {
   try {
     const { latitude, longitude } = req.query;
+    
     if (!latitude || !longitude) {
       return res.status(400).json({ code: 400, message: '缺少经纬度参数', data: null });
     }
@@ -34,21 +35,28 @@ router.get('/nearest', async (req, res, next) => {
 
     if (stores.length === 0) {
       // 没有带坐标的门店，返回所有活跃门店让用户手动选
-      const allStores = await Store.find({ status: 'active' });
-      return res.json(success({ nearest: null, stores: allStores }));
+      const allActiveStores = await Store.find({ status: 'active' });
+      return res.json(success({ nearest: null, stores: allActiveStores }));
     }
 
-    // 计算距离（Haversine公式简化版）
+    // 计算距离（Haversine公式）
     const toRad = (deg) => deg * (Math.PI / 180);
     const storesWithDist = stores.map(store => {
-      const dLat = toRad(store.location.latitude - lat);
-      const dLng = toRad(store.location.longitude - lng);
+      const storeLat = store.location.latitude;
+      const storeLng = store.location.longitude;
+      
+      const dLat = toRad(storeLat - lat);
+      const dLng = toRad(storeLng - lng);
       const a = Math.sin(dLat / 2) ** 2 +
-                Math.cos(toRad(lat)) * Math.cos(toRad(store.location.latitude)) *
+                Math.cos(toRad(lat)) * Math.cos(toRad(storeLat)) *
                 Math.sin(dLng / 2) ** 2;
       const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
       const distance = 6371 * c; // 单位：公里
-      return { ...store.toObject(), distance: Math.round(distance * 100) / 100 };
+      
+      return { 
+        ...store.toObject(), 
+        distance: Math.round(distance * 100) / 100 
+      };
     });
 
     // 按距离排序
