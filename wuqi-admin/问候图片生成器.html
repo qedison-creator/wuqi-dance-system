@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>问候图片生成器</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Microsoft YaHei', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 40px 20px;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 30px;
+            font-size: 32px;
+        }
+        .controls {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .generate-btn {
+            padding: 15px 40px;
+            font-size: 18px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin: 0 10px;
+        }
+        .generate-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
+        }
+        .images-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 30px;
+        }
+        .image-card {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 20px;
+            transition: transform 0.3s ease;
+        }
+        .image-card:hover {
+            transform: translateY(-5px);
+        }
+        .image-card h3 {
+            font-size: 18px;
+            color: #333;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+        .canvas-container {
+            width: 100%;
+            aspect-ratio: 16/9;
+            background: #e9ecef;
+            border-radius: 8px;
+            overflow: hidden;
+            margin-bottom: 15px;
+        }
+        canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+        .download-btn {
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .download-btn:hover {
+            opacity: 0.9;
+            transform: scale(1.02);
+        }
+        .instructions {
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 30px;
+        }
+        .instructions h3 {
+            color: #856404;
+            margin-bottom: 10px;
+        }
+        .instructions p {
+            color: #856404;
+            line-height: 1.6;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎨 问候图片生成器</h1>
+        
+        <div class="instructions">
+            <h3>使用说明</h3>
+            <p>1. 点击"生成所有图片"按钮来生成7张问候图片。</p>
+            <p>2. 每张图片下方都有下载按钮，点击即可保存。</p>
+            <p>3. 请将下载的图片保存到：<code>images/hero/</code> 文件夹中。</p>
+        </div>
+        
+        <div class="controls">
+            <button class="generate-btn" onclick="generateAll()">生成所有图片</button>
+            <button class="generate-btn" onclick="downloadAll()">下载所有图片</button>
+        </div>
+        
+        <div class="images-grid" id="imagesGrid"></div>
+    </div>
+
+    <script>
+        const images = [
+            {
+                name: '晨安',
+                filename: 'hero-sunrise.jpg',
+                colors: ['#1a1a2e', '#e94560', '#ff6b6b', '#ffd93d'],
+                sunPosition: { x: 0.2, y: 0.7 },
+                sunSize: 0.15,
+                atmosphere: 'warm'
+            },
+            {
+                name: '上午好',
+                filename: 'hero-morning.jpg',
+                colors: ['#87ceeb', '#98d8c8', '#f7f9fc'],
+                sunPosition: { x: 0.5, y: 0.2 },
+                sunSize: 0.08,
+                atmosphere: 'bright'
+            },
+            {
+                name: '午安',
+                filename: 'hero-noon.jpg',
+                colors: ['#f8d7da', '#fff3cd', '#e2e0ff'],
+                sunPosition: { x: 0.5, y: 0.1 },
+                sunSize: 0.1,
+                atmosphere: 'golden'
+            },
+            {
+                name: '下午好',
+                filename: 'hero-afternoon.jpg',
+                colors: ['#ffecd2', '#fcb69f', '#ff9a56'],
+                sunPosition: { x: 0.6, y: 0.3 },
+                sunSize: 0.12,
+                atmosphere: 'vibrant'
+            },
+            {
+                name: '傍晚好',
+                filename: 'hero-sunset.jpg',
+                colors: ['#2c3e50', '#e74c3c', '#f39c12', '#f1c40f'],
+                sunPosition: { x: 0.8, y: 0.6 },
+                sunSize: 0.18,
+                atmosphere: 'fiery'
+            },
+            {
+                name: '晚上好',
+                filename: 'hero-night.jpg',
+                colors: ['#0c0c1e', '#1a1a3e', '#2d2d5e'],
+                sunPosition: { x: 0.75, y: 0.25 },
+                sunSize: 0.08,
+                atmosphere: 'serene'
+            },
+            {
+                name: '夜深了',
+                filename: 'hero-late-night.jpg',
+                colors: ['#0a0a0a', '#1a1a2e', '#16213e'],
+                sunPosition: { x: 0.5, y: 0.15 },
+                sunSize: 0.06,
+                atmosphere: 'mysterious'
+            }
+        ];
+
+        function createImageCard(imageInfo) {
+            const card = document.createElement('div');
+            card.className = 'image-card';
+            card.innerHTML = `
+                <h3>${imageInfo.name}</h3>
+                <div class="canvas-container">
+                    <canvas id="canvas-${imageInfo.filename}"></canvas>
+                </div>
+                <button class="download-btn" onclick="downloadImage('${imageInfo.filename}')">
+                    下载 ${imageInfo.filename}
+                </button>
+            `;
+            return card;
+        }
+
+        function drawImage(canvas, imageInfo) {
+            canvas.width = 1600;
+            canvas.height = 900;
+            const ctx = canvas.getContext('2d');
+
+            drawGradientBackground(ctx, canvas, imageInfo.colors);
+            drawAtmosphericEffects(ctx, canvas, imageInfo);
+            drawSunOrMoon(ctx, canvas, imageInfo);
+            drawSilhouette(ctx, canvas, imageInfo);
+        }
+
+        function drawGradientBackground(ctx, canvas, colors) {
+            const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+            colors.forEach((color, i) => {
+                gradient.addColorStop(i / (colors.length - 1), color);
+            });
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+        }
+
+        function drawAtmosphericEffects(ctx, canvas, imageInfo) {
+            for (let i = 0; i < 50; i++) {
+                const x = Math.random() * canvas.width;
+                const y = Math.random() * canvas.height * 0.8;
+                const size = 50 + Math.random() * 150;
+                const alpha = 0.04 + Math.random() * 0.08;
+                
+                let color;
+                if (imageInfo.atmosphere === 'warm' || imageInfo.atmosphere === 'fiery') {
+                    color = `rgba(255, 200, 100, ${alpha})`;
+                } else if (imageInfo.atmosphere === 'bright') {
+                    color = `rgba(255, 255, 255, ${alpha})`;
+                } else if (imageInfo.atmosphere === 'serene' || imageInfo.atmosphere === 'mysterious') {
+                    color = `rgba(150, 180, 255, ${alpha})`;
+                } else {
+                    color = `rgba(255, 220, 180, ${alpha})`;
+                }
+                
+                ctx.fillStyle = color;
+                ctx.beginPath();
+                ctx.ellipse(x, y, size, size * 0.6, 0, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            if (imageInfo.atmosphere === 'serene' || imageInfo.atmosphere === 'mysterious') {
+                ctx.fillStyle = 'white';
+                for (let i = 0; i < 150; i++) {
+                    const x = Math.random() * canvas.width;
+                    const y = Math.random() * canvas.height * 0.7;
+                    const size = 1 + Math.random() * 2;
+                    ctx.beginPath();
+                    ctx.arc(x, y, size, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            }
+
+            if (imageInfo.atmosphere === 'bright') {
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+                for (let i = 0; i < 5; i++) {
+                    const x = Math.random() * canvas.width;
+                    const y = 100 + Math.random() * 200;
+                    drawCloud(ctx, x, y);
+                }
+            }
+        }
+
+        function drawCloud(ctx, x, y) {
+            ctx.beginPath();
+            ctx.ellipse(x, y, 60, 30, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.ellipse(x + 20, y - 10, 40, 25, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.ellipse(x + 35, y, 45, 28, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.ellipse(x + 15, y + 8, 35, 20, 0, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        function drawSunOrMoon(ctx, canvas, imageInfo) {
+            const x = imageInfo.sunPosition.x * canvas.width;
+            const y = imageInfo.sunPosition.y * canvas.height;
+            const size = Math.min(canvas.width, canvas.height) * imageInfo.sunSize;
+            
+            const gradient = ctx.createRadialGradient(x, y, 0, x, y, size * 2);
+            
+            if (imageInfo.atmosphere === 'serene' || imageInfo.atmosphere === 'mysterious') {
+                gradient.addColorStop(0, 'rgba(255, 250, 230, 0.8)');
+                gradient.addColorStop(0.5, 'rgba(255, 220, 180, 0.3)');
+                gradient.addColorStop(1, 'rgba(255, 220, 180, 0)');
+                ctx.fillStyle = gradient;
+                ctx.beginPath();
+                ctx.ellipse(x, y, size * 1.5, size * 1.5, 0, 0, Math.PI * 2);
+                ctx.fill();
+                
+                ctx.fillStyle = 'rgb(255, 250, 230)';
+                ctx.beginPath();
+                ctx.arc(x, y, size, 0, Math.PI * 2);
+                ctx.fill();
+            } else {
+                gradient.addColorStop(0, 'rgba(255, 255, 200, 0.9)');
+                gradient.addColorStop(0.3, imageInfo.colors[imageInfo.colors.length - 1] + 'cc');
+                gradient.addColorStop(0.7, imageInfo.colors[imageInfo.colors.length - 2] + '66');
+                gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+                ctx.fillStyle = gradient;
+                ctx.beginPath();
+                ctx.ellipse(x, y, size * 1.5, size * 1.5, 0, 0, Math.PI * 2);
+                ctx.fill();
+                
+                ctx.fillStyle = 'rgb(255, 250, 200)';
+                ctx.beginPath();
+                ctx.arc(x, y, size, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        function drawSilhouette(ctx, canvas, imageInfo) {
+            if (imageInfo.atmosphere === 'mysterious') {
+                ctx.fillStyle = 'rgba(26, 26, 46)';
+                for (let i = 0; i < 20; i++) {
+                    const bx = 50 + i * (canvas.width - 100) / 19;
+                    const bh = 100 + Math.random() * 200;
+                    ctx.fillRect(bx - 15, canvas.height - bh, 30, bh);
+                    
+                    ctx.fillStyle = `rgba(255, 235, 184, ${0.3 + Math.random() * 0.5})';
+                    for (let j = 0; j < Math.floor(bh / 30); j++) {
+                        if (Math.random() > 0.3) {
+                            ctx.fillRect(bx - 10, canvas.height - bh + 15 + j * 30, 8, 12);
+                        }
+                    }
+                    ctx.fillStyle = 'rgba(26, 26, 46)';
+                }
+            } else if (imageInfo.atmosphere === 'golden') {
+                ctx.fillStyle = 'rgba(139, 105, 20, 0.6)';
+                ctx.fillRect(canvas.width * 0.6, canvas.height * 0.5, 150, 100);
+                ctx.fillStyle = 'rgba(212, 167, 106, 0.7)';
+                ctx.fillRect(canvas.width * 0.55, canvas.height * 0.55, 200, 20);
+            } else if (imageInfo.atmosphere === 'vibrant') {
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+                ctx.lineWidth = 2;
+                for (let i = 0; i < 8; i++) {
+                    ctx.beginPath();
+                    ctx.ellipse(
+                        canvas.width / 2 + Math.random() * 400 - 200,
+                        canvas.height / 2 + Math.random() * 200 - 100,
+                        50 + Math.random() * 100,
+                        50 + Math.random() * 100,
+                        0, 0, Math.PI * 2
+                    );
+                    ctx.stroke();
+                }
+                const floorGradient = ctx.createLinearGradient(0, canvas.height * 0.7, 0, canvas.height);
+                floorGradient.addColorStop(0, 'rgba(139, 105, 20, 0.4)');
+                floorGradient.addColorStop(1, 'rgba(139, 105, 20, 0.8)');
+                ctx.fillStyle = floorGradient;
+                ctx.fillRect(0, canvas.height * 0.7, canvas.width, canvas.height * 0.3);
+            } else {
+                ctx.fillStyle = 'rgba(26, 26, 46, 0.8)';
+                ctx.beginPath();
+                ctx.moveTo(0, canvas.height);
+                for (let x = 0; x <= canvas.width; x += 50) {
+                    const y = canvas.height - 100 - Math.sin(x * 0.01) * 50 - Math.random() * 30;
+                    ctx.lineTo(x, y);
+                }
+                ctx.lineTo(canvas.width, canvas.height);
+                ctx.closePath();
+                ctx.fill();
+            }
+        }
+
+        function generateAll() {
+            const grid = document.getElementById('imagesGrid');
+            grid.innerHTML = '';
+            
+            images.forEach(image => {
+                const card = createImageCard(image);
+                grid.appendChild(card);
+                
+                setTimeout(() => {
+                    const canvas = document.getElementById(`canvas-${image.filename}`);
+                    drawImage(canvas, image);
+                }, 100);
+            });
+        }
+
+        function downloadImage(filename) {
+            const canvas = document.getElementById(`canvas-${filename}`);
+            const link = document.createElement('a');
+            link.download = filename;
+            link.href = canvas.toDataURL('image/jpeg', 0.95);
+            link.click();
+        }
+
+        async function downloadAll() {
+            for (const image of images) {
+                downloadImage(image.filename);
+                await new Promise(resolve => setTimeout(resolve, 500));
+            }
+        }
+
+        window.onload = generateAll;
+    </script>
+</body>
+</html>

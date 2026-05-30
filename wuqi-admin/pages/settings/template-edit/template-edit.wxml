@@ -1,0 +1,84 @@
+<view class="page">
+  <view class="guide-card card">
+    <view class="guide-header">
+      <text class="guide-icon">💡</text>
+      <text class="guide-title">消息推送模板管理</text>
+    </view>
+    <text class="guide-text">在此配置所有微信订阅消息模板的ID与字段映射。点击模板行展开编辑。</text>
+  </view>
+
+  <view class="list-container" wx:for="{{templates}}" wx:key="template_key">
+    <view class="list-row card {{item.expanded ? 'expanded' : ''}}" data-index="{{index}}" bindtap="toggleExpand">
+      <view class="row-left">
+        <text class="row-name">{{item.template_name || '未命名模板'}}</text>
+        <text class="row-key">{{item.template_key}}</text>
+      </view>
+      <view class="row-right">
+        <text class="row-badge {{item.template_id ? 'has-id' : 'no-id'}}">{{item.template_id ? '已配置ID' : '未配置ID'}}</text>
+        <text class="row-arrow">{{item.expanded ? '▴' : '▾'}}</text>
+      </view>
+    </view>
+
+    <view class="expand-panel card" wx:if="{{item.expanded}}">
+      <view class="scenario-desc">
+        <text class="scenario-icon">📌</text>
+        <text class="scenario-text">{{item.description}}</text>
+      </view>
+
+      <view class="form-group">
+        <text class="form-label">模板名称</text>
+        <input class="input-field" placeholder="请输入模板名称" value="{{item.template_name}}" data-index="{{index}}" catchtap="" bindinput="onNameInput" />
+      </view>
+
+      <view class="form-group">
+        <text class="form-label">场景说明</text>
+        <input class="input-field" placeholder="请输入场景说明" value="{{item.description}}" data-index="{{index}}" catchtap="" bindinput="onDescInput" />
+      </view>
+
+      <view class="form-group">
+        <text class="form-label">模板ID</text>
+        <input class="input-field" placeholder="请粘贴微信后台模板ID" value="{{item.template_id}}" data-index="{{index}}" catchtap="" bindinput="onIdInput" />
+      </view>
+
+      <view class="mapping-section">
+        <view class="section-header">
+          <text class="section-title">字段映射配置</text>
+          <view class="add-btn" data-index="{{index}}" catchtap="addMappingRow">+ 添加映射行</view>
+        </view>
+
+        <view class="mapping-table" wx:if="{{item.mappings.length > 0}}">
+          <view class="table-header">
+            <text class="col-wx">微信模板字段</text>
+            <text class="col-biz">对应业务字段</text>
+            <text class="col-example">示例值</text>
+            <text class="col-action">操作</text>
+          </view>
+          <view class="table-row" wx:for="{{item.mappings}}" wx:for-item="mapping" wx:for-index="mapIdx" wx:key="wx_field">
+            <input class="cell-input col-wx" placeholder="thing1" value="{{mapping.wx_field}}" data-tpl-index="{{index}}" data-map-index="{{mapIdx}}" catchtap="" bindinput="onWxFieldInput" />
+            <picker class="cell-picker col-biz" mode="selector" range="{{bizFieldOptions}}" range-key="label" value="{{mapping.biz_field_index}}" data-tpl-index="{{index}}" data-map-index="{{mapIdx}}" bindchange="onBizFieldChange">
+              <view class="picker-text">{{bizFieldOptions[mapping.biz_field_index].label || '选择字段'}} ▾</view>
+            </picker>
+            <input class="cell-input col-example" placeholder="示例值" value="{{mapping.example_value}}" data-tpl-index="{{index}}" data-map-index="{{mapIdx}}" catchtap="" bindinput="onExampleInput" />
+            <view class="col-action">
+              <view class="del-btn" data-tpl-index="{{index}}" data-map-index="{{mapIdx}}" catchtap="deleteMappingRow">删除</view>
+            </view>
+          </view>
+        </view>
+
+        <view class="empty-tip" wx:else>
+          <text>尚未添加映射行，请点击「+ 添加映射行」</text>
+        </view>
+      </view>
+
+      <view class="btn-group">
+        <button class="btn btn-danger" data-index="{{index}}" catchtap="deleteTemplate">删除模板</button>
+        <button class="btn btn-primary" data-index="{{index}}" catchtap="saveTemplate" loading="{{saving}}" disabled="{{saving}}">保存配置</button>
+      </view>
+    </view>
+  </view>
+
+  <view class="add-template-btn" bindtap="addTemplate">
+    <text class="icon">+</text>
+    <text>新增模板</text>
+  </view>
+</view>

@@ -4,9 +4,9 @@
  */
 
 let messageTemplates = {
-  bookingSuccessTemplateId: '',
+  bookingSuccessTemplateId: 'mVdMRIYRRDRzk789Rw3Y6xUSo6fkkbTHuA1oicTlobE',
   classReminderTemplateId: '',
-  bookingCancelTemplateId: '',
+  bookingCancelTemplateId: 'UICX8hELSZ_TCGg1Jdnd3nGkrn9dlk6qep6H9grWLgo',
   waitlistAvailableTemplateId: '',
   packageExpiringTemplateId: '',
   packageActivatedTemplateId: '',
@@ -21,6 +21,14 @@ let reminderSettings = {
   inactive_remind_days: 10,
   reminder_send_time: '14:00',
 };
+
+const CANCEL_REASONS = [
+  '不足开课人数',
+  '恶劣天气',
+  '教练突发状况',
+  '放假',
+  '其他'
+];
 
 // 获取消息模板配置
 exports.getMessageTemplates = () => messageTemplates;
@@ -52,3 +60,5 @@ exports.setReminderSettings = (settings) => {
     reminder_send_time: settings.reminder_send_time || '14:00',
   };
 };
+
+exports.getCancelReasons = () => CANCEL_REASONS;

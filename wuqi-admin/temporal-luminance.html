@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Temporal Luminance - Generative Art</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.7.0/p5.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&family=Lora:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --anthropic-dark: #141413;
+            --anthropic-light: #faf9f5;
+            --anthropic-mid-gray: #b0aea5;
+            --anthropic-light-gray: #e8e6dc;
+            --anthropic-orange: #d97757;
+            --anthropic-blue: #6a9bcc;
+            --anthropic-green: #788c5d;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: linear-gradient(135deg, var(--anthropic-light) 0%, #f5f3ee 100%);
+            min-height: 100vh;
+            color: var(--anthropic-dark);
+        }
+
+        .container {
+            display: flex;
+            min-height: 100vh;
+            padding: 20px;
+            gap: 20px;
+        }
+
+        .sidebar {
+            width: 340px;
+            flex-shrink: 0;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 24px;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(20, 20, 19, 0.1);
+            overflow-y: auto;
+            overflow-x: hidden;
+        }
+
+        .sidebar h1 {
+            font-family: 'Lora', serif;
+            font-size: 24px;
+            font-weight: 500;
+            color: var(--anthropic-dark);
+            margin-bottom: 8px;
+        }
+
+        .sidebar .subtitle {
+            color: var(--anthropic-mid-gray);
+            font-size: 14px;
+            margin-bottom: 32px;
+            line-height: 1.4;
+        }
+
+        .control-section {
+            margin-bottom: 32px;
+        }
+
+        .control-section h3 {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--anthropic-dark);
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .control-section h3::before {
+            content: '•';
+            color: var(--anthropic-orange);
+            font-weight: bold;
+        }
+
+        .seed-input {
+            width: 100%;
+            background: var(--anthropic-light);
+            padding: 12px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            margin-bottom: 12px;
+            border: 1px solid var(--anthropic-light-gray);
+            text-align: center;
+        }
+
+        .seed-input:focus {
+            outline: none;
+            border-color: var(--anthropic-orange);
+            box-shadow: 0 0 0 2px rgba(217, 119, 87, 0.1);
+            background: white;
+        }
+
+        .seed-controls {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+
+        .time-selector {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+
+        .time-button {
+            background: var(--anthropic-light-gray);
+            color: var(--anthropic-dark);
+            border: none;
+            padding: 10px 8px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .time-button:hover {
+            background: var(--anthropic-mid-gray);
+        }
+
+        .time-button.active {
+            background: var(--anthropic-orange);
+            color: white;
+        }
+
+        .button {
+            background: var(--anthropic-orange);
+            color: white;
+            border: none;
+            padding: 10px 16px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            width: 100%;
+        }
+
+        .button:hover {
+            background: #c86641;
+            transform: translateY(-1px);
+        }
+
+        .button.secondary {
+            background: var(--anthropic-blue);
+        }
+
+        .button.secondary:hover {
+            background: #5a8bb8;
+        }
+
+        .button.tertiary {
+            background: var(--anthropic-green);
+        }
+
+        .button.tertiary:hover {
+            background: #6b7b52;
+        }
+
+        .button-row {
+            display: flex;
+            gap: 8px;
+        }
+
+        .button-row .button {
+            flex: 1;
+        }
+
+        .canvas-area {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 0;
+        }
+
+        #canvas-container {
+            width: 100%;
+            max-width: 1000px;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 20px 40px rgba(20, 20, 19, 0.1);
+            background: white;
+        }
+
+        #canvas-container canvas {
+            display: block;
+            width: 100% !important;
+            height: auto !important;
+        }
+
+        .loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            color: var(--anthropic-mid-gray);
+            padding: 100px;
+        }
+
+        .current-time {
+            text-align: center;
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 16px;
+            color: var(--anthropic-dark);
+        }
+
+        @media (max-width: 600px) {
+            .container {
+                flex-direction: column;
+            }
+
+            .sidebar {
+                width: 100%;
+            }
+
+            .canvas-area {
+                padding: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="sidebar">
+            <h1>Temporal Luminance</h1>
+            <div class="subtitle">Generative art capturing the beauty of light throughout the day</div>
+
+            <div class="control-section">
+                <h3>Time of Day</h3>
+                <div class="current-time" id="current-time-display">晨安 - Sunrise</div>
+                <div class="time-selector">
+                    <button class="time-button active" onclick="setTime('sunrise')">晨安</button>
+                    <button class="time-button" onclick="setTime('morning')">上午好</button>
+                    <button class="time-button" onclick="setTime('noon')">午安</button>
+                    <button class="time-button" onclick="setTime('afternoon')">下午好</button>
+                    <button class="time-button" onclick="setTime('sunset')">傍晚好</button>
+                    <button class="time-button" onclick="setTime('evening')">晚上好</button>
+                    <button class="time-button" onclick="setTime('latenight')">夜深了</button>
+                    <button class="time-button" onclick="generateAll()">All 7</button>
+                </div>
+            </div>
+
+            <div class="control-section">
+                <h3>Seed</h3>
+                <input type="number" id="seed-input" class="seed-input" value="12345" onchange="updateSeed()">
+                <div class="seed-controls">
+                    <button class="button secondary" onclick="previousSeed()">← Prev</button>
+                    <button class="button secondary" onclick="nextSeed()">Next →</button>
+                </div>
+                <button class="button tertiary" onclick="randomSeedAndUpdate()">↻ Random</button>
+            </div>
+
+            <div class="control-section">
+                <h3>Actions</h3>
+                <div class="button-row">
+                    <button class="button" onclick="generateArt()">Generate</button>
+                </div>
+                <div class="button-row" style="margin-top: 8px;">
+                    <button class="button secondary" onclick="downloadImage()">Download PNG</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="canvas-area">
+            <div id="canvas-container">
+                <div class="loading">Initializing generative art...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const timeSignatures = {
+            sunrise: {
+                name: '晨安 - Sunrise',
+                colors: ['#1a1a2e', '#e94560', '#ff6b6b', '#ffd93d'],
+                sunPosition: { x: 0.2, y: 0.7 },
+                sunSize: 0.15,
+                atmosphere: 'warm'
+            },
+            morning: {
+                name: '上午好 - Morning',
+                colors: ['#87ceeb', '#98d8c8', '#f7f9fc'],
+                sunPosition: { x: 0.5, y: 0.2 },
+                sunSize: 0.08,
+                atmosphere: 'bright'
+            },
+            noon: {
+                name: '午安 - Noon',
+                colors: ['#f8d7da', '#fff3cd', '#e2e0ff'],
+                sunPosition: { x: 0.5, y: 0.1 },
+                sunSize: 0.1,
+                atmosphere: 'golden'
+            },
+            afternoon: {
+                name: '下午好 - Afternoon',
+                colors: ['#ffecd2', '#fcb69f', '#ff9a56'],
+                sunPosition: { x: 0.6, y: 0.3 },
+                sunSize: 0.12,
+                atmosphere: 'vibrant'
+            },
+            sunset: {
+                name: '傍晚好 - Sunset',
+                colors: ['#2c3e50', '#e74c3c', '#f39c12', '#f1c40f'],
+                sunPosition: { x: 0.8, y: 0.6 },
+                sunSize: 0.18,
+                atmosphere: 'fiery'
+            },
+            evening: {
+                name: '晚上好 - Evening',
+                colors: ['#0c0c1e', '#1a1a3e', '#2d2d5e'],
+                sunPosition: { x: 0.75, y: 0.25 },
+                sunSize: 0.08,
+                atmosphere: 'serene'
+            },
+            latenight: {
+                name: '夜深了 - Late Night',
+                colors: ['#0a0a0a', '#1a1a2e', '#16213e'],
+                sunPosition: { x: 0.5, y: 0.15 },
+                sunSize: 0.06,
+                atmosphere: 'mysterious'
+            }
+        };
+
+        let params = {
+            seed: 12345,
+            currentTime: 'sunrise',
+            noiseScale: 0.005,
+            detail: 0.5
+        };
+
+        let defaultParams = {...params};
+
+        function setup() {
+            let canvas = createCanvas(1600, 900);
+            canvas.parent('canvas-container');
+            document.querySelector('.loading').style.display = 'none';
+            generateArt();
+        }
+
+        function draw() {
+        }
+
+        function generateArt() {
+            randomSeed(params.seed);
+            noiseSeed(params.seed);
+            
+            const time = timeSignatures[params.currentTime];
+            background(255);
+            
+            drawGradientBackground(time.colors);
+            drawAtmosphericEffects(time);
+            drawSunOrMoon(time);
+            drawSilhouette(time);
+        }
+
+        function drawGradientBackground(colors) {
+            for (let y = 0; y < height; y++) {
+                let inter = map(y, 0, height, 0, 1);
+                let c = lerpColorArray(colors, inter);
+                stroke(c);
+                line(0, y, width, y);
+            }
+        }
+
+        function lerpColorArray(colors, t) {
+            let numSegments = colors.length - 1;
+            let segment = Math.floor(t * numSegments);
+            let segmentT = (t * numSegments) - segment;
+            
+            if (segment >= numSegments) segment = numSegments - 1;
+            if (segment < 0) segment = 0;
+            
+            return lerpColor(color(colors[segment]), color(colors[segment + 1]), segmentT);
+        }
+
+        function drawAtmosphericEffects(time) {
+            noStroke();
+            for (let i = 0; i < 50; i++) {
+                let x = random(width);
+                let y = random(height * 0.8);
+                let size = random(50, 200);
+                let alpha = random(10, 30);
+                
+                if (time.atmosphere === 'warm' || time.atmosphere === 'fiery') {
+                    fill(255, 200, 100, alpha);
+                } else if (time.atmosphere === 'bright') {
+                    fill(255, 255, 255, alpha);
+                } else if (time.atmosphere === 'serene' || time.atmosphere === 'mysterious') {
+                    fill(150, 180, 255, alpha);
+                } else {
+                    fill(255, 220, 180, alpha);
+                }
+                
+                ellipse(x, y, size, size * 0.6);
+            }
+            
+            if (time.atmosphere === 'serene' || time.atmosphere === 'mysterious') {
+                fill(255);
+                for (let i = 0; i < 150; i++) {
+                    let x = random(width);
+                    let y = random(height * 0.7);
+                    let size = random(1, 3);
+                    ellipse(x, y, size, size);
+                }
+            }
+            
+            if (time.atmosphere === 'bright') {
+                fill(255, 255, 255, 200);
+                for (let i = 0; i < 5; i++) {
+                    let x = random(width);
+                    let y = random(100, 300);
+                    drawCloud(x, y);
+                }
+            }
+        }
+
+        function drawCloud(x, y) {
+            ellipse(x, y, 120, 60);
+            ellipse(x + 40, y - 20, 80, 50);
+            ellipse(x + 70, y, 90, 55);
+            ellipse(x + 30, y + 15, 70, 40);
+        }
+
+        function drawSunOrMoon(time) {
+            let x = time.sunPosition.x * width;
+            let y = time.sunPosition.y * height;
+            let size = Math.min(width, height) * time.sunSize;
+            
+            if (time.atmosphere === 'serene' || time.atmosphere === 'mysterious') {
+                let moonGlow = createRadialGradient(x, y, 0, x, y, size * 2);
+                moonGlow.addColorStop(0, 'rgba(255, 250, 230, 0.8)');
+                moonGlow.addColorStop(0.5, 'rgba(255, 220, 180, 0.3)');
+                moonGlow.addColorStop(1, 'rgba(255, 220, 180, 0)');
+                fill(moonGlow);
+                noStroke();
+                ellipse(x, y, size * 3, size * 3);
+                
+                fill(255, 250, 230);
+                ellipse(x, y, size, size);
+            } else {
+                let sunGlow = createRadialGradient(x, y, 0, x, y, size * 2);
+                sunGlow.addColorStop(0, 'rgba(255, 255, 200, 0.9)');
+                sunGlow.addColorStop(0.3, time.colors[time.colors.length - 1] + 'cc');
+                sunGlow.addColorStop(0.7, time.colors[time.colors.length - 2] + '66');
+                sunGlow.addColorStop(1, 'rgba(0, 0, 0, 0)');
+                fill(sunGlow);
+                noStroke();
+                ellipse(x, y, size * 3, size * 3);
+                
+                fill(255, 250, 200);
+                ellipse(x, y, size, size);
+            }
+        }
+
+        function createRadialGradient(x1, y1, r1, x2, y2, r2) {
+            let gradient = drawingContext.createRadialGradient(x1, y1, r1, x2, y2, r2);
+            return gradient;
+        }
+
+        function drawSilhouette(time) {
+            noStroke();
+            
+            if (time.atmosphere === 'mysterious') {
+                fill(26, 26, 46, 240);
+                for (let i = 0; i < 20; i++) {
+                    let bx = 50 + i * (width - 100) / 19;
+                    let bh = 100 + random(200);
+                    rect(bx - 15, height - bh, 30, bh);
+                    
+                    fill(255, 235, 184, random(50, 150));
+                    for (let j = 0; j < Math.floor(bh / 30); j++) {
+                        if (random() > 0.3) {
+                            rect(bx - 10, height - bh + 15 + j * 30, 8, 12);
+                        }
+                    }
+                    fill(26, 26, 46, 240);
+                }
+            } else if (time.atmosphere === 'golden') {
+                fill(139, 105, 20, 150);
+                rect(width * 0.6, height * 0.5, 150, 100);
+                fill(212, 167, 106, 180);
+                rect(width * 0.55, height * 0.55, 200, 20);
+            } else if (time.atmosphere === 'vibrant') {
+                stroke(255, 255, 255, 50);
+                noFill();
+                strokeWeight(2);
+                for (let i = 0; i < 8; i++) {
+                    ellipse(
+                        width / 2 + random(-200, 200),
+                        height / 2 + random(-100, 100),
+                        100 + random(200),
+                        100 + random(200)
+                    );
+                }
+                noStroke();
+                fill(139, 105, 20, 100);
+                rect(0, height * 0.7, width, height * 0.3);
+            } else {
+                fill(26, 26, 46, 200);
+                beginShape();
+                vertex(0, height);
+                for (let x = 0; x <= width; x += 50) {
+                    let y = height - 100 - Math.sin(x * 0.01 + params.seed * 0.001) * 50 - random(30);
+                    vertex(x, y);
+                }
+                vertex(width, height);
+                endShape(CLOSE);
+            }
+        }
+
+        function setTime(timeKey) {
+            params.currentTime = timeKey;
+            document.getElementById('current-time-display').textContent = timeSignatures[timeKey].name;
+            
+            document.querySelectorAll('.time-button').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            
+            generateArt();
+        }
+
+        async function generateAll() {
+            const times = ['sunrise', 'morning', 'noon', 'afternoon', 'sunset', 'evening', 'latenight'];
+            for (let time of times) {
+                params.currentTime = time;
+                document.getElementById('current-time-display').textContent = timeSignatures[time].name;
+                generateArt();
+                await new Promise(resolve => setTimeout(resolve, 500));
+            }
+        }
+
+        function updateSeedDisplay() {
+            document.getElementById('seed-input').value = params.seed;
+        }
+
+        function updateSeed() {
+            let input = document.getElementById('seed-input');
+            let newSeed = parseInt(input.value);
+            if (newSeed && newSeed > 0) {
+                params.seed = newSeed;
+                generateArt();
+            } else {
+                updateSeedDisplay();
+            }
+        }
+
+        function previousSeed() {
+            params.seed = Math.max(1, params.seed - 1);
+            updateSeedDisplay();
+            generateArt();
+        }
+
+        function nextSeed() {
+            params.seed = params.seed + 1;
+            updateSeedDisplay();
+            generateArt();
+        }
+
+        function randomSeedAndUpdate() {
+            params.seed = Math.floor(Math.random() * 999999) + 1;
+            updateSeedDisplay();
+            generateArt();
+        }
+
+        function downloadImage() {
+            save(timeSignatures[params.currentTime].name + '.png');
+        }
+
+        window.addEventListener('load', function() {
+            updateSeedDisplay();
+        });
+    </script>
+</body>
+</html>

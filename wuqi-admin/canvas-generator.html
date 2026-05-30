@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>问候图片生成器</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Microsoft YaHei', sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh;
+            padding: 40px 20px;
+        }
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+        h1 {
+            text-align: center;
+            color: white;
+            margin-bottom: 40px;
+            font-size: 32px;
+            text-shadow: 0 2px 10px rgba(0,0,0,0.3);
+        }
+        .controls {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .generate-btn {
+            padding: 15px 40px;
+            font-size: 18px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
+        }
+        .generate-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 15px 40px rgba(102, 126, 234, 0.6);
+        }
+        .images-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(450px, 1fr));
+            gap: 30px;
+        }
+        .image-card {
+            background: rgba(255,255,255,0.1);
+            border-radius: 16px;
+            padding: 20px;
+            backdrop-filter: blur(10px);
+        }
+        .image-card h3 {
+            font-size: 18px;
+            color: white;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+        .canvas-container {
+            width: 100%;
+            aspect-ratio: 16/9;
+            background: #000;
+            border-radius: 12px;
+            overflow: hidden;
+            margin-bottom: 15px;
+        }
+        canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+        .download-btn {
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .download-btn:hover {
+            opacity: 0.9;
+            transform: scale(1.02);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎨 问候图片生成器</h1>
+        <div class="controls">
+            <button class="generate-btn" onclick="generateAllImages()">生成所有图片</button>
+        </div>
+        <div class="images-grid" id="imagesGrid"></div>
+    </div>
+
+    <script>
+        const images = [
+            { name: '晨安', filename: 'hero-sunrise.jpg', type: 'sunrise' },
+            { name: '上午好', filename: 'hero-morning.jpg', type: 'morning' },
+            { name: '午安', filename: 'hero-noon.jpg', type: 'noon' },
+            { name: '下午好', filename: 'hero-afternoon.jpg', type: 'afternoon' },
+            { name: '傍晚好', filename: 'hero-sunset.jpg', type: 'sunset' },
+            { name: '晚上好', filename: 'hero-night.jpg', type: 'night' },
+            { name: '夜深了', filename: 'hero-late-night.jpg', type: 'lateNight' }
+        ];
+
+        function createGradient(ctx, canvas, colors) {
+            const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+            colors.forEach((color, i) => {
+                gradient.addColorStop(i / (colors.length - 1), color);
+            });
+            return gradient;
+        }
+
+        function drawSunrise(ctx, canvas) {
+            const gradient = createGradient(ctx, canvas, ['#1a1a2e', '#e94560', '#ff6b6b', '#ffd93d']);
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            const sunGradient = ctx.createRadialGradient(
+                canvas.width * 0.2, canvas.height * 0.7, 0,
+                canvas.width * 0.2, canvas.height * 0.7, 200
+            );
+            sunGradient.addColorStop(0, '#fff5cc');
+            sunGradient.addColorStop(0.3, '#ffd93d');
+            sunGradient.addColorStop(0.7, '#ff6b6b');
+            sunGradient.addColorStop(1, 'rgba(233, 69, 96, 0)');
+            ctx.fillStyle = sunGradient;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            ctx.fillStyle = 'rgba(26, 26, 46, 0.8)';
+            ctx.beginPath();
+            ctx.moveTo(0, canvas.height);
+            for (let x = 0; x <= canvas.width; x += 50) {
+                const y = canvas.height - 100 - Math.sin(x * 0.01) * 50 - Math.random() * 30;
+                ctx.lineTo(x, y);
+            }
+            ctx.lineTo(canvas.width, canvas.height);
+            ctx.fill();
+        }
+
+        function drawMorning(ctx, canvas) {
+            const gradient = createGradient(ctx, canvas, ['#87ceeb', '#98d8c8', '#f7f9fc']);
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            for (let i = 0; i < 5; i++) {
+                const x = Math.random() * canvas.width;
+                const y = 100 + Math.random() * 200;
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+                ctx.beginPath();
+                ctx.arc(x, y, 40 + Math.random() * 30, 0, Math.PI * 2);
+                ctx.arc(x + 30, y - 10, 30 + Math.random() * 20, 0, Math.PI * 2);
+                ctx.arc(x + 50, y, 35 + Math.random() * 25, 0, Math.PI * 2);
+                ctx.arc(x + 20, y + 10, 25 + Math.random() * 15, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        function drawNoon(ctx, canvas) {
+            const gradient = createGradient(ctx, canvas, ['#f8d7da', '#fff3cd', '#e2e0ff']);
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            ctx.fillStyle = '#8b6914';
+            ctx.fillRect(canvas.width * 0.6, canvas.height * 0.5, 150, 100);
+            ctx.fillStyle = '#d4a76a';
+            ctx.fillRect(canvas.width * 0.55, canvas.height * 0.55, 200, 20);
+            
+            ctx.fillStyle = '#f5f5f5';
+            ctx.beginPath();
+            ctx.ellipse(canvas.width * 0.65, canvas.height * 0.48, 35, 8, 0, 0, Math.PI * 2);
+            ctx.fill();
+            
+            ctx.fillStyle = '#d4a76a';
+            ctx.beginPath();
+            ctx.ellipse(canvas.width * 0.78, canvas.height * 0.52, 20, 5, 0, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        function drawAfternoon(ctx, canvas) {
+            const gradient = createGradient(ctx, canvas, ['#ffecd2', '#fcb69f', '#ff9a56']);
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+            ctx.lineWidth = 2;
+            for (let i = 0; i < 8; i++) {
+                ctx.beginPath();
+                ctx.arc(
+                    canvas.width / 2 + Math.random() * 200 - 100,
+                    canvas.height / 2 + Math.random() * 100 - 50,
+                    50 + Math.random() * 100,
+                    0, Math.PI * 2
+                );
+                ctx.stroke();
+            }
+            
+            const floorGradient = ctx.createLinearGradient(0, canvas.height * 0.7, 0, canvas.height);
+            floorGradient.addColorStop(0, 'rgba(139, 105, 20, 0.5)');
+            floorGradient.addColorStop(1, 'rgba(139, 105, 20, 0.8)');
+            ctx.fillStyle = floorGradient;
+            ctx.fillRect(0, canvas.height * 0.7, canvas.width, canvas.height * 0.3);
+        }
+
+        function drawSunset(ctx, canvas) {
+            const gradient = createGradient(ctx, canvas, ['#2c3e50', '#e74c3c', '#f39c12', '#f1c40f']);
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            const sunGradient = ctx.createRadialGradient(
+                canvas.width * 0.8, canvas.height * 0.6, 0,
+                canvas.width * 0.8, canvas.height * 0.6, 250
+            );
+            sunGradient.addColorStop(0, '#fff9e6');
+            sunGradient.addColorStop(0.2, '#f1c40f');
+            sunGradient.addColorStop(0.5, '#e74c3c');
+            sunGradient.addColorStop(1, 'rgba(231, 76, 60, 0)');
+            ctx.fillStyle = sunGradient;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            ctx.fillStyle = 'rgba(44, 62, 80, 0.9)';
+            ctx.beginPath();
+            ctx.moveTo(0, canvas.height);
+            for (let x = 0; x <= canvas.width; x += 40) {
+                const y = canvas.height - 80 - Math.sin(x * 0.008) * 60 - Math.random() * 40;
+                ctx.lineTo(x, y);
+            }
+            ctx.lineTo(canvas.width, canvas.height);
+            ctx.fill();
+        }
+
+        function drawNight(ctx, canvas) {
+            const gradient = createGradient(ctx, canvas, ['#0c0c1e', '#1a1a3e', '#2d2d5e']);
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            ctx.fillStyle = 'white';
+            for (let i = 0; i < 150; i++) {
+                const x = Math.random() * canvas.width;
+                const y = Math.random() * canvas.height * 0.7;
+                const size = Math.random() * 2 + 0.5;
+                ctx.beginPath();
+                ctx.arc(x, y, size, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            
+            const moonGradient = ctx.createRadialGradient(
+                canvas.width * 0.75, canvas.height * 0.25, 0,
+                canvas.width * 0.75, canvas.height * 0.25, 80
+            );
+            moonGradient.addColorStop(0, '#fffde7');
+            moonGradient.addColorStop(0.7, '#ffe0b2');
+            moonGradient.addColorStop(1, 'rgba(255, 224, 178, 0)');
+            ctx.fillStyle = moonGradient;
+            ctx.beginPath();
+            ctx.arc(canvas.width * 0.75, canvas.height * 0.25, 60, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        function drawLateNight(ctx, canvas) {
+            const gradient = createGradient(ctx, canvas, ['#0a0a0a', '#1a1a2e', '#16213e']);
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            for (let i = 0; i < 20; i++) {
+                const x = 50 + i * (canvas.width - 100) / 19;
+                const h = 100 + Math.random() * 200;
+                ctx.fillStyle = '#1a1a2e';
+                ctx.fillRect(x - 15, canvas.height - h, 30, h);
+                
+                ctx.fillStyle = 'rgba(255, 235, 184, ' + (0.3 + Math.random() * 0.5) + ')';
+                for (let j = 0; j < Math.floor(h / 30); j++) {
+                    if (Math.random() > 0.3) {
+                        ctx.fillRect(x - 10, canvas.height - h + 15 + j * 30, 8, 12);
+                    }
+                }
+            }
+            
+            ctx.fillStyle = '#ffeb3b';
+            ctx.beginPath();
+            ctx.arc(canvas.width * 0.3, canvas.height * 0.85, 3, 0, Math.PI * 2);
+            ctx.fill();
+            
+            ctx.strokeStyle = 'rgba(255, 235, 59, 0.5)';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(canvas.width * 0.25, canvas.height * 0.86);
+            ctx.lineTo(canvas.width * 0.35, canvas.height * 0.84);
+            ctx.stroke();
+        }
+
+        function drawImage(canvas, type) {
+            const ctx = canvas.getContext('2d');
+            canvas.width = 1920;
+            canvas.height = 1080;
+            
+            switch(type) {
+                case 'sunrise': drawSunrise(ctx, canvas); break;
+                case 'morning': drawMorning(ctx, canvas); break;
+                case 'noon': drawNoon(ctx, canvas); break;
+                case 'afternoon': drawAfternoon(ctx, canvas); break;
+                case 'sunset': drawSunset(ctx, canvas); break;
+                case 'night': drawNight(ctx, canvas); break;
+                case 'lateNight': drawLateNight(ctx, canvas); break;
+            }
+        }
+
+        function createImageCard(imageInfo) {
+            const card = document.createElement('div');
+            card.className = 'image-card';
+            
+            card.innerHTML = `
+                <h3>${imageInfo.name}</h3>
+                <div class="canvas-container">
+                    <canvas id="canvas-${imageInfo.type}"></canvas>
+                </div>
+                <button class="download-btn" onclick="downloadImage('${imageInfo.type}', '${imageInfo.filename}')">
+                    下载 ${imageInfo.filename}
+                </button>
+            `;
+            
+            return card;
+        }
+
+        function generateAllImages() {
+            const grid = document.getElementById('imagesGrid');
+            grid.innerHTML = '';
+            
+            images.forEach(image => {
+                const card = createImageCard(image);
+                grid.appendChild(card);
+                
+                setTimeout(() => {
+                    const canvas = document.getElementById(`canvas-${image.type}`);
+                    drawImage(canvas, image.type);
+                }, 100);
+            });
+        }
+
+        function downloadImage(type, filename) {
+            const canvas = document.getElementById(`canvas-${type}`);
+            const link = document.createElement('a');
+            link.download = filename;
+            link.href = canvas.toDataURL('image/jpeg', 0.95);
+            link.click();
+        }
+
+        window.onload = generateAllImages;
+    </script>
+</body>
+</html>

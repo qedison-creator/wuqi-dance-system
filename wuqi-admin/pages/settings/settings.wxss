@@ -86,6 +86,44 @@
   color: var(--color-primary);
 }
 
+.nav-card {
+  margin-bottom: 30rpx;
+  display: block;
+}
+
+.nav-row {
+  display: flex;
+  align-items: center;
+}
+
+.nav-icon {
+  font-size: 36rpx;
+  margin-right: 20rpx;
+}
+
+.nav-info {
+  flex: 1;
+}
+
+.nav-title {
+  font-size: 28rpx;
+  color: var(--text-primary);
+  font-weight: bold;
+  display: block;
+}
+
+.nav-desc {
+  font-size: 22rpx;
+  color: var(--text-secondary);
+  display: block;
+  margin-top: 4rpx;
+}
+
+.nav-arrow {
+  font-size: 40rpx;
+  color: var(--text-tertiary);
+}
+
 .section-title {
   font-size: 28rpx;
   color: var(--text-primary);
@@ -224,4 +262,14 @@
 .loading-text {
   font-size: 26rpx;
   color: var(--text-secondary);
+}
+
+.field-guide-btn {
+  display: inline-block;
+  padding: 8rpx 16rpx;
+  margin-top: 12rpx;
+  background-color: rgba(197, 116, 75, 0.1);
+  border-radius: 8rpx;
+  font-size: 22rpx;
+  color: var(--color-primary);
 }

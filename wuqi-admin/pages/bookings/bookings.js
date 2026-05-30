@@ -151,24 +151,32 @@ Page({
   // 管理员手动取消预约
   async onCancelBooking(e) {
     const { id } = e.currentTarget.dataset;
-    wx.showModal({
-      title: '确认取消',
-      content: '确认手动取消此预约？将退还会员次数。',
-      success: async (res) => {
-        if (res.confirm) {
-          try {
-            await request({
-              url: `/bookings/${id}/admin-cancel`,
-              method: 'PUT',
-              data: { reason: '管理员手动取消' }
-            });
-            wx.showToast({ title: '已取消', icon: 'success' });
-            this.loadBookingList();
-          } catch (err) {
-            console.error('取消预约失败', err);
+    wx.showActionSheet({
+      itemList: ['不足开课人数', '恶劣天气', '教练突发状况', '放假', '其他'],
+      success: (res) => {
+        const reasons = ['不足开课人数', '恶劣天气', '教练突发状况', '放假', '其他'];
+        const reason = reasons[res.tapIndex];
+        wx.showModal({
+          title: '确认取消',
+          content: `确认以「${reason}」为由取消此预约？将退还会员次数。`,
+          success: async (modalRes) => {
+            if (modalRes.confirm) {
+              try {
+                await request({
+                  url: `/bookings/${id}/admin-cancel`,
+                  method: 'PUT',
+                  data: { reason }
+                });
+                wx.showToast({ title: '已取消', icon: 'success' });
+                this.loadBookingList();
+              } catch (err) {
+                console.error('取消预约失败', err);
+              }
+            }
           }
-        }
-      }
+        });
+      },
+      fail: () => {}
     });
   },
 

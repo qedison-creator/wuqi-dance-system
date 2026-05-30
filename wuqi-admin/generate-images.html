@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>舞蹈工作室图片生成</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Microsoft YaHei', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 40px 20px;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 40px;
+            font-size: 32px;
+        }
+        .images-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 30px;
+        }
+        .image-card {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 20px;
+            transition: transform 0.3s ease;
+        }
+        .image-card:hover {
+            transform: translateY(-5px);
+        }
+        .image-card h3 {
+            font-size: 18px;
+            color: #333;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+        .image-container {
+            width: 100%;
+            aspect-ratio: 16/9;
+            background: #e9ecef;
+            border-radius: 8px;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 15px;
+        }
+        .image-container img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .image-container .loading {
+            color: #666;
+            font-size: 14px;
+        }
+        .download-btn {
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .download-btn:hover {
+            opacity: 0.9;
+            transform: scale(1.02);
+        }
+        .download-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎵 舞蹈工作室图片生成</h1>
+        <div class="images-grid" id="imagesGrid"></div>
+    </div>
+
+    <script>
+        const images = [
+            {
+                name: '晨安',
+                filename: 'hero-sunrise.jpg',
+                prompt: encodeURIComponent('清晨日出，温暖阳光，柔和光晕，高质量摄影，16:9横向')
+            },
+            {
+                name: '上午好',
+                filename: 'hero-morning.jpg',
+                prompt: encodeURIComponent('晴朗蓝天，白云，明亮阳光，高质量摄影，16:9横向')
+            },
+            {
+                name: '午安',
+                filename: 'hero-noon.jpg',
+                prompt: encodeURIComponent('温暖午后阳光，咖啡休憩，温馨惬意，高质量摄影，16:9横向')
+            },
+            {
+                name: '下午好',
+                filename: 'hero-afternoon.jpg',
+                prompt: encodeURIComponent('活力舞蹈室，明亮温暖，高质量摄影，16:9横向')
+            },
+            {
+                name: '傍晚好',
+                filename: 'hero-sunset.jpg',
+                prompt: encodeURIComponent('日落黄昏，暖色调光晕，高质量摄影，16:9横向')
+            },
+            {
+                name: '晚上好',
+                filename: 'hero-night.jpg',
+                prompt: encodeURIComponent('月亮在星空下，宁静夜晚，高质量摄影，16:9横向')
+            },
+            {
+                name: '夜深了',
+                filename: 'hero-late-night.jpg',
+                prompt: encodeURIComponent('深夜城市，宁静夜晚，高质量摄影，16:9横向')
+            }
+        ];
+
+        const imageSize = 'landscape_16_9';
+        const baseUrl = 'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image';
+
+        function createImageCard(image) {
+            const card = document.createElement('div');
+            card.className = 'image-card';
+            
+            const imageUrl = `${baseUrl}?prompt=${image.prompt}&image_size=${imageSize}`;
+            
+            card.innerHTML = `
+                <h3>${image.name}</h3>
+                <div class="image-container" id="container-${image.filename}">
+                    <span class="loading">正在加载图片...</span>
+                </div>
+                <button class="download-btn" onclick="downloadImage('${imageUrl}', '${image.filename}')">
+                    下载 ${image.filename}
+                </button>
+            `;
+            
+            setTimeout(() => {
+                const container = document.getElementById(`container-${image.filename}`);
+                const img = document.createElement('img');
+                img.src = imageUrl;
+                img.alt = image.name;
+                img.onload = () => {
+                    container.innerHTML = '';
+                    container.appendChild(img);
+                };
+                img.onerror = () => {
+                    container.innerHTML = '<span class="loading">图片加载失败，请重试</span>';
+                };
+            }, 100);
+            
+            return card;
+        }
+
+        async function downloadImage(url, filename) {
+            try {
+                const response = await fetch(url);
+                const blob = await response.blob();
+                const downloadUrl = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = downloadUrl;
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(downloadUrl);
+            } catch (error) {
+                alert('下载失败: ' + error.message);
+            }
+        }
+
+        const grid = document.getElementById('imagesGrid');
+        images.forEach(image => {
+            grid.appendChild(createImageCard(image));
+        });
+    </script>
+</body>
+</html>

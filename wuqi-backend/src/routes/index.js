@@ -50,5 +50,6 @@ router.use('/qrcode', qrcodeRoutes);
 router.use('/system', systemRoutes);
 router.use('/attendance', attendanceRoutes);
 router.use('/transfers', transferRoutes);
+router.use('/template-mappings', require('./template-mapping.routes'));
 
 module.exports = router;

@@ -3,8 +3,9 @@ const auth = require('../middleware/auth');
 const checkPermission = require('../middleware/permission');
 const { checkModulePermission } = require('../middleware/permission');
 const { success } = require('../utils/response');
-const { getMessageTemplates, setMessageTemplates, getReminderSettings, setReminderSettings } = require('../config/messageConfig');
+const { getMessageTemplates, setMessageTemplates, getReminderSettings, setReminderSettings, getCancelReasons } = require('../config/messageConfig');
 const Config = require('../models/Config');
+const TemplateFieldMapping = require('../models/TemplateFieldMapping');
 
 // GET /api/v1/config - 获取所有配置
 router.get('/', auth, checkModulePermission('config'), async (req, res, next) => {
@@ -43,6 +44,28 @@ const initDefaultConfigs = async () => {
       }
     }
 
+    const currentTemplates = getMessageTemplates();
+
+    const templateConfigs = [
+      { key: 'tpl_bookingSuccessTemplateId', value: currentTemplates.bookingSuccessTemplateId || '', description: '预约成功通知模板ID' },
+      { key: 'tpl_classReminderTemplateId', value: currentTemplates.classReminderTemplateId || '', description: '上课提醒模板ID' },
+      { key: 'tpl_bookingCancelTemplateId', value: currentTemplates.bookingCancelTemplateId || '', description: '取消预约通知模板ID' },
+      { key: 'tpl_waitlistAvailableTemplateId', value: currentTemplates.waitlistAvailableTemplateId || '', description: '候补成功通知模板ID' },
+      { key: 'tpl_packageExpiringTemplateId', value: currentTemplates.packageExpiringTemplateId || '', description: '套餐即将到期模板ID' },
+      { key: 'tpl_packageActivatedTemplateId', value: currentTemplates.packageActivatedTemplateId || '', description: '套餐已激活模板ID' },
+      { key: 'tpl_countCardLowRemindTemplateId', value: currentTemplates.countCardLowRemindTemplateId || '', description: '次卡低次数提醒模板ID' },
+      { key: 'tpl_memberInactiveRemindTemplateId', value: currentTemplates.memberInactiveRemindTemplateId || '', description: '会员不活跃提醒模板ID' },
+      { key: 'tpl_phoneAuditResultTemplateId', value: currentTemplates.phoneAuditResultTemplateId || '', description: '手机号审核结果通知模板ID' }
+    ];
+
+    for (const config of templateConfigs) {
+      const existing = await Config.findOne({ key: config.key });
+      if (!existing && config.value) {
+        await Config.create(config);
+        console.log(`初始化模板配置: ${config.key} = ${config.value}`);
+      }
+    }
+
     const templateKeys = [
       { dbKey: 'tpl_bookingSuccessTemplateId', configKey: 'bookingSuccessTemplateId' },
       { dbKey: 'tpl_classReminderTemplateId', configKey: 'classReminderTemplateId' },
@@ -65,15 +88,15 @@ const initDefaultConfigs = async () => {
 
     if (Object.keys(savedTemplates).length > 0) {
       setMessageTemplates({
-        bookingSuccessTemplateId: savedTemplates.bookingSuccessTemplateId || '',
-        classReminderTemplateId: savedTemplates.classReminderTemplateId || '',
-        bookingCancelTemplateId: savedTemplates.bookingCancelTemplateId || '',
-        waitlistAvailableTemplateId: savedTemplates.waitlistAvailableTemplateId || '',
-        packageExpiringTemplateId: savedTemplates.packageExpiringTemplateId || '',
-        packageActivatedTemplateId: savedTemplates.packageActivatedTemplateId || '',
-        countCardLowRemindTemplateId: savedTemplates.countCardLowRemindTemplateId || '',
-        memberInactiveRemindTemplateId: savedTemplates.memberInactiveRemindTemplateId || '',
-        phoneAuditResultTemplateId: savedTemplates.phoneAuditResultTemplateId || ''
+        bookingSuccessTemplateId: savedTemplates.bookingSuccessTemplateId || currentTemplates.bookingSuccessTemplateId || '',
+        classReminderTemplateId: savedTemplates.classReminderTemplateId || currentTemplates.classReminderTemplateId || '',
+        bookingCancelTemplateId: savedTemplates.bookingCancelTemplateId || currentTemplates.bookingCancelTemplateId || '',
+        waitlistAvailableTemplateId: savedTemplates.waitlistAvailableTemplateId || currentTemplates.waitlistAvailableTemplateId || '',
+        packageExpiringTemplateId: savedTemplates.packageExpiringTemplateId || currentTemplates.packageExpiringTemplateId || '',
+        packageActivatedTemplateId: savedTemplates.packageActivatedTemplateId || currentTemplates.packageActivatedTemplateId || '',
+        countCardLowRemindTemplateId: savedTemplates.countCardLowRemindTemplateId || currentTemplates.countCardLowRemindTemplateId || '',
+        memberInactiveRemindTemplateId: savedTemplates.memberInactiveRemindTemplateId || currentTemplates.memberInactiveRemindTemplateId || '',
+        phoneAuditResultTemplateId: savedTemplates.phoneAuditResultTemplateId || currentTemplates.phoneAuditResultTemplateId || ''
       });
       console.log('[Config] 从数据库加载消息模板配置成功');
     }
@@ -90,6 +113,112 @@ const initDefaultConfigs = async () => {
     if (Object.keys(savedReminder).length > 0) {
       setReminderSettings(savedReminder);
       console.log('[Config] 从数据库加载提醒设置配置成功');
+    }
+
+    // 初始化默认字段映射（仅在不存在时创建）
+    const defaultMappings = [
+      {
+        template_key: 'bookingSuccess',
+        template_name: '课程预约成功通知',
+        description: '用户在小程序中预约课程成功后，系统自动推送微信订阅消息，告知用户预约已生效。消息中将展示课程名称、授课教练、上课门店及具体上课时间，帮助用户快速确认预约详情。',
+        mappings: [
+          { wx_field: 'thing1', biz_field: 'courseName', example_value: '拉伸课' },
+          { wx_field: 'phrase2', biz_field: 'coachName', example_value: '张三' },
+          { wx_field: 'thing3', biz_field: 'storeName', example_value: '微信健身馆' },
+          { wx_field: 'time4', biz_field: 'courseTime', example_value: '2018-07-08 11:00~12:00' },
+          { wx_field: 'time16', biz_field: 'bookingTime', example_value: '2024年10月17日15:01' }
+        ]
+      },
+      {
+        template_key: 'classReminder',
+        template_name: '上课提醒',
+        description: '课程开始前，系统自动向已预约该课程的用户推送上课提醒通知。消息中将展示课程名称、上课时间及具体教室位置，避免用户遗忘或跑错教室，提升学员出勤体验。',
+        mappings: [
+          { wx_field: 'thing1', biz_field: 'courseName', example_value: '爵士舞入门' },
+          { wx_field: 'time2', biz_field: 'courseTime', example_value: '2026-06-01 19:00' },
+          { wx_field: 'thing3', biz_field: 'classroom', example_value: '固戍店A教室' }
+        ]
+      },
+      {
+        template_key: 'bookingCancel',
+        template_name: '课程预约取消通知',
+        description: '用户在小程序中取消已预约的课程后，系统自动推送取消确认通知。消息中将展示取消的课程名称、教练、门店及取消时间，并附带取消原因说明，让用户清晰了解取消结果。',
+        mappings: [
+          { wx_field: 'thing3', biz_field: 'courseName', example_value: '普拉提' },
+          { wx_field: 'thing10', biz_field: 'coachName', example_value: 'John' },
+          { wx_field: 'const5', biz_field: 'cancelReason', example_value: '恶劣天气' },
+          { wx_field: 'thing1', biz_field: 'storeName', example_value: '瑜伽馆' },
+          { wx_field: 'time12', biz_field: 'cancelTime', example_value: '2022年11月22日 16:00' }
+        ]
+      },
+      {
+        template_key: 'waitlistAvailable',
+        template_name: '候补成功通知',
+        description: '当已满员的课程有名额空出时，系统自动向候补队列中的用户推送通知，提醒用户当前可预约该课程。消息中将展示课程名称、上课时间，引导用户尽快完成预约。',
+        mappings: [
+          { wx_field: 'thing1', biz_field: 'courseName', example_value: '有氧舞蹈' },
+          { wx_field: 'time2', biz_field: 'courseTime', example_value: '2026-06-02 10:00' },
+          { wx_field: 'thing3', biz_field: 'tipMessage', example_value: '有名额空出，请尽快预约' }
+        ]
+      },
+      {
+        template_key: 'packageExpiring',
+        template_name: '套餐即将到期',
+        description: '当用户的舞蹈课程套餐即将到期时，系统自动推送到期提醒通知。消息中将展示套餐名称、到期日期及续费提示，帮助用户及时续费避免权益中断。',
+        mappings: [
+          { wx_field: 'thing1', biz_field: 'packageName', example_value: '月卡套餐' },
+          { wx_field: 'date2', biz_field: 'expireDate', example_value: '2026-06-30' },
+          { wx_field: 'thing3', biz_field: 'tipMessage', example_value: '您的套餐即将到期，请及时续费' }
+        ]
+      },
+      {
+        template_key: 'packageActivated',
+        template_name: '套餐已激活',
+        description: '用户成功购买或激活舞蹈课程套餐后，系统自动推送激活确认通知。消息中将展示套餐名称、有效期截止日期及引导语，鼓励用户立即开始预约课程。',
+        mappings: [
+          { wx_field: 'thing1', biz_field: 'packageName', example_value: '次卡30次' },
+          { wx_field: 'date2', biz_field: 'expireDate', example_value: '2026-12-31' },
+          { wx_field: 'thing3', biz_field: 'tipMessage', example_value: '套餐已激活，快来预约课程吧' }
+        ]
+      },
+      {
+        template_key: 'countCardLowRemind',
+        template_name: '次卡低次数提醒',
+        description: '当用户的次卡剩余可用次数低于设定阈值时，系统自动推送低次数提醒通知。消息中将展示套餐名称、剩余次数及续费引导语，提醒用户及时补充次卡以免影响正常上课。',
+        mappings: [
+          { wx_field: 'thing1', biz_field: 'packageName', example_value: '次卡20次' },
+          { wx_field: 'number2', biz_field: 'remainCount', example_value: '3' },
+          { wx_field: 'thing3', biz_field: 'tipMessage', example_value: '剩余次数不足，请及时续费' }
+        ]
+      },
+      {
+        template_key: 'memberInactiveRemind',
+        template_name: '会员不活跃提醒',
+        description: '当会员连续多日未在小程序中预约任何课程时，系统自动推送不活跃提醒通知。消息中将展示会员昵称、未活跃天数及暖心引导语，鼓励学员重新回到课堂，提升会员活跃度和留存率。',
+        mappings: [
+          { wx_field: 'thing1', biz_field: 'memberNickname', example_value: '小明' },
+          { wx_field: 'number2', biz_field: 'inactiveDays', example_value: '30' },
+          { wx_field: 'thing3', biz_field: 'tipMessage', example_value: '好久不见，快来跳舞吧' }
+        ]
+      },
+      {
+        template_key: 'phoneAuditResult',
+        template_name: '手机号审核结果',
+        description: '当用户在小程序中提交手机号修改申请并完成审核后，系统自动推送审核结果通知。消息中将展示审核事项、审核结果及备注说明，使用户第一时间了解手机号变更的处理结果。',
+        mappings: [
+          { wx_field: 'thing1', biz_field: 'auditItem', example_value: '预留手机号修改' },
+          { wx_field: 'phrase2', biz_field: 'auditResult', example_value: '审核通过' },
+          { wx_field: 'thing3', biz_field: 'remark', example_value: '手机号已更新成功' }
+        ]
+      }
+    ];
+
+    for (const dm of defaultMappings) {
+      const exists = await TemplateFieldMapping.findOne({ template_key: dm.template_key });
+      if (!exists) {
+        await TemplateFieldMapping.create(dm);
+        console.log(`[Config] 初始化字段映射: ${dm.template_key}`);
+      }
     }
   } catch (err) {
     console.error('初始化默认配置失败:', err);
@@ -214,6 +343,15 @@ router.put('/reminder-settings', auth, checkPermission(['super_admin']), async (
 router.get('/active-templates', async (req, res, next) => {
   try {
     res.json(success(getMessageTemplates()));
+  } catch (err) {
+    next(err);
+  }
+});
+
+// 获取取消原因枚举值（无需认证）
+router.get('/cancel-reasons', async (req, res, next) => {
+  try {
+    res.json(success(getCancelReasons()));
   } catch (err) {
     next(err);
   }

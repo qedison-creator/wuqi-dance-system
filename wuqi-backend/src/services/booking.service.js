@@ -666,6 +666,16 @@ exports.adminCancelBooking = async (bookingId, reason, operatorId) => {
         console.error('通知候补用户失败:', err.message);
       });
     }
+
+    // 发送取消通知给会员
+    try {
+      const cancelUser = await User.findById(booking.user_id);
+      if (cancelUser && cancelUser.openid) {
+        await wechatMessageService.sendBookingCancel(cancelUser, schedule, reason || '管理员已取消您的预约');
+      }
+    } catch (notifyErr) {
+      console.error('[Booking] 发送管理员取消通知失败:', notifyErr.message);
+    }
   }
 
   // 记录操作日志

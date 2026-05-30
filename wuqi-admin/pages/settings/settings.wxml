@@ -2,71 +2,21 @@
   <view class="guide-card card">
     <view class="guide-header">
       <text class="guide-icon">💡</text>
-      <text class="guide-title">订阅消息模板配置</text>
+      <text class="guide-title">消息推送设置</text>
     </view>
-    <text class="guide-text">微信订阅消息需要先在微信公众平台申请对应模板，然后将模板ID填入下方配置。消息推送功能才能正常生效。</text>
-    <view class="guide-btn" bindtap="onViewGuide">
-      <text>查看获取教程</text>
-    </view>
+    <text class="guide-text">在此管理所有微信订阅消息模板与提醒规则。</text>
   </view>
 
-  <view class="section-title">模板ID配置</view>
-
-  <view class="form-card card">
-    <view class="form-group">
-      <text class="form-label required">预约成功通知</text>
-      <text class="form-hint">用户预约课程成功后发送通知</text>
-      <input class="input-field" placeholder="请输入模板ID" value="{{bookingSuccessTemplateId}}" data-field="bookingSuccessTemplateId" bindinput="onFormInput" />
+  <navigator class="nav-card card" url="/pages/settings/template-edit/template-edit">
+    <view class="nav-row">
+      <text class="nav-icon">📧</text>
+      <view class="nav-info">
+        <text class="nav-title">消息推送模板管理</text>
+        <text class="nav-desc">配置模板ID与字段映射</text>
+      </view>
+      <text class="nav-arrow">›</text>
     </view>
-
-    <view class="form-group">
-      <text class="form-label required">上课提醒</text>
-      <text class="form-hint">课程开始前1小时自动发送提醒</text>
-      <input class="input-field" placeholder="请输入模板ID" value="{{classReminderTemplateId}}" data-field="classReminderTemplateId" bindinput="onFormInput" />
-    </view>
-
-    <view class="form-group">
-      <text class="form-label">取消预约通知</text>
-      <text class="form-hint">用户取消预约时发送通知</text>
-      <input class="input-field" placeholder="请输入模板ID" value="{{bookingCancelTemplateId}}" data-field="bookingCancelTemplateId" bindinput="onFormInput" />
-    </view>
-
-    <view class="form-group">
-      <text class="form-label">候补成功通知</text>
-      <text class="form-hint">有名额空出时通知候补用户</text>
-      <input class="input-field" placeholder="请输入模板ID" value="{{waitlistAvailableTemplateId}}" data-field="waitlistAvailableTemplateId" bindinput="onFormInput" />
-    </view>
-
-    <view class="form-group">
-      <text class="form-label">套餐即将到期</text>
-      <text class="form-hint">套餐到期前发送提醒</text>
-      <input class="input-field" placeholder="请输入模板ID" value="{{packageExpiringTemplateId}}" data-field="packageExpiringTemplateId" bindinput="onFormInput" />
-    </view>
-
-    <view class="form-group">
-      <text class="form-label">套餐已激活</text>
-      <text class="form-hint">套餐激活成功时发送通知</text>
-      <input class="input-field" placeholder="请输入模板ID" value="{{packageActivatedTemplateId}}" data-field="packageActivatedTemplateId" bindinput="onFormInput" />
-    </view>
-
-    <view class="form-group">
-      <text class="form-label">次卡低次数提醒</text>
-      <text class="form-hint">次卡剩余次数低于阈值时发送提醒</text>
-      <input class="input-field" placeholder="请输入模板ID" value="{{countCardLowRemindTemplateId}}" data-field="countCardLowRemindTemplateId" bindinput="onFormInput" />
-    </view>
-
-    <view class="form-group">
-      <text class="form-label">会员不活跃提醒</text>
-      <text class="form-hint">会员长期未预约课程时发送提醒</text>
-      <input class="input-field" placeholder="请输入模板ID" value="{{memberInactiveRemindTemplateId}}" data-field="memberInactiveRemindTemplateId" bindinput="onFormInput" />
-    </view>
-
-    <view class="form-group">
-      <text class="form-label">手机号审核结果通知</text>
-      <text class="form-hint">手机号修改审核结果通知</text>
-      <input class="input-field" placeholder="请输入模板ID" value="{{phoneAuditResultTemplateId}}" data-field="phoneAuditResultTemplateId" bindinput="onFormInput" />
-    </view>
-  </view>
+  </navigator>
 
   <view class="section-title">套餐提醒设置</view>
 

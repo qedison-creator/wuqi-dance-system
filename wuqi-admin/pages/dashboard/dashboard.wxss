@@ -1,8 +1,9 @@
 .page {
-  min-height: 100vh;
+  height: 100vh;
   padding-bottom: 260rpx;
   background: #F6F3F0;
   box-sizing: border-box;
+  overflow: hidden;
 }
 
 /* ===== Hero ===== */
@@ -10,7 +11,6 @@
   position: relative;
   margin: 28rpx 28rpx 24rpx;
   padding: 36rpx 32rpx 20rpx;
-  background: linear-gradient(145deg, #FDF6F0 0%, #FAECE0 35%, #FDF7F3 100%);
   border-radius: 32rpx;
   overflow: hidden;
   box-shadow: 0 4rpx 24rpx rgba(185,130,100,0.12);
@@ -18,12 +18,22 @@
 
 .hero-bg {
   position: absolute;
-  top: -40rpx;
-  right: -40rpx;
-  width: 220rpx;
-  height: 220rpx;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(212,120,110,0.13) 0%, transparent 70%);
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-size: cover;
+  background-position: center;
+  pointer-events: none;
+}
+
+.hero-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(145deg, rgba(255,255,255,0.85) 0%, rgba(255,255,255,0.78) 35%, rgba(255,255,255,0.85) 100%);
   pointer-events: none;
 }
 
@@ -59,13 +69,13 @@
 
 .hg-text {
   font-size: 32rpx;
-  color: #2C2416;
+  color: #000000;
   font-weight: 700;
 }
 
 .hg-name {
   font-size: 32rpx;
-  color: #2C2416;
+  color: #000000;
   font-weight: 800;
   letter-spacing: 1rpx;
 }
@@ -84,7 +94,7 @@
 
 .hg-sub {
   font-size: 25rpx;
-  color: #8B7A6E;
+  color: #333333;
   font-weight: 500;
   line-height: 1.6;
   letter-spacing: 0.5rpx;
@@ -104,7 +114,7 @@
 
 .hf-date {
   font-size: 22rpx;
-  color: #B8A898;
+  color: #666666;
   letter-spacing: 0.5rpx;
 }
 

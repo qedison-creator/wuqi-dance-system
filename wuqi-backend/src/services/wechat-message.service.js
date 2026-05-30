@@ -1,194 +1,224 @@
 const axios = require('axios');
 const config = require('../config');
-const { getMessageTemplates } = require('../config/messageConfig');
+const TemplateFieldMapping = require('../models/TemplateFieldMapping');
 
 /**
  * 微信订阅消息推送服务
- *
- * 使用前需要在微信小程序后台配置消息模板
- * 并在小程序前端调用 wx.requestSubscribeMessage 获取用户授权
+ * 完全从 TemplateFieldMapping 表读取：模板ID、字段映射
  */
 
-// 获取access_token
-let accessTokenCache = {
-  token: null,
-  expiresAt: 0,
+// ========== 模板与映射缓存 ==========
+let mappingCache = {};
+let mappingCacheTime = 0;
+const MAPPING_CACHE_TTL = 60 * 1000; // 60秒缓存
+
+const loadTemplateFromDB = async (templateKey) => {
+  const now = Date.now();
+  if (mappingCache[templateKey] && (now - mappingCacheTime) < MAPPING_CACHE_TTL) {
+    return mappingCache[templateKey];
+  }
+  try {
+    const doc = await TemplateFieldMapping.findOne({ template_key: templateKey });
+    mappingCache[templateKey] = doc && doc.template_id ? {
+      templateId: doc.template_id,
+      mappings: doc.mappings || [],
+    } : null;
+    mappingCacheTime = now;
+    return mappingCache[templateKey];
+  } catch (err) {
+    console.error(`[WeChatMessage] 加载模板失败 templateKey=${templateKey}:`, err.message);
+    return null;
+  }
 };
 
+const clearMappingCache = () => {
+  mappingCache = {};
+  mappingCacheTime = 0;
+};
+
+const buildWxData = (mappings, bizData) => {
+  const wxData = {};
+  for (const m of mappings) {
+    wxData[m.wx_field] = { value: String(bizData[m.biz_field] || '').substring(0, 50) };
+  }
+  return wxData;
+};
+
+// access_token缓存
+let accessTokenCache = { token: null, expiresAt: 0 };
+
 const getAccessToken = async () => {
-  // 如果缓存未过期，直接返回
   if (accessTokenCache.token && Date.now() < accessTokenCache.expiresAt) {
     return accessTokenCache.token;
   }
-
   try {
     const appId = config.wechatAppId || process.env.WECHAT_APP_ID;
     const appSecret = config.wechatAppSecret || process.env.WECHAT_APP_SECRET;
-
     if (!appId || !appSecret) {
-      console.warn('[WeChatMessage] 未配置微信小程序AppId或AppSecret，消息推送功能不可用');
+      console.warn('[WeChatMessage] 未配置微信小程序AppId或AppSecret');
       return null;
     }
-
     const url = `https://api.weixin.qq.com/cgi-bin/token?grant_type=client_credential&appid=${appId}&secret=${appSecret}`;
     const response = await axios.get(url);
     const data = response.data;
-
     if (data.access_token) {
       accessTokenCache = {
         token: data.access_token,
-        expiresAt: Date.now() + (data.expires_in - 300) * 1000, // 提前5分钟过期
+        expiresAt: Date.now() + (data.expires_in - 300) * 1000,
       };
       return data.access_token;
-    } else {
-      console.error('[WeChatMessage] 获取access_token失败:', data);
-      return null;
     }
+    console.error('[WeChatMessage] 获取access_token失败:', data);
+    return null;
   } catch (err) {
     console.error('[WeChatMessage] 获取access_token异常:', err.message);
     return null;
   }
 };
 
-// 发送订阅消息
 const sendSubscribeMessage = async (openid, templateId, data, page = '') => {
   try {
     const accessToken = await getAccessToken();
-    if (!accessToken) {
-      console.warn('[WeChatMessage] 无法发送消息: access_token不可用');
-      return false;
-    }
-
-    if (!templateId) {
-      return false;
-    }
-
+    if (!accessToken || !templateId) return false;
     const url = `https://api.weixin.qq.com/cgi-bin/message/subscribe/send?access_token=${accessToken}`;
-    const body = {
-      touser: openid,
-      template_id: templateId,
-      data,
-    };
-
-    if (page) {
-      body.page = page;
-    }
-
+    const body = { touser: openid, template_id: templateId, data };
+    if (page) body.page = page;
     const response = await axios.post(url, body);
     const result = response.data;
-
-    if (result.errcode === 0) {
-      console.log(`[WeChatMessage] 消息发送成功: openid=${openid.substring(0, 8)}...`);
-      return true;
-    } else if (result.errcode === 43101) {
-      console.log(`[WeChatMessage] 用户未订阅消息: openid=${openid.substring(0, 8)}...`);
-      return false;
-    } else {
-      console.error(`[WeChatMessage] 消息发送失败:`, result);
+    if (result.errcode === 0) return true;
+    if (result.errcode === 43101) {
+      console.log(`[WeChatMessage] 用户未订阅: ${openid.substring(0, 8)}...`);
       return false;
     }
+    console.error('[WeChatMessage] 发送失败:', result);
+    return false;
   } catch (err) {
-    console.error('[WeChatMessage] 发送消息异常:', err.message);
+    console.error('[WeChatMessage] 发送异常:', err.message);
     return false;
   }
+};
+
+// ========== 核心：从 DB 读取模板与映射发送 ==========
+
+const sendByTemplateKey = async (openid, templateKey, bizData, page = '') => {
+  if (!openid || !bizData) return false;
+
+  const template = await loadTemplateFromDB(templateKey);
+  if (!template || !template.templateId) return false;
+
+  const wxData = template.mappings && template.mappings.length > 0
+    ? buildWxData(template.mappings, bizData)
+    : null;
+
+  if (!wxData || Object.keys(wxData).length === 0) return false;
+
+  return await sendSubscribeMessage(openid, template.templateId, wxData, page);
 };
 
 // ========== 业务消息方法 ==========
 
 // 预约成功通知
 exports.sendBookingSuccess = async (user, schedule) => {
-  const templates = getMessageTemplates();
-  const templateId = templates.bookingSuccessTemplateId;
-  if (!templateId || !user.openid) return;
+  if (!user.openid) return;
+  const now = new Date();
+  const bookingTime = `${now.getFullYear()}年${String(now.getMonth() + 1).padStart(2, '0')}月${String(now.getDate()).padStart(2, '0')}日 ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
 
-  await sendSubscribeMessage(user.openid, templateId, {
-    thing1: { value: schedule.course_name || '舞蹈课程' },
-    time2: { value: `${schedule.date} ${schedule.start_time}` },
-    thing3: { value: schedule.store_id?.name || '舞栖舞蹈' },
-  }, 'pages/booking/booking');
+  const bizData = {
+    courseName: schedule.course_name || '舞蹈课程',
+    coachName: schedule.coach_id?.name || schedule.coach_name || '待定',
+    storeName: schedule.store_id?.name || '舞栖舞蹈',
+    courseTime: `${schedule.date} ${schedule.start_time}~${schedule.end_time}`,
+    bookingTime: bookingTime,
+  };
+
+  await sendByTemplateKey(user.openid, 'bookingSuccess', bizData, 'pages/booking/booking');
 };
 
 // 取消预约通知
 exports.sendBookingCancel = async (user, schedule, reason) => {
-  const templates = getMessageTemplates();
-  const templateId = templates.bookingCancelTemplateId;
-  if (!templateId || !user.openid) return;
+  if (!user.openid) return;
+  const now = new Date();
+  const cancelTime = `${now.getFullYear()}年${String(now.getMonth() + 1).padStart(2, '0')}月${String(now.getDate()).padStart(2, '0')}日 ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
 
-  await sendSubscribeMessage(user.openid, templateId, {
-    thing1: { value: schedule.course_name || '舞蹈课程' },
-    time2: { value: `${schedule.date} ${schedule.start_time}` },
-    thing3: { value: reason || '已取消' },
-  }, 'pages/booking/booking');
+  const bizData = {
+    courseName: schedule.course_name || '舞蹈课程',
+    coachName: schedule.coach_id?.name || schedule.coach_name || '待定',
+    cancelReason: reason || '已取消',
+    storeName: schedule.store_id?.name || '舞栖舞蹈',
+    cancelTime: cancelTime,
+  };
+
+  await sendByTemplateKey(user.openid, 'bookingCancel', bizData, 'pages/booking/booking');
 };
 
-// 上课提醒（定时任务调用）
+// 上课提醒
 exports.sendClassReminder = async (user, schedule) => {
-  const templates = getMessageTemplates();
-  const templateId = templates.classReminderTemplateId;
-  if (!templateId || !user.openid) return;
+  if (!user.openid) return;
 
-  await sendSubscribeMessage(user.openid, templateId, {
-    thing1: { value: schedule.course_name || '舞蹈课程' },
-    time2: { value: `${schedule.date} ${schedule.start_time}` },
-    thing3: { value: schedule.classroom || '请准时到场' },
-  }, 'pages/booking/booking');
+  const bizData = {
+    courseName: schedule.course_name || '舞蹈课程',
+    courseTime: `${schedule.date} ${schedule.start_time}`,
+    classroom: schedule.classroom || '请准时到场',
+  };
+
+  await sendByTemplateKey(user.openid, 'classReminder', bizData, 'pages/booking/booking');
 };
 
 // 候补成功通知
 exports.sendWaitlistAvailable = async (user, schedule) => {
-  const templates = getMessageTemplates();
-  const templateId = templates.waitlistAvailableTemplateId;
-  if (!templateId || !user.openid) return;
+  if (!user.openid) return;
 
-  await sendSubscribeMessage(user.openid, templateId, {
-    thing1: { value: schedule.course_name || '舞蹈课程' },
-    time2: { value: `${schedule.date} ${schedule.start_time}` },
-    thing3: { value: '有名额空出，请尽快预约' },
-  }, 'pages/booking/booking');
+  const bizData = {
+    courseName: schedule.course_name || '舞蹈课程',
+    courseTime: `${schedule.date} ${schedule.start_time}`,
+    tipMessage: '有名额空出，请尽快预约',
+  };
+
+  await sendByTemplateKey(user.openid, 'waitlistAvailable', bizData, 'pages/booking/booking');
 };
 
 // 套餐即将到期通知
 exports.sendPackageExpiring = async (user, packageName, endDate) => {
-  const templates = getMessageTemplates();
-  const templateId = templates.packageExpiringTemplateId;
-  if (!templateId || !user.openid) return;
+  if (!user.openid) return;
 
-  await sendSubscribeMessage(user.openid, templateId, {
-    thing1: { value: packageName || '舞蹈套餐' },
-    date2: { value: endDate },
-    thing3: { value: '您的套餐即将到期，请及时续费' },
-  }, 'pages/profile/profile');
+  const bizData = {
+    packageName: packageName || '舞蹈套餐',
+    expireDate: endDate,
+    tipMessage: '您的套餐即将到期，请及时续费',
+  };
+
+  await sendByTemplateKey(user.openid, 'packageExpiring', bizData, 'pages/profile/profile');
 };
 
 // 套餐已激活通知
 exports.sendPackageActivated = async (user, packageName, endDate) => {
-  const templates = getMessageTemplates();
-  const templateId = templates.packageActivatedTemplateId;
-  if (!templateId || !user.openid) return;
+  if (!user.openid) return;
 
-  await sendSubscribeMessage(user.openid, templateId, {
-    thing1: { value: packageName || '舞蹈套餐' },
-    date2: { value: endDate },
-    thing3: { value: '您的套餐已激活，快来预约课程吧' },
-  }, 'pages/booking/booking');
+  const bizData = {
+    packageName: packageName || '舞蹈套餐',
+    expireDate: endDate,
+    tipMessage: '您的套餐已激活，快来预约课程吧',
+  };
+
+  await sendByTemplateKey(user.openid, 'packageActivated', bizData, 'pages/booking/booking');
 };
 
 // 手机号审核结果通知
 exports.sendPhoneAuditResult = async (user, result, reason = '') => {
-  const templates = getMessageTemplates();
-  const templateId = templates.phoneAuditResultTemplateId;
-  if (!templateId || !user.openid) return;
-
+  if (!user.openid) return;
   const resultText = result === 'approved' ? '审核通过' : '审核未通过';
-  const remark = result === 'approved' 
-    ? '您的预留手机号已更新成功' 
-    : (reason || '请核实信息后重新提交');
+  const remark = result === 'approved' ? '您的预留手机号已更新成功' : (reason || '请核实信息后重新提交');
 
-  await sendSubscribeMessage(user.openid, templateId, {
-    thing1: { value: '预留手机号修改' },
-    phrase2: { value: resultText },
-    thing3: { value: remark },
-  }, 'pages/profile/profile');
+  const bizData = {
+    auditItem: '预留手机号修改',
+    auditResult: resultText,
+    remark: remark,
+  };
+
+  await sendByTemplateKey(user.openid, 'phoneAuditResult', bizData, 'pages/profile/profile');
 };
 
 exports.sendSubscribeMessage = sendSubscribeMessage;
+exports.sendByTemplateKey = sendByTemplateKey;
+exports.buildWxData = buildWxData;
+exports.clearMappingCache = clearMappingCache;

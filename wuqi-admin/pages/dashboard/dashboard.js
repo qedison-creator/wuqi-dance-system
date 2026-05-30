@@ -22,6 +22,17 @@ function getGreeting() {
   return { text: '夜深了', emoji: '🌃', sub: '今日课程已结束，好好休息，明天继续成交收钱' };
 }
 
+function getTheme() {
+  const hour = new Date().getHours();
+  if (hour >= 5 && hour < 8)    return 'sunrise';
+  if (hour >= 8 && hour < 12)   return 'morning';
+  if (hour >= 12 && hour < 14)  return 'noon';
+  if (hour >= 14 && hour < 17)  return 'afternoon';
+  if (hour >= 17 && hour < 19)  return 'sunset';
+  if (hour >= 19 && hour < 22)  return 'night';
+  return 'late-night';
+}
+
 Page({
   data: {
     storeList: [],
@@ -32,6 +43,7 @@ Page({
     userRoleName: '管理员',
     currentDate: '',
     greeting: { text: '', emoji: '', sub: '' },
+    theme: '',
     stats: {
       todaySchedules: 0,
       totalMembers: 0,
@@ -55,7 +67,8 @@ Page({
   onLoad() {
     this.setData({
       currentDate: getCurrentDate(),
-      greeting: getGreeting()
+      greeting: getGreeting(),
+      theme: getTheme()
     });
     this.loadUserInfo();
     this.loadStores();
@@ -66,7 +79,7 @@ Page({
     if (typeof this.getTabBar === 'function' && this.getTabBar()) {
       this.getTabBar().setData({ selected: 0 });
     }
-    this.setData({ greeting: getGreeting() });
+    this.setData({ greeting: getGreeting(), theme: getTheme() });
     this.loadUserInfo();
     this.loadAllData();
   },

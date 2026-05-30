@@ -27,6 +27,7 @@
     "pages/settings/accounts/accounts",
     "pages/settings/config/config",
     "pages/settings/exemption/exemption",
+    "pages/settings/template-edit/template-edit",
     "pages/logs/logs",
     "pages/coaches/coaches",
     "pages/holidays/holidays",
