@@ -1,3 +1,4 @@
+<page-meta page-style="{{showModal ? 'overflow: hidden;' : ''}}"/>
 <view class="banner-page">
   <!-- 页面头部 -->
   <view class="page-header">
@@ -61,14 +62,14 @@
   </view>
 
   <!-- 添加/编辑弹窗 -->
-  <view class="modal-mask" wx:if="{{showModal}}" bindtap="onCloseModal">
+  <view class="modal-mask" wx:if="{{showModal}}" bindtap="onCloseModal" catchtouchmove="preventMove">
     <view class="modal-content" catchtap="onModalTap">
       <view class="modal-header">
         <text class="modal-title">{{editingBanner ? '编辑轮播图' : '添加轮播图'}}</text>
         <text class="modal-close" bindtap="onCloseModal">✕</text>
       </view>
 
-      <!-- 图片上传区域 -->
+      <scroll-view class="modal-body" scroll-y enhanced show-scrollbar="{{false}}">
       <view class="upload-section">
         <view class="upload-area" bindtap="onChooseImage">
           <image wx:if="{{formData.image_url}}" class="preview-image" src="{{formData.image_url}}" mode="aspectFill" />
@@ -112,6 +113,8 @@
           </view>
         </view>
       </view>
+
+      </scroll-view>
 
       <view class="modal-buttons">
         <view class="btn-secondary" bindtap="onCloseModal"><text>取消</text></view>

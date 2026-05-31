@@ -82,7 +82,7 @@
   left: 0;
   right: 0;
   padding: 24rpx;
-  background: linear-gradient(transparent, rgba(44, 36, 22, 0.55));
+  background: linear-gradient(transparent, rgba(0, 0, 0, 0.65));
   display: flex;
   justify-content: space-between;
   align-items: flex-end;
@@ -95,14 +95,16 @@
 .banner-title {
   font-size: 32rpx;
   font-weight: 600;
-  color: var(--text-primary);
+  color: #FFFFFF;
   display: block;
   margin-bottom: 4rpx;
+  text-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.5);
 }
 
 .banner-subtitle {
   font-size: 24rpx;
-  color: rgba(255, 255, 255, 0.7);
+  color: rgba(255, 255, 255, 0.85);
+  text-shadow: 0 2rpx 6rpx rgba(0, 0, 0, 0.4);
 }
 
 .banner-status {
@@ -259,10 +261,13 @@
 
 .modal-content {
   width: 90%;
-  max-height: 85%;
+  max-height: 85vh;
   background: var(--bg-card);
   border-radius: var(--radius-xl);
+  display: flex;
+  flex-direction: column;
   overflow: hidden;
+  -webkit-overflow-scrolling: touch;
 }
 
 .modal-header {
@@ -271,6 +276,13 @@
   align-items: center;
   padding: 32rpx;
   border-bottom: 1rpx solid var(--border);
+  flex-shrink: 0;
+}
+
+.modal-body {
+  flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .modal-title {
@@ -394,6 +406,7 @@
   display: flex;
   gap: 24rpx;
   padding: 24rpx 32rpx 32rpx;
+  flex-shrink: 0;
 }
 
 .btn-secondary, .btn-primary {

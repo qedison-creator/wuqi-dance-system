@@ -6,6 +6,7 @@ App({
     currentStoreId: '',
     storeList: [],
     baseUrl: 'http://localhost:3000/api/v1',
+    serverBase: 'http://localhost:3000',
     privacyResolve: null
   },
   onLaunch() {

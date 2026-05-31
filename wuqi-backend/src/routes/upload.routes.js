@@ -28,11 +28,18 @@ Object.values(SUB_DIRS).forEach(dir => {
   ensureDir(path.join(UPLOADS_ROOT, dir));
 });
 
+function getSubDir(type) {
+  const typeStr = String(type || 'general').toLowerCase().trim();
+  return SUB_DIRS[typeStr] || 'general';
+}
+
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    const subDir = req._uploadSubDir || 'general';
+    const type = req.query.type || (req.body && req.body.type) || 'general';
+    const subDir = getSubDir(type);
     const dest = path.join(UPLOADS_ROOT, subDir);
     ensureDir(dest);
+    req._uploadSubDir = subDir;
     cb(null, dest);
   },
   filename: (req, file, cb) => {
@@ -72,27 +79,20 @@ const videoUpload = multer({
   },
 });
 
-function resolveSubDir(req, res, next) {
-  const type = (req.body.type || req.query.type || 'general').toLowerCase();
-  req._uploadSubDir = SUB_DIRS[type] || 'general';
-  next();
-}
-
-router.post('/image', auth, checkPermission(['super_admin', 'store_manager', 'staff']), resolveSubDir, imageUpload.single('image'), async (req, res, next) => {
+router.post('/image', auth, checkPermission(['super_admin', 'store_manager', 'staff']), imageUpload.single('image'), async (req, res, next) => {
   try {
     if (!req.file) {
       return res.status(400).json({ code: 400, message: '请选择图片文件', data: null });
     }
 
-    const subDir = req._uploadSubDir;
-    const protocol = req.protocol;
-    const host = req.get('host');
-    const fileUrl = `${protocol}://${host}/uploads/${subDir}/${req.file.filename}`;
+    const subDir = req._uploadSubDir || 'general';
+    const filename = req.file.filename;
+    const relativePath = `/uploads/${subDir}/${filename}`;
 
     res.json(success({
-      filename: req.file.filename,
-      url: fileUrl,
-      path: `/uploads/${subDir}/${req.file.filename}`,
+      filename: filename,
+      url: relativePath,
+      path: relativePath,
       size: req.file.size,
       mimetype: req.file.mimetype,
     }, '图片上传成功'));
@@ -101,21 +101,20 @@ router.post('/image', auth, checkPermission(['super_admin', 'store_manager', 'st
   }
 });
 
-router.post('/video', auth, checkPermission(['super_admin', 'store_manager', 'staff']), resolveSubDir, videoUpload.single('video'), async (req, res, next) => {
+router.post('/video', auth, checkPermission(['super_admin', 'store_manager', 'staff']), videoUpload.single('video'), async (req, res, next) => {
   try {
     if (!req.file) {
       return res.status(400).json({ code: 400, message: '请选择视频文件', data: null });
     }
 
-    const subDir = req._uploadSubDir;
-    const protocol = req.protocol;
-    const host = req.get('host');
-    const fileUrl = `${protocol}://${host}/uploads/${subDir}/${req.file.filename}`;
+    const subDir = req._uploadSubDir || 'general';
+    const filename = req.file.filename;
+    const relativePath = `/uploads/${subDir}/${filename}`;
 
     res.json(success({
-      filename: req.file.filename,
-      url: fileUrl,
-      path: `/uploads/${subDir}/${req.file.filename}`,
+      filename: filename,
+      url: relativePath,
+      path: relativePath,
       size: req.file.size,
       mimetype: req.file.mimetype,
     }, '视频上传成功'));

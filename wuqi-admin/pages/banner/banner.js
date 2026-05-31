@@ -70,6 +70,8 @@ Page({
 
   onModalTap() {},
 
+  preventMove() {},
+
   onInputChange(e) {
     const { field } = e.currentTarget.dataset;
     this.setData({ [`formData.${field}`]: e.detail.value });
@@ -94,35 +96,62 @@ Page({
 
     try {
       const token = wx.getStorageSync('admin_token');
+      const baseUrl = app.globalData.baseUrl;
+      const serverBase = app.globalData.serverBase || baseUrl.replace('/api/v1', '');
+      
       const res = await new Promise((resolve, reject) => {
         wx.uploadFile({
-          url: `${app.globalData.baseUrl}/upload/image`,
+          url: `${baseUrl}/upload/image?type=banner`,
           filePath: filePath,
           name: 'image',
           formData: { type: 'banner' },
-          header: { 'Authorization': `Bearer ${token}` },
-          success: (res) => {
+          header: { 
+            'Authorization': `Bearer ${token}`
+          },
+          success: (uploadRes) => {
+            if (uploadRes.statusCode !== 200) {
+              reject(new Error(`服务器错误: ${uploadRes.statusCode}`));
+              return;
+            }
+            
             try {
-              const data = JSON.parse(res.data);
-              if (data.code === 0 || data.code === 200) resolve(data);
-              else reject(new Error(data.message));
-            } catch (e) {
-              reject(e);
+              const data = JSON.parse(uploadRes.data);
+              if (data.code === 200 || data.code === 0) {
+                resolve(data);
+              } else {
+                reject(new Error(data.message || '上传失败'));
+              }
+            } catch (parseError) {
+              reject(new Error('响应格式解析失败'));
             }
           },
-          fail: reject
+          fail: (err) => {
+            reject(new Error(err.errMsg || '网络请求失败'));
+          }
         });
       });
 
-      // 拼接完整 URL
-      const imageUrl = res.data.url.startsWith('http') ? res.data.url : `${app.globalData.baseUrl.replace('/api/v1', '')}${res.data.url}`;
+      if (!res || !res.data) {
+        throw new Error('服务器响应格式错误');
+      }
+
+      let imageUrl = res.data.url || res.data.path;
+      
+      if (!imageUrl) {
+        throw new Error('服务器未返回图片地址');
+      }
+      
+      if (!imageUrl.startsWith('http')) {
+        imageUrl = `${serverBase}${imageUrl}`;
+      }
+      
       this.setData({ 'formData.image_url': imageUrl });
       wx.hideLoading();
       wx.showToast({ title: '上传成功', icon: 'success' });
     } catch (err) {
-      console.error('上传失败', err);
+      console.error('上传失败:', err);
       wx.hideLoading();
-      wx.showToast({ title: '上传失败', icon: 'none' });
+      wx.showToast({ title: err.message || '上传失败', icon: 'none' });
     } finally {
       this.setData({ uploading: false });
     }

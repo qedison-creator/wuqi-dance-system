@@ -43,7 +43,7 @@ Page({
     userRoleName: '管理员',
     currentDate: '',
     greeting: { text: '', emoji: '', sub: '' },
-    theme: '',
+    theme: 'morning',
     stats: {
       todaySchedules: 0,
       totalMembers: 0,
