@@ -16,7 +16,7 @@ function getGreeting() {
   if (hour >= 5 && hour < 8)    return { text: '晨安', emoji: '🌅', sub: '新的一天，好运满满，今日客户多多上门' };
   if (hour >= 8 && hour < 12)   return { text: '上午好', emoji: '☀️', sub: '营业前的时光，养足精神，今天报名一定多' };
   if (hour >= 12 && hour < 14)  return { text: '午安', emoji: '☕', sub: '午后开门迎客，祝生意兴隆，会员源源不断' };
-  if (hour >= 14 && hour < 17)  return { text: '下午好', emoji: '💃', sub: '午后时光，客户陆续上门，财运滚滚而来' };
+  if (hour >= 14 && hour < 17)  return { text: '下午好', emoji: '🌟', sub: '午后时光，客户陆续上门，财运滚滚而来' };
   if (hour >= 17 && hour < 19)  return { text: '傍晚好', emoji: '🌆', sub: '晚间高峰即将到来，迎接来报名的客户，多多成交' };
   if (hour >= 19 && hour < 22)  return { text: '晚上好', emoji: '🌙', sub: '课程进行中，舞蹈教室正热闹着呢' };
   return { text: '夜深了', emoji: '🌃', sub: '今日课程已结束，好好休息，明天继续成交收钱' };

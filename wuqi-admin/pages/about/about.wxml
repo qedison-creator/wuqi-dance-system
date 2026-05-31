@@ -1,0 +1,29 @@
+<view class="page">
+  <view class="header">
+    <image class="logo" src="/images/logo.png" mode="aspectFit" />
+    <view class="app-name">舞栖DANCE预约系统管理</view>
+    <view class="app-version">版本 {{version}}</view>
+  </view>
+
+  <view class="content">
+    <view class="card">
+      <view class="section-title">主办单位</view>
+      <view class="info-text">双瑗文化艺术（深圳）有限公司</view>
+    </view>
+
+    <view class="card">
+      <view class="section-title">商标声明</view>
+      <view class="info-text">"舞栖DANCE"是深圳市双瑗文艺有限公司的注册商标，已授权双瑗文化艺术（深圳）有限公司使用。</view>
+    </view>
+
+    <view class="card">
+      <view class="section-title">ICP备案</view>
+      <view class="info-text">备案进行中</view>
+    </view>
+
+    <view class="card">
+      <view class="section-title">版权声明</view>
+      <view class="info-text">© 2026 双瑗文化艺术（深圳）有限公司</view>
+    </view>
+  </view>
+</view>

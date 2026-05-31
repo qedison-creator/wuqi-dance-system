@@ -74,15 +74,15 @@ Page({
   },
 
   onAbout() {
-    wx.showModal({
-      title: '关于系统',
-      content: '舞栖舞蹈社预约管理系统 v1.0.0\n管理端',
-      showCancel: false
-    });
+    wx.navigateTo({ url: '/pages/about/about' });
   },
 
   onPrivacy() {
     wx.navigateTo({ url: '/pages/privacy/privacy' });
+  },
+
+  onAgreement() {
+    wx.navigateTo({ url: '/pages/agreement/agreement' });
   },
 
   onLogout() {

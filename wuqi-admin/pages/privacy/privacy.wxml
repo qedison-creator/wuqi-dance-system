@@ -1,11 +1,16 @@
 <view class="page">
   <view class="privacy-section">
-    <view class="privacy-title">舞栖预约管理系统 - 隐私保护指引</view>
+    <view class="privacy-title">舞栖DANCE预约系统管理 - 隐私保护指引</view>
     <view class="privacy-date">更新日期：2026年5月27日</view>
     <view class="privacy-date">生效日期：2026年5月27日</view>
 
     <view class="privacy-text">
-      <text>舞栖预约管理系统（以下简称"本系统"）是舞栖舞蹈社用于管理会员信息、课程预约等业务的内部管理系统。本隐私保护指引旨在向您说明我们如何收集、使用、存储和保护在本系统中处理的个人信息。</text>
+      <text>双瑗文化艺术（深圳）有限公司（以下简称"我们"）深知个人信息对您的重要性，我们将按照法律法规的规定，保护您的个人信息及隐私安全。本隐私保护指引旨在向您说明我们如何收集、使用、存储和保护在舞栖舞蹈社预约管理系统中处理的个人信息。</text>
+    </view>
+
+    <view class="privacy-heading">商标声明</view>
+    <view class="privacy-text">
+      <text>"舞栖DANCE"是深圳市双瑗文艺有限公司的注册商标，已授权双瑗文化艺术（深圳）有限公司使用。</text>
     </view>
 
     <view class="privacy-heading">一、我们收集的信息</view>

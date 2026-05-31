@@ -36,7 +36,9 @@
     "pages/course-records/course-records",
     "pages/booking-summary/booking-summary",
     "pages/system-reset/system-reset",
-    "pages/privacy/privacy"
+    "pages/privacy/privacy",
+    "pages/agreement/agreement",
+    "pages/about/about"
   ],
   "window": {
     "navigationBarBackgroundColor": "#F6F3F0",

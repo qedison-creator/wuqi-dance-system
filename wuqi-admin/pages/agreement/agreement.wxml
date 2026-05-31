@@ -1,0 +1,66 @@
+<view class="page">
+  <view class="privacy-section">
+    <view class="privacy-title">舞栖DANCE预约系统管理 - 用户服务协议</view>
+    <view class="privacy-date">更新日期：2026年5月27日</view>
+    <view class="privacy-date">生效日期：2026年5月27日</view>
+
+    <view class="privacy-text">
+      <text>欢迎使用舞栖舞蹈社预约管理系统（以下简称"本系统"）。本协议是您与双瑗文化艺术（深圳）有限公司之间关于使用本系统的约定。在您使用本系统之前，请务必仔细阅读并理解本协议的全部内容。</text>
+    </view>
+
+    <view class="privacy-heading">商标声明</view>
+    <view class="privacy-text">
+      <text>"舞栖DANCE"是深圳市双瑗文艺有限公司的注册商标，已授权双瑗文化艺术（深圳）有限公司使用。</text>
+    </view>
+
+    <view class="privacy-heading">一、服务说明</view>
+    <view class="privacy-text">
+      <text>本系统是舞栖舞蹈社用于内部管理的工具，主要功能包括：</text>
+    </view>
+    <view class="privacy-text">
+      <text>• 会员管理：会员信息录入、审核、套餐管理等\n</text>
+      <text>• 课程排期：课程设置、排期管理、教室管理等\n</text>
+      <text>• 预约管理：会员预约、签到、候补等\n</text>
+      <text>• 门店管理：门店信息、员工管理、权限配置等\n</text>
+      <text>• 财务管理：套餐销售、签到统计、工资结算等\n</text>
+    </view>
+
+    <view class="privacy-heading">二、使用权限</view>
+    <view class="privacy-text">
+      <text>• 您应使用舞栖舞蹈社分配的账号登录系统。\n</text>
+      <text>• 您应妥善保管账号密码，不得将账号转借他人使用。\n</text>
+      <text>• 您应在授权范围内使用系统，不得越权操作。\n</text>
+    </view>
+
+    <view class="privacy-heading">三、使用规范</view>
+    <view class="privacy-text">
+      <text>• 您应确保录入系统的信息真实、准确、完整。\n</text>
+      <text>• 您应遵守舞栖舞蹈社的相关管理制度和操作流程。\n</text>
+      <text>• 您不得利用系统进行任何违法或违规活动。\n</text>
+      <text>• 您不得使用技术手段破坏或攻击系统。\n</text>
+    </view>
+
+    <view class="privacy-heading">四、数据保护</view>
+    <view class="privacy-text">
+      <text>• 您应严格保护系统内的会员信息和业务数据，不得泄露或滥用。\n</text>
+      <text>• 您不得将系统数据用于工作以外的目的。\n</text>
+      <text>• 您发现数据安全问题应及时报告。\n</text>
+    </view>
+
+    <view class="privacy-heading">五、免责声明</view>
+    <view class="privacy-text">
+      <text>• 因不可抗力导致系统服务中断，我们不承担责任，但会尽力恢复服务。\n</text>
+      <text>• 因您保管账号不善导致的损失，由您自行承担。\n</text>
+    </view>
+
+    <view class="privacy-heading">六、协议变更</view>
+    <view class="privacy-text">
+      <text>我们可能会适时更新本协议。更新后的协议将在系统内发布，继续使用系统即视为同意。</text>
+    </view>
+
+    <view class="privacy-heading">七、联系我们</view>
+    <view class="privacy-text">
+      <text>如有疑问，请联系舞栖舞蹈社管理团队。</text>
+    </view>
+  </view>
+</view>

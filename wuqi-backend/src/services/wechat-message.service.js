@@ -52,10 +52,10 @@ const getAccessToken = async () => {
     return accessTokenCache.token;
   }
   try {
-    const appId = config.wechatAppId || process.env.WECHAT_APP_ID;
-    const appSecret = config.wechatAppSecret || process.env.WECHAT_APP_SECRET;
+    const appId = config.wxAppId || process.env.WX_APPID;
+    const appSecret = config.wxSecret || process.env.WX_SECRET;
     if (!appId || !appSecret) {
-      console.warn('[WeChatMessage] 未配置微信小程序AppId或AppSecret');
+      console.warn('[WeChatMessage] 未配置微信小程序AppId或AppSecret，订阅消息推送将不可用');
       return null;
     }
     const url = `https://api.weixin.qq.com/cgi-bin/token?grant_type=client_credential&appid=${appId}&secret=${appSecret}`;
@@ -66,9 +66,10 @@ const getAccessToken = async () => {
         token: data.access_token,
         expiresAt: Date.now() + (data.expires_in - 300) * 1000,
       };
+      console.log('[WeChatMessage] access_token 刷新成功');
       return data.access_token;
     }
-    console.error('[WeChatMessage] 获取access_token失败:', data);
+    console.error('[WeChatMessage] 获取access_token失败:', JSON.stringify(data));
     return null;
   } catch (err) {
     console.error('[WeChatMessage] 获取access_token异常:', err.message);
