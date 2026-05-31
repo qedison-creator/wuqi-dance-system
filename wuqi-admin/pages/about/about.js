@@ -1,5 +1,5 @@
 Page({
   data: {
-    version: '1.0.0'
+    version: 'V1.1.0'
   }
 });
