@@ -7,11 +7,13 @@
         </view>
       </view>
     </view>
-    <text class="profile-name">{{userInfo.nick_name || userInfo.username || '管理员'}}</text>
-    <view class="profile-meta">
-      <text class="profile-role">{{userInfo.role === 'super_admin' ? '超级管理员' : (userInfo.role === 'store_manager' ? '店长' : '员工')}}</text>
-      <text class="profile-dot" wx:if="{{currentStore}}">·</text>
-      <text class="profile-store" wx:if="{{currentStore}}">{{currentStore.name}}</text>
+    <view class="profile-info">
+      <text class="profile-name">{{userInfo.nick_name || userInfo.username || '管理员'}}</text>
+      <view class="profile-meta">
+        <text class="profile-role">{{userInfo.role === 'super_admin' ? '超级管理员' : (userInfo.role === 'store_manager' ? '店长' : '员工')}}</text>
+        <text class="profile-dot" wx:if="{{currentStore}}">·</text>
+        <text class="profile-store" wx:if="{{currentStore}}">{{currentStore.name}}</text>
+      </view>
     </view>
   </view>
 
@@ -83,9 +85,5 @@
 
   <view class="logout-section">
     <button class="logout-btn" bindtap="onLogout">退出登录</button>
-  </view>
-
-  <view class="version-info">
-    <text>舞栖舞蹈社管理端 v1.0.0</text>
   </view>
 </view>

@@ -45,6 +45,15 @@ Page({
     }
   },
 
+  // 补全图片 URL
+  fixImageUrl(url) {
+    if (!url) return '';
+    if (url.startsWith('http://') || url.startsWith('https://')) return url;
+    if (url.startsWith('//')) return 'http:' + url;
+    if (url.startsWith('/')) return app.globalData.serverBase + url;
+    return app.globalData.serverBase + '/' + url;
+  },
+
   onShow() {
     if (!app.checkAuth()) return;
     this.loadCoaches();
@@ -65,7 +74,13 @@ Page({
       });
       // 后端返回 paginate 格式: { list: [...], total, page, pageSize }
       const list = res.data && Array.isArray(res.data.list) ? res.data.list : (Array.isArray(res.data) ? res.data : []);
-      this.setData({ coaches: list });
+      // 补全图片路径
+      const processedList = list.map(coach => ({
+        ...coach,
+        avatar_url: this.fixImageUrl(coach.avatar_url),
+        gallery: (coach.gallery || []).map(url => this.fixImageUrl(url))
+      }));
+      this.setData({ coaches: processedList });
     } catch (err) {
       console.error('加载教练列表失败', err);
     }
@@ -262,7 +277,7 @@ Page({
     // 为相册项生成唯一ID（使用 photoId 或 index 作为备用）
     const gallery = (coach.gallery || []).map((url, idx) => ({
       photoId: `photo_${Date.now()}_${idx}`,
-      url: url,
+      url: this.fixImageUrl(url),
       index: idx
     }));
     this.setData({
@@ -271,7 +286,7 @@ Page({
         _id: coach._id,
         name: coach.name,
         gender: coach.gender,
-        avatar_url: coach.avatar_url || '',
+        avatar_url: this.fixImageUrl(coach.avatar_url || ''),
         dance_style_names: coach.dance_style_names || '',
         gallery: gallery
       }
@@ -294,10 +309,9 @@ Page({
         try {
           const uploadRes = await new Promise((resolve, reject) => {
             wx.uploadFile({
-              url: app.globalData.baseUrl + '/upload/image',
+              url: app.globalData.baseUrl + '/upload/image?type=coach_avatar',
               filePath: tempFilePath,
               name: 'image',
-              formData: { type: 'coach_avatar' },
               header: { 'Authorization': 'Bearer ' + wx.getStorageSync('admin_token') },
               success: resolve,
               fail: reject
@@ -305,7 +319,8 @@ Page({
           });
           const data = JSON.parse(uploadRes.data);
           if (data.code === 200) {
-            that.setData({ 'coachForm.avatar_url': data.data.url });
+            const fullUrl = app.globalData.serverBase + data.data.path;
+            that.setData({ 'coachForm.avatar_url': fullUrl });
             wx.hideLoading();
             wx.showToast({ title: '头像上传成功', icon: 'success' });
           } else {
@@ -332,10 +347,9 @@ Page({
         try {
           const uploadRes = await new Promise((resolve, reject) => {
             wx.uploadFile({
-              url: app.globalData.baseUrl + '/upload/image',
+              url: app.globalData.baseUrl + '/upload/image?type=coach_avatar',
               filePath: tempFilePath,
               name: 'image',
-              formData: { type: 'coach_avatar' },
               header: { 'Authorization': 'Bearer ' + wx.getStorageSync('admin_token') },
               success: resolve,
               fail: reject
@@ -343,12 +357,13 @@ Page({
           });
           const data = JSON.parse(uploadRes.data);
           if (data.code === 200) {
+            const fullUrl = app.globalData.serverBase + data.data.path;
             await request({
               url: `/coaches/${that.data.detailCoach._id}/avatar`,
               method: 'PUT',
-              data: { avatar_url: data.data.url }
+              data: { avatar_url: fullUrl }
             });
-            that.setData({ 'detailCoach.avatar_url': data.data.url });
+            that.setData({ 'detailCoach.avatar_url': fullUrl });
             that.loadCoaches();
             wx.hideLoading();
             wx.showToast({ title: '头像更新成功', icon: 'success' });
@@ -374,10 +389,9 @@ Page({
           for (const file of files) {
             const uploadRes = await new Promise((resolve, reject) => {
               wx.uploadFile({
-                url: app.globalData.baseUrl + '/upload/image',
+                url: app.globalData.baseUrl + '/upload/image?type=coach_album',
                 filePath: file.tempFilePath,
                 name: 'image',
-                formData: { type: 'coach_album' },
                 header: { 'Authorization': 'Bearer ' + wx.getStorageSync('admin_token') },
                 success: resolve,
                 fail: reject
@@ -385,10 +399,11 @@ Page({
             });
             const data = JSON.parse(uploadRes.data);
             if (data.code === 200) {
+              const fullUrl = app.globalData.serverBase + data.data.path;
               await request({
                 url: `/coaches/${that.data.detailCoach._id}/gallery`,
                 method: 'POST',
-                data: { url: data.data.url }
+                data: { url: fullUrl }
               });
             }
           }
@@ -400,11 +415,12 @@ Page({
             // 为新加载的相册项生成唯一ID
             const freshGallery = (freshCoach.gallery || []).map((url, idx) => ({
               photoId: `photo_${Date.now()}_${idx}`,
-              url: url,
+              url: that.fixImageUrl(url),
               index: idx
             }));
             that.setData({
-              'detailCoach.gallery': freshGallery
+              'detailCoach.gallery': freshGallery,
+              'detailCoach.avatar_url': that.fixImageUrl(freshCoach.avatar_url || '')
             });
             that.loadCoaches();
           }

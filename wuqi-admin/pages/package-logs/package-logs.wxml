@@ -6,17 +6,28 @@
     <view class="tab-item {{activeTab === 'extension' ? 'active' : ''}}" bindtap="onTabChange" data-tab="extension">
       <text>延长记录</text>
     </view>
+    <view class="tab-item {{activeTab === 'entry' ? 'active' : ''}}" bindtap="onTabChange" data-tab="entry">
+      <text>套餐录入</text>
+    </view>
   </view>
 
   <view class="tab-content" wx:if="{{activeTab === 'activation'}}">
     <view class="page-header">
       <text class="page-title text-heading">套餐激活记录</text>
+      <view class="hf-store" bindtap="onOpenStoreModal">
+        <text class="hfs-icon">⌂</text>
+        <text class="hfs-label">{{currentStoreName}}</text>
+        <text class="hfs-arrow">▾</text>
+      </view>
     </view>
 
     <view class="logs-list" wx:if="{{activationList.length > 0}}">
       <view class="log-item card" wx:for="{{activationList}}" wx:key="_id">
         <view class="log-header">
-          <text class="log-title">{{item.user_name || '未知会员'}}</text>
+          <view class="log-title-wrap">
+            <text class="log-title">{{item.user_real_name || '未知会员'}}</text>
+            <text class="log-nick" wx:if="{{item.user_nick_name}}">({{item.user_nick_name}})</text>
+          </view>
           <text class="log-type">{{item.typeLabel}}</text>
         </view>
         <view class="log-body">
@@ -54,12 +65,20 @@
   <view class="tab-content" wx:if="{{activeTab === 'extension'}}">
     <view class="page-header">
       <text class="page-title text-heading">套餐有效期延长记录</text>
+      <view class="hf-store" bindtap="onOpenStoreModal">
+        <text class="hfs-icon">⌂</text>
+        <text class="hfs-label">{{currentStoreName}}</text>
+        <text class="hfs-arrow">▾</text>
+      </view>
     </view>
 
     <view class="logs-list" wx:if="{{extensionList.length > 0}}">
       <view class="log-item card" wx:for="{{extensionList}}" wx:key="_id">
         <view class="log-header">
-          <text class="log-title">{{item.user_name || '未知会员'}}</text>
+          <view class="log-title-wrap">
+            <text class="log-title">{{item.user_real_name || '未知会员'}}</text>
+            <text class="log-nick" wx:if="{{item.user_nick_name}}">({{item.user_nick_name}})</text>
+          </view>
           <text class="log-type">{{item.typeLabel}}</text>
         </view>
         <view class="log-body">
@@ -102,7 +121,76 @@
     <empty-state wx:if="{{!loading && extensionList.length === 0}}" icon="📋" text="暂无延长记录"></empty-state>
   </view>
 
+  <view class="tab-content" wx:if="{{activeTab === 'entry'}}">
+    <view class="page-header">
+      <text class="page-title text-heading">套餐录入记录</text>
+      <view class="hf-store" bindtap="onOpenStoreModal">
+        <text class="hfs-icon">⌂</text>
+        <text class="hfs-label">{{currentStoreName}}</text>
+        <text class="hfs-arrow">▾</text>
+      </view>
+    </view>
+
+    <view class="logs-list" wx:if="{{entryList.length > 0}}">
+      <view class="log-item card" wx:for="{{entryList}}" wx:key="_id">
+        <view class="log-header">
+          <view class="log-title-wrap">
+            <text class="log-title">{{item.user_real_name || '未知会员'}}</text>
+            <text class="log-nick" wx:if="{{item.user_nick_name}}">({{item.user_nick_name}})</text>
+          </view>
+          <text class="log-type status-{{item.status}}">{{item.statusLabel}}</text>
+        </view>
+        <view class="log-body">
+          <view class="log-row">
+            <text class="log-label">套餐名称</text>
+            <text class="log-value">{{item.package_name || '-'}}</text>
+          </view>
+          <view class="log-row">
+            <text class="log-label">录入时间</text>
+            <text class="log-value">{{item.created_at_display || '-'}}</text>
+          </view>
+          <view class="log-row">
+            <text class="log-label">套餐类型</text>
+            <text class="log-value">{{item.packageTypeLabel}}</text>
+          </view>
+          <view class="log-row" wx:if="{{item.creditsText}}">
+            <text class="log-label">课时/时长</text>
+            <text class="log-value">{{item.creditsText}}</text>
+          </view>
+          <view class="log-row" wx:if="{{item.operator_name}}">
+            <text class="log-label">操作人</text>
+            <text class="log-value">{{item.operator_name}}</text>
+          </view>
+          <view class="log-row" wx:if="{{item.remark}}">
+            <text class="log-label">备注</text>
+            <text class="log-value">{{item.remark}}</text>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <empty-state wx:if="{{!loading && entryList.length === 0}}" icon="📝" text="暂无录入记录"></empty-state>
+  </view>
+
   <view class="loading" wx:if="{{loading}}">
     <text class="load-more">加载中...</text>
+  </view>
+
+  <!-- 门店选择弹窗 -->
+  <view class="modal-mask" wx:if="{{showStoreModal}}" bindtap="onCloseStoreModal">
+    <view class="store-modal" catchtap="">
+      <view class="stm-hd">
+        <text class="stm-title">选择门店</text>
+      </view>
+      <scroll-view class="stm-list" scroll-y>
+        <view class="stm-item {{currentStoreIndex === index ? 'stm-active' : ''}}" wx:for="{{storeList}}" wx:key="_id" data-index="{{index}}" bindtap="onSelectStore">
+          <text class="stm-name">{{item.name}}</text>
+          <view class="stm-check" wx:if="{{currentStoreIndex === index}}"></view>
+        </view>
+      </scroll-view>
+      <view class="stm-bottom">
+        <view class="stm-close-btn" bindtap="onCloseStoreModal">关闭</view>
+      </view>
+    </view>
   </view>
 </view>

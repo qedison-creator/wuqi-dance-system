@@ -33,17 +33,23 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background: linear-gradient(145deg, rgba(255,255,255,0.65) 0%, rgba(255,255,255,0.55) 35%, rgba(255,255,255,0.65) 100%);
+  background: linear-gradient(145deg, rgba(255,255,255,0.25) 0%, rgba(255,255,255,0.15) 35%, rgba(255,255,255,0.25) 100%);
   pointer-events: none;
+}
+
+.hero-content {
+  position: relative;
+  z-index: 1;
+  padding: 20rpx;
+  background: rgba(0, 0, 0, 0.25);
+  border-radius: 16rpx;
 }
 
 /* ---- greet: emoji | body(name+role, sub) ---- */
 .hero-greet {
-  position: relative;
-  z-index: 1;
   display: flex;
   align-items: flex-start;
-  margin-bottom: 28rpx;
+  margin-bottom: 20rpx;
 }
 
 .hg-emoji {
@@ -69,15 +75,17 @@
 
 .hg-text {
   font-size: 32rpx;
-  color: #000000;
+  color: #FFFFFF;
   font-weight: 700;
+  text-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.6);
 }
 
 .hg-name {
   font-size: 32rpx;
-  color: #000000;
+  color: #FFFFFF;
   font-weight: 800;
   letter-spacing: 1rpx;
+  text-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.6);
 }
 
 .hg-role {
@@ -94,28 +102,28 @@
 
 .hg-sub {
   font-size: 25rpx;
-  color: #333333;
+  color: #FFFFFF;
   font-weight: 500;
   line-height: 1.6;
   letter-spacing: 0.5rpx;
   display: block;
+  text-shadow: 0 2rpx 6rpx rgba(0, 0, 0, 0.5);
 }
 
 /* ---- foot: date | store ---- */
 .hero-foot {
-  position: relative;
-  z-index: 1;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding-top: 18rpx;
-  border-top: 1rpx solid rgba(185,130,100,0.1);
+  padding-top: 16rpx;
+  border-top: 1rpx solid rgba(255, 255, 255, 0.2);
 }
 
 .hf-date {
   font-size: 22rpx;
-  color: #666666;
+  color: #FFFFFF;
   letter-spacing: 0.5rpx;
+  text-shadow: 0 2rpx 6rpx rgba(0, 0, 0, 0.5);
 }
 
 .hf-store {

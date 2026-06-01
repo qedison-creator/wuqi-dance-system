@@ -75,6 +75,18 @@ router.get('/activation-records', auth, checkPermission(['super_admin', 'store_m
   }
 });
 
+// ========== 套餐录入记录相关路由 ==========
+
+// GET /api/v1/packages/entry-records - 获取套餐录入记录
+router.get('/entry-records', auth, checkPermission(['super_admin', 'store_manager', 'staff']), storeFilter(), async (req, res, next) => {
+  try {
+    const result = await packageService.getEntryRecords(req.query);
+    res.json(success(paginate(result.list, result.total, result.page, result.pageSize)));
+  } catch (err) {
+    next(err);
+  }
+});
+
 // ========== 套餐延长记录相关路由 ==========
 
 // GET /api/v1/packages/extension-records - 获取套餐延长记录

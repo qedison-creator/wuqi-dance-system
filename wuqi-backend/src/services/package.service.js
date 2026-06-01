@@ -494,6 +494,8 @@ exports.getActivationRecords = async (query) => {
     return {
       _id: r._id,
       user_name: user.nick_name || user.real_name || '未知会员',
+      user_real_name: user.real_name || '',
+      user_nick_name: user.nick_name || '',
       user_phone: user.phone || '',
       package_name: r.package_id ? (r.package_id.name || '') : (pkg.package_type === 'count_card' ? `${pkg.total_credits}次卡` : `${pkg.duration_value || ''}${pkg.duration_unit === 'month' ? '个月' : '天'}时间卡`),
       type: typeMap[r.activation_type] || r.activation_type,
@@ -540,6 +542,8 @@ exports.getExtensionRecords = async (query) => {
     return {
       _id: r._id,
       user_name: user.nick_name || user.real_name || '未知会员',
+      user_real_name: user.real_name || '',
+      user_nick_name: user.nick_name || '',
       user_phone: user.phone || '',
       package_name: pkg.name || '',
       type: displayType,
@@ -723,4 +727,46 @@ exports.backfillActivationRecords = async () => {
   }
 
   return { created, skipped, total: activatedPackages.length };
+};
+
+// 获取套餐录入记录
+exports.getEntryRecords = async (query) => {
+  const { page = 1, pageSize = 20, store_id } = query;
+  const filter = { created_by: { $ne: null } }; // 只显示有人为录入的
+  if (store_id) filter.store_id = store_id;
+
+  const list = await UserPackage.find(filter)
+    .populate('user_id', 'nick_name real_name phone')
+    .populate('package_id', 'name')
+    .populate('store_id', 'name')
+    .populate('created_by', 'nick_name username')
+    .sort({ created_at: -1 })
+    .skip((page - 1) * pageSize)
+    .limit(Number(pageSize));
+
+  const total = await UserPackage.countDocuments(filter);
+
+  const records = list.map(userPackage => {
+    const user = userPackage.user_id || {};
+    const pkg = userPackage.package_id || {};
+    const operator = userPackage.created_by || {};
+    return {
+      _id: userPackage._id,
+      user_name: user.nick_name || user.real_name || '未知会员',
+      user_real_name: user.real_name || '',
+      user_nick_name: user.nick_name || '',
+      user_phone: user.phone || '',
+      package_name: pkg.name || (userPackage.package_type === 'count_card' ? `${userPackage.total_credits}次卡` : `${userPackage.duration_value || ''}${userPackage.duration_unit === 'month' ? '个月' : '天'}时间卡`),
+      package_type: userPackage.package_type,
+      total_credits: userPackage.total_credits,
+      duration_value: userPackage.duration_value,
+      duration_unit: userPackage.duration_unit,
+      created_at: userPackage.created_at,
+      operator_name: operator.nick_name || operator.username || '',
+      remark: userPackage.remark || '',
+      status: userPackage.status,
+    };
+  });
+
+  return { list: records, total, page: Number(page), pageSize: Number(pageSize) };
 };
