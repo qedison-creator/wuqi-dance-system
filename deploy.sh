@@ -55,6 +55,14 @@ NODE_ENV=production
 JWT_SECRET=your_jwt_secret_key_here_please_change_it
 MONGODB_URI=mongodb://localhost:27017/wuqi_dance
 SERVER_BASE=http://localhost:3000
+
+# 微信小程序（会员端）- 必填，用于会员微信登录和订阅消息
+WX_MEMBER_APPID=
+WX_MEMBER_SECRET=
+
+# 微信小程序（管理端）- 可选，用于管理端微信登录和订阅消息
+WX_ADMIN_APPID=
+WX_ADMIN_SECRET=
 EOF
 
 # 6. 配置 Nginx 反向代理
@@ -118,9 +126,11 @@ echo "- PM2管理: pm2 list"
 echo ""
 echo "接下来需要:"
 echo "1. 修改 .env 中的 JWT_SECRET 为安全的密钥"
-echo "2. 配置域名和 HTTPS (推荐使用 Let's Encrypt)"
-echo "3. 设置小程序服务器域名白名单"
-echo "4. 初始化数据库数据"
+echo "2. 配置会员端微信小程序: WX_MEMBER_APPID, WX_MEMBER_SECRET"
+echo "3. 配置管理端微信小程序（可选）: WX_ADMIN_APPID, WX_ADMIN_SECRET"
+echo "4. 配置域名和 HTTPS (推荐使用 Let's Encrypt)"
+echo "5. 设置小程序服务器域名白名单"
+echo "6. 初始化数据库数据"
 echo ""
 echo "初始化数据库命令:"
 echo "cd /var/www/wuqi-dance-system/wuqi-backend"

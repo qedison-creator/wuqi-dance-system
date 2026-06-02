@@ -18,7 +18,7 @@ const generateToken = (user) => {
 };
 
 // 微信登录 - 用code换openid，自动注册，返回JWT
-exports.wxLogin = async (code, storeId) => {
+exports.wxLogin = async (code, storeId, clientType = 'member') => {
   if (!code) {
     throw new Error('缺少微信登录code');
   }
@@ -27,7 +27,7 @@ exports.wxLogin = async (code, storeId) => {
   let wxData;
   let isDevMode = false;
   try {
-    wxData = await code2Session(code);
+    wxData = await code2Session(code, clientType);
   } catch (err) {
     // 开发环境模拟（微信开发者工具的code无法调用真实API）
     console.log('[开发模式] 微信code2Session失败，使用模拟数据:', err.message);

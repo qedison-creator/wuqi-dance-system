@@ -44,29 +44,32 @@ const buildWxData = (mappings, bizData) => {
   return wxData;
 };
 
-// access_token缓存
-let accessTokenCache = { token: null, expiresAt: 0 };
+// 按客户端类型缓存 access_token
+const accessTokenCaches = {
+  member: { token: null, expiresAt: 0 },
+  admin: { token: null, expiresAt: 0 },
+};
 
-const getAccessToken = async () => {
-  if (accessTokenCache.token && Date.now() < accessTokenCache.expiresAt) {
-    return accessTokenCache.token;
+const getAccessToken = async (clientType = 'member') => {
+  const cache = accessTokenCaches[clientType];
+  if (cache.token && Date.now() < cache.expiresAt) {
+    return cache.token;
   }
   try {
-    const appId = config.wxAppId || process.env.WX_APPID;
-    const appSecret = config.wxSecret || process.env.WX_SECRET;
-    if (!appId || !appSecret) {
-      console.warn('[WeChatMessage] 未配置微信小程序AppId或AppSecret，订阅消息推送将不可用');
+    const wxConfig = config.getWxConfig(clientType);
+    if (!wxConfig.appId || !wxConfig.secret) {
+      console.warn(`[WeChatMessage] 未配置${clientType === 'admin' ? '管理端' : '会员端'}小程序 AppID 或 Secret，订阅消息推送将不可用`);
       return null;
     }
-    const url = `https://api.weixin.qq.com/cgi-bin/token?grant_type=client_credential&appid=${appId}&secret=${appSecret}`;
+    const url = `https://api.weixin.qq.com/cgi-bin/token?grant_type=client_credential&appid=${wxConfig.appId}&secret=${wxConfig.secret}`;
     const response = await axios.get(url);
     const data = response.data;
     if (data.access_token) {
-      accessTokenCache = {
+      accessTokenCaches[clientType] = {
         token: data.access_token,
         expiresAt: Date.now() + (data.expires_in - 300) * 1000,
       };
-      console.log('[WeChatMessage] access_token 刷新成功');
+      console.log(`[WeChatMessage] ${clientType === 'admin' ? '管理端' : '会员端'} access_token 刷新成功`);
       return data.access_token;
     }
     console.error('[WeChatMessage] 获取access_token失败:', JSON.stringify(data));
@@ -77,9 +80,9 @@ const getAccessToken = async () => {
   }
 };
 
-const sendSubscribeMessage = async (openid, templateId, data, page = '') => {
+const sendSubscribeMessage = async (openid, templateId, data, page = '', clientType = 'member') => {
   try {
-    const accessToken = await getAccessToken();
+    const accessToken = await getAccessToken(clientType);
     if (!accessToken || !templateId) return false;
     const url = `https://api.weixin.qq.com/cgi-bin/message/subscribe/send?access_token=${accessToken}`;
     const body = { touser: openid, template_id: templateId, data };
@@ -101,7 +104,7 @@ const sendSubscribeMessage = async (openid, templateId, data, page = '') => {
 
 // ========== 核心：从 DB 读取模板与映射发送 ==========
 
-const sendByTemplateKey = async (openid, templateKey, bizData, page = '') => {
+const sendByTemplateKey = async (openid, templateKey, bizData, page = '', clientType = 'member') => {
   if (!openid || !bizData) return false;
 
   const template = await loadTemplateFromDB(templateKey);
@@ -113,13 +116,13 @@ const sendByTemplateKey = async (openid, templateKey, bizData, page = '') => {
 
   if (!wxData || Object.keys(wxData).length === 0) return false;
 
-  return await sendSubscribeMessage(openid, template.templateId, wxData, page);
+  return await sendSubscribeMessage(openid, template.templateId, wxData, page, clientType);
 };
 
 // ========== 业务消息方法 ==========
 
 // 预约成功通知
-exports.sendBookingSuccess = async (user, schedule) => {
+exports.sendBookingSuccess = async (user, schedule, clientType = 'member') => {
   if (!user.openid) return;
   const now = new Date();
   const bookingTime = `${now.getFullYear()}年${String(now.getMonth() + 1).padStart(2, '0')}月${String(now.getDate()).padStart(2, '0')}日 ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
@@ -132,11 +135,11 @@ exports.sendBookingSuccess = async (user, schedule) => {
     bookingTime: bookingTime,
   };
 
-  await sendByTemplateKey(user.openid, 'bookingSuccess', bizData, 'pages/booking/booking');
+  await sendByTemplateKey(user.openid, 'bookingSuccess', bizData, 'pages/booking/booking', clientType);
 };
 
 // 取消预约通知
-exports.sendBookingCancel = async (user, schedule, reason) => {
+exports.sendBookingCancel = async (user, schedule, reason, clientType = 'member') => {
   if (!user.openid) return;
   const now = new Date();
   const cancelTime = `${now.getFullYear()}年${String(now.getMonth() + 1).padStart(2, '0')}月${String(now.getDate()).padStart(2, '0')}日 ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
@@ -149,11 +152,11 @@ exports.sendBookingCancel = async (user, schedule, reason) => {
     cancelTime: cancelTime,
   };
 
-  await sendByTemplateKey(user.openid, 'bookingCancel', bizData, 'pages/booking/booking');
+  await sendByTemplateKey(user.openid, 'bookingCancel', bizData, 'pages/booking/booking', clientType);
 };
 
 // 上课提醒
-exports.sendClassReminder = async (user, schedule) => {
+exports.sendClassReminder = async (user, schedule, clientType = 'member') => {
   if (!user.openid) return;
 
   const bizData = {
@@ -162,11 +165,11 @@ exports.sendClassReminder = async (user, schedule) => {
     classroom: schedule.classroom || '请准时到场',
   };
 
-  await sendByTemplateKey(user.openid, 'classReminder', bizData, 'pages/booking/booking');
+  await sendByTemplateKey(user.openid, 'classReminder', bizData, 'pages/booking/booking', clientType);
 };
 
 // 候补成功通知
-exports.sendWaitlistAvailable = async (user, schedule) => {
+exports.sendWaitlistAvailable = async (user, schedule, clientType = 'member') => {
   if (!user.openid) return;
 
   const bizData = {
@@ -175,11 +178,11 @@ exports.sendWaitlistAvailable = async (user, schedule) => {
     tipMessage: '有名额空出，请尽快预约',
   };
 
-  await sendByTemplateKey(user.openid, 'waitlistAvailable', bizData, 'pages/booking/booking');
+  await sendByTemplateKey(user.openid, 'waitlistAvailable', bizData, 'pages/booking/booking', clientType);
 };
 
 // 套餐即将到期通知
-exports.sendPackageExpiring = async (user, packageName, endDate) => {
+exports.sendPackageExpiring = async (user, packageName, endDate, clientType = 'member') => {
   if (!user.openid) return;
 
   const bizData = {
@@ -188,11 +191,11 @@ exports.sendPackageExpiring = async (user, packageName, endDate) => {
     tipMessage: '您的套餐即将到期，请及时续费',
   };
 
-  await sendByTemplateKey(user.openid, 'packageExpiring', bizData, 'pages/profile/profile');
+  await sendByTemplateKey(user.openid, 'packageExpiring', bizData, 'pages/profile/profile', clientType);
 };
 
 // 套餐已激活通知
-exports.sendPackageActivated = async (user, packageName, endDate) => {
+exports.sendPackageActivated = async (user, packageName, endDate, clientType = 'member') => {
   if (!user.openid) return;
 
   const bizData = {
@@ -201,11 +204,11 @@ exports.sendPackageActivated = async (user, packageName, endDate) => {
     tipMessage: '您的套餐已激活，快来预约课程吧',
   };
 
-  await sendByTemplateKey(user.openid, 'packageActivated', bizData, 'pages/booking/booking');
+  await sendByTemplateKey(user.openid, 'packageActivated', bizData, 'pages/booking/booking', clientType);
 };
 
 // 手机号审核结果通知
-exports.sendPhoneAuditResult = async (user, result, reason = '') => {
+exports.sendPhoneAuditResult = async (user, result, reason = '', clientType = 'member') => {
   if (!user.openid) return;
   const resultText = result === 'approved' ? '审核通过' : '审核未通过';
   const remark = result === 'approved' ? '您的预留手机号已更新成功' : (reason || '请核实信息后重新提交');
@@ -216,7 +219,7 @@ exports.sendPhoneAuditResult = async (user, result, reason = '') => {
     remark: remark,
   };
 
-  await sendByTemplateKey(user.openid, 'phoneAuditResult', bizData, 'pages/profile/profile');
+  await sendByTemplateKey(user.openid, 'phoneAuditResult', bizData, 'pages/profile/profile', clientType);
 };
 
 exports.sendSubscribeMessage = sendSubscribeMessage;

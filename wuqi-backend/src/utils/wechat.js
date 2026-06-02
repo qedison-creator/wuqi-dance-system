@@ -1,22 +1,33 @@
 const axios = require('axios');
 const config = require('../config');
 
-let accessTokenCache = {
-  token: null,
-  expiresAt: 0,
+// 按客户端类型缓存 access_token
+const accessTokenCaches = {
+  member: { token: null, expiresAt: 0 },
+  admin: { token: null, expiresAt: 0 },
 };
 
-let accessTokenPromise = null;
+const accessTokenPromises = {
+  member: null,
+  admin: null,
+};
 
 /**
  * 微信小程序 code 换取 openid/session_key
+ * @param {string} code - 微信登录code
+ * @param {string} clientType - 客户端类型：'member' | 'admin'
  */
-const code2Session = async (code) => {
+const code2Session = async (code, clientType = 'member') => {
   try {
+    const wxConfig = config.getWxConfig(clientType);
+    if (!wxConfig.appId || !wxConfig.secret) {
+      throw new Error(`未配置${clientType === 'admin' ? '管理端' : '会员端'}小程序 AppID 或 Secret`);
+    }
+
     const url = 'https://api.weixin.qq.com/sns/jscode2session';
     const params = {
-      appid: config.wxAppId,
-      secret: config.wxSecret,
+      appid: wxConfig.appId,
+      secret: wxConfig.secret,
       js_code: code,
       grant_type: 'authorization_code',
     };
@@ -40,23 +51,31 @@ const code2Session = async (code) => {
 
 /**
  * 获取微信 access_token（带并发锁）
+ * @param {string} clientType - 客户端类型：'member' | 'admin'
  */
-const getAccessToken = async () => {
-  if (accessTokenCache.token && Date.now() < accessTokenCache.expiresAt) {
-    return accessTokenCache.token;
+const getAccessToken = async (clientType = 'member') => {
+  const cache = accessTokenCaches[clientType];
+  if (cache.token && Date.now() < cache.expiresAt) {
+    return cache.token;
   }
 
-  if (accessTokenPromise) {
-    return accessTokenPromise;
+  if (accessTokenPromises[clientType]) {
+    return accessTokenPromises[clientType];
   }
 
-  accessTokenPromise = (async () => {
+  accessTokenPromises[clientType] = (async () => {
     try {
+      const wxConfig = config.getWxConfig(clientType);
+      if (!wxConfig.appId || !wxConfig.secret) {
+        console.warn(`[WeChat] 未配置${clientType === 'admin' ? '管理端' : '会员端'}小程序 AppID 或 Secret`);
+        return null;
+      }
+
       const url = 'https://api.weixin.qq.com/cgi-bin/token';
       const params = {
         grant_type: 'client_credential',
-        appid: config.wxAppId,
-        secret: config.wxSecret,
+        appid: wxConfig.appId,
+        secret: wxConfig.secret,
       };
 
       const response = await axios.get(url, { params });
@@ -66,18 +85,18 @@ const getAccessToken = async () => {
         throw new Error(`获取 access_token 失败: ${data.errmsg}`);
       }
 
-      accessTokenCache = {
+      accessTokenCaches[clientType] = {
         token: data.access_token,
         expiresAt: Date.now() + (data.expires_in - 300) * 1000,
       };
 
       return data.access_token;
     } finally {
-      accessTokenPromise = null;
+      accessTokenPromises[clientType] = null;
     }
   })();
 
-  return accessTokenPromise;
+  return accessTokenPromises[clientType];
 };
 
 module.exports = { code2Session, getAccessToken };

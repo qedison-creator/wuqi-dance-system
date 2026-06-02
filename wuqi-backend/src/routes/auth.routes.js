@@ -8,8 +8,8 @@ const { success } = require('../utils/response');
 // POST /api/v1/auth/wx-login
 router.post('/wx-login', async (req, res, next) => {
   try {
-    const { code, store_id } = req.body;
-    const result = await authService.wxLogin(code, store_id);
+    const { code, store_id, client_type } = req.body;
+    const result = await authService.wxLogin(code, store_id, client_type);
     res.json(success(result, '微信登录成功'));
   } catch (err) {
     next(err);
