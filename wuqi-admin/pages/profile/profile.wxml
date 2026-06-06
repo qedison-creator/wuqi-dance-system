@@ -11,88 +11,105 @@
     <view class="profile-info">
       <text class="profile-name">{{userInfo.nick_name || userInfo.name || userInfo.username || '管理员'}}</text>
       <view class="profile-meta">
-        <text class="profile-role">{{userInfo.role === 'super_admin' ? '超级管理员' : (userInfo.role === 'store_manager' ? '店长' : '员工')}}</text>
-        <text class="profile-dot" wx:if="{{currentStore}}">·</text>
+        <view class="profile-role-tag">
+          <text class="profile-role-text">{{userInfo.role === 'super_admin' ? '超级管理员' : (userInfo.role === 'store_manager' ? '店长' : '员工')}}</text>
+        </view>
         <text class="profile-store" wx:if="{{currentStore}}">{{currentStore.name}}</text>
       </view>
     </view>
   </view>
 
-  <view class="menu-card">
-    <view class="menu-item" wx:if="{{permAccount}}" bindtap="onManageAccounts">
-      <view class="menu-icon-wrap">
-        <image class="menu-icon" src="/images/icons/users.svg" mode="aspectFit"></image>
+  <!-- 账号管理 -->
+  <view class="menu-section">
+    <view class="menu-section-title">账号管理</view>
+    <view class="menu-card">
+      <view class="menu-item" wx:if="{{permAccount}}" bindtap="onManageAccounts">
+        <view class="menu-icon-wrap warm">
+          <image class="menu-icon" src="/images/icons/menu-users.svg" mode="aspectFit"></image>
+        </view>
+        <text class="menu-label">账号及权限管理</text>
+        <image class="menu-arrow" src="/images/icons/chevron-right.svg" mode="aspectFit"></image>
       </view>
-      <text class="menu-label">账号及权限管理</text>
-      <image class="menu-arrow" src="/images/icons/chevron-right.svg" mode="aspectFit"></image>
-    </view>
 
-    <view class="menu-item" bindtap="onAccountSecurity">
-      <view class="menu-icon-wrap">
-        <image class="menu-icon" src="/images/icons/settings.svg" mode="aspectFit"></image>
+      <view class="menu-item" bindtap="onAccountSecurity">
+        <view class="menu-icon-wrap warm">
+          <image class="menu-icon" src="/images/icons/menu-user.svg" mode="aspectFit"></image>
+        </view>
+        <text class="menu-label">个人资料及账号安全</text>
+        <image class="menu-arrow" src="/images/icons/chevron-right.svg" mode="aspectFit"></image>
       </view>
-      <text class="menu-label">个人资料及账号安全</text>
-      <image class="menu-arrow" src="/images/icons/chevron-right.svg" mode="aspectFit"></image>
     </view>
+  </view>
 
-    <view class="menu-item" wx:if="{{permConfig}}" bindtap="onGoToConfig">
-      <view class="menu-icon-wrap">
-        <image class="menu-icon" src="/images/icons/settings.svg" mode="aspectFit"></image>
+  <!-- 系统管理 -->
+  <view class="menu-section">
+    <view class="menu-section-title">系统管理</view>
+    <view class="menu-card">
+      <view class="menu-item" wx:if="{{permConfig}}" bindtap="onGoToConfig">
+        <view class="menu-icon-wrap teal">
+          <image class="menu-icon" src="/images/icons/menu-settings.svg" mode="aspectFit"></image>
+        </view>
+        <text class="menu-label">系统参数配置</text>
+        <image class="menu-arrow" src="/images/icons/chevron-right.svg" mode="aspectFit"></image>
       </view>
-      <text class="menu-label">系统参数配置</text>
-      <image class="menu-arrow" src="/images/icons/chevron-right.svg" mode="aspectFit"></image>
+
+      <view class="menu-item" wx:if="{{permConfig}}" bindtap="onGoToSettings">
+        <view class="menu-icon-wrap teal">
+          <image class="menu-icon" src="/images/icons/menu-bell.svg" mode="aspectFit"></image>
+        </view>
+        <text class="menu-label">消息推送设置</text>
+        <image class="menu-arrow" src="/images/icons/chevron-right.svg" mode="aspectFit"></image>
+      </view>
+
+      <view class="menu-item" wx:if="{{isAdmin}}" bindtap="onSystemReset">
+        <view class="menu-icon-wrap teal">
+          <image class="menu-icon" src="/images/icons/menu-database.svg" mode="aspectFit"></image>
+        </view>
+        <text class="menu-label">系统数据设置</text>
+        <image class="menu-arrow" src="/images/icons/chevron-right.svg" mode="aspectFit"></image>
+      </view>
+
+      <view class="menu-item" wx:if="{{permLog}}" bindtap="onOperationLog">
+        <view class="menu-icon-wrap muted">
+          <image class="menu-icon" src="/images/icons/menu-file-text.svg" mode="aspectFit"></image>
+        </view>
+        <text class="menu-label">操作日志</text>
+        <image class="menu-arrow" src="/images/icons/chevron-right.svg" mode="aspectFit"></image>
+      </view>
     </view>
+  </view>
 
-    <view class="menu-item" wx:if="{{permConfig}}" bindtap="onGoToSettings">
-      <view class="menu-icon-wrap">
-        <image class="menu-icon" src="/images/icons/settings.svg" mode="aspectFit"></image>
+  <!-- 其他 -->
+  <view class="menu-section">
+    <view class="menu-section-title">其他</view>
+    <view class="menu-card">
+      <view class="menu-item" bindtap="onPrivacy">
+        <view class="menu-icon-wrap muted">
+          <image class="menu-icon" src="/images/icons/menu-shield.svg" mode="aspectFit"></image>
+        </view>
+        <text class="menu-label">隐私保护指引</text>
+        <image class="menu-arrow" src="/images/icons/chevron-right.svg" mode="aspectFit"></image>
       </view>
-      <text class="menu-label">消息推送设置</text>
-      <image class="menu-arrow" src="/images/icons/chevron-right.svg" mode="aspectFit"></image>
-    </view>
 
-    <view class="menu-item" wx:if="{{isAdmin}}" bindtap="onSystemReset">
-      <view class="menu-icon-wrap">
-        <image class="menu-icon" src="/images/icons/settings.svg" mode="aspectFit"></image>
+      <view class="menu-item" bindtap="onAgreement">
+        <view class="menu-icon-wrap muted">
+          <image class="menu-icon" src="/images/icons/menu-document.svg" mode="aspectFit"></image>
+        </view>
+        <text class="menu-label">用户服务协议</text>
+        <image class="menu-arrow" src="/images/icons/chevron-right.svg" mode="aspectFit"></image>
       </view>
-      <text class="menu-label">系统数据设置</text>
-      <image class="menu-arrow" src="/images/icons/chevron-right.svg" mode="aspectFit"></image>
-    </view>
 
-    <view class="menu-item" wx:if="{{permLog}}" bindtap="onOperationLog">
-      <view class="menu-icon-wrap">
-        <image class="menu-icon" src="/images/icons/file-text.svg" mode="aspectFit"></image>
+      <view class="menu-item" bindtap="onAbout">
+        <view class="menu-icon-wrap muted">
+          <image class="menu-icon" src="/images/icons/menu-info.svg" mode="aspectFit"></image>
+        </view>
+        <text class="menu-label">关于系统</text>
+        <image class="menu-arrow" src="/images/icons/chevron-right.svg" mode="aspectFit"></image>
       </view>
-      <text class="menu-label">操作日志</text>
-      <image class="menu-arrow" src="/images/icons/chevron-right.svg" mode="aspectFit"></image>
-    </view>
-
-    <view class="menu-item" bindtap="onPrivacy">
-      <view class="menu-icon-wrap">
-        <image class="menu-icon" src="/images/icons/shield.svg" mode="aspectFit"></image>
-      </view>
-      <text class="menu-label">隐私保护指引</text>
-      <image class="menu-arrow" src="/images/icons/chevron-right.svg" mode="aspectFit"></image>
-    </view>
-
-    <view class="menu-item" bindtap="onAgreement">
-      <view class="menu-icon-wrap">
-        <image class="menu-icon" src="/images/icons/file-text.svg" mode="aspectFit"></image>
-      </view>
-      <text class="menu-label">用户服务协议</text>
-      <image class="menu-arrow" src="/images/icons/chevron-right.svg" mode="aspectFit"></image>
-    </view>
-
-    <view class="menu-item" bindtap="onAbout">
-      <view class="menu-icon-wrap">
-        <image class="menu-icon" src="/images/icons/info.svg" mode="aspectFit"></image>
-      </view>
-      <text class="menu-label">关于系统</text>
-      <image class="menu-arrow" src="/images/icons/chevron-right.svg" mode="aspectFit"></image>
     </view>
   </view>
 
   <view class="logout-section">
-    <button class="logout-btn" bindtap="onLogout">退出登录</button>
+    <view class="logout-btn" bindtap="onLogout">退出登录</view>
   </view>
 </view>
