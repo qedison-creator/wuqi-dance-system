@@ -20,6 +20,9 @@ let reminderSettings = {
   count_card_low_remind: 5,
   inactive_remind_days: 10,
   reminder_send_time: '14:00',
+  expire_remind_interval: 2,
+  low_count_remind_interval: 3,
+  inactive_remind_interval: 5,
 };
 
 const CANCEL_REASONS = [
@@ -58,6 +61,9 @@ exports.setReminderSettings = (settings) => {
     count_card_low_remind: parseInt(settings.count_card_low_remind) || 5,
     inactive_remind_days: parseInt(settings.inactive_remind_days) || 10,
     reminder_send_time: settings.reminder_send_time || '14:00',
+    expire_remind_interval: parseInt(settings.expire_remind_interval) || 2,
+    low_count_remind_interval: parseInt(settings.low_count_remind_interval) || 3,
+    inactive_remind_interval: parseInt(settings.inactive_remind_interval) || 5,
   };
 };
 

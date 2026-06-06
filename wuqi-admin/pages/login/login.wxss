@@ -99,6 +99,43 @@
   margin-top: 80rpx;
 }
 
+.remember-row {
+  display: flex;
+  align-items: center;
+  margin-top: 28rpx;
+  padding: 10rpx 0;
+}
+
+.checkbox {
+  width: 36rpx;
+  height: 36rpx;
+  border: 2rpx solid #B8AF9E;
+  border-radius: 6rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 12rpx;
+  flex-shrink: 0;
+  transition: all 150ms ease;
+}
+
+.checkbox.checked {
+  background: linear-gradient(135deg, #D4786E, #C05D53);
+  border-color: #C05D53;
+}
+
+.check-icon {
+  font-size: 24rpx;
+  color: #FFFFFF;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.remember-text {
+  font-size: 26rpx;
+  color: #6B5D56;
+}
+
 .tips-text {
   font-size: 24rpx;
   color: var(--text-tertiary);

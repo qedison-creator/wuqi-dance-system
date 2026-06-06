@@ -668,10 +668,22 @@
   flex-direction: column;
 }
 
+.booking-user-name-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8rpx;
+}
+
 .booking-user-name {
   font-size: 28rpx;
   color: #2C2416;
   font-weight: 500;
+}
+
+.booking-user-nick {
+  font-size: 24rpx;
+  color: #8B7E6A;
 }
 
 .booking-user-phone {

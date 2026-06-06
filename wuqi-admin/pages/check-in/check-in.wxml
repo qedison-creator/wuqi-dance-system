@@ -50,6 +50,7 @@
         <view class="record-info">
           <view class="record-name-row">
             <text class="record-name">{{item.userName}}</text>
+            <text class="record-nick" wx:if="{{item.userNickName}}">（{{item.userNickName}}）</text>
             <view class="source-tag {{item.checkInClass}}" wx:if="{{item.checked_in}}">
               <text>{{item.checkInLabel}}</text>
             </view>
@@ -93,7 +94,7 @@
           </view>
         </view>
         <button class="load-profile-btn" wx:if="{{item.user_id && item.user_id._id}}"
-                bindtap="loadMemberProfile" data-code="{{item.memberCode}}">
+                bindtap="onViewFullProfile" data-uid="{{item.user_id._id}}">
           查看完整档案
         </button>
       </view>
@@ -112,7 +113,7 @@
   </view>
 
   <!-- 签到确认弹窗 -->
-  <view class="modal-mask" wx:if="{{showProfileModal}}" bindtap="onCloseProfileModal">
+  <view class="modal-mask" wx:if="{{showProfileModal}}" bindtap="onCloseProfileModal" catchtouchmove="preventTouchMove">
     <view class="profile-modal" catchtap="onProfileModalTap">
 
       <view class="modal-warning" wx:if="{{isOnsiteMode}}">
@@ -126,7 +127,7 @@
             <text>{{profileData.member.nick_initial || '?'}}</text>
           </view>
           <view class="profile-member-info">
-            <text class="profile-member-name">{{profileData.member.nick_name || '会员'}}</text>
+            <text class="profile-member-name">{{profileData.member.display_name || '会员'}}</text>
             <text class="profile-member-code">编号：{{profileData.member.member_code || '-'}}</text>
             <text class="profile-member-phone">手机：{{profileData.member.phone || '-'}}</text>
             <text class="profile-member-store" wx:if="{{profileData.member.store_name}}">门店：{{profileData.member.store_name}}</text>
@@ -139,12 +140,18 @@
         <view class="pkg-item" wx:for="{{profileData.packages}}" wx:key="id">
           <view class="pkg-main">
             <text class="pkg-name">{{item.name}}</text>
-            <text class="pkg-type">{{item.type === 'times' ? '次卡' : (item.type === 'period' ? '周期卡' : '时间卡')}}</text>
+            <text class="pkg-type">{{item.type === 'count_card' ? '次卡' : (item.type === 'time_card' ? '时间卡' : '未知')}}</text>
           </view>
           <view class="pkg-detail">
-            <text wx:if="{{item.type === 'times'}}">剩余 {{item.credits_remaining}} 次 / 共 {{item.credits_total}} 次</text>
-            <text wx:if="{{item.type === 'period'}}">有效期至 {{item.valid_until || '--'}}</text>
-            <text wx:if="{{item.type === 'timecard'}}">日限{{item.daily_limit || '--'}}次 周限{{item.weekly_limit || '--'}}次</text>
+            <text wx:if="{{item.type === 'count_card'}}">剩余 {{item.credits_remaining}} 次 / 共 {{item.credits_total}} 次</text>
+            <view wx:if="{{item.type === 'time_card'}}">
+              <text wx:if="{{item.remaining_days}}">剩余 {{item.remaining_days}} 天</text>
+              <text wx:if="{{item.valid_until}}">，有效期至 {{item.valid_until}}</text>
+              <view wx:if="{{item.time_card_usage}}" style="margin-top: 8rpx; font-size: 24rpx; color: #666;">
+                <text wx:if="{{item.time_card_usage.daily_limit}}">今日已用 {{item.time_card_usage.daily_used}}/{{item.time_card_usage.daily_limit}} 次，剩余 {{item.time_card_usage.daily_remaining}} 次</text>
+                <text wx:if="{{item.time_card_usage.weekly_limit && !item.time_card_usage.daily_limit}}">本周已用 {{item.time_card_usage.weekly_used}}/{{item.time_card_usage.weekly_limit}} 次，剩余 {{item.time_card_usage.weekly_remaining}} 次</text>
+              </view>
+            </view>
           </view>
         </view>
       </view>
@@ -167,12 +174,18 @@
           </view>
         </view>
       </view>
+      <view class="profile-section" wx:elif="{{!isOnsiteMode}}">
+        <text class="no-pkg-text">该会员今天没有预约课程</text>
+      </view>
 
       <view class="modal-buttons">
-        <view class="btn-cancel" bindtap="onCloseProfileModal">
+        <view class="btn-cancel" bindtap="onCloseProfileModal" wx:if="{{checkedBookingIds.length > 0 || isOnsiteMode}}">
           <text>取消</text>
         </view>
-        <view class="btn-confirm {{isOnsiteMode ? 'onsite' : ''}}" bindtap="onConfirmCheckIn">
+        <view class="btn-confirm" bindtap="onCloseProfileModal" wx:else>
+          <text>关闭</text>
+        </view>
+        <view class="btn-confirm {{isOnsiteMode ? 'onsite' : ''}}" bindtap="onConfirmCheckIn" wx:if="{{checkedBookingIds.length > 0 || isOnsiteMode}}">
           <text wx:if="{{isOnsiteMode}}">临时签到</text>
           <text wx:else>确认签到({{checkedBookingIds.length}}人)</text>
         </view>
@@ -181,7 +194,7 @@
   </view>
 
   <!-- 临时签到二次确认 -->
-  <view class="modal-mask" wx:if="{{showOnsiteConfirm}}" bindtap="onCancelOnsiteConfirm">
+  <view class="modal-mask" wx:if="{{showOnsiteConfirm}}" bindtap="onCancelOnsiteConfirm" catchtouchmove="preventTouchMove">
     <view class="onsite-confirm-modal" catchtap="onProfileModalTap">
       <view class="onsite-confirm-icon">⚠️</view>
       <text class="onsite-confirm-title">确认临时签到</text>
@@ -195,7 +208,7 @@
         <text>课程：{{selectedSchedule.timeStr}} {{selectedSchedule.className}}</text>
       </view>
       <view class="onsite-confirm-info" wx:if="{{profileData.member}}">
-        <text>会员：{{profileData.member.nick_name || '会员'}}</text>
+        <text>会员：{{profileData.member.display_name || '会员'}}</text>
       </view>
       <view class="modal-buttons">
         <view class="btn-cancel" bindtap="onCancelOnsiteConfirm">

@@ -14,6 +14,7 @@ const corsOptions = config.isProd ? {
   origin: [
     'https://servicewechat.com',
     'https://api.yuekeme.cn',
+    'https://admin-api.yuekeme.cn',
     'https://yuekeme.cn'
   ],
   credentials: true
@@ -58,13 +59,34 @@ setInterval(() => {
 const uploadsDir = path.join(__dirname, '../uploads');
 const placeholderPath = path.join(uploadsDir, 'default-placeholder.png');
 
-app.use('/uploads', (req, res, next) => {
+app.use('/uploads', (req, res) => {
   const filePath = path.join(uploadsDir, req.path);
-  if (fs.existsSync(filePath)) {
-    res.sendFile(filePath);
-  } else {
-    res.sendFile(placeholderPath);
+  // 防止路径遍历攻击
+  const resolvedPath = path.resolve(filePath);
+  const resolvedRoot = path.resolve(uploadsDir);
+  if (!resolvedPath.startsWith(resolvedRoot)) {
+    return res.status(403).json({ code: 403, message: 'Forbidden' });
   }
+  // 文件存在直接返回
+  if (fs.existsSync(resolvedPath)) {
+    return res.sendFile(resolvedPath, (err) => {
+      if (err) {
+        if (!res.headersSent) {
+          res.status(404).json({ code: 404, message: 'Image not found' });
+        }
+      }
+    });
+  }
+  // 回退到默认占位图
+  if (fs.existsSync(placeholderPath)) {
+    return res.sendFile(placeholderPath, (err) => {
+      if (err && !res.headersSent) {
+        res.status(404).json({ code: 404, message: 'Image not found' });
+      }
+    });
+  }
+  // 连占位图都没有，返回 404
+  res.status(404).json({ code: 404, message: 'Image not found' });
 });
 
 // 路由

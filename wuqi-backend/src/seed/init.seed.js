@@ -121,8 +121,12 @@ async function seedAll() {
     // 4. 初始化教练
     console.log('\n[4/7] 初始化教练...');
     const stores = await Store.find();
+    const danceStyles = await DanceStyle.find();
     const coachCount = await Coach.countDocuments();
     if (coachCount === 0 && stores.length > 0) {
+      // 将舞种名称映射为 ObjectId
+      const styleMap = {};
+      danceStyles.forEach(s => { styleMap[s.name] = s._id; });
       const coaches = await Coach.insertMany([
         {
           name: '李老师',
@@ -130,8 +134,8 @@ async function seedAll() {
           gender: 1,
           avatar_url: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=200&h=200&fit=crop',
           store_id: stores[0]._id,
-          dance_styles: ['爵士舞', '韩舞'],
-          description: '从事舞蹈教学5年，擅长爵士舞和韩舞',
+          dance_styles: [styleMap['爵士舞'], styleMap['韩舞']].filter(Boolean),
+          introduction: '从事舞蹈教学5年，擅长爵士舞和韩舞',
           sort_order: 1,
           status: 'active'
         },
@@ -141,8 +145,8 @@ async function seedAll() {
           gender: 2,
           avatar_url: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=200&h=200&fit=crop',
           store_id: stores[0]._id,
-          dance_styles: ['古典舞', '中国舞'],
-          description: '专业舞蹈学院毕业，擅长中国古典舞',
+          dance_styles: [styleMap['古典舞'], styleMap['中国舞']].filter(Boolean),
+          introduction: '专业舞蹈学院毕业，擅长中国古典舞',
           sort_order: 2,
           status: 'active'
         },
@@ -152,8 +156,8 @@ async function seedAll() {
           gender: 1,
           avatar_url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&h=200&fit=crop',
           store_id: stores[1]._id,
-          dance_styles: ['街舞', '流行舞'],
-          description: '街舞教练，擅长Breaking和Popping',
+          dance_styles: [styleMap['街舞'], styleMap['流行舞']].filter(Boolean),
+          introduction: '街舞教练，擅长Breaking和Popping',
           sort_order: 1,
           status: 'active'
         }
@@ -167,10 +171,9 @@ async function seedAll() {
     console.log('\n[5/7] 初始化管理员账号...');
     const adminCount = await User.countDocuments({ user_type: 'admin' });
     if (adminCount === 0 && stores.length > 0) {
-      const hashedPassword = await bcrypt.hash('admin123', 10);
       const admin = await User.create({
         username: 'admin',
-        password: hashedPassword,
+        password: 'admin123',
         user_type: 'admin',
         role: 'super_admin',
         real_name: '超级管理员',
@@ -194,14 +197,13 @@ async function seedAll() {
       role: { $in: ['store_manager', 'staff'] } 
     });
     if (staffCount === 0 && stores.length > 0) {
-      const hashedPassword = await bcrypt.hash('123456', 10);
       const staffAccounts = [];
       
       // 为每个门店创建店长和店员
       for (const store of stores) {
         staffAccounts.push({
           username: `${store.code}_manager`,
-          password: hashedPassword,
+          password: '123456',
           user_type: 'admin',
           role: 'store_manager',
           real_name: `${store.name}店长`,
@@ -212,7 +214,7 @@ async function seedAll() {
         });
         staffAccounts.push({
           username: `${store.code}_staff`,
-          password: hashedPassword,
+          password: '123456',
           user_type: 'admin',
           role: 'staff',
           real_name: `${store.name}店员`,

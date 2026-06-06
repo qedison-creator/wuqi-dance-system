@@ -1,3 +1,5 @@
+const config = require('./config/index.js');
+
 App({
   globalData: {
     userInfo: null,
@@ -5,12 +7,14 @@ App({
     currentStore: null,
     currentStoreId: '',
     storeList: [],
-    baseUrl: 'http://localhost:3000/api/v1',
-    serverBase: 'http://localhost:3000',
-    privacyResolve: null
+    baseUrl: config.baseUrl,
+    serverBase: config.serverBase,
+    privacyResolve: null,
+    deviceFingerprint: ''
   },
   onLaunch() {
     this.registerPrivacyHandler();
+    this.initDeviceFingerprint();
     const token = wx.getStorageSync('admin_token');
     if (token) {
       this.globalData.token = token;
@@ -52,11 +56,18 @@ App({
   },
   getUserInfo() {
     const { request } = require('./utils/request');
+    const config = require('./config/index.js');
+    const serverBase = config.serverBase || '';
     request({
       url: '/auth/me',
       method: 'GET'
     }).then(res => {
-      this.globalData.userInfo = res.data;
+      const userInfo = res.data;
+      // 规范化avatar_url：确保是完整URL
+      if (userInfo && userInfo.avatar_url && !userInfo.avatar_url.startsWith('http')) {
+        userInfo.avatar_url = serverBase + userInfo.avatar_url;
+      }
+      this.globalData.userInfo = userInfo;
     }).catch(err => {
       console.error('获取管理员信息失败', err);
     });
@@ -89,5 +100,45 @@ App({
     const permissions = userInfo.permissions || [];
     if (permissions.indexOf('*') >= 0) return true;
     return permissions.indexOf(moduleId) >= 0;
+  },
+
+  // 生成当前设备的指纹（基于硬件信息，换设备会变化）
+  getDeviceFingerprint() {
+    try {
+      const deviceInfo = wx.getDeviceInfo();
+      const windowInfo = wx.getWindowInfo();
+      const raw = [deviceInfo.model, deviceInfo.brand, deviceInfo.platform, windowInfo.screenWidth, windowInfo.screenHeight].join('|');
+      // 简单哈希
+      let hash = 0;
+      for (let i = 0; i < raw.length; i++) {
+        const char = raw.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash |= 0;
+      }
+      return 'dev_' + Math.abs(hash).toString(36);
+    } catch (e) {
+      return '';
+    }
+  },
+
+  // 初始化设备指纹：首次启动存储，后续启动比对
+  initDeviceFingerprint() {
+    const currentFingerprint = this.getDeviceFingerprint();
+    if (!currentFingerprint) return;
+    this.globalData.deviceFingerprint = currentFingerprint;
+
+    const storedFingerprint = wx.getStorageSync('device_fingerprint');
+    if (!storedFingerprint) {
+      // 首次启动，存储设备指纹
+      wx.setStorageSync('device_fingerprint', currentFingerprint);
+    } else if (storedFingerprint !== currentFingerprint) {
+      // 设备已更换，清除所有登录凭据
+      wx.removeStorageSync('admin_token');
+      wx.removeStorageSync('saved_username');
+      wx.removeStorageSync('saved_password');
+      wx.setStorageSync('device_fingerprint', currentFingerprint);
+      this.globalData.token = '';
+      this.globalData.userInfo = null;
+    }
   }
 });

@@ -32,6 +32,9 @@ const userPackageSchema = new mongoose.Schema({
   extension_reason: { type: String },
   remark: { type: String },
   created_by: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  // 提醒相关
+  last_expire_reminded_at: { type: Date },
+  last_low_count_reminded_at: { type: Date },
 }, { timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' } });
 
 userPackageSchema.index({ user_id: 1, status: 1 });

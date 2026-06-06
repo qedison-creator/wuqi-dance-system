@@ -12,6 +12,7 @@ const Waitlist = require('../models/Waitlist');
 const OperationLog = require('../models/OperationLog');
 const CoachSalary = require('../models/CoachSalary');
 const ExemptionLog = require('../models/ExemptionLog');
+const SystemConfig = require('../models/SystemConfig');
 
 router.get('/stats', auth, checkPermission(['super_admin']), async (req, res, next) => {
   try {
@@ -206,6 +207,46 @@ router.post('/reset/all', auth, checkPermission(['super_admin']), async (req, re
     await ExemptionLog.deleteMany({});
 
     res.json(success(results, '所有业务数据已初始化'));
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ==================== 系统配置 ====================
+
+// 获取配置
+router.get('/configs', auth, async (req, res, next) => {
+  try {
+    const configs = await SystemConfig.find({});
+    const configMap = {};
+    configs.forEach(cfg => {
+      configMap[cfg.key] = cfg.value;
+    });
+    res.json(success(configMap));
+  } catch (err) {
+    next(err);
+  }
+});
+
+// 更新配置
+router.put('/configs', auth, checkPermission(['super_admin']), async (req, res, next) => {
+  try {
+    const { key, value, description, group } = req.body;
+    if (!key || value === undefined) {
+      return res.status(400).json({ code: 400, message: '参数不完整', data: null });
+    }
+    const updated = await SystemConfig.findOneAndUpdate(
+      { key },
+      { value, description: description || '', group: group || 'general' },
+      { new: true, upsert: true }
+    );
+    await OperationLog.create({
+      operator_id: req.user.id,
+      action: 'update',
+      module: 'system_config',
+      detail: `更新系统配置 ${key}`,
+    });
+    res.json(success(updated, '配置已更新'));
   } catch (err) {
     next(err);
   }

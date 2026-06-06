@@ -68,6 +68,29 @@ router.put('/profile', auth, checkPermission(['member']), async (req, res, next)
   }
 });
 
+// PUT /api/v1/auth/admin-profile - 管理端更新个人信息
+router.put('/admin-profile', auth, async (req, res, next) => {
+  try {
+    const { nick_name, avatar_url } = req.body;
+    const user = await User.findById(req.user.id);
+    if (!user) return res.status(404).json({ code: 404, message: '用户不存在', data: null });
+    if (user.user_type === 'member') {
+      return res.status(403).json({ code: 403, message: '会员请使用会员接口', data: null });
+    }
+
+    if (nick_name !== undefined) user.nick_name = nick_name;
+    if (avatar_url !== undefined) user.avatar_url = avatar_url;
+
+    await user.save();
+    const populated = await User.findById(user._id)
+      .select('-password -__v')
+      .populate('store_id', 'name phone address');
+    res.json(success(populated, '更新成功'));
+  } catch (err) {
+    next(err);
+  }
+});
+
 // PUT /api/v1/auth/change-password
 router.put('/change-password', auth, async (req, res, next) => {
   try {

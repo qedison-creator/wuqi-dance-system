@@ -45,6 +45,14 @@
   overflow: hidden;
 }
 
+.avatar-ring-img {
+  width: 96rpx;
+  height: 96rpx;
+  border-radius: 50%;
+  border: 3rpx solid #E8E2D8;
+  box-shadow: 0 4rpx 16rpx rgba(197, 116, 75, 0.12);
+}
+
 .avatar-char {
   font-size: 36rpx;
   font-weight: 700;

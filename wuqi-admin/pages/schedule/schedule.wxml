@@ -130,7 +130,7 @@
           <view class="action-btn {{item.isHistory ? 'disabled' : ''}}" data-index="{{index}}" bindtap="{{item.isHistory ? '' : 'onEditSchedule'}}">
             <text>{{item.isHistory ? '已归档' : '编辑'}}</text>
           </view>
-          <view class="action-btn {{item.isHistory ? 'history-action' : 'danger'}}" data-id="{{item._id}}" bindtap="{{item.isHistory ? 'onViewAttendance' : 'onCancelSchedule'}}">
+          <view class="action-btn {{item.isHistory ? 'history-action' : 'danger'}}" data-id="{{item._id}}" data-bookings="{{item.current_bookings || 0}}" bindtap="{{item.isHistory ? 'onViewAttendance' : 'onCancelSchedule'}}">
             <text>{{item.isHistory ? '上课记录' : '取消'}}</text>
           </view>
         </block>
@@ -622,6 +622,40 @@
             <text>请选择起始日期</text>
           </view>
         </block>
+      </view>
+    </view>
+  </view>
+
+  <!-- 取消排课原因选择弹窗 -->
+  <view class="modal-mask" wx:if="{{showCancelReasonModal}}" bindtap="onCloseCancelReasonModal">
+    <view class="modal-content cancel-reason-modal" catchtap="onModalTap">
+      <view class="modal-header">
+        <text class="modal-title">取消排课</text>
+        <text class="modal-close" bindtap="onCloseCancelReasonModal">✕</text>
+      </view>
+      <view class="modal-body">
+        <view class="cancel-reason-warning">
+          <text class="warning-icon">⚠️</text>
+          <text class="warning-text">该课程已有 {{cancelScheduleBookings}} 人预约，取消后将自动退还课时并通知会员。请选择取消原因：</text>
+        </view>
+        <view class="cancel-reason-list">
+          <view class="cancel-reason-item {{cancelSelectedReason === '恶劣天气' ? 'active' : ''}}" bindtap="onSelectCancelReason" data-reason="恶劣天气">
+            <view class="reason-radio {{cancelSelectedReason === '恶劣天气' ? 'checked' : ''}}"></view>
+            <text class="reason-text">恶劣天气</text>
+          </view>
+          <view class="cancel-reason-item {{cancelSelectedReason === '教练突发状况' ? 'active' : ''}}" bindtap="onSelectCancelReason" data-reason="教练突发状况">
+            <view class="reason-radio {{cancelSelectedReason === '教练突发状况' ? 'checked' : ''}}"></view>
+            <text class="reason-text">教练突发状况</text>
+          </view>
+          <view class="cancel-reason-item {{cancelSelectedReason === '其他' ? 'active' : ''}}" bindtap="onSelectCancelReason" data-reason="其他">
+            <view class="reason-radio {{cancelSelectedReason === '其他' ? 'checked' : ''}}"></view>
+            <text class="reason-text">其他</text>
+          </view>
+        </view>
+      </view>
+      <view class="modal-buttons">
+        <view class="btn-secondary" bindtap="onCloseCancelReasonModal"><text>取消</text></view>
+        <view class="btn-danger {{cancelSelectedReason ? '' : 'disabled'}}" bindtap="onConfirmCancelSchedule"><text>确认取消排课</text></view>
       </view>
     </view>
   </view>

@@ -1,5 +1,6 @@
 const app = getApp();
 const { request } = require('../../utils/request');
+const config = require('../../config/index.js');
 
 function getCurrentDate() {
   const now = new Date();
@@ -61,14 +62,19 @@ Page({
     loadingSkeleton: true,
     showDetailModal: false,
     detailTitle: '',
-    detailList: []
+    detailList: [],
+    systemConfigs: {},
+    heroBackgroundUrl: ''
   },
 
   onLoad() {
+    const theme = getTheme();
+    const bgUrl = '/images/hero/hero-' + theme + '.jpg';
     this.setData({
       currentDate: getCurrentDate(),
       greeting: getGreeting(),
-      theme: getTheme()
+      theme: theme,
+      heroBackgroundUrl: bgUrl
     });
     this.loadUserInfo();
     this.loadStores();
@@ -222,9 +228,40 @@ Page({
     return todoList;
   },
 
+  async loadSystemConfigs() {
+    try {
+      // 优先使用默认图，不依赖接口
+      this.applyHeroBackground({});
+      
+      // 尝试加载后端配置（如果后端可能还没部署，暂时静默尝试
+      try {
+        const res = await request({ url: '/system/configs', method: 'GET', silent: true });
+        const configs = res.data || {};
+        this.setData({ systemConfigs: configs });
+        // 如果成功拿到配置，再应用一次背景
+        if (Object.keys(configs).length > 0) {
+          this.applyHeroBackground(configs);
+        }
+      } catch (e) {
+        // 接口暂时不可用，不做任何处理
+        console.log('后端系统配置接口还未部署，使用默认背景图');
+      }
+    } catch (err) {
+      // 完全静默
+    }
+  },
+
+  applyHeroBackground(configs) {
+    const theme = this.data.theme;
+    const bgUrl = '/images/hero/hero-' + theme + '.jpg';
+    this.setData({ heroBackgroundUrl: bgUrl });
+  },
+
   async loadAllData() {
     try {
       const storeId = this.data.currentStore ? this.data.currentStore._id : '';
+
+      this.loadSystemConfigs();
 
       const [homeRes, statsRes, bannersRes] = await Promise.allSettled([
         request({ url: '/home/admin', method: 'GET' }),
@@ -267,10 +304,6 @@ Page({
       wx.hideLoading();
       wx.stopPullDownRefresh();
     });
-  },
-
-  onPullDownRefresh() {
-    this.onRefresh();
   },
 
   onOpenStoreModal() {

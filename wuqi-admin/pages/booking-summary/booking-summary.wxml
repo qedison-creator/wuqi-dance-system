@@ -1,22 +1,51 @@
 <view class="page">
-  <view class="store-filter" wx:if="{{storeList.length > 0}}">
-    <scroll-view scroll-x class="store-scroll">
-      <view class="store-tabs">
-        <view class="store-tab {{activeStoreId === item._id ? 'active' : ''}}" wx:for="{{storeList}}" wx:key="_id" data-id="{{item._id}}" bindtap="onStoreFilter">
-          <text>{{item.name}}</text>
+  <!-- ========== 顶部固定筛选区 ========== -->
+  <view class="filter-bar">
+    <!-- 门店筛选 -->
+    <view class="store-filter" wx:if="{{storeList.length > 0}}">
+      <scroll-view scroll-x class="store-scroll">
+        <view class="store-tabs">
+          <view class="store-tab {{activeStoreId === item._id ? 'active' : ''}}" wx:for="{{storeList}}" wx:key="_id" data-id="{{item._id}}" bindtap="onStoreFilter">
+            <text>{{item.name}}</text>
+          </view>
         </view>
+      </scroll-view>
+    </view>
+
+    <!-- 日期筛选 -->
+    <view class="date-filter">
+      <view class="date-tab {{dateFilter === 'today' ? 'active' : ''}}" data-filter="today" bindtap="onDateFilter">
+        <text>今日</text>
       </view>
-    </scroll-view>
+      <view class="date-tab {{dateFilter === 'yesterday' ? 'active' : ''}}" data-filter="yesterday" bindtap="onDateFilter">
+        <text>昨日</text>
+      </view>
+      <view class="date-tab {{dateFilter === 'week' ? 'active' : ''}}" data-filter="week" bindtap="onDateFilter">
+        <text>本周</text>
+      </view>
+      <view class="date-tab {{dateFilter === 'month' ? 'active' : ''}}" data-filter="month" bindtap="onDateFilter">
+        <text>本月</text>
+      </view>
+      <picker class="date-tab {{dateFilter === 'custom' ? 'active' : ''}}" mode="date" value="{{customDate}}" bindchange="onDateChange">
+        <text>{{customDateText}}</text>
+      </picker>
+    </view>
+
+    <!-- 当日汇总 -->
+    <view class="summary-row">
+      <text class="summary-text">当日汇总：总课程<text class="summary-num">{{summary.totalCourses}}</text>节｜总预约<text class="summary-num">{{summary.totalBookings}}</text>单｜已上课<text class="summary-num summary-green">{{summary.checkedIn}}</text>人｜已取消<text class="summary-num summary-red">{{summary.cancelled}}</text>人</text>
+    </view>
   </view>
 
-  <view class="content">
+  <!-- ========== 可滚动内容区 ========== -->
+  <scroll-view class="content" scroll-y enhanced show-scrollbar="{{false}}">
     <view class="year-list" wx:if="{{!loading && yearGroups.length > 0}}">
       <view class="year-group" wx:for="{{yearGroups}}" wx:key="year" wx:for-index="yearIndex">
         <view class="year-header">
           <text class="year-label">{{item.yearLabel}}</text>
           <text class="year-count">{{item.totalCount}}条预约</text>
         </view>
-        
+
         <view class="month-list">
           <view class="month-group" wx:for="{{item.months}}" wx:for-item="month" wx:key="monthKey" wx:for-index="monthIndex">
             <view class="month-header" bindtap="onToggleMonth" data-year-index="{{yearIndex}}" data-month-index="{{monthIndex}}">
@@ -26,7 +55,7 @@
               </view>
               <text class="month-count">{{month.totalCount}}条</text>
             </view>
-            
+
             <view class="month-content" wx:if="{{month.expanded}}">
               <view class="date-list">
                 <view class="date-group" wx:for="{{month.dates}}" wx:for-item="dateItem" wx:key="date" wx:for-index="dateIndex">
@@ -37,94 +66,208 @@
                     </view>
                     <text class="date-count">{{dateItem.totalCount}}条预约</text>
                   </view>
-                  
+
                   <view class="course-list">
                     <view class="course-item" wx:for="{{dateItem.schedules}}" wx:for-item="course" wx:key="schedule_id" wx:for-index="courseIndex">
+                      <!-- 课程头部 -->
                       <view class="course-main" bindtap="onToggleCourse" data-year-index="{{yearIndex}}" data-month-index="{{monthIndex}}" data-date-index="{{dateIndex}}" data-course-index="{{courseIndex}}">
                         <view class="course-info">
-                          <text class="course-name">{{course.schedule_info.course_name || course.schedule_info.name || '未知课程'}}</text>
+                          <text class="course-name">{{course.schedule_info.course_name}}</text>
                           <view class="course-meta">
-                            <text class="course-time">{{course.schedule_info.time || course.schedule_info.start_time || '未知时间'}}</text>
+                            <text class="course-time">{{course.schedule_info.start_time}}</text>
                             <text class="course-store" wx:if="{{course.schedule_info.store_name}}">{{course.schedule_info.store_name}}</text>
+                            <text class="course-capacity" wx:if="{{course.schedule_info.max_bookings}}">总名额{{course.schedule_info.max_bookings}}人</text>
                           </view>
                         </view>
                         <view class="course-stats">
-                          <view class="stat-item booked">
-                            <text class="stat-num">{{course.bookedCount}}</text>
-                            <text class="stat-label">预约</text>
-                          </view>
                           <view class="stat-item completed">
                             <text class="stat-num">{{course.completedCount}}</text>
-                            <text class="stat-label">上课</text>
+                            <text class="stat-label">已上课</text>
                           </view>
                           <view class="stat-item cancelled">
                             <text class="stat-num">{{course.cancelledCount}}</text>
-                            <text class="stat-label">取消</text>
+                            <text class="stat-label">已取消</text>
+                          </view>
+                          <view class="stat-item booked">
+                            <text class="stat-num">{{course.bookedCount}}</text>
+                            <text class="stat-label">待上课</text>
                           </view>
                         </view>
-                        <text class="toggle-icon {{course.expanded ? 'expanded' : ''}}">▾</text>
+                        <view class="course-right">
+                          <view class="export-btn" wx:if="{{course.expanded}}" catchtap="onExport" data-schedule-id="{{course.schedule_id}}">
+                            <text>导出</text>
+                          </view>
+                          <text class="toggle-icon {{course.expanded ? 'expanded' : ''}}">▾</text>
+                        </view>
                       </view>
-                      
-                      <view class="member-list" wx:if="{{course.expanded}}">
-                        <view class="member-tabs">
-                          <view class="member-tab {{course.activeTab === 'booked' ? 'active' : ''}}" data-tab="booked" catchtap="onSwitchMemberTab" data-year-index="{{yearIndex}}" data-month-index="{{monthIndex}}" data-date-index="{{dateIndex}}" data-course-index="{{courseIndex}}">
-                            <text>当前预约</text>
-                            <text class="tab-badge" wx:if="{{course.bookedCount > 0}}">{{course.bookedCount}}</text>
+
+                      <!-- 课程详情：三区块 -->
+                      <view class="course-detail" wx:if="{{course.expanded}}">
+                        <!-- 🟢 已上课 区块 -->
+                        <view class="member-section" wx:if="{{course.completedCount > 0}}">
+                          <view class="section-header">
+                            <view class="section-dot dot-completed"></view>
+                            <text class="section-title">已上课</text>
+                            <text class="section-count">{{course.completedCount}}人</text>
                           </view>
-                          <view class="member-tab {{course.activeTab === 'completed' ? 'active' : ''}}" data-tab="completed" catchtap="onSwitchMemberTab" data-year-index="{{yearIndex}}" data-month-index="{{monthIndex}}" data-date-index="{{dateIndex}}" data-course-index="{{courseIndex}}">
-                            <text>已完成</text>
-                            <text class="tab-badge" wx:if="{{course.completedCount > 0}}">{{course.completedCount}}</text>
-                          </view>
-                          <view class="member-tab {{course.activeTab === 'cancelled' ? 'active' : ''}}" data-tab="cancelled" catchtap="onSwitchMemberTab" data-year-index="{{yearIndex}}" data-month-index="{{monthIndex}}" data-date-index="{{dateIndex}}" data-course-index="{{courseIndex}}">
-                            <text>已取消</text>
-                            <text class="tab-badge" wx:if="{{course.cancelledCount > 0}}">{{course.cancelledCount}}</text>
-                          </view>
-                        </view>
-                        
-                        <view class="members" wx:if="{{course.displayMemberGroups.length > 0}}">
-                          <view class="member-card" wx:for="{{course.displayMemberGroups}}" wx:key="user_id" wx:for-item="memberGroup">
-                            <view class="member-card-header">
-                              <image class="member-avatar" src="{{memberGroup.user_info.avatar_url || '/images/default-avatar.svg'}}" mode="aspectFill"></image>
-                              <view class="member-info">
-                                <text class="member-name">{{memberGroup.user_info.nick_name || '未知会员'}}</text>
-                                <text class="member-phone">{{memberGroup.user_info.phone || ''}}</text>
-                              </view>
-                              <view class="member-status-badge status-{{memberGroup.latestStatus}}">
-                                <text>{{getStatusText(memberGroup.latestStatus)}}</text>
-                              </view>
-                            </view>
-                            
-                            <view class="member-timeline">
-                              <view class="timeline-item" wx:for="{{memberGroup.records}}" wx:key="_id" wx:for-item="record">
-                                <view class="timeline-dot-wrap">
-                                  <view class="timeline-dot dot-{{record.status}}"></view>
-                                  <view class="timeline-line" wx:if="{{index < memberGroup.records.length - 1}}"></view>
+                          <view class="member-cards">
+                            <view class="member-card status-completed" wx:for="{{course._sortedMemberGroups}}" wx:for-item="mg" wx:key="user_id" wx:if="{{mg.latestStatus === 'completed'}}">
+                              <view class="mc-header">
+                                <image class="mc-avatar" src="{{mg.user_info.avatar_url || '/images/default-avatar.svg'}}" mode="aspectFill"></image>
+                                <view class="mc-info">
+                                  <text class="mc-name">{{mg.user_info.real_name || mg.user_info.nick_name || '未知会员'}}</text>
+                                  <text class="mc-nick-name" wx:if="{{mg.user_info.real_name && mg.user_info.nick_name && mg.user_info.real_name !== mg.user_info.nick_name}}">{{mg.user_info.nick_name}}</text>
+                                  <text class="mc-phone">{{mg.user_info.phone || ''}}</text>
                                 </view>
-                                <view class="timeline-content">
-                                  <view class="timeline-row">
-                                    <text class="timeline-action action-{{record.status}}">{{record.status === 'cancelled' ? '取消' : '预约'}}</text>
-                                    <text class="timeline-time">{{record.created_at_display}}</text>
-                                  </view>
-                                  <view class="timeline-detail" wx:if="{{record.status === 'booked' || record.status === 'completed'}}">
-                                    <text class="detail-text">扣{{record.credits_deducted}}课时</text>
-                                  </view>
-                                  <view class="timeline-detail" wx:if="{{record.status === 'cancelled'}}">
-                                    <text class="detail-text">{{record.cancel_type_text}}</text>
-                                    <text class="detail-text" wx:if="{{record.credits_refunded > 0}}"> · 退还{{record.credits_refunded}}课时</text>
-                                    <text class="detail-text detail-warn" wx:if="{{record.credits_refunded === 0}}"> · 不退课时</text>
-                                  </view>
+                                <view class="mc-status-badge badge-completed">
+                                  <text>已完成</text>
+                                </view>
+                                <view class="mc-expand {{mg._expanded ? 'expanded' : ''}}" catchtap="onToggleMember" data-year-index="{{yearIndex}}" data-month-index="{{monthIndex}}" data-date-index="{{dateIndex}}" data-course-index="{{courseIndex}}" data-user-id="{{mg.user_id}}">
+                                  <text class="mc-expand-arrow">▾</text>
                                 </view>
                               </view>
+
+                              <!-- 展开：时间线 已完成 -->
+                              <view class="mc-timeline" wx:if="{{mg._expanded}}">
+                                <view class="timeline-item" wx:for="{{mg.records}}" wx:key="_id" wx:for-item="record">
+                                  <view class="tl-dot-wrap">
+                                    <view class="tl-dot dot-{{record.status}}"></view>
+                                    <view class="tl-line" wx:if="{{index < mg.records.length - 1}}"></view>
+                                  </view>
+                                  <view class="tl-content">
+                                    <view class="tl-row">
+                                      <text class="tl-action action-{{record.status}}">{{record.status === 'cancelled' ? '取消' : (record.status === 'completed' ? '签到' : '预约')}}</text>
+                                      <text class="tl-time">{{record.created_at_display}}</text>
+                                    </view>
+                                    <view class="tl-detail" wx:if="{{record.status === 'booked' || record.status === 'completed'}}">
+                                      <text class="tl-text">扣{{record.credits_deducted}}课时</text>
+                                    </view>
+                                    <view class="tl-detail" wx:if="{{record.status === 'cancelled'}}">
+                                      <text class="tl-text">{{record.cancel_type_text}}</text>
+                                      <text class="tl-text" wx:if="{{record.credits_refunded > 0}}"> · 返还{{record.credits_refunded}}课时</text>
+                                      <text class="tl-text tl-warn" wx:if="{{record.credits_refunded === 0 && record.cancel_type !== 'exempt'}}"> · 不退课时</text>
+                                    </view>
+                                  </view>
+                                </view>
+                              </view>
                             </view>
                           </view>
-                          
-                          <view class="load-more-btn" wx:if="{{course.memberGroups.length > course.displayCount}}" catchtap="onLoadMoreMembers" data-year-index="{{yearIndex}}" data-month-index="{{monthIndex}}" data-date-index="{{dateIndex}}" data-course-index="{{courseIndex}}">
-                            <text>展开更多 ({{course.memberGroups.length - course.displayCount}})</text>
+                        </view>
+
+                        <!-- 🔴 已取消 区块 -->
+                        <view class="member-section" wx:if="{{course.cancelledCount > 0}}">
+                          <view class="section-header">
+                            <view class="section-dot dot-cancelled"></view>
+                            <text class="section-title">已取消</text>
+                            <text class="section-count">{{course.cancelledCount}}人</text>
+                          </view>
+                          <view class="member-cards">
+                            <view class="member-card status-cancelled" wx:for="{{course._sortedMemberGroups}}" wx:for-item="mg" wx:key="user_id" wx:if="{{mg.latestStatus === 'cancelled'}}">
+                              <view class="mc-header">
+                                <image class="mc-avatar" src="{{mg.user_info.avatar_url || '/images/default-avatar.svg'}}" mode="aspectFill"></image>
+                                <view class="mc-info">
+                                  <text class="mc-name">{{mg.user_info.real_name || mg.user_info.nick_name || '未知会员'}}</text>
+                                  <text class="mc-nick-name" wx:if="{{mg.user_info.real_name && mg.user_info.nick_name && mg.user_info.real_name !== mg.user_info.nick_name}}">{{mg.user_info.nick_name}}</text>
+                                  <text class="mc-phone">{{mg.user_info.phone || ''}}</text>
+                                </view>
+                                <view class="mc-cancel-tag">
+                                  <text>【{{mg._cancelTypeText || '已取消'}}】</text>
+                                </view>
+                                <view class="mc-repeat" wx:if="{{mg._hasRepeat}}">
+                                  <text>🔄 {{mg._totalBookings}}次预约·{{mg._cancelCount}}次取消</text>
+                                </view>
+                                <view class="mc-expand {{mg._expanded ? 'expanded' : ''}}" catchtap="onToggleMember" data-year-index="{{yearIndex}}" data-month-index="{{monthIndex}}" data-date-index="{{dateIndex}}" data-course-index="{{courseIndex}}" data-user-id="{{mg.user_id}}">
+                                  <text class="mc-expand-arrow">▾</text>
+                                </view>
+                              </view>
+
+                              <view class="mc-timeline" wx:if="{{mg._expanded}}">
+                                <view class="timeline-item" wx:for="{{mg.records}}" wx:key="_id" wx:for-item="record">
+                                  <view class="tl-dot-wrap">
+                                    <view class="tl-dot dot-{{record.status}}"></view>
+                                    <view class="tl-line" wx:if="{{index < mg.records.length - 1}}"></view>
+                                  </view>
+                                  <view class="tl-content">
+                                    <view class="tl-row">
+                                      <text class="tl-action action-{{record.status}}">{{record.status === 'cancelled' ? '取消' : '预约'}}</text>
+                                      <text class="tl-time">{{record.created_at_display}}</text>
+                                    </view>
+                                    <view class="tl-detail" wx:if="{{record.status === 'booked'}}">
+                                      <text class="tl-text">预约 · 扣{{record.credits_deducted}}课时</text>
+                                    </view>
+                                    <view class="tl-detail" wx:if="{{record.status === 'cancelled'}}">
+                                      <text class="tl-text">{{record.cancel_time_display}} 取消 · {{record.cancel_type_text}}</text>
+                                      <text class="tl-text" wx:if="{{record.credits_refunded > 0}}"> · 返还{{record.credits_refunded}}课时</text>
+                                      <text class="tl-text tl-warn" wx:if="{{record.credits_refunded === 0 && record.cancel_type !== 'exempt'}}"> · 不退课时</text>
+                                    </view>
+                                  </view>
+                                </view>
+                              </view>
+                            </view>
                           </view>
                         </view>
-                        
-                        <view class="empty-members" wx:if="{{course.displayMemberGroups.length === 0}}">
-                          <text>暂无名单</text>
+
+                        <!-- ⚪ 待上课 区块 -->
+                        <view class="member-section" wx:if="{{course.bookedCount > 0}}">
+                          <view class="section-header">
+                            <view class="section-dot dot-booked"></view>
+                            <text class="section-title">待上课</text>
+                            <text class="section-count">{{course.bookedCount}}人</text>
+                          </view>
+                          <view class="member-cards">
+                            <view class="member-card status-booked" wx:for="{{course._sortedMemberGroups}}" wx:for-item="mg" wx:key="user_id" wx:if="{{mg.latestStatus === 'booked'}}">
+                              <view class="mc-header">
+                                <image class="mc-avatar" src="{{mg.user_info.avatar_url || '/images/default-avatar.svg'}}" mode="aspectFill"></image>
+                                <view class="mc-info">
+                                  <text class="mc-name">{{mg.user_info.real_name || mg.user_info.nick_name || '未知会员'}}</text>
+                                  <text class="mc-nick-name" wx:if="{{mg.user_info.real_name && mg.user_info.nick_name && mg.user_info.real_name !== mg.user_info.nick_name}}">{{mg.user_info.nick_name}}</text>
+                                  <text class="mc-phone">{{mg.user_info.phone || ''}}</text>
+                                </view>
+                                <view class="mc-status-badge badge-booked">
+                                  <text>待上课</text>
+                                </view>
+                                <view class="mc-repeat" wx:if="{{mg._hasRepeat}}">
+                                  <text>🔄 {{mg._totalBookings}}次预约·{{mg._cancelCount}}次取消</text>
+                                </view>
+                                <view class="mc-actions">
+                                  <view class="checkin-btn" catchtap="onCheckIn" data-schedule-id="{{course.schedule_id}}" data-user-id="{{mg.user_id}}">
+                                    <text>签到</text>
+                                  </view>
+                                  <view class="mc-expand {{mg._expanded ? 'expanded' : ''}}" catchtap="onToggleMember" data-year-index="{{yearIndex}}" data-month-index="{{monthIndex}}" data-date-index="{{dateIndex}}" data-course-index="{{courseIndex}}" data-user-id="{{mg.user_id}}">
+                                    <text class="mc-expand-arrow">▾</text>
+                                  </view>
+                                </view>
+                              </view>
+
+                              <view class="mc-timeline" wx:if="{{mg._expanded}}">
+                                <view class="timeline-item" wx:for="{{mg.records}}" wx:key="_id" wx:for-item="record">
+                                  <view class="tl-dot-wrap">
+                                    <view class="tl-dot dot-{{record.status}}"></view>
+                                    <view class="tl-line" wx:if="{{index < mg.records.length - 1}}"></view>
+                                  </view>
+                                  <view class="tl-content">
+                                    <view class="tl-row">
+                                      <text class="tl-action action-{{record.status}}">{{record.status === 'cancelled' ? '取消' : '预约'}}</text>
+                                      <text class="tl-time">{{record.created_at_display}}</text>
+                                    </view>
+                                    <view class="tl-detail" wx:if="{{record.status === 'booked'}}">
+                                      <text class="tl-text">预约 · 扣{{record.credits_deducted}}课时<text wx:if="{{index === 0}}">（当前有效）</text></text>
+                                    </view>
+                                    <view class="tl-detail" wx:if="{{record.status === 'cancelled'}}">
+                                      <text class="tl-text">{{record.cancel_time_display}} 取消 · {{record.cancel_type_text}}</text>
+                                      <text class="tl-text" wx:if="{{record.credits_refunded > 0}}"> · 返还{{record.credits_refunded}}课时</text>
+                                      <text class="tl-text tl-warn" wx:if="{{record.credits_refunded === 0 && record.cancel_type !== 'exempt'}}"> · 不退课时</text>
+                                    </view>
+                                  </view>
+                                </view>
+                              </view>
+                            </view>
+                          </view>
+                        </view>
+
+                        <!-- 空状态 -->
+                        <view class="empty-section" wx:if="{{course.completedCount === 0 && course.cancelledCount === 0 && course.bookedCount === 0}}">
+                          <text>暂无预约记录</text>
                         </view>
                       </view>
                     </view>
@@ -138,16 +281,11 @@
     </view>
 
     <view class="empty" wx:if="{{!loading && yearGroups.length === 0}}">
-      <text class="empty-icon">📅</text>
       <text class="empty-text">暂无预约课程</text>
     </view>
 
     <view class="loading" wx:if="{{loading}}">
       <text>加载中...</text>
     </view>
-
-    <view class="load-more" wx:if="{{!loading && hasMore && yearGroups.length > 0}}" bindtap="loadMore">
-      <text>加载更多</text>
-    </view>
-  </view>
+  </scroll-view>
 </view>

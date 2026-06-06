@@ -42,6 +42,15 @@
     </view>
 
     <view class="form-group">
+      <text class="form-label">套餐到期重复提醒</text>
+      <text class="form-hint">已发送提醒后，间隔N天再次提醒（同一个套餐）</text>
+      <view class="input-with-unit">
+        <input class="input-field unit-input" type="number" placeholder="2" value="{{expireRemindInterval}}" data-field="expireRemindInterval" bindinput="onFormInput" />
+        <text class="unit-text">天</text>
+      </view>
+    </view>
+
+    <view class="form-group">
       <text class="form-label">次卡低次数提醒</text>
       <text class="form-hint">次卡剩余次数低于此值时发送提醒（服务有效期内）</text>
       <view class="input-with-unit">
@@ -51,10 +60,28 @@
     </view>
 
     <view class="form-group">
+      <text class="form-label">次卡低次数重复提醒</text>
+      <text class="form-hint">已发送提醒后，间隔N天再次提醒（同一个套餐）</text>
+      <view class="input-with-unit">
+        <input class="input-field unit-input" type="number" placeholder="3" value="{{lowCountRemindInterval}}" data-field="lowCountRemindInterval" bindinput="onFormInput" />
+        <text class="unit-text">天</text>
+      </view>
+    </view>
+
+    <view class="form-group">
       <text class="form-label">会员不活跃提醒</text>
       <text class="form-hint">会员距离上次预约N天未预约课程时发送提醒</text>
       <view class="input-with-unit">
         <input class="input-field unit-input" type="number" placeholder="10" value="{{inactiveRemindDays}}" data-field="inactiveRemindDays" bindinput="onFormInput" />
+        <text class="unit-text">天</text>
+      </view>
+    </view>
+
+    <view class="form-group">
+      <text class="form-label">不活跃重复提醒</text>
+      <text class="form-hint">已发送提醒后，间隔N天再次提醒</text>
+      <view class="input-with-unit">
+        <input class="input-field unit-input" type="number" placeholder="5" value="{{inactiveRemindInterval}}" data-field="inactiveRemindInterval" bindinput="onFormInput" />
         <text class="unit-text">天</text>
       </view>
     </view>

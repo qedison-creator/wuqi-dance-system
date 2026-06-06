@@ -83,6 +83,7 @@ Page({
       this.setData({ coaches: processedList });
     } catch (err) {
       console.error('加载教练列表失败', err);
+      wx.showToast({ title: '加载教练列表失败', icon: 'none' });
     }
   },
 
@@ -331,6 +332,12 @@ Page({
           wx.hideLoading();
           wx.showToast({ title: '上传失败', icon: 'none' });
         }
+      },
+      fail: (err) => {
+        console.error('选择图片失败', err);
+        if (err.errMsg && err.errMsg.indexOf('cancel') === -1) {
+          wx.showToast({ title: '选择图片失败，请检查隐私权限', icon: 'none' });
+        }
       }
     });
   },
@@ -371,6 +378,12 @@ Page({
         } catch (err) {
           wx.hideLoading();
           wx.showToast({ title: '上传失败', icon: 'none' });
+        }
+      },
+      fail: (err) => {
+        console.error('选择图片失败', err);
+        if (err.errMsg && err.errMsg.indexOf('cancel') === -1) {
+          wx.showToast({ title: '选择图片失败，请检查隐私权限', icon: 'none' });
         }
       }
     });
@@ -429,6 +442,12 @@ Page({
         } catch (err) {
           wx.hideLoading();
           wx.showToast({ title: '上传失败', icon: 'none' });
+        }
+      },
+      fail: (err) => {
+        console.error('选择图片失败', err);
+        if (err.errMsg && err.errMsg.indexOf('cancel') === -1) {
+          wx.showToast({ title: '选择图片失败，请检查隐私权限', icon: 'none' });
         }
       }
     });

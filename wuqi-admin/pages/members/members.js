@@ -126,9 +126,14 @@ Page({
   },
 
   onRefresh() {
-    this.setData({ members: [], page: 1, hasMore: true });
+    this.setData({ page: 1, hasMore: true });
     this.loadStoreList();
     this.loadPackageDistribution();
+  },
+
+  onPullDownRefresh() {
+    this.onRefresh();
+    wx.stopPullDownRefresh();
   },
 
   // 跳转到待审核页面
@@ -405,10 +410,11 @@ Page({
         };
       });
 
+      const isFirstPage = this.data.page === 1;
       this.setData({
-        members: this.data.members.concat(newList),
-        totalMembers: this.data.page === 1 ? total : this.data.totalMembers,
-        pendingCount: this.data.page === 1 ? pending : this.data.pendingCount,
+        members: isFirstPage ? newList : this.data.members.concat(newList),
+        totalMembers: isFirstPage ? total : this.data.totalMembers,
+        pendingCount: isFirstPage ? pending : this.data.pendingCount,
         hasMore: newList.length >= 20,
         page: this.data.page + 1
       });

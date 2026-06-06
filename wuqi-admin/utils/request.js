@@ -25,10 +25,10 @@ const request = (options) => {
               appData.token = '';
               appData.userInfo = null;
             }
-            wx.showToast({ title: '请重新登录', icon: 'none' });
+            wx.showToast({ title: res.data.message || '请重新登录', icon: 'none', duration: 2500 });
             setTimeout(() => {
               wx.reLaunch({ url: '/pages/login/login' });
-            }, 1500);
+            }, 2000);
             reject(res.data);
           } else {
             wx.showToast({ title: res.data.message || '请求失败', icon: 'none' });

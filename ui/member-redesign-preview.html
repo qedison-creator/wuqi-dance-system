@@ -1,0 +1,1508 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>舞栖会员端 UI优化方案 - 效果图预览</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Helvetica Neue', sans-serif;
+    background: #F0EBE8;
+    color: #2A2122;
+    padding: 40px 20px;
+  }
+  .header {
+    text-align: center;
+    margin-bottom: 48px;
+  }
+  .header h1 {
+    font-size: 28px;
+    font-weight: 700;
+    color: #2A2122;
+    margin-bottom: 8px;
+  }
+  .header p {
+    font-size: 14px;
+    color: #948284;
+  }
+  .section-title {
+    font-size: 20px;
+    font-weight: 700;
+    color: #2A2122;
+    margin-bottom: 24px;
+    padding-left: 12px;
+    border-left: 4px solid #D4786E;
+  }
+  .comparison {
+    display: flex;
+    gap: 32px;
+    justify-content: center;
+    margin-bottom: 64px;
+    flex-wrap: wrap;
+  }
+  .phone-frame {
+    width: 375px;
+    height: 812px;
+    border-radius: 40px;
+    background: #000;
+    padding: 12px;
+    box-shadow: 0 20px 60px rgba(42,33,34,0.2);
+    flex-shrink: 0;
+  }
+  .phone-screen {
+    width: 100%;
+    height: 100%;
+    border-radius: 30px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    position: relative;
+  }
+  .phone-screen::-webkit-scrollbar { display: none; }
+  .phone-label {
+    text-align: center;
+    margin-bottom: 16px;
+    font-size: 15px;
+    font-weight: 600;
+    color: #6B5D5E;
+  }
+  .phone-label span {
+    display: inline-block;
+    padding: 4px 14px;
+    border-radius: 20px;
+    font-size: 13px;
+  }
+  .label-before span { background: rgba(148,130,132,0.12); color: #948284; }
+  .label-after span { background: rgba(212,120,110,0.12); color: #D4786E; }
+
+  /* ===== 通用样式 ===== */
+  :root {
+    --clr-primary: #D4786E;
+    --clr-primary-deep: #C05D53;
+    --clr-primary-wash: #FDF2EF;
+    --clr-secondary: #5D9B9B;
+    --clr-secondary-wash: #EEF5F4;
+    --clr-bg: #FBFAF8;
+    --clr-card: #FFFFFF;
+    --clr-text: #2A2122;
+    --clr-text-sub: #6B5D5E;
+    --clr-text-hint: #948284;
+    --clr-border: #F0E8E5;
+    --clr-gold: #E8985E;
+  }
+
+  /* ===== 优化前 - 首页 ===== */
+  .before-home {
+    background: #FBFAF8;
+  }
+  .bh-banner {
+    height: 200px;
+    background: linear-gradient(160deg, #FDF2EF 0%, #EEF5F4 50%, #F8F4FC 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+  }
+  .bh-banner::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 80px;
+    background: linear-gradient(transparent, #FBFAF8);
+  }
+  .bh-greeting {
+    font-size: 22px;
+    font-weight: 700;
+    color: #2A2122;
+    z-index: 1;
+  }
+  .bh-content { padding: 0 14px 100px; margin-top: -60px; position: relative; z-index: 2; }
+  .bh-hero-card {
+    background: #fff;
+    border-radius: 14px;
+    box-shadow: 0 2px 16px rgba(42,33,34,0.10);
+    padding: 14px;
+    margin-bottom: 12px;
+  }
+  .bh-store-name {
+    font-size: 15px;
+    font-weight: 700;
+    color: #2A2122;
+    margin-bottom: 4px;
+  }
+  .bh-store-addr {
+    font-size: 12px;
+    color: #6B5D5E;
+    margin-bottom: 2px;
+  }
+  .bh-store-phone {
+    font-size: 12px;
+    color: #6B5D5E;
+  }
+  .bh-switch {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 8px;
+    background: rgba(212,120,110,0.08);
+    font-size: 11px;
+    color: #D4786E;
+    margin-left: 6px;
+  }
+  .bh-announce {
+    display: flex;
+    align-items: center;
+    background: #fff;
+    border-radius: 10px;
+    padding: 9px 11px;
+    margin-bottom: 16px;
+    box-shadow: 0 1px 8px rgba(42,33,34,0.04);
+  }
+  .bh-announce-dot {
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: #D4786E;
+    margin-right: 7px;
+    flex-shrink: 0;
+  }
+  .bh-announce-text {
+    font-size: 12px;
+    color: #6B5D5E;
+    flex: 1;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+  .bh-announce-badge {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: #D4786E;
+    color: #fff;
+    font-size: 10px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-left: 6px;
+    flex-shrink: 0;
+  }
+  .bh-section { margin-bottom: 18px; }
+  .bh-section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+  }
+  .bh-section-left {
+    display: flex;
+    align-items: center;
+  }
+  .bh-section-dot {
+    width: 3px;
+    height: 13px;
+    border-radius: 2px;
+    background: #D4786E;
+    margin-right: 7px;
+  }
+  .bh-section-dot.teal { background: #5D9B9B; }
+  .bh-section-dot.purple { background: #B89CDA; }
+  .bh-section-title {
+    font-size: 17px;
+    font-weight: 700;
+    color: #2A2122;
+  }
+  .bh-section-more {
+    font-size: 12px;
+    color: #D4786E;
+  }
+  .bh-coach-scroll {
+    display: flex;
+    gap: 12px;
+    overflow: hidden;
+  }
+  .bh-coach {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 70px;
+    flex-shrink: 0;
+  }
+  .bh-coach-avatar {
+    width: 60px;
+    height: 60px;
+    border-radius: 18px;
+    background: linear-gradient(135deg, #FDF2EF, #EEF5F4);
+    border: 2px dashed rgba(212,120,110,0.35);
+    margin-bottom: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+  }
+  .bh-coach-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: #2A2122;
+  }
+  .bh-course-scroll {
+    display: flex;
+    gap: 9px;
+    overflow: hidden;
+  }
+  .bh-course-card {
+    width: 130px;
+    flex-shrink: 0;
+    background: linear-gradient(135deg, #F0E8FF 0%, #FDF2EF 45%, #EEF5F4 100%);
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 2px 10px rgba(42,33,34,0.06);
+  }
+  .bh-course-thumb {
+    height: 90px;
+    background: linear-gradient(135deg, #EEF5F4, #E8F0F5);
+  }
+  .bh-course-info { padding: 9px 10px; }
+  .bh-course-tag {
+    display: inline-block;
+    padding: 2px 7px;
+    border-radius: 5px;
+    font-size: 10px;
+    font-weight: 600;
+    color: #fff;
+    background: #D4786E;
+    margin-bottom: 5px;
+  }
+  .bh-course-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: #2A2122;
+    line-height: 1.3;
+    margin-bottom: 5px;
+  }
+  .bh-course-meta {
+    font-size: 10px;
+    color: #948284;
+  }
+  .bh-video-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .bh-video-card {
+    width: calc(50% - 5px);
+    background: #fff;
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 2px 10px rgba(42,33,34,0.06);
+  }
+  .bh-video-thumb {
+    height: 80px;
+    background: linear-gradient(135deg, #EEF5F4, #E8F0F5);
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .bh-play-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: rgba(212,120,110,0.85);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .bh-play-icon {
+    width: 0;
+    height: 0;
+    border-left: 10px solid #fff;
+    border-top: 6px solid transparent;
+    border-bottom: 6px solid transparent;
+    margin-left: 2px;
+  }
+  .bh-video-title {
+    padding: 8px 9px;
+    font-size: 12px;
+    font-weight: 500;
+    color: #2A2122;
+  }
+
+  /* ===== 优化后 - 首页 ===== */
+  .after-home {
+    background: #FBFAF8;
+  }
+  .ah-banner {
+    height: 200px;
+    background: linear-gradient(160deg, #FDF2EF 0%, #FAE8E3 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+  }
+  .ah-banner::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 80px;
+    background: linear-gradient(transparent, #FBFAF8);
+  }
+  .ah-greeting {
+    font-size: 22px;
+    font-weight: 700;
+    color: #2A2122;
+    z-index: 1;
+  }
+  .ah-content { padding: 0 16px 100px; margin-top: -50px; position: relative; z-index: 2; }
+  .ah-hero-card {
+    background: #fff;
+    border-radius: 24px;
+    box-shadow: 0 2px 20px rgba(42,33,34,0.06);
+    padding: 18px 18px 16px;
+    margin-bottom: 14px;
+  }
+  .ah-store-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .ah-store-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    background: #FDF2EF;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .ah-store-icon svg { width: 18px; height: 18px; }
+  .ah-store-info { flex: 1; min-width: 0; }
+  .ah-store-name {
+    font-size: 16px;
+    font-weight: 700;
+    color: #2A2122;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .ah-switch-tag {
+    font-size: 10px;
+    color: #D4786E;
+    background: rgba(212,120,110,0.08);
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-weight: 500;
+  }
+  .ah-store-detail {
+    font-size: 11px;
+    color: #948284;
+    margin-top: 3px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .ah-store-detail-item {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+  }
+  .ah-store-detail-item svg { width: 12px; height: 12px; opacity: 0.5; }
+  .ah-announce {
+    display: flex;
+    align-items: center;
+    background: #fff;
+    border-radius: 16px;
+    padding: 12px 14px;
+    margin-bottom: 20px;
+    box-shadow: 0 1px 8px rgba(42,33,34,0.04);
+    gap: 8px;
+  }
+  .ah-announce-icon {
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    background: linear-gradient(135deg, #D4786E, #E8985E);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .ah-announce-icon svg { width: 14px; height: 14px; fill: #fff; }
+  .ah-announce-text {
+    font-size: 12px;
+    color: #6B5D5E;
+    flex: 1;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    font-weight: 500;
+  }
+  .ah-announce-badge {
+    font-size: 11px;
+    color: #D4786E;
+    font-weight: 600;
+    flex-shrink: 0;
+  }
+  .ah-section { margin-bottom: 22px; }
+  .ah-section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+  }
+  .ah-section-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .ah-section-dot {
+    width: 4px;
+    height: 16px;
+    border-radius: 2px;
+    background: #D4786E;
+  }
+  .ah-section-dot.teal { background: #5D9B9B; }
+  .ah-section-title {
+    font-size: 17px;
+    font-weight: 700;
+    color: #2A2122;
+  }
+  .ah-section-more {
+    font-size: 12px;
+    color: #948284;
+    display: flex;
+    align-items: center;
+    gap: 2px;
+  }
+  .ah-section-more svg { width: 12px; height: 12px; }
+  .ah-coach-scroll {
+    display: flex;
+    gap: 14px;
+    overflow: hidden;
+  }
+  .ah-coach {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 68px;
+    flex-shrink: 0;
+  }
+  .ah-coach-avatar {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #FDF2EF, #EEF5F4);
+    border: 2px solid rgba(212,120,110,0.12);
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+    transition: transform 0.2s ease;
+  }
+  .ah-coach-name {
+    font-size: 12px;
+    font-weight: 600;
+    color: #2A2122;
+    text-align: center;
+  }
+  .ah-course-scroll {
+    display: flex;
+    gap: 10px;
+    overflow: hidden;
+  }
+  .ah-course-card {
+    width: 140px;
+    flex-shrink: 0;
+    background: #fff;
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: 0 2px 12px rgba(42,33,34,0.05);
+  }
+  .ah-course-thumb {
+    height: 88px;
+    background: linear-gradient(135deg, #EEF5F4, #E8F0F5);
+    position: relative;
+  }
+  .ah-course-style-tag {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    padding: 2px 8px;
+    border-radius: 6px;
+    font-size: 10px;
+    font-weight: 600;
+    color: #fff;
+    background: #D4786E;
+  }
+  .ah-course-info { padding: 10px 12px 12px; }
+  .ah-course-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: #2A2122;
+    line-height: 1.3;
+    margin-bottom: 6px;
+  }
+  .ah-course-meta {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .ah-course-day {
+    font-size: 10px;
+    color: #D4786E;
+    font-weight: 600;
+  }
+  .ah-course-time {
+    font-size: 10px;
+    color: #948284;
+  }
+  .ah-video-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .ah-video-card {
+    width: calc(50% - 5px);
+    background: #fff;
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: 0 2px 12px rgba(42,33,34,0.05);
+  }
+  .ah-video-thumb {
+    height: 80px;
+    background: linear-gradient(135deg, #EEF5F4, #E8F0F5);
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .ah-play-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: rgba(212,120,110,0.85);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .ah-play-icon {
+    width: 0;
+    height: 0;
+    border-left: 10px solid #fff;
+    border-top: 6px solid transparent;
+    border-bottom: 6px solid transparent;
+    margin-left: 2px;
+  }
+  .ah-video-title {
+    padding: 10px 12px;
+    font-size: 12px;
+    font-weight: 500;
+    color: #2A2122;
+  }
+
+  /* ===== 优化前 - 个人中心 ===== */
+  .before-profile {
+    background: #FBFAF8;
+    padding: 16px 14px 100px;
+  }
+  .bp-hero {
+    background: linear-gradient(135deg, #F0E8FF 0%, #FDF2EF 45%, #EEF5F4 100%);
+    border-radius: 16px;
+    padding: 18px 16px;
+    margin-bottom: 12px;
+    position: relative;
+    overflow: hidden;
+  }
+  .bp-hero::after {
+    content: '';
+    position: absolute;
+    top: -40px;
+    right: -40px;
+    width: 100px;
+    height: 100px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, rgba(212,120,110,0.08), rgba(184,156,218,0.05));
+  }
+  .bp-hero-top {
+    display: flex;
+    align-items: center;
+    position: relative;
+    z-index: 1;
+  }
+  .bp-avatar {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: #FDF2EF;
+    border: 2px solid #D4786E;
+    margin-right: 12px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+  }
+  .bp-name {
+    font-size: 17px;
+    font-weight: 700;
+    color: #2A2122;
+  }
+  .bp-member-id {
+    font-size: 11px;
+    color: #A69294;
+    margin-top: 2px;
+  }
+  .bp-qr-btn {
+    margin-left: auto;
+    padding: 8px 14px;
+    border-radius: 14px;
+    background: linear-gradient(135deg, #D4786E, #E09A8E);
+    color: #fff;
+    font-size: 12px;
+    font-weight: 600;
+    box-shadow: 0 2px 8px rgba(212,120,110,0.3);
+  }
+  .bp-stats {
+    display: flex;
+    background: #fff;
+    border-radius: 14px;
+    padding: 16px;
+    margin-bottom: 12px;
+    box-shadow: 0 1px 8px rgba(42,33,34,0.04);
+  }
+  .bp-stat {
+    flex: 1;
+    text-align: center;
+  }
+  .bp-stat-num {
+    font-size: 22px;
+    font-weight: 700;
+    color: #2A2122;
+    display: block;
+  }
+  .bp-stat-label {
+    font-size: 11px;
+    color: #948284;
+    margin-top: 2px;
+    display: block;
+  }
+  .bp-stat-divider {
+    width: 1px;
+    background: #F0E8E5;
+    margin: 0 8px;
+  }
+  .bp-section-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 10px;
+  }
+  .bp-section-bar {
+    width: 3px;
+    height: 14px;
+    border-radius: 2px;
+    background: #D4786E;
+  }
+  .bp-section-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: #2A2122;
+  }
+  .bp-pkg-card {
+    background: #fff;
+    border-radius: 14px;
+    padding: 16px;
+    margin-bottom: 10px;
+    box-shadow: 0 1px 8px rgba(42,33,34,0.04);
+    position: relative;
+    overflow: hidden;
+  }
+  .bp-pkg-card::before {
+    content: '';
+    position: absolute;
+    top: -30px;
+    right: -30px;
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    background: rgba(212,120,110,0.06);
+  }
+  .bp-pkg-tags {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 10px;
+  }
+  .bp-pkg-tag {
+    padding: 2px 8px;
+    border-radius: 6px;
+    font-size: 10px;
+    font-weight: 600;
+  }
+  .bp-pkg-tag-store { background: rgba(212,120,110,0.08); color: #D4786E; }
+  .bp-pkg-tag-type { background: rgba(93,155,155,0.08); color: #5D9B9B; }
+  .bp-pkg-main {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 10px;
+  }
+  .bp-pkg-value {
+    font-size: 36px;
+    font-weight: 700;
+    color: #2A2122;
+    line-height: 1;
+  }
+  .bp-pkg-unit {
+    font-size: 14px;
+    font-weight: 600;
+    color: #6B5D5E;
+  }
+  .bp-pkg-label {
+    font-size: 11px;
+    color: #948284;
+    margin-top: 4px;
+  }
+  .bp-pkg-capsules {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    flex: 1;
+  }
+  .bp-pkg-capsule {
+    display: flex;
+    justify-content: space-between;
+    padding: 6px 10px;
+    background: #F9F7F5;
+    border-radius: 8px;
+    font-size: 11px;
+  }
+  .bp-pkg-capsule-label { color: #948284; }
+  .bp-pkg-capsule-value { color: #2A2122; font-weight: 600; }
+  .bp-pkg-progress {
+    height: 6px;
+    background: #F0E8E5;
+    border-radius: 3px;
+    overflow: hidden;
+    margin-bottom: 6px;
+  }
+  .bp-pkg-progress-fill {
+    height: 100%;
+    border-radius: 3px;
+    background: linear-gradient(90deg, #D4786E, #E8985E);
+    width: 35%;
+  }
+  .bp-pkg-progress-info {
+    display: flex;
+    justify-content: space-between;
+    font-size: 10px;
+    color: #948284;
+    margin-bottom: 8px;
+  }
+  .bp-pkg-date {
+    font-size: 11px;
+    color: #948284;
+    padding-top: 8px;
+    border-top: 1px solid #F5F0EE;
+  }
+  .bp-menu {
+    background: #fff;
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow: 0 1px 8px rgba(42,33,34,0.04);
+  }
+  .bp-menu-item {
+    display: flex;
+    align-items: center;
+    padding: 14px 16px;
+    border-bottom: 1px solid #F5F0EE;
+  }
+  .bp-menu-item:last-child { border-bottom: none; }
+  .bp-menu-bar {
+    width: 3px;
+    height: 14px;
+    border-radius: 2px;
+    margin-right: 10px;
+  }
+  .bp-menu-bar.rose { background: #D4786E; }
+  .bp-menu-bar.teal { background: #5D9B9B; }
+  .bp-menu-bar.purple { background: #B89CDA; }
+  .bp-menu-bar.gold { background: #E8985E; }
+  .bp-menu-bar.red { background: #E85D5D; }
+  .bp-menu-bar.slate { background: #948284; }
+  .bp-menu-title {
+    font-size: 14px;
+    color: #2A2122;
+    flex: 1;
+  }
+  .bp-menu-arrow {
+    width: 6px;
+    height: 6px;
+    border-top: 1.5px solid #948284;
+    border-right: 1.5px solid #948284;
+    transform: rotate(45deg);
+  }
+
+  /* ===== 优化后 - 个人中心 ===== */
+  .after-profile {
+    background: #FBFAF8;
+    padding: 16px 16px 100px;
+  }
+  .ap-hero {
+    background: #FDF2EF;
+    border-radius: 24px;
+    padding: 20px 18px;
+    margin-bottom: 14px;
+    position: relative;
+    overflow: hidden;
+  }
+  .ap-hero::after {
+    content: '';
+    position: absolute;
+    top: -50px;
+    right: -30px;
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    background: rgba(212,120,110,0.06);
+  }
+  .ap-hero-top {
+    display: flex;
+    align-items: center;
+    position: relative;
+    z-index: 1;
+  }
+  .ap-avatar {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: #fff;
+    border: 2px solid rgba(212,120,110,0.2);
+    margin-right: 14px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+  }
+  .ap-name {
+    font-size: 18px;
+    font-weight: 700;
+    color: #2A2122;
+  }
+  .ap-member-id {
+    font-size: 11px;
+    color: #948284;
+    margin-top: 2px;
+  }
+  .ap-qr-btn {
+    margin-left: auto;
+    padding: 8px 16px;
+    border-radius: 20px;
+    background: #D4786E;
+    color: #fff;
+    font-size: 12px;
+    font-weight: 600;
+  }
+  .ap-stats {
+    display: flex;
+    background: #fff;
+    border-radius: 20px;
+    padding: 18px 12px;
+    margin-bottom: 16px;
+    box-shadow: 0 1px 8px rgba(42,33,34,0.04);
+  }
+  .ap-stat {
+    flex: 1;
+    text-align: center;
+  }
+  .ap-stat.center { flex: 1.3; }
+  .ap-stat-num {
+    font-size: 24px;
+    font-weight: 700;
+    color: #2A2122;
+    display: block;
+  }
+  .ap-stat.center .ap-stat-num {
+    font-size: 28px;
+    color: #D4786E;
+  }
+  .ap-stat-label {
+    font-size: 11px;
+    color: #948284;
+    margin-top: 3px;
+    display: block;
+  }
+  .ap-stat-divider {
+    width: 1px;
+    background: #F0E8E5;
+    margin: 0 6px;
+  }
+  .ap-section-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+  .ap-section-bar {
+    width: 4px;
+    height: 16px;
+    border-radius: 2px;
+    background: #D4786E;
+  }
+  .ap-section-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: #2A2122;
+  }
+  .ap-pkg-card {
+    background: #fff;
+    border-radius: 20px;
+    padding: 16px 16px 14px;
+    margin-bottom: 10px;
+    box-shadow: 0 2px 12px rgba(42,33,34,0.05);
+    border-left: 3px solid #D4786E;
+  }
+  .ap-pkg-tags {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 12px;
+  }
+  .ap-pkg-tag {
+    padding: 3px 10px;
+    border-radius: 8px;
+    font-size: 10px;
+    font-weight: 600;
+  }
+  .ap-pkg-tag-store { background: rgba(212,120,110,0.08); color: #D4786E; }
+  .ap-pkg-tag-type { background: rgba(93,155,155,0.08); color: #5D9B9B; }
+  .ap-pkg-main {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    margin-bottom: 12px;
+  }
+  .ap-pkg-value-group {
+    display: flex;
+    align-items: baseline;
+    gap: 4px;
+  }
+  .ap-pkg-value {
+    font-size: 32px;
+    font-weight: 700;
+    color: #2A2122;
+    line-height: 1;
+  }
+  .ap-pkg-unit {
+    font-size: 13px;
+    font-weight: 600;
+    color: #6B5D5E;
+  }
+  .ap-pkg-label {
+    font-size: 11px;
+    color: #948284;
+    margin-top: 4px;
+  }
+  .ap-pkg-status {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+    color: #5D9B9B;
+    font-weight: 500;
+  }
+  .ap-pkg-status-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #5D9B9B;
+  }
+  .ap-pkg-info-row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+  .ap-pkg-info-item {
+    flex: 1;
+    padding: 8px 10px;
+    background: #FAF9F7;
+    border-radius: 10px;
+  }
+  .ap-pkg-info-label {
+    font-size: 10px;
+    color: #948284;
+    margin-bottom: 2px;
+  }
+  .ap-pkg-info-value {
+    font-size: 13px;
+    font-weight: 600;
+    color: #2A2122;
+  }
+  .ap-pkg-progress {
+    height: 4px;
+    background: #F0E8E5;
+    border-radius: 2px;
+    overflow: hidden;
+    margin-bottom: 4px;
+  }
+  .ap-pkg-progress-fill {
+    height: 100%;
+    border-radius: 2px;
+    background: #D4786E;
+    width: 35%;
+  }
+  .ap-pkg-progress-info {
+    display: flex;
+    justify-content: space-between;
+    font-size: 10px;
+    color: #948284;
+    margin-bottom: 8px;
+  }
+  .ap-pkg-date {
+    font-size: 11px;
+    color: #948284;
+    padding-top: 8px;
+    border-top: 1px solid #F5F0EE;
+  }
+  .ap-menu {
+    background: #fff;
+    border-radius: 20px;
+    overflow: hidden;
+    box-shadow: 0 1px 8px rgba(42,33,34,0.04);
+  }
+  .ap-menu-item {
+    display: flex;
+    align-items: center;
+    padding: 15px 16px;
+    border-bottom: 1px solid #F8F5F3;
+    gap: 10px;
+  }
+  .ap-menu-item:last-child { border-bottom: none; }
+  .ap-menu-icon {
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .ap-menu-icon svg { width: 14px; height: 14px; }
+  .ap-menu-icon.rose { background: rgba(212,120,110,0.08); }
+  .ap-menu-icon.rose svg { fill: #D4786E; }
+  .ap-menu-icon.teal { background: rgba(93,155,155,0.08); }
+  .ap-menu-icon.teal svg { fill: #5D9B9B; }
+  .ap-menu-icon.gold { background: rgba(232,152,94,0.08); }
+  .ap-menu-icon.gold svg { fill: #E8985E; }
+  .ap-menu-icon.muted { background: rgba(148,130,132,0.08); }
+  .ap-menu-icon.muted svg { fill: #948284; }
+  .ap-menu-title {
+    font-size: 14px;
+    color: #2A2122;
+    flex: 1;
+  }
+  .ap-menu-arrow {
+    width: 6px;
+    height: 6px;
+    border-top: 1.5px solid #C8BCBE;
+    border-right: 1.5px solid #C8BCBE;
+    transform: rotate(45deg);
+  }
+  .ap-logout {
+    text-align: center;
+    padding: 14px;
+    font-size: 14px;
+    color: #948284;
+    font-weight: 500;
+  }
+
+  /* ===== TabBar ===== */
+  .tabbar {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 80px;
+    background: #fff;
+    border-top: 1px solid #F0E8E5;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-around;
+    padding-top: 8px;
+    z-index: 10;
+  }
+  .tab-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+  }
+  .tab-icon {
+    width: 22px;
+    height: 22px;
+    border-radius: 4px;
+    background: #E8E3E0;
+  }
+  .tab-icon.active { background: #D4786E; }
+  .tab-label {
+    font-size: 10px;
+    color: #948284;
+  }
+  .tab-label.active { color: #D4786E; font-weight: 600; }
+
+  /* ===== 状态栏 ===== */
+  .status-bar {
+    height: 44px;
+    background: transparent;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 20px;
+  }
+  .status-time { font-size: 14px; font-weight: 600; color: #2A2122; }
+  .status-icons { display: flex; gap: 4px; }
+  .status-icons span { font-size: 12px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>舞栖会员端 UI优化方案</h1>
+  <p>Design Read: Premium consumer app for young adults, warm-elegant language, WeChat mini-program with custom tokens</p>
+  <p style="margin-top:8px; font-size:12px; color:#D4786E;">DIALS: VARIANCE 6 / MOTION 5 / DENSITY 4</p>
+</div>
+
+<!-- ===== 首页对比 ===== -->
+<h2 class="section-title">首页 Home</h2>
+<div class="comparison">
+  <div>
+    <div class="phone-label label-before"><span>优化前</span></div>
+    <div class="phone-frame">
+      <div class="phone-screen before-home">
+        <div class="status-bar"><span class="status-time">9:41</span><div class="status-icons"><span>5G</span><span>100%</span></div></div>
+        <div class="bh-banner"><span class="bh-greeting">👋 下午好</span></div>
+        <div class="bh-content">
+          <div class="bh-hero-card">
+            <div style="display:flex;align-items:center;margin-bottom:8px;">
+              <span style="font-size:18px;margin-right:6px;">👋</span>
+              <span style="font-size:16px;font-weight:700;">下午好</span>
+              <span style="font-size:12px;color:#6B5D5E;margin-left:6px;">今天想跳什么？</span>
+            </div>
+            <div class="bh-store-name">固戍店 <span class="bh-switch">切换 ›</span></div>
+            <div class="bh-store-addr">📍 深圳市宝安区固戍一路...</div>
+            <div class="bh-store-phone">📞 0755-12345678</div>
+          </div>
+          <div class="bh-announce">
+            <div class="bh-announce-dot"></div>
+            <div class="bh-announce-text">端午节放假通知：6月8日-10日门店暂停营业...</div>
+            <div class="bh-announce-badge">3</div>
+          </div>
+          <div class="bh-section">
+            <div class="bh-section-header">
+              <div class="bh-section-left"><div class="bh-section-dot"></div><span class="bh-section-title">舞栖教练</span></div>
+              <span class="bh-section-more">全部 ›</span>
+            </div>
+            <div class="bh-coach-scroll">
+              <div class="bh-coach"><div class="bh-coach-avatar">👩</div><span class="bh-coach-name">小美</span></div>
+              <div class="bh-coach"><div class="bh-coach-avatar">👨</div><span class="bh-coach-name">大强</span></div>
+              <div class="bh-coach"><div class="bh-coach-avatar">👩</div><span class="bh-coach-name">阿丽</span></div>
+              <div class="bh-coach"><div class="bh-coach-avatar">👨</div><span class="bh-coach-name">小杰</span></div>
+            </div>
+          </div>
+          <div class="bh-section">
+            <div class="bh-section-header">
+              <div class="bh-section-left"><div class="bh-section-dot teal"></div><span class="bh-section-title">近期课程</span></div>
+            </div>
+            <div class="bh-course-scroll">
+              <div class="bh-course-card">
+                <div class="bh-course-thumb"></div>
+                <div class="bh-course-info">
+                  <div class="bh-course-tag">街舞</div>
+                  <div class="bh-course-name">街舞基本功</div>
+                  <div class="bh-course-meta">周三 19:45</div>
+                </div>
+              </div>
+              <div class="bh-course-card">
+                <div class="bh-course-thumb"></div>
+                <div class="bh-course-info">
+                  <div class="bh-course-tag" style="background:#5D9B9B">爵士</div>
+                  <div class="bh-course-name">爵士舞入门</div>
+                  <div class="bh-course-meta">周四 20:00</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="bh-section">
+            <div class="bh-section-header">
+              <div class="bh-section-left"><div class="bh-section-dot purple"></div><span class="bh-section-title">教练作品</span></div>
+            </div>
+            <div class="bh-video-grid">
+              <div class="bh-video-card"><div class="bh-video-thumb"><div class="bh-play-btn"><div class="bh-play-icon"></div></div></div><div class="bh-video-title">街舞基础教学</div></div>
+              <div class="bh-video-card"><div class="bh-video-thumb"><div class="bh-play-btn"><div class="bh-play-icon"></div></div></div><div class="bh-video-title">爵士编舞展示</div></div>
+            </div>
+          </div>
+        </div>
+        <div class="tabbar">
+          <div class="tab-item"><div class="tab-icon active"></div><span class="tab-label active">首页</span></div>
+          <div class="tab-item"><div class="tab-icon"></div><span class="tab-label">预约</span></div>
+          <div class="tab-item"><div class="tab-icon"></div><span class="tab-label">我的</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div>
+    <div class="phone-label label-after"><span>优化后</span></div>
+    <div class="phone-frame">
+      <div class="phone-screen after-home">
+        <div class="status-bar"><span class="status-time">9:41</span><div class="status-icons"><span>5G</span><span>100%</span></div></div>
+        <div class="ah-banner"><span class="ah-greeting">👋 下午好</span></div>
+        <div class="ah-content">
+          <div class="ah-hero-card">
+            <div class="ah-store-row">
+              <div class="ah-store-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="#D4786E" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+              </div>
+              <div class="ah-store-info">
+                <div class="ah-store-name">固戍店 <span class="ah-switch-tag">切换</span></div>
+                <div class="ah-store-detail">
+                  <span class="ah-store-detail-item">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                    宝安区固戍一路
+                  </span>
+                  <span class="ah-store-detail-item">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/></svg>
+                    0755-12345678
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="ah-announce">
+            <div class="ah-announce-icon">
+              <svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0"/></svg>
+            </div>
+            <div class="ah-announce-text">端午节放假通知：6月8日-10日门店暂停营业</div>
+            <div class="ah-announce-badge">3条 ›</div>
+          </div>
+          <div class="ah-section">
+            <div class="ah-section-header">
+              <div class="ah-section-left"><div class="ah-section-dot"></div><span class="ah-section-title">舞栖教练</span></div>
+              <span class="ah-section-more">全部 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg></span>
+            </div>
+            <div class="ah-coach-scroll">
+              <div class="ah-coach"><div class="ah-coach-avatar">👩</div><span class="ah-coach-name">小美</span></div>
+              <div class="ah-coach"><div class="ah-coach-avatar">👨</div><span class="ah-coach-name">大强</span></div>
+              <div class="ah-coach"><div class="ah-coach-avatar">👩</div><span class="ah-coach-name">阿丽</span></div>
+              <div class="ah-coach"><div class="ah-coach-avatar">👨</div><span class="ah-coach-name">小杰</span></div>
+            </div>
+          </div>
+          <div class="ah-section">
+            <div class="ah-section-header">
+              <div class="ah-section-left"><div class="ah-section-dot teal"></div><span class="ah-section-title">近期课程</span></div>
+            </div>
+            <div class="ah-course-scroll">
+              <div class="ah-course-card">
+                <div class="ah-course-thumb"><span class="ah-course-style-tag">街舞</span></div>
+                <div class="ah-course-info">
+                  <div class="ah-course-name">街舞基本功</div>
+                  <div class="ah-course-meta"><span class="ah-course-day">周三</span><span class="ah-course-time">19:45</span></div>
+                </div>
+              </div>
+              <div class="ah-course-card">
+                <div class="ah-course-thumb"><span class="ah-course-style-tag" style="background:#5D9B9B">爵士</span></div>
+                <div class="ah-course-info">
+                  <div class="ah-course-name">爵士舞入门</div>
+                  <div class="ah-course-meta"><span class="ah-course-day">周四</span><span class="ah-course-time">20:00</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="ah-section">
+            <div class="ah-section-header">
+              <div class="ah-section-left"><div class="ah-section-dot teal"></div><span class="ah-section-title">教练作品</span></div>
+            </div>
+            <div class="ah-video-grid">
+              <div class="ah-video-card"><div class="ah-video-thumb"><div class="ah-play-btn"><div class="ah-play-icon"></div></div></div><div class="ah-video-title">街舞基础教学</div></div>
+              <div class="ah-video-card"><div class="ah-video-thumb"><div class="ah-play-btn"><div class="ah-play-icon"></div></div></div><div class="ah-video-title">爵士编舞展示</div></div>
+            </div>
+          </div>
+        </div>
+        <div class="tabbar">
+          <div class="tab-item"><div class="tab-icon active"></div><span class="tab-label active">首页</span></div>
+          <div class="tab-item"><div class="tab-icon"></div><span class="tab-label">预约</span></div>
+          <div class="tab-item"><div class="tab-icon"></div><span class="tab-label">我的</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 个人中心对比 ===== -->
+<h2 class="section-title">个人中心 Profile</h2>
+<div class="comparison">
+  <div>
+    <div class="phone-label label-before"><span>优化前</span></div>
+    <div class="phone-frame">
+      <div class="phone-screen before-profile">
+        <div class="status-bar"><span class="status-time">9:41</span><div class="status-icons"><span>5G</span><span>100%</span></div></div>
+        <div class="bp-hero">
+          <div class="bp-hero-top">
+            <div class="bp-avatar">👩</div>
+            <div>
+              <div class="bp-name">嗷嗷</div>
+              <div class="bp-member-id">会员编号：WQ001</div>
+            </div>
+            <div class="bp-qr-btn">会员码</div>
+          </div>
+        </div>
+        <div class="bp-stats">
+          <div class="bp-stat"><span class="bp-stat-num">12</span><span class="bp-stat-label">总预约</span></div>
+          <div class="bp-stat-divider"></div>
+          <div class="bp-stat"><span class="bp-stat-num">7</span><span class="bp-stat-label">已上课</span></div>
+          <div class="bp-stat-divider"></div>
+          <div class="bp-stat"><span class="bp-stat-num">2</span><span class="bp-stat-label">本周剩余</span></div>
+        </div>
+        <div style="margin-bottom:14px;">
+          <div class="bp-section-header"><div class="bp-section-bar"></div><span class="bp-section-title">我的套餐</span></div>
+          <div class="bp-pkg-card">
+            <div class="bp-pkg-tags"><span class="bp-pkg-tag bp-pkg-tag-store">固戍店</span><span class="bp-pkg-tag bp-pkg-tag-type">时间卡</span></div>
+            <div class="bp-pkg-main">
+              <div><div style="display:flex;align-items:baseline;"><span class="bp-pkg-value">364</span><span class="bp-pkg-unit">天</span></div><div class="bp-pkg-label">剩余天数</div></div>
+              <div class="bp-pkg-capsules">
+                <div class="bp-pkg-capsule"><span class="bp-pkg-capsule-label">服务有效期</span><span class="bp-pkg-capsule-value">3个月</span></div>
+                <div class="bp-pkg-capsule"><span class="bp-pkg-capsule-label">本周剩余</span><span class="bp-pkg-capsule-value">2 次</span></div>
+              </div>
+            </div>
+            <div class="bp-pkg-progress"><div class="bp-pkg-progress-fill"></div></div>
+            <div class="bp-pkg-progress-info"><span>已用1天</span><span>0.3%</span></div>
+            <div class="bp-pkg-date">服务有效期：2026.06.04至2026.09.03</div>
+          </div>
+        </div>
+        <div style="margin-bottom:14px;">
+          <div class="bp-section-header"><div class="bp-section-bar"></div><span class="bp-section-title">功能</span></div>
+          <div class="bp-menu">
+            <div class="bp-menu-item"><div class="bp-menu-bar rose"></div><span class="bp-menu-title">个人信息</span><div class="bp-menu-arrow"></div></div>
+            <div class="bp-menu-item"><div class="bp-menu-bar teal"></div><span class="bp-menu-title">我的记录</span><div class="bp-menu-arrow"></div></div>
+            <div class="bp-menu-item"><div class="bp-menu-bar purple"></div><span class="bp-menu-title">转卡申请</span><div class="bp-menu-arrow"></div></div>
+            <div class="bp-menu-item"><div class="bp-menu-bar gold"></div><span class="bp-menu-title">联系门店</span><div class="bp-menu-arrow"></div></div>
+            <div class="bp-menu-item"><div class="bp-menu-bar slate"></div><span class="bp-menu-title">关于系统</span><div class="bp-menu-arrow"></div></div>
+          </div>
+        </div>
+        <div>
+          <div class="bp-section-header"><div class="bp-section-bar"></div><span class="bp-section-title">其他</span></div>
+          <div class="bp-menu">
+            <div class="bp-menu-item"><div class="bp-menu-bar slate"></div><span class="bp-menu-title">隐私保护指引</span><div class="bp-menu-arrow"></div></div>
+            <div class="bp-menu-item"><div class="bp-menu-bar slate"></div><span class="bp-menu-title">用户服务协议</span><div class="bp-menu-arrow"></div></div>
+            <div class="bp-menu-item"><div class="bp-menu-bar red"></div><span class="bp-menu-title" style="color:#E85D5D">退出登录</span><div class="bp-menu-arrow"></div></div>
+          </div>
+        </div>
+        <div class="tabbar">
+          <div class="tab-item"><div class="tab-icon"></div><span class="tab-label">首页</span></div>
+          <div class="tab-item"><div class="tab-icon"></div><span class="tab-label">预约</span></div>
+          <div class="tab-item"><div class="tab-icon active"></div><span class="tab-label active">我的</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div>
+    <div class="phone-label label-after"><span>优化后</span></div>
+    <div class="phone-frame">
+      <div class="phone-screen after-profile">
+        <div class="status-bar"><span class="status-time">9:41</span><div class="status-icons"><span>5G</span><span>100%</span></div></div>
+        <div class="ap-hero">
+          <div class="ap-hero-top">
+            <div class="ap-avatar">👩</div>
+            <div>
+              <div class="ap-name">嗷嗷</div>
+              <div class="ap-member-id">会员编号：WQ001</div>
+            </div>
+            <div class="ap-qr-btn">会员码</div>
+          </div>
+        </div>
+        <div class="ap-stats">
+          <div class="ap-stat"><span class="ap-stat-num">12</span><span class="ap-stat-label">总预约</span></div>
+          <div class="ap-stat-divider"></div>
+          <div class="ap-stat center"><span class="ap-stat-num">2</span><span class="ap-stat-label">本周剩余</span></div>
+          <div class="ap-stat-divider"></div>
+          <div class="ap-stat"><span class="ap-stat-num">7</span><span class="ap-stat-label">已上课</span></div>
+        </div>
+        <div style="margin-bottom:16px;">
+          <div class="ap-section-header"><div class="ap-section-bar"></div><span class="ap-section-title">我的套餐</span></div>
+          <div class="ap-pkg-card">
+            <div class="ap-pkg-tags"><span class="ap-pkg-tag ap-pkg-tag-store">固戍店</span><span class="ap-pkg-tag ap-pkg-tag-type">时间卡</span></div>
+            <div class="ap-pkg-main">
+              <div>
+                <div class="ap-pkg-value-group"><span class="ap-pkg-value">364</span><span class="ap-pkg-unit">天</span></div>
+                <div class="ap-pkg-label">剩余天数</div>
+              </div>
+              <div class="ap-pkg-status"><div class="ap-pkg-status-dot"></div>使用中</div>
+            </div>
+            <div class="ap-pkg-info-row">
+              <div class="ap-pkg-info-item"><div class="ap-pkg-info-label">服务有效期</div><div class="ap-pkg-info-value">3个月</div></div>
+              <div class="ap-pkg-info-item"><div class="ap-pkg-info-label">本周剩余</div><div class="ap-pkg-info-value">2 次</div></div>
+            </div>
+            <div class="ap-pkg-progress"><div class="ap-pkg-progress-fill"></div></div>
+            <div class="ap-pkg-progress-info"><span>已用1天</span><span>0.3%</span></div>
+            <div class="ap-pkg-date">服务有效期：2026.06.04至2026.09.03</div>
+          </div>
+        </div>
+        <div style="margin-bottom:16px;">
+          <div class="ap-section-header"><div class="ap-section-bar"></div><span class="ap-section-title">功能</span></div>
+          <div class="ap-menu">
+            <div class="ap-menu-item"><div class="ap-menu-icon rose"><svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2M12 11a4 4 0 100-8 4 4 0 000 8z"/></svg></div><span class="ap-menu-title">个人信息</span><div class="ap-menu-arrow"></div></div>
+            <div class="ap-menu-item"><div class="ap-menu-icon teal"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></div><span class="ap-menu-title">我的记录</span><div class="ap-menu-arrow"></div></div>
+            <div class="ap-menu-item"><div class="ap-menu-icon gold"><svg viewBox="0 0 24 24"><path d="M17 1l4 4-4 4"/><path d="M3 11V9a4 4 0 014-4h14"/><path d="M7 23l-4-4 4-4"/><path d="M21 13v2a4 4 0 01-4 4H3"/></svg></div><span class="ap-menu-title">转卡申请</span><div class="ap-menu-arrow"></div></div>
+            <div class="ap-menu-item"><div class="ap-menu-icon rose"><svg viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6A19.79 19.79 0 012.12 4.18 2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/></svg></div><span class="ap-menu-title">联系门店</span><div class="ap-menu-arrow"></div></div>
+            <div class="ap-menu-item"><div class="ap-menu-icon muted"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg></div><span class="ap-menu-title">关于系统</span><div class="ap-menu-arrow"></div></div>
+          </div>
+        </div>
+        <div>
+          <div class="ap-section-header"><div class="ap-section-bar"></div><span class="ap-section-title">其他</span></div>
+          <div class="ap-menu">
+            <div class="ap-menu-item"><div class="ap-menu-icon muted"><svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg></div><span class="ap-menu-title">隐私保护指引</span><div class="ap-menu-arrow"></div></div>
+            <div class="ap-menu-item"><div class="ap-menu-icon muted"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div><span class="ap-menu-title">用户服务协议</span><div class="ap-menu-arrow"></div></div>
+          </div>
+          <div class="ap-logout">退出登录</div>
+        </div>
+        <div class="tabbar">
+          <div class="tab-item"><div class="tab-icon"></div><span class="tab-label">首页</span></div>
+          <div class="tab-item"><div class="tab-icon"></div><span class="tab-label">预约</span></div>
+          <div class="tab-item"><div class="tab-icon active"></div><span class="tab-label active">我的</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 优化要点总结 ===== -->
+<div style="max-width:800px;margin:0 auto;padding:32px 0;">
+  <h2 class="section-title">核心优化要点</h2>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+    <div style="background:#fff;border-radius:16px;padding:20px;box-shadow:0 2px 12px rgba(42,33,34,0.05);">
+      <h3 style="font-size:15px;font-weight:700;color:#D4786E;margin-bottom:8px;">颜色收敛</h3>
+      <p style="font-size:13px;color:#6B5D5E;line-height:1.6;">7种彩色 → 3种角色色<br>移除独立blue/lavender<br>统一为rose + teal + gold</p>
+    </div>
+    <div style="background:#fff;border-radius:16px;padding:20px;box-shadow:0 2px 12px rgba(42,33,34,0.05);">
+      <h3 style="font-size:15px;font-weight:700;color:#D4786E;margin-bottom:8px;">圆角统一</h3>
+      <p style="font-size:13px;color:#6B5D5E;line-height:1.6;">5种圆角 → 3级体系<br>16rpx(小) / 24rpx(卡片) / 48rpx(按钮)<br>消除视觉不一致</p>
+    </div>
+    <div style="background:#fff;border-radius:16px;padding:20px;box-shadow:0 2px 12px rgba(42,33,34,0.05);">
+      <h3 style="font-size:15px;font-weight:700;color:#5D9B9B;margin-bottom:8px;">信息层级</h3>
+      <p style="font-size:13px;color:#6B5D5E;line-height:1.6;">统计区中间数字突出<br>套餐卡片左侧色条标识<br>菜单图标替代多彩色条</p>
+    </div>
+    <div style="background:#fff;border-radius:16px;padding:20px;box-shadow:0 2px 12px rgba(42,33,34,0.05);">
+      <h3 style="font-size:15px;font-weight:700;color:#5D9B9B;margin-bottom:8px;">去AI化</h3>
+      <p style="font-size:13px;color:#6B5D5E;line-height:1.6;">移除三色渐变背景<br>移除虚线旋转动画<br>简化装饰元素</p>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

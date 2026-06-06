@@ -115,7 +115,8 @@ router.put('/:id', auth, checkPermission(['super_admin', 'store_manager', 'staff
 // PUT /api/v1/schedules/:id/cancel - 取消排课
 router.put('/:id/cancel', auth, checkPermission(['super_admin', 'store_manager', 'staff']), async (req, res, next) => {
   try {
-    const schedule = await scheduleService.cancelSchedule(req.params.id, req.user.id);
+    const { reason } = req.body;
+    const schedule = await scheduleService.cancelSchedule(req.params.id, req.user.id, reason);
     res.json(success(schedule, '取消排课成功'));
   } catch (err) {
     next(err);

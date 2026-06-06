@@ -12,7 +12,8 @@
     "seed:dance": "node src/seed/danceStyles.seed.js",
     "seed:packages": "node src/seed/packages.seed.js",
     "seed:coaches": "node src/seed/coaches.seed.js",
-    "seed:banners": "node src/seed/banners.seed.js"
+    "seed:banners": "node src/seed/banners.seed.js",
+    "reset-admin": "node src/seed/reset-admin.seed.js"
   },
   "keywords": [],
   "author": "",

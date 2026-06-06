@@ -213,7 +213,10 @@
           <view class="booking-user">
             <image class="booking-avatar" src="{{item.userAvatar || '/images/default-avatar.svg'}}" mode="aspectFill"></image>
             <view class="booking-user-info">
-              <text class="booking-user-name">{{item.userName}}</text>
+              <view class="booking-user-name-row">
+                <text class="booking-user-name">{{item.userName}}</text>
+                <text class="booking-user-nick" wx:if="{{item.userNickName}}">（{{item.userNickName}}）</text>
+              </view>
               <text class="booking-user-phone" wx:if="{{item.userPhone}}">{{item.userPhone}}</text>
             </view>
           </view>
@@ -237,7 +240,10 @@
           <view class="booking-user">
             <image class="booking-avatar" src="{{item.userAvatar || '/images/default-avatar.svg'}}" mode="aspectFill"></image>
             <view class="booking-user-info">
-              <text class="booking-user-name">{{item.userName}}</text>
+              <view class="booking-user-name-row">
+                <text class="booking-user-name">{{item.userName}}</text>
+                <text class="booking-user-nick" wx:if="{{item.userNickName}}">（{{item.userNickName}}）</text>
+              </view>
               <text class="booking-user-phone" wx:if="{{item.userPhone}}">{{item.userPhone}}</text>
             </view>
           </view>
@@ -255,7 +261,10 @@
           <view class="booking-user">
             <image class="booking-avatar" src="{{item.userAvatar || '/images/default-avatar.svg'}}" mode="aspectFill"></image>
             <view class="booking-user-info">
-              <text class="booking-user-name">{{item.userName}}</text>
+              <view class="booking-user-name-row">
+                <text class="booking-user-name">{{item.userName}}</text>
+                <text class="booking-user-nick" wx:if="{{item.userNickName}}">（{{item.userNickName}}）</text>
+              </view>
               <text class="booking-user-phone" wx:if="{{item.userPhone}}">{{item.userPhone}}</text>
             </view>
           </view>

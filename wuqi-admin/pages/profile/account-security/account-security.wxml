@@ -1,0 +1,57 @@
+<view class="page">
+  <!-- 个人信息卡片 -->
+  <view class="section-card">
+    <view class="section-title">个人信息</view>
+
+    <!-- 头像区域 -->
+    <view class="avatar-section" bindtap="onChangeAvatar">
+      <view class="avatar-wrapper">
+        <image class="avatar-img" src="{{avatarUrl || '/images/default-avatar.png'}}" mode="aspectFill" wx:if="{{avatarUrl}}"></image>
+        <view class="avatar-placeholder" wx:else>
+          <text class="avatar-char">{{nickName ? nickName[0] : (username ? username[0] : '管')}}</text>
+        </view>
+        <view class="avatar-camera">
+          <text class="camera-icon">📷</text>
+        </view>
+      </view>
+      <text class="avatar-tip">点击更换头像</text>
+    </view>
+
+    <view class="form-group">
+      <text class="form-label">姓名</text>
+      <input class="input-field" placeholder="请输入姓名" value="{{nickName}}" bindinput="onNickNameInput" />
+    </view>
+    <view class="form-group">
+      <text class="form-label">用户名</text>
+      <view class="input-field disabled">
+        <text class="disabled-text">{{username || '--'}}</text>
+      </view>
+      <text class="form-tip">用户名不可修改</text>
+    </view>
+    <view class="form-group">
+      <text class="form-label">角色</text>
+      <view class="input-field disabled">
+        <text class="disabled-text">{{roleName}}</text>
+      </view>
+    </view>
+    <button class="btn-primary" bindtap="onSaveProfile">保存修改</button>
+  </view>
+
+  <!-- 修改密码卡片 -->
+  <view class="section-card">
+    <view class="section-title">修改密码</view>
+    <view class="form-group">
+      <text class="form-label">旧密码</text>
+      <input class="input-field" type="password" placeholder="请输入旧密码" value="{{oldPassword}}" bindinput="onOldPasswordInput" />
+    </view>
+    <view class="form-group">
+      <text class="form-label">新密码</text>
+      <input class="input-field" type="password" placeholder="请输入新密码（至少6位）" value="{{newPassword}}" bindinput="onNewPasswordInput" />
+    </view>
+    <view class="form-group">
+      <text class="form-label">确认新密码</text>
+      <input class="input-field" type="password" placeholder="请再次输入新密码" value="{{confirmPassword}}" bindinput="onConfirmPasswordInput" />
+    </view>
+    <button class="btn-primary" bindtap="onChangePassword">修改密码</button>
+  </view>
+</view>

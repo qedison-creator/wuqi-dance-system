@@ -1,8 +1,4 @@
 {
   "navigationBarTitleText": "排课设置",
-  "usingComponents": {
-    "store-picker": "/components/store-picker/store-picker",
-    "course-card": "/components/course-card/course-card",
-    "empty-state": "/components/empty-state/empty-state"
-  }
+  "usingComponents": {}
 }

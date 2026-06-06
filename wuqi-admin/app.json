@@ -33,6 +33,7 @@
     "pages/holidays/holidays",
     "pages/announcements/announcements",
     "pages/profile/profile",
+    "pages/profile/account-security/account-security",
     "pages/course-records/course-records",
     "pages/booking-summary/booking-summary",
     "pages/system-reset/system-reset",

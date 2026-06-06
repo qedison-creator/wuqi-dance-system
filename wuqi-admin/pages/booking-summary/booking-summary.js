@@ -1,21 +1,75 @@
 const { request } = require('../../utils/request');
 const { getBeijingDate } = require('../../utils/helpers');
+const config = require('../../config/index.js');
+
+function getDateStr(d) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+function getTodayStr() {
+  return getDateStr(getBeijingDate());
+}
 
 Page({
   data: {
     yearGroups: [],
     loading: false,
-    page: 1,
-    pageSize: 20,
-    hasMore: false,
-    displayLimit: 5,
     storeList: [],
-    activeStoreId: ''
+    activeStoreId: '',
+    // 日期筛选
+    dateFilter: 'today', // today | yesterday | week | month | custom
+    customDate: '',
+    customDateText: '选日期',
+    startDate: '',
+    endDate: '',
+    // 汇总数据
+    summary: { totalCourses: 0, totalBookings: 0, checkedIn: 0, cancelled: 0 },
+    // 展开的会员卡片
+    expandedMembers: {}
   },
 
   onLoad() {
+    this.initDates();
     this.loadStores();
+  },
+
+  onShow() {
     this.loadBookings();
+  },
+
+  onPullDownRefresh() {
+    this.loadBookings().finally(() => wx.stopPullDownRefresh());
+  },
+
+  initDates() {
+    const today = getBeijingDate();
+    const todayStr = getDateStr(today);
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayStr = getDateStr(yesterday);
+
+    // 本周一
+    const weekStart = new Date(today);
+    const dayOfWeek = today.getDay();
+    const diff = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+    weekStart.setDate(today.getDate() - diff);
+    const weekStartStr = getDateStr(weekStart);
+
+    // 本月1号
+    const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+    const monthStartStr = getDateStr(monthStart);
+
+    this.setData({
+      startDate: todayStr,
+      endDate: todayStr,
+      _todayStr: todayStr,
+      _yesterdayStr: yesterdayStr,
+      _weekStartStr: weekStartStr,
+      _monthStartStr: monthStartStr
+    });
   },
 
   async loadStores() {
@@ -30,57 +84,84 @@ Page({
     }
   },
 
-  onPullDownRefresh() {
-    this.setData({ page: 1, yearGroups: [] });
-    this.loadBookings().finally(() => {
-      wx.stopPullDownRefresh();
-    });
-  },
-
+  // ========== 门店筛选 ==========
   onStoreFilter(e) {
     const storeId = e.currentTarget.dataset.id;
+    this.setData({ activeStoreId: storeId, yearGroups: [] });
+    this.loadBookings();
+  },
+
+  // ========== 日期筛选 ==========
+  onDateFilter(e) {
+    const filter = e.currentTarget.dataset.filter;
+    const today = getBeijingDate();
+    const todayStr = this.data._todayStr;
+    const yesterdayStr = this.data._yesterdayStr;
+    const weekStartStr = this.data._weekStartStr;
+    const monthStartStr = this.data._monthStartStr;
+
+    let startDate = todayStr;
+    let endDate = todayStr;
+
+    switch (filter) {
+      case 'today':
+        startDate = todayStr;
+        endDate = todayStr;
+        break;
+      case 'yesterday':
+        startDate = yesterdayStr;
+        endDate = yesterdayStr;
+        break;
+      case 'week':
+        startDate = weekStartStr;
+        endDate = todayStr;
+        break;
+      case 'month':
+        startDate = monthStartStr;
+        endDate = todayStr;
+        break;
+      case 'custom':
+        // 触发日期选择器
+        this.setData({ dateFilter: 'custom' });
+        return;
+    }
+
+    this.setData({ dateFilter: filter, startDate, endDate, yearGroups: [] });
+    this.loadBookings();
+  },
+
+  onDateChange(e) {
+    const dateStr = e.detail.value;
+    const parts = dateStr.split('-');
+    const label = `${parseInt(parts[1])}月${parseInt(parts[2])}日`;
     this.setData({
-      activeStoreId: storeId,
-      page: 1,
+      customDate: dateStr,
+      customDateText: label,
+      startDate: dateStr,
+      endDate: dateStr,
       yearGroups: []
     });
     this.loadBookings();
   },
 
+  // ========== 加载预约数据 ==========
   async loadBookings() {
     this.setData({ loading: true });
     try {
-      const reqData = {
-        page: this.data.page,
-        pageSize: this.data.pageSize
-      };
-      if (this.data.activeStoreId) {
-        reqData.store_id = this.data.activeStoreId;
-      }
+      const reqData = {};
+      if (this.data.activeStoreId) reqData.store_id = this.data.activeStoreId;
+      if (this.data.startDate) reqData.start_date = this.data.startDate;
+      if (this.data.endDate) reqData.end_date = this.data.endDate;
 
-      const res = await request({
-        url: '/bookings',
-        method: 'GET',
-        data: reqData
-      });
-
+      const res = await request({ url: '/bookings', method: 'GET', data: reqData });
       const data = res.data || {};
       const list = data.list || [];
-      const total = data.total || 0;
 
       const processedList = list.map(item => this.processBookingItem(item));
+      const yearGroups = this.groupByYearMonthDate(processedList);
+      const summary = this.calcSummary(yearGroups);
 
-      const filteredList = this.data.activeStoreId
-        ? processedList.filter(item => item.store_id === this.data.activeStoreId)
-        : processedList;
-
-      const newYearGroups = this.groupByYearMonthDate(filteredList);
-      let yearGroups = this.mergeYearGroups(this.data.yearGroups, newYearGroups);
-
-      this.setData({
-        yearGroups,
-        hasMore: this.data.page * this.data.pageSize < total
-      });
+      this.setData({ yearGroups, summary });
     } catch (err) {
       console.error('加载预约记录失败', err);
       wx.showToast({ title: '加载失败', icon: 'none' });
@@ -106,14 +187,15 @@ Page({
         date: scheduleObj.date || item.booking_date || '未知日期',
         start_time: scheduleObj.start_time || item.booking_time || '',
         end_time: scheduleObj.end_time || '',
-        time: scheduleObj.start_time || item.booking_time || '',
         course_name: scheduleObj.course_name || scheduleObj.name || '未知课程',
         coach_name: scheduleObj.coach_id && typeof scheduleObj.coach_id === 'object' ? scheduleObj.coach_id.name : '',
-        store_name: storeObj ? storeObj.name : ''
+        store_name: storeObj ? storeObj.name : '',
+        max_bookings: scheduleObj.max_bookings || 0
       },
       user_info: {
         _id: userId,
         nick_name: userObj.nick_name || userObj.name || '未知会员',
+        real_name: userObj.real_name || '',
         phone: userObj.phone || '',
         avatar_url: userObj.avatar_url || ''
       },
@@ -126,14 +208,15 @@ Page({
   },
 
   getCancelTypeText(cancelType) {
-    if (!cancelType) return '';
+    if (!cancelType) return '已取消';
     const map = {
-      'normal': '正常取消',
+      'normal': '会员主动取消',
       'timeout': '超时取消',
       'exempt': '豁免取消',
       'admin_cancel': '管理员取消',
-      'min_bookings_not_met': '人数不足取消',
-      'holiday': '节假日取消'
+      'min_bookings_not_met': '系统取消-人数不足',
+      'class_cancelled': '系统取消-人数不足',
+      'holiday': '系统取消-门店放假'
     };
     return map[cancelType] || cancelType;
   },
@@ -144,9 +227,7 @@ Page({
       const weekdays = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
       const d = getBeijingDate(dateStr);
       return weekdays[d.getDay()];
-    } catch (e) {
-      return '';
-    }
+    } catch (e) { return ''; }
   },
 
   groupByYearMonthDate(list) {
@@ -204,13 +285,11 @@ Page({
           schedule_id: scheduleId,
           schedule_info: item.schedule_info,
           memberGroups: [],
-          bookedCount: 0,
+          expanded: false,
+          // 三区块计数
           completedCount: 0,
           cancelledCount: 0,
-          expanded: false,
-          activeTab: 'booked',
-          displayCount: this.data.displayLimit,
-          displayMemberGroups: []
+          bookedCount: 0
         };
         dateGroup.schedules.push(schedule);
       }
@@ -223,7 +302,12 @@ Page({
           user_info: item.user_info,
           records: [],
           latestStatus: item.status,
-          latestTime: item.created_at
+          latestTime: item.created_at,
+          // 折叠状态
+          _expanded: false,
+          // 取消类型（取最新一条取消记录的cancel_type）
+          _cancelType: null,
+          _cancelTypeText: ''
         };
         schedule.memberGroups.push(memberGroup);
       }
@@ -242,32 +326,50 @@ Page({
         credits_refunded: item.credits_refunded
       });
 
+      // 更新最新状态
       if (new Date(item.created_at) > new Date(memberGroup.latestTime)) {
         memberGroup.latestStatus = item.status;
         memberGroup.latestTime = item.created_at;
+        if (item.status === 'cancelled') {
+          memberGroup._cancelType = item.cancel_type;
+          memberGroup._cancelTypeText = item.cancel_type_text;
+        }
       }
-
-      if (item.status === 'booked') schedule.bookedCount++;
-      else if (item.status === 'completed') schedule.completedCount++;
-      else if (item.status === 'cancelled') schedule.cancelledCount++;
 
       dateGroup.totalCount++;
       monthGroup.totalCount++;
       yearMap[yearKey].totalCount++;
     });
 
+    // 排序各层级
     Object.values(yearMap).forEach(yg => {
       yg.months.forEach(mg => {
         mg.dates.forEach(dg => {
           dg.schedules.forEach(schedule => {
             schedule.memberGroups.forEach(mg => {
               mg.records.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+              // 计算统计
+              const totalRecords = mg.records.length;
+              const cancelCount = mg.records.filter(r => r.status === 'cancelled').length;
+              mg._totalBookings = totalRecords;
+              mg._cancelCount = cancelCount;
+              mg._hasRepeat = totalRecords > 1;
+              mg._expanded = false;
             });
-            schedule.displayMemberGroups = this.getFilteredMemberGroups(schedule);
+            // 分类计数
+            schedule.completedCount = schedule.memberGroups.filter(mg => mg.latestStatus === 'completed').length;
+            schedule.cancelledCount = schedule.memberGroups.filter(mg => mg.latestStatus === 'cancelled').length;
+            schedule.bookedCount = schedule.memberGroups.filter(mg => mg.latestStatus === 'booked').length;
+            // 排序：completed > cancelled > booked
+            schedule._sortedMemberGroups = [
+              ...schedule.memberGroups.filter(mg => mg.latestStatus === 'completed'),
+              ...schedule.memberGroups.filter(mg => mg.latestStatus === 'cancelled'),
+              ...schedule.memberGroups.filter(mg => mg.latestStatus === 'booked')
+            ];
           });
           dg.schedules.sort((a, b) => {
-            const timeA = a.schedule_info.time || a.schedule_info.start_time || '';
-            const timeB = b.schedule_info.time || b.schedule_info.start_time || '';
+            const timeA = a.schedule_info.start_time || '';
+            const timeB = b.schedule_info.start_time || '';
             return timeA.localeCompare(timeB);
           });
         });
@@ -280,79 +382,57 @@ Page({
     return sortedYears.map(y => yearMap[y]);
   },
 
-  mergeYearGroups(existing, newData) {
-    if (existing.length === 0) return newData;
+  calcSummary(yearGroups) {
+    let totalCourses = 0;
+    let totalBookings = 0;
+    let checkedIn = 0;
+    let cancelled = 0;
 
-    const result = [...existing];
-    newData.forEach(newYear => {
-      let existYear = result.find(y => y.year === newYear.year);
-      if (!existYear) {
-        result.push(newYear);
-        return;
-      }
-      newYear.months.forEach(newMonth => {
-        let existMonth = existYear.months.find(m => m.monthKey === newMonth.monthKey);
-        if (!existMonth) {
-          existYear.months.push(newMonth);
-          return;
-        }
-        newMonth.dates.forEach(newDate => {
-          let existDate = existMonth.dates.find(d => d.date === newDate.date);
-          if (!existDate) {
-            existMonth.dates.push(newDate);
-            return;
-          }
-          newDate.schedules.forEach(newSchedule => {
-            let existSchedule = existDate.schedules.find(s => s.schedule_id === newSchedule.schedule_id);
-            if (!existSchedule) {
-              existDate.schedules.push(newSchedule);
-            }
+    yearGroups.forEach(yg => {
+      yg.months.forEach(mg => {
+        mg.dates.forEach(dg => {
+          dg.schedules.forEach(schedule => {
+            totalCourses++;
+            schedule.memberGroups.forEach(mg => {
+              totalBookings += mg.records.length;
+              if (mg.latestStatus === 'completed') checkedIn++;
+              else if (mg.latestStatus === 'cancelled') cancelled++;
+            });
           });
         });
-        existMonth.dates.sort((a, b) => new Date(b.date) - new Date(a.date));
-        existMonth.totalCount = existMonth.dates.reduce((sum, d) => sum + d.totalCount, 0);
       });
-      existYear.months.sort((a, b) => b.month - a.month);
-      existYear.totalCount = existYear.months.reduce((sum, m) => sum + m.totalCount, 0);
     });
 
-    result.sort((a, b) => parseInt(b.year) - parseInt(a.year));
-    return result;
+    return { totalCourses, totalBookings, checkedIn, cancelled };
   },
 
   formatDateLabel(dateStr) {
     if (!dateStr || dateStr === '未知日期') return '未知日期';
-    
     try {
-      const today = new Date();
-      const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+      const today = getBeijingDate();
+      const todayStr = getDateStr(today);
       const yesterday = new Date(today);
       yesterday.setDate(yesterday.getDate() - 1);
-      const yesterdayStr = `${yesterday.getFullYear()}-${String(yesterday.getMonth() + 1).padStart(2, '0')}-${String(yesterday.getDate()).padStart(2, '0')}`;
-      
+      const yesterdayStr = getDateStr(yesterday);
+
       if (dateStr === todayStr) return '今天';
       if (dateStr === yesterdayStr) return '昨天';
-      
+
       const parts = dateStr.split('-');
       if (parts.length >= 3) {
         const month = parseInt(parts[1], 10);
         const day = parseInt(parts[2], 10);
-        if (!isNaN(month) && !isNaN(day)) {
-          return `${month}月${day}日`;
-        }
+        if (!isNaN(month) && !isNaN(day)) return `${month}月${day}日`;
       }
       return dateStr;
-    } catch (e) {
-      return dateStr;
-    }
+    } catch (e) { return dateStr; }
   },
 
+  // ========== 折叠展开 ==========
   onToggleMonth(e) {
     const { yearIndex, monthIndex } = e.currentTarget.dataset;
     const yearGroups = [...this.data.yearGroups];
-    
     if (!yearGroups[yearIndex] || !yearGroups[yearIndex].months[monthIndex]) return;
-    
     yearGroups[yearIndex].months[monthIndex].expanded = !yearGroups[yearIndex].months[monthIndex].expanded;
     this.setData({ yearGroups });
   },
@@ -360,75 +440,124 @@ Page({
   onToggleCourse(e) {
     const { yearIndex, monthIndex, dateIndex, courseIndex } = e.currentTarget.dataset;
     const yearGroups = [...this.data.yearGroups];
-    
     const month = yearGroups[yearIndex] && yearGroups[yearIndex].months[monthIndex];
     const date = month && month.dates[dateIndex];
     const course = date && date.schedules[courseIndex];
     if (!course) return;
-    
     course.expanded = !course.expanded;
-    course.displayCount = this.data.displayLimit;
-    course.displayMemberGroups = this.getFilteredMemberGroups(course);
-    
     this.setData({ yearGroups });
   },
 
-  onSwitchMemberTab(e) {
-    const { yearIndex, monthIndex, dateIndex, courseIndex, tab } = e.currentTarget.dataset;
+  onToggleMember(e) {
+    const { yearIndex, monthIndex, dateIndex, courseIndex, userId } = e.currentTarget.dataset;
     const yearGroups = [...this.data.yearGroups];
-    
     const month = yearGroups[yearIndex] && yearGroups[yearIndex].months[monthIndex];
     const date = month && month.dates[dateIndex];
     const course = date && date.schedules[courseIndex];
     if (!course) return;
-    
-    course.activeTab = tab;
-    course.displayCount = this.data.displayLimit;
-    course.displayMemberGroups = this.getFilteredMemberGroups(course);
-    
-    this.setData({ yearGroups });
-  },
-
-  onLoadMoreMembers(e) {
-    const { yearIndex, monthIndex, dateIndex, courseIndex } = e.currentTarget.dataset;
-    const yearGroups = [...this.data.yearGroups];
-    
-    const month = yearGroups[yearIndex] && yearGroups[yearIndex].months[monthIndex];
-    const date = month && month.dates[dateIndex];
-    const course = date && date.schedules[courseIndex];
-    if (!course) return;
-    
-    course.displayCount += this.data.displayLimit;
-    course.displayMemberGroups = this.getFilteredMemberGroups(course);
-    
-    this.setData({ yearGroups });
-  },
-
-  async loadMore() {
-    if (this.data.hasMore) {
-      this.setData({ page: this.data.page + 1 });
-      await this.loadBookings();
+    const memberGroup = course.memberGroups.find(mg => mg.user_id === userId);
+    if (memberGroup) {
+      memberGroup._expanded = !memberGroup._expanded;
     }
+    this.setData({ yearGroups });
   },
 
-  getFilteredMemberGroups(schedule) {
-    const tab = schedule.activeTab;
-    const filtered = schedule.memberGroups.filter(mg => {
-      if (tab === 'booked') return mg.latestStatus === 'booked';
-      if (tab === 'completed') return mg.latestStatus === 'completed';
-      if (tab === 'cancelled') return mg.latestStatus === 'cancelled';
-      return true;
+  isMemberExpanded(yearIndex, monthIndex, dateIndex, courseIndex, userId) {
+    const key = `${yearIndex}_${monthIndex}_${dateIndex}_${courseIndex}_${userId}`;
+    return !!this.data.expandedMembers[key];
+  },
+
+  // ========== 签到 ==========
+  async onCheckIn(e) {
+    const { scheduleId, userId } = e.currentTarget.dataset;
+    wx.showModal({
+      title: '确认签到',
+      content: '确定为该会员签到？',
+      success: async (res) => {
+        if (!res.confirm) return;
+        try {
+          await request({
+            url: '/bookings/check-in',
+            method: 'POST',
+            data: { schedule_id: scheduleId, user_id: userId }
+          });
+          wx.showToast({ title: '签到成功', icon: 'success' });
+          this.loadBookings();
+        } catch (err) {
+          wx.showToast({ title: '签到失败', icon: 'none' });
+        }
+      }
     });
-    return filtered.slice(0, schedule.displayCount);
   },
 
-  getStatusText(status) {
-    const map = {
-      'booked': '已预约',
-      'completed': '已上课',
-      'cancelled': '已取消'
-    };
-    return map[status] || status;
+  // ========== 导出 ==========
+  async onExport(e) {
+    const { scheduleId } = e.currentTarget.dataset;
+    try {
+      wx.showLoading({ title: '导出中...' });
+      const app = getApp();
+      const token = wx.getStorageSync('admin_token') || (app.globalData && app.globalData.token) || '';
+      const baseUrl = (app.globalData && app.globalData.baseUrl) || config.baseUrl;
+
+      const storeId = this.data.activeStoreId;
+      const params = [];
+      if (storeId) params.push(`store_id=${storeId}`);
+      if (this.data.startDate) params.push(`start_date=${this.data.startDate}`);
+      if (this.data.endDate) params.push(`end_date=${this.data.endDate}`);
+
+      const url = `${baseUrl}/bookings/export?${params.join('&')}`;
+
+      wx.request({
+        url,
+        header: { 'Authorization': token ? `Bearer ${token}` : '' },
+        responseType: 'text',
+        success: (res) => {
+          wx.hideLoading();
+          if (res.statusCode === 200 && res.data) {
+            const csvContent = typeof res.data === 'string' ? res.data : JSON.stringify(res.data);
+            const timestamp = Date.now();
+            const fs = wx.getFileSystemManager();
+            // 使用 .xls 扩展名，因为 wx.openDocument 不支持 csv 格式
+            const filePath = `${wx.env.USER_DATA_PATH}/bookings_${timestamp}.xls`;
+            fs.writeFile({
+              filePath,
+              data: csvContent,
+              encoding: 'utf8',
+              success: () => {
+                wx.openDocument({
+                  filePath,
+                  fileType: 'xls',
+                  showMenu: true,
+                  success: () => {
+                    wx.showToast({ title: '导出成功', icon: 'success' });
+                  },
+                  fail: (err) => {
+                    console.error('openDocument失败', err);
+                    wx.showModal({
+                      title: '导出完成',
+                      content: '文件已保存，可在微信文件中查看',
+                      showCancel: false
+                    });
+                  }
+                });
+              },
+              fail: () => {
+                wx.showToast({ title: '保存失败', icon: 'none' });
+              }
+            });
+          } else {
+            wx.showToast({ title: '导出失败', icon: 'none' });
+          }
+        },
+        fail: () => {
+          wx.hideLoading();
+          wx.showToast({ title: '导出失败', icon: 'none' });
+        }
+      });
+    } catch (err) {
+      wx.hideLoading();
+      wx.showToast({ title: '导出失败', icon: 'none' });
+    }
   },
 
   formatDateTime(dateStr) {
@@ -440,8 +569,6 @@ Page({
       const hours = String(d.getHours()).padStart(2, '0');
       const minutes = String(d.getMinutes()).padStart(2, '0');
       return `${month}/${day} ${hours}:${minutes}`;
-    } catch (e) {
-      return '';
-    }
+    } catch (e) { return ''; }
   }
 });

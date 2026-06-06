@@ -147,25 +147,23 @@ const startScheduler = () => {
     }
   });
 
-  // 任务4: 每小时检查并发送上课提醒（提前1小时提醒）
+  // 任务4: 每小时检查并发送上课提醒（提前1小时和30分钟提醒）
   cron.schedule('0 * * * *', async () => {
     try {
-      console.log('[Scheduler] 开始执行: 上课提醒检查');
       const wechatMessageService = require('../services/wechat-message.service');
+      let totalReminderCount = 0;
 
-      // 查找1小时后开始的课程
-      const oneHourLater = dayjs().add(1, 'hour').format('YYYY-MM-DD HH:mm');
+      // 轮次1: 提前1小时提醒
       const oneHourLaterDate = dayjs().add(1, 'hour').format('YYYY-MM-DD');
       const oneHourLaterTime = dayjs().add(1, 'hour').format('HH:mm');
 
-      const upcomingSchedules = await Schedule.find({
+      const schedules1h = await Schedule.find({
         date: oneHourLaterDate,
         start_time: oneHourLaterTime,
         status: { $in: ['available', 'full'] },
       });
 
-      let reminderCount = 0;
-      for (const schedule of upcomingSchedules) {
+      for (const schedule of schedules1h) {
         const bookings = await Booking.find({
           schedule_id: schedule._id,
           status: 'booked',
@@ -174,12 +172,42 @@ const startScheduler = () => {
         for (const booking of bookings) {
           if (booking.user_id && booking.user_id.openid) {
             await wechatMessageService.sendClassReminder(booking.user_id, schedule);
-            reminderCount++;
+            totalReminderCount++;
           }
         }
       }
 
-      console.log(`[Scheduler] 上课提醒完成: ${reminderCount}条提醒已发送`);
+      console.log(`[Scheduler] 上课提醒(1小时前): ${schedules1h.length}节课, ${totalReminderCount}条提醒`);
+
+      // 轮次2: 提前30分钟提醒
+      const thirtyMinLater = dayjs().add(30, 'minute');
+      const thirtyMinLaterDate = thirtyMinLater.format('YYYY-MM-DD');
+      const thirtyMinLaterTime = thirtyMinLater.format('HH:mm');
+
+      const schedules30m = await Schedule.find({
+        date: thirtyMinLaterDate,
+        start_time: thirtyMinLaterTime,
+        status: { $in: ['available', 'full'] },
+      });
+
+      let count30m = 0;
+      for (const schedule of schedules30m) {
+        const bookings = await Booking.find({
+          schedule_id: schedule._id,
+          status: 'booked',
+        }).populate('user_id', 'openid nick_name');
+
+        for (const booking of bookings) {
+          if (booking.user_id && booking.user_id.openid) {
+            await wechatMessageService.sendClassReminder(booking.user_id, schedule);
+            count30m++;
+          }
+        }
+      }
+
+      totalReminderCount += count30m;
+      console.log(`[Scheduler] 上课提醒(30分钟前): ${schedules30m.length}节课, ${count30m}条提醒`);
+      console.log(`[Scheduler] 上课提醒总计: ${totalReminderCount}条`);
     } catch (err) {
       console.error('[Scheduler] 上课提醒任务执行失败:', err.message);
     }
@@ -201,7 +229,7 @@ const startScheduler = () => {
       const schedules = await Schedule.find({
         date: today,
         status: { $in: ['available', 'full'] },
-      }).populate('store_id', 'name');
+      }).populate('store_id', 'name').populate('coach_id', 'name');
 
       let cancelledCount = 0;
       let notifiedCount = 0;

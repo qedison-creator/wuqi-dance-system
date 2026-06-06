@@ -13,9 +13,6 @@
           <text class="header-chip-text">信息修改</text>
         </view>
       </view>
-      <view class="header-btn" bindtap="onRefresh">
-        <text class="header-btn-icon">↻</text>
-      </view>
     </view>
   </view>
 

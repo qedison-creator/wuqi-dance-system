@@ -107,7 +107,15 @@ Page({
       sizeType: ['compressed'],
       sourceType: ['album', 'camera'],
       success: (res) => {
-        this.uploadFile(res.tempFilePaths[0], 'image', 'cover_url');
+        if (res.tempFilePaths && res.tempFilePaths[0]) {
+          this.uploadFile(res.tempFilePaths[0], 'image', 'cover_url');
+        }
+      },
+      fail: (err) => {
+        console.error('选择图片失败', err);
+        if (err.errMsg && err.errMsg.indexOf('cancel') === -1) {
+          wx.showToast({ title: '选择图片失败', icon: 'none' });
+        }
       }
     });
   },
@@ -117,7 +125,12 @@ Page({
     wx.chooseVideo({
       sourceType: ['album', 'camera'],
       maxDuration: 300,
+      compressed: true,  // 压缩视频
       success: (res) => {
+        if (!res.tempFilePath) {
+          wx.showToast({ title: '未选择视频文件', icon: 'none' });
+          return;
+        }
         this.uploadFile(res.tempFilePath, 'video', 'video_url');
         // 自动获取时长
         if (res.duration) {
@@ -126,6 +139,12 @@ Page({
           this.setData({
             'formData.duration': `${minutes}:${seconds.toString().padStart(2, '0')}`
           });
+        }
+      },
+      fail: (err) => {
+        console.error('选择视频失败', err);
+        if (err.errMsg && err.errMsg.indexOf('cancel') === -1) {
+          wx.showToast({ title: '选择视频失败', icon: 'none' });
         }
       }
     });

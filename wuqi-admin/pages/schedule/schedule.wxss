@@ -1281,3 +1281,78 @@
   display: block;
   line-height: 1.8;
 }
+
+/* ========== 取消排课原因选择弹窗 ========== */
+.cancel-reason-modal {
+  max-height: 60vh;
+}
+
+.cancel-reason-modal .modal-body {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.cancel-reason-warning {
+  display: flex;
+  align-items: flex-start;
+  gap: 12rpx;
+  background-color: #FFF3E0;
+  border-radius: 16rpx;
+  padding: 20rpx 24rpx;
+  margin-bottom: 30rpx;
+}
+
+.warning-icon {
+  font-size: 32rpx;
+  flex-shrink: 0;
+  margin-top: 2rpx;
+}
+
+.warning-text {
+  font-size: 26rpx;
+  color: #E65100;
+  line-height: 1.6;
+  flex: 1;
+}
+
+.cancel-reason-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16rpx;
+}
+
+.cancel-reason-item {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  padding: 24rpx 28rpx;
+  background-color: var(--bg-page);
+  border-radius: 16rpx;
+  border: 2rpx solid var(--border-light);
+  transition: all 0.2s;
+}
+
+.cancel-reason-item.active {
+  border-color: var(--color-primary);
+  background-color: rgba(var(--color-primary-rgb), 0.05);
+}
+
+.reason-radio {
+  width: 36rpx;
+  height: 36rpx;
+  border-radius: 50%;
+  border: 3rpx solid var(--border-light);
+  flex-shrink: 0;
+  box-sizing: border-box;
+}
+
+.reason-radio.checked {
+  border-color: var(--color-primary);
+  background-color: var(--color-primary);
+  border-width: 0;
+}
+
+.reason-text {
+  font-size: 28rpx;
+  color: var(--text-primary);
+}

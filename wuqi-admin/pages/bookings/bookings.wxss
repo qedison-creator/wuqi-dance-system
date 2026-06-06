@@ -159,14 +159,20 @@
   color: var(--text-primary);
   font-weight: bold;
   display: block;
-  margin-bottom: 8rpx;
+}
+
+.user-nick-name {
+  font-size: 22rpx;
+  color: var(--text-tertiary);
+  margin-top: 2rpx;
+  display: block;
 }
 
 .user-phone {
-  font-size: 24rpx;
-  color: var(--text-secondary);
+  font-size: 22rpx;
+  color: #B8AFA4;
   display: block;
-  margin-bottom: 4rpx;
+  margin-top: 2rpx;
 }
 
 .booking-time {

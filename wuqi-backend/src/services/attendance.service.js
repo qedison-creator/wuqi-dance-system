@@ -5,6 +5,67 @@ const UserPackage = require('../models/UserPackage');
 const PackageActivation = require('../models/PackageActivation');
 const User = require('../models/User');
 const logService = require('./log.service');
+const dayjs = require('dayjs');
+const utc = require('dayjs/plugin/utc');
+const timezone = require('dayjs/plugin/timezone');
+const isoWeek = require('dayjs/plugin/isoWeek');
+dayjs.extend(utc);
+dayjs.extend(timezone);
+dayjs.extend(isoWeek);
+
+const BEIJING_TZ = 'Asia/Shanghai';
+
+async function calcTimeCardUsage(userPackage) {
+  const now = dayjs().tz(BEIJING_TZ);
+  const result = {
+    weekly_used: null, weekly_limit: null, weekly_remaining: null,
+    daily_used: null, daily_limit: null, daily_remaining: null,
+    next_week_used: null, next_week_remaining: null,
+    next_week_start: null, next_week_end: null,
+  };
+
+  if (userPackage.weekly_limit) {
+    const weekStart = now.startOf('isoWeek');
+    const weekEnd = now.endOf('isoWeek');
+    const usedThisWeek = await Booking.countDocuments({
+      user_id: userPackage.user_id,
+      user_package_id: userPackage._id,
+      booking_date: { $gte: weekStart.format('YYYY-MM-DD'), $lte: weekEnd.format('YYYY-MM-DD') },
+      $or: [{ status: { $in: ['booked', 'completed', 'absent'] } }, { booking_status: { $in: ['booked', 'completed'] } }],
+    });
+    result.weekly_used = usedThisWeek;
+    result.weekly_limit = userPackage.weekly_limit;
+    result.weekly_remaining = Math.max(0, userPackage.weekly_limit - usedThisWeek);
+
+    const nextWeekStart = now.add(1, 'week').startOf('isoWeek');
+    const nextWeekEnd = now.add(1, 'week').endOf('isoWeek');
+    const usedNextWeek = await Booking.countDocuments({
+      user_id: userPackage.user_id,
+      user_package_id: userPackage._id,
+      booking_date: { $gte: nextWeekStart.format('YYYY-MM-DD'), $lte: nextWeekEnd.format('YYYY-MM-DD') },
+      $or: [{ status: { $in: ['booked', 'completed', 'absent'] } }, { booking_status: { $in: ['booked', 'completed'] } }],
+    });
+    result.next_week_used = usedNextWeek;
+    result.next_week_remaining = Math.max(0, userPackage.weekly_limit - usedNextWeek);
+    result.next_week_start = nextWeekStart.format('YYYY-MM-DD');
+    result.next_week_end = nextWeekEnd.format('YYYY-MM-DD');
+  }
+
+  if (userPackage.daily_limit) {
+    const todayStr = now.format('YYYY-MM-DD');
+    const usedToday = await Booking.countDocuments({
+      user_id: userPackage.user_id,
+      user_package_id: userPackage._id,
+      booking_date: todayStr,
+      $or: [{ status: { $in: ['booked', 'completed', 'absent'] } }, { booking_status: { $in: ['booked', 'completed'] } }],
+    });
+    result.daily_used = usedToday;
+    result.daily_limit = userPackage.daily_limit;
+    result.daily_remaining = Math.max(0, userPackage.daily_limit - usedToday);
+  }
+
+  return result;
+}
 
 exports.createAttendance = async (data) => {
   const existing = await Attendance.findOne({
@@ -33,7 +94,7 @@ exports.createAttendance = async (data) => {
 
 exports.getAttendanceBySchedule = async (scheduleId) => {
   const attendances = await Attendance.find({ schedule_id: scheduleId })
-    .populate('user_id', 'nick_name phone member_code avatar_url')
+    .populate('user_id', 'nick_name real_name phone member_code avatar_url')
     .populate('check_in_by', 'nick_name')
     .sort({ check_in_time: -1 });
 
@@ -41,7 +102,7 @@ exports.getAttendanceBySchedule = async (scheduleId) => {
     schedule_id: scheduleId,
     status: { $ne: 'cancelled' },
   })
-    .populate('user_id', 'nick_name phone member_code avatar_url')
+    .populate('user_id', 'nick_name real_name phone member_code avatar_url')
     .sort({ created_at: -1 });
 
   const attendedUserIds = new Set(attendances.map(a => a.user_id._id.toString()));
@@ -101,8 +162,13 @@ exports.getMyAttendance = async (userId, page, pageSize) => {
 };
 
 exports.getMemberCheckinProfile = async (userId) => {
+  const mongoose = require('mongoose');
+  if (!mongoose.Types.ObjectId.isValid(userId)) {
+    throw new Error('参数格式错误_id');
+  }
+  
   const user = await User.findById(userId)
-    .select('nick_name phone member_code avatar_url store_id')
+    .select('nick_name real_name phone member_code avatar_url store_id')
     .populate('store_id', 'name');
 
   if (!user) throw new Error('会员不存在');
@@ -161,15 +227,30 @@ exports.getMemberCheckinProfile = async (userId) => {
       user_package_id: up._id,
     }).sort({ activated_at: -1 });
 
+    let remainingDays = null;
+    if (up.package_type === 'time_card' && up.end_date && up.is_activated && !up.is_suspended) {
+      const now = dayjs().tz(BEIJING_TZ);
+      const end = dayjs(up.end_date).tz(BEIJING_TZ);
+      remainingDays = end.diff(now, 'day') + 1;
+    }
+
+    let timeCardUsage = null;
+    if (up.package_type === 'time_card') {
+      timeCardUsage = await calcTimeCardUsage(up);
+    }
+
     packages.push({
       id: up._id,
       name: pkg.name || '套餐',
-      type: pkg.type || 'times',
-      credits_total: pkg.credits || 0,
-      credits_remaining: up.remaining_credits || 0,
+      type: up.package_type,
+      credits_total: up.package_type === 'count_card' ? up.total_credits : null,
+      credits_remaining: up.package_type === 'count_card' ? up.remaining_credits : null,
+      valid_until: up.end_date ? up.end_date.toISOString().split('T')[0] : null,
+      remaining_days: remainingDays,
       limit_type: pkg.limit_type,
       daily_limit: pkg.daily_limit,
       weekly_limit: pkg.weekly_limit,
+      time_card_usage: timeCardUsage,
       activated_at: activation ? activation.activated_at : null,
       status: up.status,
     });
@@ -179,6 +260,7 @@ exports.getMemberCheckinProfile = async (userId) => {
     member: {
       _id: user._id,
       nick_name: user.nick_name,
+      real_name: user.real_name,
       phone: user.phone,
       member_code: user.member_code,
       avatar_url: user.avatar_url,
@@ -242,7 +324,7 @@ exports.exportAttendance = async (filters) => {
   if (filters.source) query.source = filters.source;
 
   const records = await Attendance.find(query)
-    .populate('user_id', 'nick_name phone member_code')
+    .populate('user_id', 'nick_name real_name phone member_code')
     .populate('schedule_id', 'course_name start_time end_time')
     .populate('store_id', 'name')
     .populate('coach_id', 'name')

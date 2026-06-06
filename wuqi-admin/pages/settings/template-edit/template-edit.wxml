@@ -53,7 +53,7 @@
             <text class="col-example">示例值</text>
             <text class="col-action">操作</text>
           </view>
-          <view class="table-row" wx:for="{{item.mappings}}" wx:for-item="mapping" wx:for-index="mapIdx" wx:key="wx_field">
+          <view class="table-row" wx:for="{{item.mappings}}" wx:for-item="mapping" wx:for-index="mapIdx" wx:key="mapIdx">
             <input class="cell-input col-wx" placeholder="thing1" value="{{mapping.wx_field}}" data-tpl-index="{{index}}" data-map-index="{{mapIdx}}" catchtap="" bindinput="onWxFieldInput" />
             <picker class="cell-picker col-biz" mode="selector" range="{{bizFieldOptions}}" range-key="label" value="{{mapping.biz_field_index}}" data-tpl-index="{{index}}" data-map-index="{{mapIdx}}" bindchange="onBizFieldChange">
               <view class="picker-text">{{bizFieldOptions[mapping.biz_field_index].label || '选择字段'}} ▾</view>

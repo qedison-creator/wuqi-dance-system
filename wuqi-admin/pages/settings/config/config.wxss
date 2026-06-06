@@ -93,3 +93,63 @@
   display: block;
   margin-bottom: 16rpx;
 }
+
+/* Hero 配置样式 */
+.hero-config-list {
+  padding: 0;
+}
+
+.hero-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 30rpx 24rpx;
+  border-bottom: 1rpx solid var(--border);
+}
+
+.hero-item:last-child {
+  border-bottom: none;
+}
+
+.hero-left {
+  display: flex;
+  flex-direction: column;
+  gap: 12rpx;
+}
+
+.hero-label {
+  font-size: 28rpx;
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.hero-preview {
+  width: 160rpx;
+  height: 100rpx;
+  border-radius: 12rpx;
+  background: var(--bg-tertiary);
+  border: 1rpx solid var(--border);
+}
+
+.hero-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 16rpx;
+}
+
+.hero-btn {
+  padding: 16rpx 32rpx;
+  border-radius: 12rpx;
+  font-size: 26rpx;
+  text-align: center;
+}
+
+.hero-btn.upload-btn {
+  background: linear-gradient(135deg, #C5744B, #A85D3A);
+  color: #FFFFFF;
+}
+
+.hero-btn.reset-btn {
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+}

@@ -280,13 +280,15 @@ exports.updateSchedule = async (id, data, operatorId) => {
   });
 
   if (bookingCount > 0) {
-    // 已有预约，仅可修改教室和备注
-    const allowedFields = ['classroom', 'remark', 'note', 'cover'];
-    for (const key of Object.keys(data)) {
-      if (!allowedFields.includes(key)) {
-        throw new Error('已有会员预约的排课仅可修改教室和课程备注');
+    // 已有预约，仅可修改教室、备注和人数设置
+    const allowedFields = ['classroom', 'remark', 'note', 'cover', 'max_bookings', 'min_bookings'];
+    const filteredData = {};
+    for (const key of allowedFields) {
+      if (data[key] !== undefined) {
+        filteredData[key] = data[key];
       }
     }
+    Object.assign(data, filteredData);
   } else {
     // 无预约，检查是否已开始(当天已过开始时间)
     const now = dayjs();
@@ -386,14 +388,16 @@ exports.updateSchedule = async (id, data, operatorId) => {
 };
 
 // 取消排课（将状态改为 cancelled，退还已预约会员课时）
-exports.cancelSchedule = async (id, operatorId) => {
+exports.cancelSchedule = async (id, operatorId, reason = '') => {
   const schedule = await Schedule.findById(id);
   if (!schedule) throw new Error('排课不存在');
   if (schedule.status === 'cancelled') throw new Error('该排课已取消');
 
+  const cancelReason = reason || '管理员取消排课';
+
   schedule.status = 'cancelled';
   schedule.cancel_type = 'admin_cancel';
-  schedule.cancel_reason = '管理员取消排课';
+  schedule.cancel_reason = cancelReason;
   await schedule.save();
 
   // 自动退还所有已预约会员的课时
@@ -408,7 +412,7 @@ exports.cancelSchedule = async (id, operatorId) => {
     booking.booking_status = 'cancelled';
     booking.cancel_type = 'admin_cancel';
     booking.cancel_time = new Date();
-    booking.cancel_reason = '管理员取消排课';
+    booking.cancel_reason = cancelReason;
     booking.credits_refunded = booking.credits_deducted;
     await booking.save();
 
@@ -426,7 +430,7 @@ exports.cancelSchedule = async (id, operatorId) => {
           const User = require('../models/User');
           const bookingUser = await User.findById(booking.user_id);
           if (bookingUser && bookingUser.openid) {
-            await wechatMessageService.sendBookingCancel(bookingUser, schedule, '管理员取消排课，次数已退还');
+            await wechatMessageService.sendBookingCancel(bookingUser, schedule, `${cancelReason}，次数已退还`);
           }
         } catch (notifyErr) {
           console.error('[Schedule] 发送取消通知失败:', notifyErr.message);
@@ -659,9 +663,8 @@ exports.batchCancelSchedules = async (data, operatorId) => {
 exports.getScheduleBookings = async (scheduleId) => {
   const bookings = await Booking.find({
     schedule_id: scheduleId,
-    $or: [{ status: 'booked' }, { booking_status: 'booked' }],
   })
-    .populate('user_id', 'nick_name avatar_url phone')
+    .populate('user_id', 'real_name nick_name avatar_url phone')
     .sort({ created_at: 1 });
   return bookings;
 };

@@ -45,14 +45,14 @@ async function checkTimeCardLimit(userPackage, scheduleDate, creditsCost) {
       user_id: userPackage.user_id,
       user_package_id: userPackage._id,
       booking_date: { $gte: weekStartDate.format('YYYY-MM-DD'), $lte: weekEndDate.format('YYYY-MM-DD') },
-      $or: [{ status: 'booked' }, { booking_status: 'booked' }],
+      $or: [{ status: { $in: ['booked', 'completed', 'absent'] } }, { booking_status: { $in: ['booked', 'completed'] } }],
     });
 
     if (usedThisWeek + creditsCost > weeklyLimit) {
       const remaining = Math.max(0, weeklyLimit - usedThisWeek);
       return {
         allowed: false,
-        reason: `本周预约次数已达上限（${weeklyLimit}次/周），本周剩余${remaining}次`,
+        reason: `本周上课次数已达上限（${weeklyLimit}次/周），本周剩余${remaining}次`,
         limitType: 'weekly',
         limit: weeklyLimit,
         used: usedThisWeek,
@@ -68,14 +68,14 @@ async function checkTimeCardLimit(userPackage, scheduleDate, creditsCost) {
       user_id: userPackage.user_id,
       user_package_id: userPackage._id,
       booking_date: dateStr,
-      $or: [{ status: 'booked' }, { booking_status: 'booked' }],
+      $or: [{ status: { $in: ['booked', 'completed', 'absent'] } }, { booking_status: { $in: ['booked', 'completed'] } }],
     });
 
     if (usedToday + creditsCost > dailyLimit) {
       const remaining = Math.max(0, dailyLimit - usedToday);
       return {
         allowed: false,
-        reason: `今日预约次数已达上限（${dailyLimit}次/天），今日剩余${remaining}次`,
+        reason: `今日上课次数已达上限（${dailyLimit}次/天），今日剩余${remaining}次`,
         limitType: 'daily',
         limit: dailyLimit,
         used: usedToday,
@@ -92,7 +92,7 @@ exports.createBooking = async (userId, scheduleId) => {
   try {
     console.log('[Booking] 开始创建预约, userId:', userId, 'scheduleId:', scheduleId);
     // 1. 查找排课
-    const schedule = await Schedule.findById(scheduleId).populate('store_id');
+    const schedule = await Schedule.findById(scheduleId).populate('store_id').populate('coach_id');
     if (!schedule) throw new Error('课程不存在');
     if (schedule.status === 'offline' || schedule.status === 'cancelled') {
       throw new Error('该课程当前不可预约');
@@ -337,7 +337,10 @@ exports.createBooking = async (userId, scheduleId) => {
 
 // 取消预约
 exports.cancelBooking = async (userId, bookingId) => {
-  const booking = await Booking.findById(bookingId).populate('schedule_id');
+  const booking = await Booking.findById(bookingId).populate({
+    path: 'schedule_id',
+    populate: { path: 'coach_id', select: 'name' }
+  });
   if (!booking) throw new Error('预约记录不存在');
   if (booking.user_id.toString() !== userId.toString()) throw new Error('无权操作');
 
@@ -597,7 +600,7 @@ exports.getBookingList = async (query) => {
   }
 
   const list = await Booking.find(filter)
-    .populate('user_id', 'nick_name avatar_url phone')
+    .populate('user_id', 'real_name nick_name avatar_url phone')
     .populate({
       path: 'schedule_id',
       select: 'course_name start_time end_time date store_id',
@@ -616,7 +619,7 @@ exports.getBookingList = async (query) => {
 // 获取预约详情
 exports.getBookingById = async (id) => {
   const booking = await Booking.findById(id)
-    .populate('user_id', 'nick_name avatar_url phone')
+    .populate('user_id', 'real_name nick_name avatar_url phone')
     .populate({
       path: 'schedule_id',
       populate: [
@@ -654,7 +657,7 @@ exports.adminCancelBooking = async (bookingId, reason, operatorId) => {
   }
 
   // 更新排课预约人数
-  const schedule = await Schedule.findById(booking.schedule_id);
+  const schedule = await Schedule.findById(booking.schedule_id).populate('coach_id', 'name');
   if (schedule) {
     schedule.current_bookings = Math.max(0, schedule.current_bookings - 1);
     if (schedule.status === 'full') schedule.status = 'available';
@@ -694,7 +697,7 @@ exports.adminCancelBooking = async (bookingId, reason, operatorId) => {
 
 // 加入候补
 exports.joinWaitlist = async (userId, scheduleId) => {
-  const schedule = await Schedule.findById(scheduleId);
+  const schedule = await Schedule.findById(scheduleId).populate('coach_id', 'name');
   if (!schedule) throw new Error('课程不存在');
   if (schedule.status === 'offline' || schedule.status === 'cancelled') {
     throw new Error('该课程当前不可候补');
@@ -1143,7 +1146,7 @@ exports.confirmWaitlistBooking = async (userId, waitlistId) => {
 
 // 检查并取消低人数课程
 exports.checkAndCancelLowAttendance = async (scheduleId, operatorId = null) => {
-  const schedule = await Schedule.findById(scheduleId);
+  const schedule = await Schedule.findById(scheduleId).populate('coach_id', 'name');
   if (!schedule) throw new Error('课程不存在');
   
   if (schedule.status === 'cancelled' || schedule.status === 'offline') {
@@ -1441,9 +1444,9 @@ exports.exportBookings = async (store_id, start_date, end_date) => {
   }
   
   if (start_date && end_date) {
-    query.date = {
-      $gte: new Date(start_date),
-      $lte: new Date(end_date)
+    query.booking_date = {
+      $gte: start_date,
+      $lte: end_date
     };
   }
   

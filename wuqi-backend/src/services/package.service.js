@@ -52,7 +52,7 @@ async function calcTimeCardUsage(userPackage) {
       user_id: userPackage.user_id,
       user_package_id: userPackage._id,
       booking_date: { $gte: weekStart.format('YYYY-MM-DD'), $lte: weekEnd.format('YYYY-MM-DD') },
-      $or: [{ status: 'booked' }, { booking_status: 'booked' }],
+      $or: [{ status: { $in: ['booked', 'completed', 'absent'] } }, { booking_status: { $in: ['booked', 'completed'] } }],
     });
     result.weekly_used = usedThisWeek;
     result.weekly_limit = userPackage.weekly_limit;
@@ -64,7 +64,7 @@ async function calcTimeCardUsage(userPackage) {
       user_id: userPackage.user_id,
       user_package_id: userPackage._id,
       booking_date: { $gte: nextWeekStart.format('YYYY-MM-DD'), $lte: nextWeekEnd.format('YYYY-MM-DD') },
-      $or: [{ status: 'booked' }, { booking_status: 'booked' }],
+      $or: [{ status: { $in: ['booked', 'completed', 'absent'] } }, { booking_status: { $in: ['booked', 'completed'] } }],
     });
     result.next_week_used = usedNextWeek;
     result.next_week_remaining = Math.max(0, userPackage.weekly_limit - usedNextWeek);
@@ -78,7 +78,7 @@ async function calcTimeCardUsage(userPackage) {
       user_id: userPackage.user_id,
       user_package_id: userPackage._id,
       booking_date: todayStr,
-      $or: [{ status: 'booked' }, { booking_status: 'booked' }],
+      $or: [{ status: { $in: ['booked', 'completed', 'absent'] } }, { booking_status: { $in: ['booked', 'completed'] } }],
     });
     result.daily_used = usedToday;
     result.daily_limit = userPackage.daily_limit;

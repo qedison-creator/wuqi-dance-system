@@ -12,6 +12,12 @@ Page({
     inactiveRemindDays: '10',
     // 提醒推送时间
     reminderSendTime: '14:00',
+    // 套餐到期重复提醒间隔
+    expireRemindInterval: '2',
+    // 次卡低次数重复提醒间隔
+    lowCountRemindInterval: '3',
+    // 不活跃重复提醒间隔
+    inactiveRemindInterval: '5',
     saved: false
   },
 
@@ -31,6 +37,9 @@ Page({
         countCardLowRemind: reminderConfig.count_card_low_remind || '5',
         inactiveRemindDays: reminderConfig.inactive_remind_days || '10',
         reminderSendTime: reminderConfig.reminder_send_time || '14:00',
+        expireRemindInterval: reminderConfig.expire_remind_interval || '2',
+        lowCountRemindInterval: reminderConfig.low_count_remind_interval || '3',
+        inactiveRemindInterval: reminderConfig.inactive_remind_interval || '5',
         loading: false,
         saved: true
       });
@@ -57,7 +66,10 @@ Page({
       packageExpireRemindDays,
       countCardLowRemind,
       inactiveRemindDays,
-      reminderSendTime
+      reminderSendTime,
+      expireRemindInterval,
+      lowCountRemindInterval,
+      inactiveRemindInterval
     } = this.data;
 
     wx.showLoading({ title: '保存中...' });
@@ -70,7 +82,10 @@ Page({
           package_expire_remind_days: packageExpireRemindDays,
           count_card_low_remind: countCardLowRemind,
           inactive_remind_days: inactiveRemindDays,
-          reminder_send_time: reminderSendTime
+          reminder_send_time: reminderSendTime,
+          expire_remind_interval: expireRemindInterval,
+          low_count_remind_interval: lowCountRemindInterval,
+          inactive_remind_interval: inactiveRemindInterval
         }
       });
 
@@ -94,6 +109,9 @@ Page({
             countCardLowRemind: '5',
             inactiveRemindDays: '10',
             reminderSendTime: '14:00',
+            expireRemindInterval: '2',
+            lowCountRemindInterval: '3',
+            inactiveRemindInterval: '5',
             saved: false
           });
         }

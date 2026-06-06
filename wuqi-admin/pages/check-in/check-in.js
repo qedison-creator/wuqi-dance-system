@@ -21,6 +21,8 @@ Page({
     expandedIndex: -1,
   },
 
+  preventTouchMove() {},
+
   onLoad() {
     this.setData({ todayStr: formatDate(new Date(), 'YYYY-MM-DD') });
     this.loadTodaySchedules();
@@ -72,10 +74,14 @@ Page({
     }).then(res => {
       const data = res.data || {};
       const records = (data.records || []).map(r => {
-        const userName = r.user_id ? (r.user_id.nick_name || '会员') : '会员';
+        const realName = r.user_id ? (r.user_id.real_name || '') : '';
+        const nickName = r.user_id ? (r.user_id.nick_name || '') : '';
+        const userName = realName || nickName || '会员';
+        const userNickName = realName && nickName && nickName !== realName ? nickName : '';
         return {
           ...r,
           userName,
+          userNickName,
           userInitial: userName ? userName[0] : '?',
           userPhone: r.user_id ? (r.user_id.phone || '') : '',
           memberCode: r.user_id ? (r.user_id.member_code || '') : '',
@@ -104,16 +110,26 @@ Page({
       scanType: ['qrCode'],
       onlyFromCamera: true,
       success: (res) => {
-        let code = res.result || '';
+        const rawResult = (res.result || '').trim();
+        if (!rawResult) {
+          wx.showToast({ title: '未识别到二维码内容', icon: 'none' });
+          return;
+        }
+
         let encryptedToken = null;
+        let code = rawResult;
+
+        // 尝试 JSON 格式（兼容旧版或外部二维码）
         try {
-          const parsed = JSON.parse(code);
-          if (parsed.t) {
-            encryptedToken = parsed.t;
-          } else if (parsed.member_code) {
-            code = parsed.member_code;
+          const parsed = JSON.parse(rawResult);
+          if (parsed.t) encryptedToken = parsed.t;
+          else if (parsed.member_code) code = parsed.member_code;
+        } catch (e) {
+          // 非JSON：新格式短token（8位字母数字），也可能为会员号
+          if (/^[A-Za-z0-9]{6,12}$/.test(rawResult)) {
+            encryptedToken = rawResult;
           }
-        } catch (e) {}
+        }
 
         if (encryptedToken) {
           this.resolveQRToken(encryptedToken);
@@ -140,41 +156,38 @@ Page({
 
   resolveQRToken(encryptedToken) {
     wx.showLoading({ title: '解析中...' });
-    request({
-      url: '/bookings/check-in',
-      method: 'POST',
-      data: { schedule_id: 'preview', user_id: 'preview', encrypted_token: encryptedToken }
-    }).catch(err => {
-      const msg = (err.data && err.data.message) || '';
-      if (msg.indexOf('未预约') >= 0 || msg.indexOf('缺少schedule_id') >= 0) {
-        this.decodeTokenForProfile(encryptedToken);
-      } else {
-        wx.hideLoading();
-      }
+    this.decodeTokenForProfile(encryptedToken).catch(() => {
+      wx.hideLoading();
     });
   },
 
   decodeTokenForProfile(encryptedToken) {
-    request({
+    return request({
       url: '/qrcode/verify',
       method: 'POST',
       data: { token: encryptedToken }
     }).then(res => {
       wx.hideLoading();
       if (res.data && res.data.member_code) {
-        const memberCode = res.data.member_code.split('|')[0];
+        const memberCode = res.data.member_code;
         this.setData({ memberCode, encryptedToken });
-        this.loadMemberProfile(memberCode);
+        return this.loadMemberProfile(memberCode);
+      } else {
+        throw new Error('无效的签到码');
       }
-    }).catch(() => {
+    }).catch((err) => {
       wx.hideLoading();
-      wx.showToast({ title: '无效的签到码', icon: 'none' });
+      // request.js 已显示后端业务错误，仅补漏手动逻辑抛出的错误
+      if (err.message && err.message !== '请求失败') {
+        wx.showToast({ title: err.message, icon: 'none' });
+      }
+      throw err;
     });
   },
 
   loadMemberProfile(memberCode) {
     wx.showLoading({ title: '加载会员信息...' });
-    request({
+    return request({
       url: '/members',
       data: { keyword: memberCode }
     }).then(res => {
@@ -192,22 +205,49 @@ Page({
         return;
       }
 
-      request({
-        url: `/members/${found._id}/checkin-profile`,
-      }).then(profileRes => {
-        wx.hideLoading();
-        this.showProfilePopup(profileRes.data || {}, false);
-      }).catch(() => {
+      if (found._id) {
+        return request({
+          url: `/members/${found._id}/checkin-profile`,
+        }).then(profileRes => {
+          wx.hideLoading();
+          this.showProfilePopup(profileRes.data || {}, false);
+        }).catch(() => {
+          wx.hideLoading();
+          this.showProfilePopup({
+            member: found,
+            packages: [],
+            today_bookings: [],
+          }, false);
+        });
+      } else {
         wx.hideLoading();
         this.showProfilePopup({
           member: found,
           packages: [],
           today_bookings: [],
         }, false);
-      });
+      }
     }).catch(() => {
       wx.hideLoading();
       wx.showToast({ title: '查询会员失败', icon: 'none' });
+    });
+  },
+
+  onViewFullProfile(e) {
+    const uid = e.currentTarget.dataset.uid;
+    if (!uid) {
+      wx.showToast({ title: '会员信息异常', icon: 'none' });
+      return;
+    }
+    wx.showLoading({ title: '加载会员信息...' });
+    request({
+      url: `/members/${uid}/checkin-profile`,
+    }).then(res => {
+      wx.hideLoading();
+      this.showProfilePopup(res.data || {}, false);
+    }).catch(() => {
+      wx.hideLoading();
+      wx.showToast({ title: '加载会员档案失败', icon: 'none' });
     });
   },
 
@@ -252,8 +292,10 @@ Page({
       return { ...b, checked: checkedBookingIds.indexOf(b.booking_id) >= 0 };
     });
 
-    if (profileData.member && profileData.member.nick_name) {
-      profileData.member.nick_initial = profileData.member.nick_name[0];
+    if (profileData.member) {
+      const displayName = profileData.member.real_name || profileData.member.nick_name || '';
+      profileData.member.display_name = displayName;
+      profileData.member.nick_initial = displayName ? displayName[0] : '?';
     }
 
     this.setData({

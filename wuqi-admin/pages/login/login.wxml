@@ -23,6 +23,13 @@
             bindtap="onLogin" loading="{{loading}}" disabled="{{loading}}">
       {{loading ? '登录中...' : '登录'}}
     </button>
+
+    <view class="remember-row" bindtap="onToggleRemember">
+      <view class="checkbox {{rememberMe ? 'checked' : ''}}">
+        <text class="check-icon" wx:if="{{rememberMe}}">✓</text>
+      </view>
+      <text class="remember-text">记住密码</text>
+    </view>
   </view>
 
 

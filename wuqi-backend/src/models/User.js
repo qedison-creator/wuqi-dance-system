@@ -25,6 +25,7 @@ const userSchema = new mongoose.Schema({
   phone_audit_status: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'pending' },
   phone_audit_pending: { type: String },
   phone_audit_requested_at: { type: Date },
+  last_inactive_reminded_at: { type: Date },
   info_change_request: {
     status: { type: String, enum: ['none', 'pending', 'approved', 'rejected'], default: 'none' },
     pending_data: { type: mongoose.Schema.Types.Mixed },
@@ -35,14 +36,11 @@ const userSchema = new mongoose.Schema({
   },
 }, { timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' } });
 
-// 索引
-userSchema.index({ openid: 1 }, { unique: true, sparse: true });
+// 索引（openid/member_code/username 的唯一索引已在 Schema 字段定义中声明，此处无需重复）
 userSchema.index({ user_type: 1, member_status: 1 });
 userSchema.index({ phone: 1 });
 userSchema.index({ wechat_phone: 1 });
 userSchema.index({ reserve_phone: 1 });
-userSchema.index({ member_code: 1 }, { unique: true, sparse: true });
-userSchema.index({ username: 1 }, { unique: true, sparse: true });
 
 // 密码加密中间件
 userSchema.pre('save', async function () {

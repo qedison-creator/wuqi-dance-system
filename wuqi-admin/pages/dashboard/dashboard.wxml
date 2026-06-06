@@ -1,15 +1,13 @@
 <view class="page">
   <view class="hero">
-    <view class="hero-bg" style="background-image: url('/images/hero/hero-{{theme || \"morning\"}}.jpg');"></view>
-    <view class="hero-overlay"></view>
+    <image class="hero-bg" src="{{heroBackgroundUrl}}" mode="aspectFill"></image>
     <view class="hero-content">
       <view class="hero-greet">
         <text class="hg-emoji">{{greeting.emoji}}</text>
         <view class="hg-body">
           <view class="hg-line1">
             <text class="hg-text">{{greeting.text}}，</text>
-            <text class="hg-name">{{userInfo.nick_name || userInfo.real_name || userInfo.name || userInfo.username || '管理员'}}</text>
-            <view class="hg-role">{{userRoleName}}</view>
+            <text class="hg-name">{{userInfo.nick_name || userInfo.name || userInfo.real_name || userInfo.username || '管理员'}}</text>
           </view>
           <text class="hg-sub">{{greeting.sub}}</text>
         </view>

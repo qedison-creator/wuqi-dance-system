@@ -8,23 +8,23 @@ const TemplateFieldMapping = require('../models/TemplateFieldMapping');
  */
 
 // ========== 模板与映射缓存 ==========
-let mappingCache = {};
-let mappingCacheTime = 0;
-const MAPPING_CACHE_TTL = 60 * 1000; // 60秒缓存
+let mappingCache = {}; // { [templateKey]: { data, time } }
+const MAPPING_CACHE_TTL = 60 * 1000; // 60秒缓存，每key独立TTL
 
 const loadTemplateFromDB = async (templateKey) => {
   const now = Date.now();
-  if (mappingCache[templateKey] && (now - mappingCacheTime) < MAPPING_CACHE_TTL) {
-    return mappingCache[templateKey];
+  const cached = mappingCache[templateKey];
+  if (cached && (now - cached.time) < MAPPING_CACHE_TTL) {
+    return cached.data;
   }
   try {
     const doc = await TemplateFieldMapping.findOne({ template_key: templateKey });
-    mappingCache[templateKey] = doc && doc.template_id ? {
+    const data = doc && doc.template_id ? {
       templateId: doc.template_id,
       mappings: doc.mappings || [],
     } : null;
-    mappingCacheTime = now;
-    return mappingCache[templateKey];
+    mappingCache[templateKey] = { data, time: now };
+    return data;
   } catch (err) {
     console.error(`[WeChatMessage] 加载模板失败 templateKey=${templateKey}:`, err.message);
     return null;
@@ -33,13 +33,33 @@ const loadTemplateFromDB = async (templateKey) => {
 
 const clearMappingCache = () => {
   mappingCache = {};
-  mappingCacheTime = 0;
+};
+
+const getFieldMaxLength = (wxField) => {
+  const match = wxField.match(/^([a-z_]+)\d*$/);
+  if (!match) return 20;
+  const limits = {
+    thing: 20,
+    character_string: 32,
+    phrase: 5,
+    time: 50,
+    date: 50,
+    number: 50,
+    amount: 50,
+    phone_number: 20,
+    letter: 50,
+    car_number: 10,
+    const: 50,
+  };
+  return limits[match[1]] || 20;
 };
 
 const buildWxData = (mappings, bizData) => {
   const wxData = {};
   for (const m of mappings) {
-    wxData[m.wx_field] = { value: String(bizData[m.biz_field] || '').substring(0, 50) };
+    const value = String(bizData[m.biz_field] || '');
+    const maxLen = getFieldMaxLength(m.wx_field);
+    wxData[m.wx_field] = { value: value.substring(0, maxLen) };
   }
   return wxData;
 };
@@ -175,20 +195,20 @@ exports.sendWaitlistAvailable = async (user, schedule, clientType = 'member') =>
   const bizData = {
     courseName: schedule.course_name || '舞蹈课程',
     courseTime: `${schedule.date} ${schedule.start_time}`,
-    tipMessage: '有名额空出，请尽快预约',
+    tipMessage: '候补成功！记得准时去上课哦',
   };
 
   await sendByTemplateKey(user.openid, 'waitlistAvailable', bizData, 'pages/booking/booking', clientType);
 };
 
 // 套餐即将到期通知
-exports.sendPackageExpiring = async (user, packageName, endDate, clientType = 'member') => {
+exports.sendPackageExpiring = async (user, packageName, endDate, daysLeft, clientType = 'member') => {
   if (!user.openid) return;
 
   const bizData = {
     packageName: packageName || '舞蹈套餐',
     expireDate: endDate,
-    tipMessage: '您的套餐即将到期，请及时续费',
+    tipMessage: `套餐还有${daysLeft}天到期，记得续费哦`,
   };
 
   await sendByTemplateKey(user.openid, 'packageExpiring', bizData, 'pages/profile/profile', clientType);
@@ -201,7 +221,7 @@ exports.sendPackageActivated = async (user, packageName, endDate, clientType = '
   const bizData = {
     packageName: packageName || '舞蹈套餐',
     expireDate: endDate,
-    tipMessage: '您的套餐已激活，快来预约课程吧',
+    tipMessage: '解锁跳舞权限！快来约课吧',
   };
 
   await sendByTemplateKey(user.openid, 'packageActivated', bizData, 'pages/booking/booking', clientType);

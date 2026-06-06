@@ -36,6 +36,12 @@ Page({
     this.loadHolidays();
   },
 
+  onPullDownRefresh() {
+    this.loadStores();
+    this.loadHolidays();
+    wx.stopPullDownRefresh();
+  },
+
   initDates() {
     const today = new Date();
     const todayStr = this._formatDate(today);
@@ -416,9 +422,14 @@ Page({
       const bookedList = [], cancelledList = [], exemptedList = [];
 
       all.forEach(item => {
+        const realName = item.user_id?.real_name;
+        const nickName = item.user_id?.nick_name;
+        const displayName = realName || nickName || '未知用户';
+        const nickNameDisplay = realName && nickName && nickName !== realName ? nickName : '';
         const booking = {
           _id: item._id,
-          userName: item.user_id?.nick_name || '未知用户',
+          userName: displayName,
+          userNickName: nickNameDisplay,
           userPhone: item.user_id?.phone || '',
           userAvatar: item.user_id?.avatar_url || '',
           bookingTime: item.created_at,

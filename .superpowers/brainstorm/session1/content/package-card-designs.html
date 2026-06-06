@@ -1,0 +1,159 @@
+<h2>我的套餐卡片 — 重新设计方案</h2>
+<p class="subtitle">基于小程序整体设计风格（珊瑚玫瑰 #D4786E、薰衣草紫 #B89CDA、青碧 #5D9B9B），提出3种卡片布局方案</p>
+
+<div class="cards">
+  <div class="card" data-choice="a" onclick="toggleSelect(this)">
+    <div class="card-image" style="padding:24px;background:#FBFAF8;">
+      <div style="max-width:375px;margin:0 auto;font-family:-apple-system,sans-serif;">
+        <div style="background:#FFFFFF;border-radius:20px;overflow:hidden;box-shadow:0 4px 20px rgba(212,120,110,0.1);">
+          <div style="height:6px;background:linear-gradient(90deg,#D4786E,#B89CDA,#5D9B9B);"></div>
+          <div style="padding:20px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+              <div style="display:flex;align-items:center;gap:8px;">
+                <span style="background:rgba(197,116,75,0.85);color:#fff;padding:3px 10px;border-radius:6px;font-size:12px;">舞栖·万象城店</span>
+                <span style="background:rgba(93,155,155,0.85);color:#fff;padding:3px 10px;border-radius:6px;font-size:12px;">时间卡</span>
+              </div>
+              <span style="background:#B8E0D2;color:#2A6F4A;padding:4px 14px;border-radius:14px;font-size:12px;">使用中</span>
+            </div>
+            <div style="display:flex;align-items:flex-end;gap:6px;margin-bottom:4px;">
+              <span style="font-size:42px;font-weight:700;color:#C5744B;line-height:1;">364</span>
+              <span style="font-size:16px;color:#C5744B;padding-bottom:6px;">天</span>
+            </div>
+            <div style="font-size:13px;color:#A69294;margin-bottom:16px;">剩余天数</div>
+            <div style="display:flex;justify-content:space-between;padding:10px 0;border-top:1px solid rgba(197,116,75,0.08);">
+              <span style="font-size:13px;color:#8B7E6A;">服务有效期</span>
+              <span style="font-size:13px;color:#2A2122;">12个月</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;padding:10px 0;border-top:1px solid rgba(197,116,75,0.08);">
+              <span style="font-size:13px;color:#8B7E6A;">本周剩余</span>
+              <span style="font-size:13px;color:#2A2122;">3 次</span>
+            </div>
+            <div style="margin-top:12px;padding-top:12px;border-top:1px solid rgba(197,116,75,0.08);">
+              <span style="font-size:12px;color:#8B7E6A;">服务有效期：2025-06-01至2026-05-31</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>方案A · 极简分层</h3>
+      <p>核心数据突出，信息行左右对齐，层次清晰。大数字+小标签的经典布局，阅读效率高。</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="b" onclick="toggleSelect(this)">
+    <div class="card-image" style="padding:24px;background:#FBFAF8;">
+      <div style="max-width:375px;margin:0 auto;font-family:-apple-system,sans-serif;">
+        <div style="background:#FFFFFF;border-radius:20px;overflow:hidden;box-shadow:0 4px 20px rgba(212,120,110,0.1);">
+          <div style="height:6px;background:linear-gradient(90deg,#5D9B9B,#B89CDA,#D4786E);"></div>
+          <div style="padding:20px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;">
+              <div style="display:flex;align-items:center;gap:8px;">
+                <span style="background:rgba(197,116,75,0.85);color:#fff;padding:3px 10px;border-radius:6px;font-size:12px;">舞栖·万象城店</span>
+                <span style="background:rgba(93,155,155,0.85);color:#fff;padding:3px 10px;border-radius:6px;font-size:12px;">时间卡</span>
+              </div>
+              <span style="background:#B8E0D2;color:#2A6F4A;padding:4px 14px;border-radius:14px;font-size:12px;">使用中</span>
+            </div>
+            <div style="display:flex;gap:16px;margin-bottom:16px;">
+              <div style="flex:0 0 110px;background:linear-gradient(135deg,#FDF2EF,#F9E8E2);border-radius:16px;padding:16px 12px;text-align:center;">
+                <div style="font-size:40px;font-weight:700;color:#C5744B;line-height:1;">364</div>
+                <div style="font-size:12px;color:#A69294;margin-top:6px;">剩余天数</div>
+              </div>
+              <div style="flex:1;display:flex;flex-direction:column;justify-content:center;gap:10px;">
+                <div style="display:flex;justify-content:space-between;align-items:center;">
+                  <span style="font-size:13px;color:#8B7E6A;">服务有效期</span>
+                  <span style="font-size:13px;color:#2A2122;font-weight:500;">12个月</span>
+                </div>
+                <div style="display:flex;justify-content:space-between;align-items:center;">
+                  <span style="font-size:13px;color:#8B7E6A;">本周剩余</span>
+                  <span style="font-size:13px;color:#2A2122;font-weight:500;">3 次</span>
+                </div>
+              </div>
+            </div>
+            <div style="padding-top:12px;border-top:1px solid rgba(197,116,75,0.08);">
+              <span style="font-size:12px;color:#8B7E6A;">服务有效期：2025-06-01至2026-05-31</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>方案B · 左右分栏</h3>
+      <p>左侧数字卡片+右侧信息列表，视觉重心明确。数字区有背景色块突出，信息区简洁对齐。</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="c" onclick="toggleSelect(this)">
+    <div class="card-image" style="padding:24px;background:#FBFAF8;">
+      <div style="max-width:375px;margin:0 auto;font-family:-apple-system,sans-serif;">
+        <div style="background:linear-gradient(160deg,#FFFFFF 0%,#FFFBF8 40%,#FAEEE4 80%,#F5E8F5 100%);border-radius:20px;overflow:hidden;box-shadow:0 4px 20px rgba(212,120,110,0.1);position:relative;">
+          <div style="position:absolute;top:-30px;right:-30px;width:100px;height:100px;border-radius:50%;background:linear-gradient(135deg,rgba(212,120,110,0.06),rgba(184,156,218,0.04));pointer-events:none;"></div>
+          <div style="padding:20px;position:relative;z-index:1;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;">
+              <div style="display:flex;align-items:center;gap:8px;">
+                <span style="background:rgba(197,116,75,0.85);color:#fff;padding:3px 10px;border-radius:6px;font-size:12px;">舞栖·万象城店</span>
+                <span style="background:rgba(93,155,155,0.85);color:#fff;padding:3px 10px;border-radius:6px;font-size:12px;">时间卡</span>
+              </div>
+              <span style="background:#B8E0D2;color:#2A6F4A;padding:4px 14px;border-radius:14px;font-size:12px;">使用中</span>
+            </div>
+            <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:16px;">
+              <div>
+                <div style="display:flex;align-items:baseline;gap:4px;">
+                  <span style="font-size:48px;font-weight:700;color:#C5744B;line-height:1;letter-spacing:-1px;">364</span>
+                  <span style="font-size:16px;color:#C5744B;">天</span>
+                </div>
+                <div style="font-size:13px;color:#A69294;margin-top:6px;">剩余天数</div>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:8px;align-items:flex-end;">
+                <div style="background:rgba(197,116,75,0.05);border-radius:10px;padding:8px 14px;text-align:right;">
+                  <div style="font-size:11px;color:#A69294;">服务有效期</div>
+                  <div style="font-size:14px;color:#2A2122;font-weight:500;">12个月</div>
+                </div>
+                <div style="background:rgba(93,155,155,0.05);border-radius:10px;padding:8px 14px;text-align:right;">
+                  <div style="font-size:11px;color:#A69294;">本周剩余</div>
+                  <div style="font-size:14px;color:#2A2122;font-weight:500;">3 次</div>
+                </div>
+              </div>
+            </div>
+            <div style="margin-bottom:12px;">
+              <div style="height:6px;background:#F6F3F0;border-radius:3px;overflow:hidden;">
+                <div style="width:4%;height:100%;background:linear-gradient(90deg,#E8985E,#C5744B);border-radius:3px;"></div>
+              </div>
+              <div style="display:flex;justify-content:space-between;margin-top:4px;">
+                <span style="font-size:11px;color:#B8AF9E;">已用 1 天</span>
+                <span style="font-size:11px;color:#C5744B;">4%</span>
+              </div>
+            </div>
+            <div style="padding-top:12px;border-top:1px solid rgba(197,116,75,0.08);">
+              <span style="font-size:12px;color:#8B7E6A;">服务有效期：2025-06-01至2026-05-31</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>方案C · 沉浸渐变（推荐）</h3>
+      <p>卡片自带渐变背景+装饰元素，大数字左置+信息胶囊右置，进度条回归。与会员信息卡片风格呼应，整体更有设计感。</p>
+    </div>
+  </div>
+</div>
+
+<div class="pros-cons" style="margin-top:24px;">
+  <div class="pros">
+    <h4>推荐：方案C</h4>
+    <ul>
+      <li>与会员信息卡片的渐变变幻风格一致</li>
+      <li>信息胶囊设计让数据更有层次感</li>
+      <li>进度条回归，使用情况一目了然</li>
+      <li>装饰元素增加精致感</li>
+    </ul>
+  </div>
+  <div class="cons">
+    <h4>各方案取舍</h4>
+    <ul>
+      <li>方案A最简洁，但可能显得平淡</li>
+      <li>方案B左右分栏清晰，但左侧色块偏重</li>
+      <li>方案C视觉最丰富，但实现稍复杂</li>
+    </ul>
+  </div>
+</div>

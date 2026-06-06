@@ -185,6 +185,14 @@
   color: var(--color-danger);
 }
 
+.self-tag {
+  font-size: 22rpx;
+  color: #B8AF9E;
+  padding: 6rpx 14rpx;
+  background: #F0ECE6;
+  border-radius: 6rpx;
+}
+
 .form-tip {
   font-size: 24rpx;
   color: var(--text-tertiary);

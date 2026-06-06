@@ -1,14 +1,15 @@
 <view class="profile-page">
   <view class="profile-card">
     <view class="avatar-wrapper">
-      <view class="avatar-ring">
+      <image class="avatar-ring-img" src="{{userInfo.avatar_url}}" mode="aspectFill" wx:if="{{userInfo.avatar_url}}" binderror="onAvatarError"></image>
+      <view class="avatar-ring" wx:else>
         <view class="avatar-inner">
-          <text class="avatar-char">{{userInfo.nick_name ? userInfo.nick_name[0] : '管'}}</text>
+          <text class="avatar-char">{{userInfo.nick_name ? userInfo.nick_name[0] : (userInfo.name ? userInfo.name[0] : (userInfo.username ? userInfo.username[0] : '管'))}}</text>
         </view>
       </view>
     </view>
     <view class="profile-info">
-      <text class="profile-name">{{userInfo.nick_name || userInfo.username || '管理员'}}</text>
+      <text class="profile-name">{{userInfo.nick_name || userInfo.name || userInfo.username || '管理员'}}</text>
       <view class="profile-meta">
         <text class="profile-role">{{userInfo.role === 'super_admin' ? '超级管理员' : (userInfo.role === 'store_manager' ? '店长' : '员工')}}</text>
         <text class="profile-dot" wx:if="{{currentStore}}">·</text>
@@ -23,6 +24,14 @@
         <image class="menu-icon" src="/images/icons/users.svg" mode="aspectFit"></image>
       </view>
       <text class="menu-label">账号及权限管理</text>
+      <image class="menu-arrow" src="/images/icons/chevron-right.svg" mode="aspectFit"></image>
+    </view>
+
+    <view class="menu-item" bindtap="onAccountSecurity">
+      <view class="menu-icon-wrap">
+        <image class="menu-icon" src="/images/icons/settings.svg" mode="aspectFit"></image>
+      </view>
+      <text class="menu-label">个人资料及账号安全</text>
       <image class="menu-arrow" src="/images/icons/chevron-right.svg" mode="aspectFit"></image>
     </view>
 

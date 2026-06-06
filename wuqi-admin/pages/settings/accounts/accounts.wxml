@@ -50,16 +50,17 @@
         </view>
       </view>
       <view class="account-actions">
-        <view class="action-btn edit" data-index="{{index}}" bindtap="onEditAccount">
+        <view class="action-btn edit" data-index="{{index}}" bindtap="onEditAccount" wx:if="{{item._id !== currentUserId}}">
           <text>编辑</text>
         </view>
         <switch checked="{{item.status === 'active'}}" color="#FFCC00"
                 data-index="{{index}}"
-                bindchange="onToggleAccount">
+                bindchange="onToggleAccount" wx:if="{{item._id !== currentUserId}}">
         </switch>
-        <view class="action-btn delete" data-id="{{item._id}}" bindtap="onDeleteAccount">
+        <view class="action-btn delete" data-id="{{item._id}}" bindtap="onDeleteAccount" wx:if="{{item._id !== currentUserId}}">
           <text>删除</text>
         </view>
+        <text class="self-tag" wx:if="{{item._id === currentUserId}}">本账号</text>
       </view>
     </view>
   </view>
@@ -95,7 +96,7 @@
         </picker>
         <text class="form-tip" wx:if="{{editingAccount && currentUserRole !== 'super_admin'}}">只有超级管理员可以修改角色</text>
       </view>
-      <view class="form-group">
+      <view class="form-group" wx:if="{{formData.role !== 'super_admin'}}">
         <text class="form-label">所属门店</text>
         <picker mode="selector" range="{{stores}}" range-key="name" value="{{storeIndex}}" bindchange="onStoreChange">
           <view class="input-field picker-field">

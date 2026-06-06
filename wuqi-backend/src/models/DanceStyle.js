@@ -9,7 +9,6 @@ const danceStyleSchema = new mongoose.Schema({
   status: { type: String, enum: ['active', 'disabled'], required: true, default: 'active' },
 }, { timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' } });
 
-danceStyleSchema.index({ name: 1 }, { unique: true });
 danceStyleSchema.index({ sort_order: 1 });
 danceStyleSchema.index({ status: 1 });
 

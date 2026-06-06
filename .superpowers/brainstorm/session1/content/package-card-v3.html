@@ -1,0 +1,174 @@
+<h2>方案C · 第三版 — 标签区分 & 状态新表达</h2>
+<p class="subtitle">次卡/时间卡标签颜色区分，会员状态采用全新视觉表达</p>
+
+<div class="cards">
+  <!-- 时间卡 -->
+  <div class="card" data-choice="time-card" onclick="toggleSelect(this)">
+    <div class="card-image" style="padding:24px;background:#FBFAF8;">
+      <div style="max-width:375px;margin:0 auto;font-family:-apple-system,sans-serif;">
+        <div style="background:linear-gradient(160deg,#FFFFFF 0%,#FFFBF8 40%,#FAEEE4 80%,#F5E8F5 100%);border-radius:20px;overflow:hidden;box-shadow:0 4px 20px rgba(212,120,110,0.1);position:relative;">
+          <div style="position:absolute;top:-30px;right:-30px;width:100px;height:100px;border-radius:50%;background:linear-gradient(135deg,rgba(212,120,110,0.06),rgba(184,156,218,0.04));pointer-events:none;"></div>
+          <div style="padding:20px;position:relative;z-index:1;">
+            <!-- 头部：门店 + 时间卡标签（薰衣草紫系） -->
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;">
+              <div style="display:flex;align-items:center;gap:8px;">
+                <span style="background:rgba(197,116,75,0.85);color:#fff;padding:3px 10px;border-radius:6px;font-size:12px;">舞栖·万象城店</span>
+                <span style="background:linear-gradient(135deg,#B89CDA,#9B7EC4);color:#fff;padding:3px 10px;border-radius:6px;font-size:12px;">时间卡</span>
+              </div>
+            </div>
+            <!-- 核心数据区 -->
+            <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:16px;">
+              <div>
+                <div style="display:flex;align-items:baseline;gap:4px;">
+                  <span style="font-size:48px;font-weight:700;color:#C5744B;line-height:1;letter-spacing:-1px;">364</span>
+                </div>
+                <div style="font-size:13px;color:#A69294;margin-top:6px;">剩余天数</div>
+                <!-- 会员状态：脉冲圆点 + 文字 -->
+                <div style="display:flex;align-items:center;gap:6px;margin-top:10px;">
+                  <span style="width:8px;height:8px;border-radius:50%;background:#5D9B9B;box-shadow:0 0 0 3px rgba(93,155,155,0.2);display:inline-block;"></span>
+                  <span style="font-size:13px;color:#5D9B9B;letter-spacing:1px;">畅享中</span>
+                </div>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:8px;align-items:flex-end;">
+                <div style="background:rgba(197,116,75,0.05);border-radius:10px;padding:8px 14px;text-align:right;">
+                  <div style="font-size:11px;color:#A69294;">服务有效期</div>
+                  <div style="font-size:14px;color:#2A2122;font-weight:500;">12个月</div>
+                </div>
+                <div style="background:rgba(93,155,155,0.05);border-radius:10px;padding:8px 14px;text-align:right;">
+                  <div style="font-size:11px;color:#A69294;">本周剩余</div>
+                  <div style="font-size:14px;color:#2A2122;font-weight:500;">3 次</div>
+                </div>
+              </div>
+            </div>
+            <!-- 进度条 -->
+            <div style="margin-bottom:12px;">
+              <div style="height:6px;background:#F6F3F0;border-radius:3px;overflow:hidden;">
+                <div style="width:4%;height:100%;background:linear-gradient(90deg,#E8985E,#C5744B);border-radius:3px;"></div>
+              </div>
+              <div style="display:flex;justify-content:space-between;margin-top:4px;">
+                <span style="font-size:11px;color:#B8AF9E;">已用 1 天</span>
+                <span style="font-size:11px;color:#C5744B;">4%</span>
+              </div>
+            </div>
+            <div style="padding-top:12px;border-top:1px solid rgba(197,116,75,0.08);">
+              <span style="font-size:12px;color:#8B7E6A;">服务有效期：2025-06-01至2026-05-31</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>时间卡 · 薰衣草紫标签</h3>
+      <p>时间卡标签用薰衣草紫渐变，状态用脉冲圆点+文字表达，与标签视觉语言完全不同</p>
+    </div>
+  </div>
+
+  <!-- 次卡 -->
+  <div class="card" data-choice="count-card" onclick="toggleSelect(this)">
+    <div class="card-image" style="padding:24px;background:#FBFAF8;">
+      <div style="max-width:375px;margin:0 auto;font-family:-apple-system,sans-serif;">
+        <div style="background:linear-gradient(160deg,#FFFFFF 0%,#F8FBFA 40%,#EEF5F4 80%,#F0E8FF 100%);border-radius:20px;overflow:hidden;box-shadow:0 4px 20px rgba(93,155,155,0.1);position:relative;">
+          <div style="position:absolute;top:-30px;right:-30px;width:100px;height:100px;border-radius:50%;background:linear-gradient(135deg,rgba(93,155,155,0.06),rgba(184,156,218,0.04));pointer-events:none;"></div>
+          <div style="padding:20px;position:relative;z-index:1;">
+            <!-- 头部：门店 + 次卡标签（青碧系） -->
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;">
+              <div style="display:flex;align-items:center;gap:8px;">
+                <span style="background:rgba(197,116,75,0.85);color:#fff;padding:3px 10px;border-radius:6px;font-size:12px;">舞栖·万象城店</span>
+                <span style="background:linear-gradient(135deg,#5D9B9B,#3D7B7B);color:#fff;padding:3px 10px;border-radius:6px;font-size:12px;">次卡</span>
+              </div>
+            </div>
+            <!-- 核心数据区 -->
+            <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:16px;">
+              <div>
+                <div style="display:flex;align-items:baseline;gap:4px;">
+                  <span style="font-size:48px;font-weight:700;color:#5D9B9B;line-height:1;letter-spacing:-1px;">40</span>
+                  <span style="font-size:16px;color:#5D9B9B;">次</span>
+                </div>
+                <div style="font-size:13px;color:#A69294;margin-top:6px;">剩余课次</div>
+                <!-- 会员状态：脉冲圆点 + 文字 -->
+                <div style="display:flex;align-items:center;gap:6px;margin-top:10px;">
+                  <span style="width:8px;height:8px;border-radius:50%;background:#5D9B9B;box-shadow:0 0 0 3px rgba(93,155,155,0.2);display:inline-block;"></span>
+                  <span style="font-size:13px;color:#5D9B9B;letter-spacing:1px;">畅享中</span>
+                </div>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:8px;align-items:flex-end;">
+                <div style="background:rgba(93,155,155,0.05);border-radius:10px;padding:8px 14px;text-align:right;">
+                  <div style="font-size:11px;color:#A69294;">总次数</div>
+                  <div style="font-size:14px;color:#2A2122;font-weight:500;">41 次</div>
+                </div>
+                <div style="background:rgba(197,116,75,0.05);border-radius:10px;padding:8px 14px;text-align:right;">
+                  <div style="font-size:11px;color:#A69294;">已使用</div>
+                  <div style="font-size:14px;color:#2A2122;font-weight:500;">1 次</div>
+                </div>
+              </div>
+            </div>
+            <!-- 进度条 -->
+            <div style="margin-bottom:12px;">
+              <div style="height:6px;background:#F6F3F0;border-radius:3px;overflow:hidden;">
+                <div style="width:2%;height:100%;background:linear-gradient(90deg,#8DC5C5,#5D9B9B);border-radius:3px;"></div>
+              </div>
+              <div style="display:flex;justify-content:space-between;margin-top:4px;">
+                <span style="font-size:11px;color:#B8AF9E;">已用 1 次</span>
+                <span style="font-size:11px;color:#5D9B9B;">2%</span>
+              </div>
+            </div>
+            <div style="padding-top:12px;border-top:1px solid rgba(93,155,155,0.08);">
+              <span style="font-size:12px;color:#8B7E6A;">服务有效期：2025-06-01至2026-05-31</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>次卡 · 青碧标签</h3>
+      <p>次卡标签用青碧渐变，与时间卡的薰衣草紫形成鲜明区分</p>
+    </div>
+  </div>
+</div>
+
+<!-- 标签颜色对比 -->
+<div style="margin-top:24px;padding:20px;background:rgba(212,120,110,0.04);border-radius:12px;">
+  <h3 style="margin:0 0 16px;font-size:16px;color:#2A2122;">标签颜色体系</h3>
+  <div style="display:flex;gap:16px;flex-wrap:wrap;">
+    <div style="display:flex;align-items:center;gap:8px;padding:10px 16px;background:#fff;border-radius:10px;">
+      <span style="background:rgba(197,116,75,0.85);color:#fff;padding:4px 12px;border-radius:6px;font-size:13px;">门店</span>
+      <span style="font-size:13px;color:#A69294;">暖棕 · 通用</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;padding:10px 16px;background:#fff;border-radius:10px;">
+      <span style="background:linear-gradient(135deg,#B89CDA,#9B7EC4);color:#fff;padding:4px 12px;border-radius:6px;font-size:13px;">时间卡</span>
+      <span style="font-size:13px;color:#A69294;">薰衣草紫</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;padding:10px 16px;background:#fff;border-radius:10px;">
+      <span style="background:linear-gradient(135deg,#5D9B9B,#3D7B7B);color:#fff;padding:4px 12px;border-radius:6px;font-size:13px;">次卡</span>
+      <span style="font-size:13px;color:#A69294;">青碧</span>
+    </div>
+  </div>
+</div>
+
+<!-- 状态表达方式对比 -->
+<div style="margin-top:16px;padding:20px;background:rgba(93,155,155,0.04);border-radius:12px;">
+  <h3 style="margin:0 0 16px;font-size:16px;color:#2A2122;">会员状态 · 脉冲圆点表达</h3>
+  <p style="font-size:13px;color:#A69294;margin-bottom:12px;">用圆点+文字替代标签色块，与门店/套餐类型标签形成视觉差异</p>
+  <div style="display:flex;gap:20px;flex-wrap:wrap;">
+    <div style="display:flex;align-items:center;gap:6px;padding:8px 14px;background:#fff;border-radius:8px;">
+      <span style="width:8px;height:8px;border-radius:50%;background:#5D9B9B;box-shadow:0 0 0 3px rgba(93,155,155,0.2);"></span>
+      <span style="font-size:13px;color:#5D9B9B;letter-spacing:1px;">畅享中</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:6px;padding:8px 14px;background:#fff;border-radius:8px;">
+      <span style="width:8px;height:8px;border-radius:50%;background:#B89CDA;box-shadow:0 0 0 3px rgba(184,156,218,0.2);"></span>
+      <span style="font-size:13px;color:#8B7EAC;letter-spacing:1px;">静待开启</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:6px;padding:8px 14px;background:#fff;border-radius:8px;">
+      <span style="width:8px;height:8px;border-radius:50%;background:#B8AF9E;box-shadow:0 0 0 3px rgba(184,175,158,0.2);"></span>
+      <span style="font-size:13px;color:#8B7E6A;letter-spacing:1px;">已落幕</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:6px;padding:8px 14px;background:#fff;border-radius:8px;">
+      <span style="width:8px;height:8px;border-radius:50%;background:#B8AF9E;box-shadow:0 0 0 3px rgba(184,175,158,0.2);"></span>
+      <span style="font-size:13px;color:#8B7E6A;letter-spacing:1px;">已满载</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:6px;padding:8px 14px;background:#fff;border-radius:8px;">
+      <span style="width:8px;height:8px;border-radius:50%;background:#E8985E;box-shadow:0 0 0 3px rgba(232,152,94,0.2);"></span>
+      <span style="font-size:13px;color:#C5744B;letter-spacing:1px;">暂停中</span>
+    </div>
+  </div>
+</div>

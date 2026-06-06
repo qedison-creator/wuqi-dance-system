@@ -69,9 +69,14 @@ Page({
       const exemptedList = [];
       
       allBookings.forEach(item => {
+        const realName = item.user_id?.real_name;
+        const nickName = item.user_id?.nick_name;
+        const displayName = realName || nickName || '未知用户';
+        const nickNameDisplay = realName && nickName && nickName !== realName ? nickName : '';
         const booking = {
           _id: item._id,
-          userName: item.user_id?.nick_name || '未知用户',
+          userName: displayName,
+          userNickName: nickNameDisplay,
           userPhone: item.user_id?.phone || '',
           userAvatar: item.user_id?.avatar_url || '',
           bookingTime: item.created_at,
@@ -115,17 +120,24 @@ Page({
       
       const list = res.data && Array.isArray(res.data) ? res.data : [];
       
-      const processedList = list.map(item => ({
-        _id: item._id,
-        userName: item.user_id?.nick_name || '未知用户',
-        userPhone: item.user_id?.phone || '',
-        userAvatar: item.user_id?.avatar_url || '',
-        checkInTime: item.check_in_time,
-        checkInMethod: item.check_in_method || 'scan',
-        checkInMethodText: this.getCheckInMethodText(item.check_in_method),
-        source: item.source,
-        creditsCost: item.credits_cost || 0
-      }));
+      const processedList = list.map(item => {
+        const realName = item.user_id?.real_name;
+        const nickName = item.user_id?.nick_name;
+        const displayName = realName || nickName || '未知用户';
+        const nickNameDisplay = realName && nickName && nickName !== realName ? nickName : '';
+        return {
+          _id: item._id,
+          userName: displayName,
+          userNickName: nickNameDisplay,
+          userPhone: item.user_id?.phone || '',
+          userAvatar: item.user_id?.avatar_url || '',
+          checkInTime: item.check_in_time,
+          checkInMethod: item.check_in_method || 'scan',
+          checkInMethodText: this.getCheckInMethodText(item.check_in_method),
+          source: item.source,
+          creditsCost: item.credits_cost || 0
+        };
+      });
       
       this.setData({ attendanceList: processedList });
     } catch (err) {

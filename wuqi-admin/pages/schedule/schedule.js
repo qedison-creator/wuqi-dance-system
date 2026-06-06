@@ -60,6 +60,11 @@ Page({
       copyMode: 'weeks',
       copyCount: 4
     },
+    // 取消排课原因选择
+    showCancelReasonModal: false,
+    cancelScheduleId: '',
+    cancelScheduleBookings: 0,
+    cancelSelectedReason: '',
     showCustomDuration: false,
     isCustomDuration: false,
     courseDurations: COURSE_DURATIONS,
@@ -769,6 +774,11 @@ Page({
     await this.loadCoaches();
     await this.loadDanceStyles();
     
+    const danceStyleId = schedule.dance_style_id && schedule.dance_style_id._id ? schedule.dance_style_id._id : schedule.dance_style_id;
+    const danceStyleName = schedule.dance_style_id && schedule.dance_style_id.name ? schedule.dance_style_id.name : schedule.dance_style_name;
+    const coachId = schedule.coach_id && schedule.coach_id._id ? schedule.coach_id._id : schedule.coach_id;
+    const coachName = schedule.coach_id && schedule.coach_id.name ? schedule.coach_id.name : schedule.coach_name;
+    
     this.setData({
       showAddModal: true,
       showCustomDuration: false,
@@ -776,10 +786,10 @@ Page({
       formData: {
         _id: schedule._id || schedule.template_id,
         course_name: schedule.course_name || '',
-        danceStyleId: schedule.dance_style_id || '',
-        danceStyleName: schedule.dance_style_name || '',
-        coachId: schedule.coach_id || '',
-        coachName: schedule.coach_name || '',
+        danceStyleId: danceStyleId || '',
+        danceStyleName: danceStyleName || '',
+        coachId: coachId || '',
+        coachName: coachName || '',
         startTime: schedule.start_time,
         endTime: schedule.end_time,
         duration: schedule.duration || DEFAULT_DURATION,
@@ -1091,14 +1101,16 @@ Page({
   async onCancelSchedule(e) {
     const { viewMode, weekTemplate, weekdayList, currentWeekdayIndex } = this.data;
     const index = e.currentTarget.dataset.index;
+    const id = e.currentTarget.dataset.id;
+    const bookings = parseInt(e.currentTarget.dataset.bookings) || 0;
     
-    wx.showModal({
-      title: '确认删除',
-      content: viewMode === 'day' ? '确定要删除该模板课程吗？' : '确定要取消该排课吗？',
-      success: async (res) => {
-        if (res.confirm) {
-          // 星期视图模式，从模板中删除
-          if (viewMode === 'day') {
+    // 星期视图模式，从模板中删除
+    if (viewMode === 'day') {
+      wx.showModal({
+        title: '确认删除',
+        content: '确定要删除该模板课程吗？',
+        success: async (res) => {
+          if (res.confirm) {
             const currentWeekday = weekdayList[currentWeekdayIndex]?.weekday;
             const newWeekTemplate = { ...weekTemplate };
             if (newWeekTemplate[currentWeekday] && newWeekTemplate[currentWeekday][index] !== undefined) {
@@ -1108,24 +1120,73 @@ Page({
               this.loadCurrentWeekdaySchedules();
               wx.showToast({ title: '已删除', icon: 'success' });
             }
-            return;
-          }
-          
-          // 月视图模式，使用API
-          const id = e.currentTarget.dataset.id;
-          try {
-            await request({
-              url: `/schedules/${id}/cancel`,
-              method: 'PUT'
-            });
-            wx.showToast({ title: '已取消', icon: 'success' });
-            this.loadSchedules();
-          } catch (err) {
-            console.error('取消排课失败', err);
           }
         }
-      }
+      });
+      return;
+    }
+    
+    // 月视图模式：有预约时弹出原因选择，无预约时直接确认取消
+    if (bookings > 0) {
+      this.setData({
+        showCancelReasonModal: true,
+        cancelScheduleId: id,
+        cancelScheduleBookings: bookings,
+        cancelSelectedReason: ''
+      });
+    } else {
+      wx.showModal({
+        title: '确认取消排课',
+        content: '确定要取消该排课吗？当前无会员预约。',
+        success: async (res) => {
+          if (res.confirm) {
+            try {
+              await request({ url: `/schedules/${id}/cancel`, method: 'PUT' });
+              wx.showToast({ title: '已取消', icon: 'success' });
+              this.loadSchedules();
+            } catch (err) {
+              console.error('取消排课失败', err);
+            }
+          }
+        }
+      });
+    }
+  },
+
+  // 关闭取消原因弹窗
+  onCloseCancelReasonModal() {
+    this.setData({
+      showCancelReasonModal: false,
+      cancelScheduleId: '',
+      cancelScheduleBookings: 0,
+      cancelSelectedReason: ''
     });
+  },
+
+  // 选择取消原因
+  onSelectCancelReason(e) {
+    const reason = e.currentTarget.dataset.reason;
+    this.setData({ cancelSelectedReason: reason });
+  },
+
+  // 确认取消排课（带原因）
+  async onConfirmCancelSchedule() {
+    const { cancelScheduleId, cancelSelectedReason } = this.data;
+    if (!cancelSelectedReason) return;
+    
+    try {
+      await request({
+        url: `/schedules/${cancelScheduleId}/cancel`,
+        method: 'PUT',
+        data: { reason: cancelSelectedReason }
+      });
+      wx.showToast({ title: '已取消', icon: 'success' });
+      this.onCloseCancelReasonModal();
+      this.loadSchedules();
+    } catch (err) {
+      console.error('取消排课失败', err);
+      wx.showToast({ title: '取消失败', icon: 'none' });
+    }
   },
 
   // 查看预约名单

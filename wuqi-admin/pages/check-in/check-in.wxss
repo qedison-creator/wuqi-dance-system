@@ -219,6 +219,11 @@
   font-weight: 500;
 }
 
+.record-nick {
+  font-size: 24rpx;
+  color: var(--text-secondary);
+}
+
 .source-tag {
   padding: 2rpx 10rpx;
   border-radius: 4rpx;

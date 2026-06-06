@@ -5,6 +5,7 @@ Page({
     accounts: [],
     stores: [],
     currentUserRole: '',
+    currentUserId: '',
     showModal: false,
     editingAccount: null,
     roleIndex: 1,
@@ -33,7 +34,10 @@ Page({
     const app = getApp();
     const userInfo = app.globalData.userInfo;
     if (userInfo) {
-      this.setData({ currentUserRole: userInfo.role });
+      this.setData({
+        currentUserRole: userInfo.role,
+        currentUserId: userInfo._id || userInfo.id || ''
+      });
     }
   },
 
@@ -118,9 +122,11 @@ Page({
 
   onRoleChange(e) {
     const index = e.detail.value;
+    const newRole = this.data.roles[index].id;
     this.setData({
       roleIndex: index,
-      'formData.role': this.data.roles[index].id
+      'formData.role': newRole,
+      'formData.store_id': newRole === 'super_admin' ? '' : this.data.formData.store_id
     });
   },
 
@@ -148,8 +154,11 @@ Page({
       data = {
         nick_name: formData.name
       };
-      if (formData.store_id) {
+      if (formData.role !== 'super_admin' && formData.store_id) {
         data.store_id = formData.store_id;
+      }
+      if (formData.role === 'super_admin') {
+        data.store_id = null;
       }
       if (currentUserRole === 'super_admin') {
         data.role = formData.role;
@@ -161,7 +170,7 @@ Page({
         user_type: formData.role === 'store_manager' ? 'admin' : 'staff',
         role: formData.role,
         password: formData.password,
-        store_id: formData.store_id
+        store_id: formData.role !== 'super_admin' ? formData.store_id : null
       };
     }
 

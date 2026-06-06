@@ -30,7 +30,10 @@ const DEFAULT_CONFIGS = [
   { key: 'package_expire_remind_days', value: '8', description: '套餐到期提前提醒天数' },
   { key: 'count_card_low_remind', value: '5', description: '次卡剩余次数低于此值时提醒' },
   { key: 'inactive_remind_days', value: '10', description: '会员未预约课程提醒天数' },
-  { key: 'reminder_send_time', value: '14:00', description: '套餐提醒推送时间' }
+  { key: 'reminder_send_time', value: '14:00', description: '套餐提醒推送时间' },
+  { key: 'expire_remind_interval', value: '2', description: '套餐到期重复提醒间隔天数' },
+  { key: 'low_count_remind_interval', value: '3', description: '次卡低次数重复提醒间隔天数' },
+  { key: 'inactive_remind_interval', value: '5', description: '不活跃重复提醒间隔天数' }
 ];
 
 // 初始化默认配置
@@ -101,7 +104,7 @@ const initDefaultConfigs = async () => {
       console.log('[Config] 从数据库加载消息模板配置成功');
     }
 
-    const reminderKeys = ['package_expire_remind_days', 'count_card_low_remind', 'inactive_remind_days', 'reminder_send_time'];
+    const reminderKeys = ['package_expire_remind_days', 'count_card_low_remind', 'inactive_remind_days', 'reminder_send_time', 'expire_remind_interval', 'low_count_remind_interval', 'inactive_remind_interval'];
     const savedReminder = {};
     for (const key of reminderKeys) {
       const config = await Config.findOne({ key });
@@ -158,7 +161,7 @@ const initDefaultConfigs = async () => {
         mappings: [
           { wx_field: 'thing1', biz_field: 'courseName', example_value: '有氧舞蹈' },
           { wx_field: 'time2', biz_field: 'courseTime', example_value: '2026-06-02 10:00' },
-          { wx_field: 'thing3', biz_field: 'tipMessage', example_value: '有名额空出，请尽快预约' }
+          { wx_field: 'thing3', biz_field: 'tipMessage', example_value: '候补成功！记得准时去上课哦' }
         ]
       },
       {
@@ -168,7 +171,7 @@ const initDefaultConfigs = async () => {
         mappings: [
           { wx_field: 'thing1', biz_field: 'packageName', example_value: '月卡套餐' },
           { wx_field: 'date2', biz_field: 'expireDate', example_value: '2026-06-30' },
-          { wx_field: 'thing3', biz_field: 'tipMessage', example_value: '您的套餐即将到期，请及时续费' }
+          { wx_field: 'thing3', biz_field: 'tipMessage', example_value: '套餐还有3天到期，记得续费哦' }
         ]
       },
       {
@@ -178,7 +181,7 @@ const initDefaultConfigs = async () => {
         mappings: [
           { wx_field: 'thing1', biz_field: 'packageName', example_value: '次卡30次' },
           { wx_field: 'date2', biz_field: 'expireDate', example_value: '2026-12-31' },
-          { wx_field: 'thing3', biz_field: 'tipMessage', example_value: '套餐已激活，快来预约课程吧' }
+          { wx_field: 'thing3', biz_field: 'tipMessage', example_value: '解锁跳舞权限！快来约课吧' }
         ]
       },
       {
@@ -188,7 +191,7 @@ const initDefaultConfigs = async () => {
         mappings: [
           { wx_field: 'thing1', biz_field: 'packageName', example_value: '次卡20次' },
           { wx_field: 'number2', biz_field: 'remainCount', example_value: '3' },
-          { wx_field: 'thing3', biz_field: 'tipMessage', example_value: '剩余次数不足，请及时续费' }
+          { wx_field: 'thing3', biz_field: 'tipMessage', example_value: '跳舞次数快用完啦，赶紧囤卡' }
         ]
       },
       {
@@ -198,7 +201,7 @@ const initDefaultConfigs = async () => {
         mappings: [
           { wx_field: 'thing1', biz_field: 'memberNickname', example_value: '小明' },
           { wx_field: 'number2', biz_field: 'inactiveDays', example_value: '30' },
-          { wx_field: 'thing3', biz_field: 'tipMessage', example_value: '好久不见，快来跳舞吧' }
+          { wx_field: 'thing3', biz_field: 'tipMessage', example_value: '舞蹈社想你啦，快来跳支舞吧' }
         ]
       },
       {
@@ -307,14 +310,20 @@ router.put('/reminder-settings', auth, checkPermission(['super_admin']), async (
       package_expire_remind_days,
       count_card_low_remind,
       inactive_remind_days,
-      reminder_send_time
+      reminder_send_time,
+      expire_remind_interval,
+      low_count_remind_interval,
+      inactive_remind_interval
     } = req.body;
 
     setReminderSettings({
       package_expire_remind_days,
       count_card_low_remind,
       inactive_remind_days,
-      reminder_send_time
+      reminder_send_time,
+      expire_remind_interval,
+      low_count_remind_interval,
+      inactive_remind_interval
     });
 
     // 同时更新数据库配置
@@ -322,7 +331,10 @@ router.put('/reminder-settings', auth, checkPermission(['super_admin']), async (
       { key: 'package_expire_remind_days', value: String(package_expire_remind_days || 8), description: '套餐到期提前提醒天数' },
       { key: 'count_card_low_remind', value: String(count_card_low_remind || 5), description: '次卡剩余次数低于此值时提醒' },
       { key: 'inactive_remind_days', value: String(inactive_remind_days || 10), description: '会员未预约课程提醒天数' },
-      { key: 'reminder_send_time', value: reminder_send_time || '14:00', description: '套餐提醒推送时间' }
+      { key: 'reminder_send_time', value: reminder_send_time || '14:00', description: '套餐提醒推送时间' },
+      { key: 'expire_remind_interval', value: String(expire_remind_interval || 2), description: '套餐到期重复提醒间隔天数' },
+      { key: 'low_count_remind_interval', value: String(low_count_remind_interval || 3), description: '次卡低次数重复提醒间隔天数' },
+      { key: 'inactive_remind_interval', value: String(inactive_remind_interval || 5), description: '不活跃重复提醒间隔天数' }
     ];
 
     for (const config of configs) {
@@ -342,7 +354,32 @@ router.put('/reminder-settings', auth, checkPermission(['super_admin']), async (
 // 获取当前生效的模板配置（供内部服务调用，无需认证）
 router.get('/active-templates', async (req, res, next) => {
   try {
-    res.json(success(getMessageTemplates()));
+    // 从 TemplateFieldMapping 数据库表读取最新的模板ID
+    const mappings = await TemplateFieldMapping.find();
+    const templates = {};
+    
+    // 把 template_key 映射为 camelCase 的字段名
+    const keyMap = {
+      'bookingSuccess': 'bookingSuccessTemplateId',
+      'classReminder': 'classReminderTemplateId',
+      'bookingCancel': 'bookingCancelTemplateId',
+      'waitlistAvailable': 'waitlistAvailableTemplateId',
+      'packageExpiring': 'packageExpiringTemplateId',
+      'packageActivated': 'packageActivatedTemplateId',
+      'countCardLowRemind': 'countCardLowRemindTemplateId',
+      'memberInactiveRemind': 'memberInactiveRemindTemplateId',
+      'phoneAuditResult': 'phoneAuditResultTemplateId'
+    };
+    
+    mappings.forEach(m => {
+      const targetKey = keyMap[m.template_key];
+      if (targetKey && m.template_id) {
+        templates[targetKey] = m.template_id;
+      }
+    });
+    
+    console.log('[active-templates] 返回模板配置:', templates);
+    res.json(success(templates));
   } catch (err) {
     next(err);
   }

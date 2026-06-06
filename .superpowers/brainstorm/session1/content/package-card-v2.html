@@ -1,0 +1,153 @@
+<h2>方案C · 优化版 — 时间卡 & 次卡</h2>
+<p class="subtitle">会员状态标签移至剩余天数下方，去掉"天"单位，恢复情绪价值文案，新增次卡方案</p>
+
+<div class="cards">
+  <!-- 时间卡方案C优化 -->
+  <div class="card" data-choice="time-card" onclick="toggleSelect(this)">
+    <div class="card-image" style="padding:24px;background:#FBFAF8;">
+      <div style="max-width:375px;margin:0 auto;font-family:-apple-system,sans-serif;">
+        <div style="background:linear-gradient(160deg,#FFFFFF 0%,#FFFBF8 40%,#FAEEE4 80%,#F5E8F5 100%);border-radius:20px;overflow:hidden;box-shadow:0 4px 20px rgba(212,120,110,0.1);position:relative;">
+          <div style="position:absolute;top:-30px;right:-30px;width:100px;height:100px;border-radius:50%;background:linear-gradient(135deg,rgba(212,120,110,0.06),rgba(184,156,218,0.04));pointer-events:none;"></div>
+          <div style="padding:20px;position:relative;z-index:1;">
+            <!-- 头部：门店 + 类型 -->
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;">
+              <div style="display:flex;align-items:center;gap:8px;">
+                <span style="background:rgba(197,116,75,0.85);color:#fff;padding:3px 10px;border-radius:6px;font-size:12px;">舞栖·万象城店</span>
+                <span style="background:rgba(93,155,155,0.85);color:#fff;padding:3px 10px;border-radius:6px;font-size:12px;">时间卡</span>
+              </div>
+            </div>
+            <!-- 核心数据区：大数字 + 状态标签 + 右侧信息胶囊 -->
+            <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:16px;">
+              <div>
+                <div style="display:flex;align-items:baseline;gap:4px;">
+                  <span style="font-size:48px;font-weight:700;color:#C5744B;line-height:1;letter-spacing:-1px;">364</span>
+                </div>
+                <div style="font-size:13px;color:#A69294;margin-top:6px;">剩余天数</div>
+                <!-- 会员状态标签 -->
+                <div style="margin-top:8px;">
+                  <span style="background:#B8E0D2;color:#2A6F4A;padding:4px 14px;border-radius:14px;font-size:12px;">畅享中</span>
+                </div>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:8px;align-items:flex-end;">
+                <div style="background:rgba(197,116,75,0.05);border-radius:10px;padding:8px 14px;text-align:right;">
+                  <div style="font-size:11px;color:#A69294;">服务有效期</div>
+                  <div style="font-size:14px;color:#2A2122;font-weight:500;">12个月</div>
+                </div>
+                <div style="background:rgba(93,155,155,0.05);border-radius:10px;padding:8px 14px;text-align:right;">
+                  <div style="font-size:11px;color:#A69294;">本周剩余</div>
+                  <div style="font-size:14px;color:#2A2122;font-weight:500;">3 次</div>
+                </div>
+              </div>
+            </div>
+            <!-- 进度条 -->
+            <div style="margin-bottom:12px;">
+              <div style="height:6px;background:#F6F3F0;border-radius:3px;overflow:hidden;">
+                <div style="width:4%;height:100%;background:linear-gradient(90deg,#E8985E,#C5744B);border-radius:3px;"></div>
+              </div>
+              <div style="display:flex;justify-content:space-between;margin-top:4px;">
+                <span style="font-size:11px;color:#B8AF9E;">已用 1 天</span>
+                <span style="font-size:11px;color:#C5744B;">4%</span>
+              </div>
+            </div>
+            <!-- 底部有效期 -->
+            <div style="padding-top:12px;border-top:1px solid rgba(197,116,75,0.08);">
+              <span style="font-size:12px;color:#8B7E6A;">服务有效期：2025-06-01至2026-05-31</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>时间卡 · 方案C优化</h3>
+      <p>状态标签"畅享中"移至数字下方，去掉"天"单位，情绪价值文案：使用中→畅享中、待激活→静待开启、已过期→已落幕、已用完→已满载</p>
+    </div>
+  </div>
+
+  <!-- 次卡方案C -->
+  <div class="card" data-choice="count-card" onclick="toggleSelect(this)">
+    <div class="card-image" style="padding:24px;background:#FBFAF8;">
+      <div style="max-width:375px;margin:0 auto;font-family:-apple-system,sans-serif;">
+        <div style="background:linear-gradient(160deg,#FFFFFF 0%,#F8FBFA 40%,#EEF5F4 80%,#F0E8FF 100%);border-radius:20px;overflow:hidden;box-shadow:0 4px 20px rgba(93,155,155,0.1);position:relative;">
+          <div style="position:absolute;top:-30px;right:-30px;width:100px;height:100px;border-radius:50%;background:linear-gradient(135deg,rgba(93,155,155,0.06),rgba(184,156,218,0.04));pointer-events:none;"></div>
+          <div style="padding:20px;position:relative;z-index:1;">
+            <!-- 头部：门店 + 类型 -->
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;">
+              <div style="display:flex;align-items:center;gap:8px;">
+                <span style="background:rgba(197,116,75,0.85);color:#fff;padding:3px 10px;border-radius:6px;font-size:12px;">舞栖·万象城店</span>
+                <span style="background:rgba(93,155,155,0.85);color:#fff;padding:3px 10px;border-radius:6px;font-size:12px;">次卡</span>
+              </div>
+            </div>
+            <!-- 核心数据区：大数字 + 状态标签 + 右侧信息胶囊 -->
+            <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:16px;">
+              <div>
+                <div style="display:flex;align-items:baseline;gap:4px;">
+                  <span style="font-size:48px;font-weight:700;color:#5D9B9B;line-height:1;letter-spacing:-1px;">40</span>
+                  <span style="font-size:16px;color:#5D9B9B;">次</span>
+                </div>
+                <div style="font-size:13px;color:#A69294;margin-top:6px;">剩余课次</div>
+                <!-- 会员状态标签 -->
+                <div style="margin-top:8px;">
+                  <span style="background:#B8E0D2;color:#2A6F4A;padding:4px 14px;border-radius:14px;font-size:12px;">畅享中</span>
+                </div>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:8px;align-items:flex-end;">
+                <div style="background:rgba(93,155,155,0.05);border-radius:10px;padding:8px 14px;text-align:right;">
+                  <div style="font-size:11px;color:#A69294;">总次数</div>
+                  <div style="font-size:14px;color:#2A2122;font-weight:500;">41 次</div>
+                </div>
+                <div style="background:rgba(197,116,75,0.05);border-radius:10px;padding:8px 14px;text-align:right;">
+                  <div style="font-size:11px;color:#A69294;">已使用</div>
+                  <div style="font-size:14px;color:#2A2122;font-weight:500;">1 次</div>
+                </div>
+              </div>
+            </div>
+            <!-- 进度条 -->
+            <div style="margin-bottom:12px;">
+              <div style="height:6px;background:#F6F3F0;border-radius:3px;overflow:hidden;">
+                <div style="width:2%;height:100%;background:linear-gradient(90deg,#8DC5C5,#5D9B9B);border-radius:3px;"></div>
+              </div>
+              <div style="display:flex;justify-content:space-between;margin-top:4px;">
+                <span style="font-size:11px;color:#B8AF9E;">已用 1 次</span>
+                <span style="font-size:11px;color:#5D9B9B;">2%</span>
+              </div>
+            </div>
+            <!-- 底部有效期 -->
+            <div style="padding-top:12px;border-top:1px solid rgba(93,155,155,0.08);">
+              <span style="font-size:12px;color:#8B7E6A;">服务有效期：2025-06-01至2026-05-31</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>次卡 · 方案C</h3>
+      <p>次卡专属配色（青碧系渐变），大数字+次单位，右侧显示总次数和已使用胶囊，进度条用青碧色系</p>
+    </div>
+  </div>
+</div>
+
+<div style="margin-top:24px;padding:20px;background:rgba(212,120,110,0.04);border-radius:12px;">
+  <h3 style="margin:0 0 12px;font-size:16px;color:#2A2122;">情绪价值文案对照表</h3>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:14px;">
+    <div style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:#fff;border-radius:8px;">
+      <span style="background:#B8E0D2;color:#2A6F4A;padding:3px 10px;border-radius:10px;font-size:12px;">畅享中</span>
+      <span style="color:#A69294;">← 使用中</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:#fff;border-radius:8px;">
+      <span style="background:#E8E0F5;color:#6B5E8A;padding:3px 10px;border-radius:10px;font-size:12px;">静待开启</span>
+      <span style="color:#A69294;">← 待激活</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:#fff;border-radius:8px;">
+      <span style="background:#F0EDE6;color:#8B7E6A;padding:3px 10px;border-radius:10px;font-size:12px;">已落幕</span>
+      <span style="color:#A69294;">← 已过期</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:#fff;border-radius:8px;">
+      <span style="background:#F0EDE6;color:#8B7E6A;padding:3px 10px;border-radius:10px;font-size:12px;">已满载</span>
+      <span style="color:#A69294;">← 已用完</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:#fff;border-radius:8px;">
+      <span style="background:#FFE8BF;color:#A66B1A;padding:3px 10px;border-radius:10px;font-size:12px;">暂停中</span>
+      <span style="color:#A69294;">← 已暂停</span>
+    </div>
+  </div>
+</div>
