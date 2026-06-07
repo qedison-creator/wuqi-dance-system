@@ -1,6 +1,6 @@
 <view class="page">
   <view class="hero">
-    <image class="hero-bg" src="{{heroBackgroundUrl}}" mode="aspectFill"></image>
+    <image class="hero-bg" src="{{heroBackgroundUrl}}" mode="aspectFill" binderror="onHeroImageError"></image>
     <view class="hero-content">
       <view class="hero-greet">
         <text class="hg-emoji">{{greeting.emoji}}</text>

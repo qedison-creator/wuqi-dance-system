@@ -20,8 +20,6 @@ Page({
   loadUserInfo() {
     const userInfo = app.globalData.userInfo;
     if (userInfo) {
-      const config = require('../../../config/index.js');
-      const serverBase = config.serverBase || '';
       const roleMap = {
         'super_admin': '超级管理员',
         'store_manager': '店长',
@@ -29,9 +27,7 @@ Page({
       };
       // 规范化avatar_url
       let avatarUrl = userInfo.avatar_url || '';
-      if (avatarUrl && !avatarUrl.startsWith('http')) {
-        avatarUrl = serverBase + avatarUrl;
-      }
+      avatarUrl = this.normalizeAvatarUrl(avatarUrl);
       this.setData({
         nickName: userInfo.nick_name || userInfo.name || '',
         username: userInfo.username || '',
@@ -40,6 +36,21 @@ Page({
         avatarUrl: avatarUrl
       });
     }
+  },
+
+  /**
+   * 规范化头像URL：处理旧数据中的HTTP IP地址
+   */
+  normalizeAvatarUrl(url) {
+    if (!url) return '';
+    if (url.startsWith('https://')) return url;
+    const config = require('../../../config/index.js');
+    const serverBase = config.serverBase || '';
+    if (url.startsWith('http://')) {
+      const match = url.match(/^https?:\/\/[^/]+(\/.*)$/);
+      if (match) return serverBase + match[1];
+    }
+    return serverBase + url;
   },
 
   onNickNameInput(e) {
@@ -105,12 +116,12 @@ Page({
         try {
           const data = JSON.parse(res.data);
           if (data.code === 200 && data.data) {
-            // 拼接完整URL：服务器baseUrl + 相对路径
+            // 只保存相对路径到后端，显示时再根据环境拼接完整URL
             const relativeUrl = data.data.url;
-            const avatarUrl = relativeUrl.startsWith('http') ? relativeUrl : (baseUrl + relativeUrl);
+            const avatarUrl = this.normalizeAvatarUrl(relativeUrl);
             this.setData({ avatarUrl: avatarUrl });
-            // 保存完整URL到后端
-            this.saveAvatar(avatarUrl);
+            // 保存相对路径到后端（不包含服务器地址，便于环境切换）
+            this.saveAvatar(relativeUrl);
           } else {
             wx.showToast({ title: data.message || '上传失败', icon: 'none' });
           }

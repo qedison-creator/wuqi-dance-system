@@ -79,7 +79,13 @@ router.put('/admin-profile', auth, async (req, res, next) => {
     }
 
     if (nick_name !== undefined) user.nick_name = nick_name;
-    if (avatar_url !== undefined) user.avatar_url = avatar_url;
+    if (avatar_url !== undefined) {
+      // 只保存相对路径，去除服务器地址前缀
+      let cleanUrl = avatar_url;
+      const urlMatch = avatar_url && avatar_url.match(/^https?:\/\/[^/]+(\/.*)$/);
+      if (urlMatch) cleanUrl = urlMatch[1];
+      user.avatar_url = cleanUrl;
+    }
 
     await user.save();
     const populated = await User.findById(user._id)

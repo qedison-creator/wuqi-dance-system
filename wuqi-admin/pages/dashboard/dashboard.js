@@ -69,15 +69,20 @@ Page({
 
   onLoad() {
     const theme = getTheme();
-    const bgUrl = '/images/hero/hero-' + theme + '.jpg';
+    this.applyHeroBackground(theme);
     this.setData({
       currentDate: getCurrentDate(),
       greeting: getGreeting(),
-      theme: theme,
-      heroBackgroundUrl: bgUrl
+      theme: theme
     });
     this.loadUserInfo();
     this.loadStores();
+  },
+
+  onHeroImageError() {
+    // 服务器图片加载失败，隐藏图片（hero区域有渐变色背景）
+    console.log('服务器背景图加载失败');
+    this.setData({ heroBackgroundUrl: '' });
   },
 
   onShow() {
@@ -251,10 +256,16 @@ Page({
     }
   },
 
-  applyHeroBackground(configs) {
-    const theme = this.data.theme;
-    const bgUrl = '/images/hero/hero-' + theme + '.jpg';
-    this.setData({ heroBackgroundUrl: bgUrl });
+  applyHeroBackground(themeOrConfigs) {
+    let theme;
+    if (typeof themeOrConfigs === 'string') {
+      theme = themeOrConfigs;
+    } else {
+      theme = this.data.theme;
+    }
+    // 只用服务器 HTTPS 图片
+    const serverBgUrl = config.serverBase + '/uploads/hero/hero-' + theme + '.jpg';
+    this.setData({ heroBackgroundUrl: serverBgUrl });
   },
 
   async loadAllData() {

@@ -20,12 +20,8 @@ Page({
     }
     const userInfo = app.globalData.userInfo;
     if (userInfo) {
-      // 兼容旧数据：相对路径转完整URL
-      if (userInfo.avatar_url && !userInfo.avatar_url.startsWith('http')) {
-        const config = require('../../config/index.js');
-        userInfo.avatar_url = config.serverBase + userInfo.avatar_url;
-        app.globalData.userInfo = userInfo;
-      }
+      // 规范化avatar_url：相对路径按环境拼接，HTTP IP地址转为当前环境地址
+      this.normalizeAvatarUrl(userInfo);
       this.setData({
         userInfo: userInfo,
         currentStore: app.globalData.currentStore || null,
@@ -42,15 +38,13 @@ Page({
 
   async loadUserInfo() {
     try {
-      const config = require('../../config/index.js');
-      const serverBase = config.serverBase || '';
       const res = await request({ url: '/auth/me', method: 'GET' });
       const userInfo = res.data;
       // 规范化avatar_url
-      if (userInfo && userInfo.avatar_url && !userInfo.avatar_url.startsWith('http')) {
-        userInfo.avatar_url = serverBase + userInfo.avatar_url;
+      if (userInfo) {
+        this.normalizeAvatarUrl(userInfo);
+        app.globalData.userInfo = userInfo;
       }
-      app.globalData.userInfo = userInfo;
       this.setData({
         userInfo: userInfo,
         currentStore: app.globalData.currentStore || null,
@@ -63,6 +57,38 @@ Page({
     } catch (err) {
       console.error('获取用户信息失败', err);
     }
+  },
+
+  /**
+   * 规范化头像URL：
+   * - 相对路径（/uploads/...）：拼接当前环境serverBase
+   * - HTTP IP地址（旧数据）：提取相对路径后重新拼接当前环境地址
+   * - HTTPS地址：直接使用
+   */
+  normalizeAvatarUrl(userInfo) {
+    if (!userInfo || !userInfo.avatar_url) return;
+    const config = require('../../config/index.js');
+    const serverBase = config.serverBase || '';
+    const url = userInfo.avatar_url;
+
+    if (url.startsWith('https://')) {
+      // HTTPS地址直接使用
+      return;
+    }
+
+    if (url.startsWith('http://')) {
+      // HTTP IP地址（旧数据），提取相对路径部分
+      const match = url.match(/^https?:\/\/[^/]+(\/.*)$/);
+      if (match) {
+        userInfo.avatar_url = serverBase + match[1];
+      }
+      app.globalData.userInfo = userInfo;
+      return;
+    }
+
+    // 相对路径，拼接当前环境地址
+    userInfo.avatar_url = serverBase + url;
+    app.globalData.userInfo = userInfo;
   },
 
   onAvatarError(e) {

@@ -48,10 +48,30 @@ Page({
   // 补全图片 URL
   fixImageUrl(url) {
     if (!url) return '';
-    if (url.startsWith('http://') || url.startsWith('https://')) return url;
-    if (url.startsWith('//')) return 'http:' + url;
-    if (url.startsWith('/')) return app.globalData.serverBase + url;
-    return app.globalData.serverBase + '/' + url;
+    if (url.startsWith('https://')) return url;
+    const config = require('../../config/index.js');
+    const serverBase = config.serverBase || '';
+    // HTTP IP地址（旧数据），提取相对路径后重新拼接当前环境地址
+    if (url.startsWith('http://')) {
+      const match = url.match(/^https?:\/\/[^/]+(\/.*)$/);
+      if (match) return serverBase + match[1];
+      return url;
+    }
+    if (url.startsWith('//')) return serverBase.replace(/^https?:/, '') + url;
+    if (url.startsWith('/')) return serverBase + url;
+    return serverBase + '/' + url;
+  },
+
+  /**
+   * 从完整URL中提取相对路径，用于保存到后端
+   */
+  extractRelativePath(url) {
+    if (!url) return '';
+    if (url.startsWith('http://') || url.startsWith('https://')) {
+      const match = url.match(/^https?:\/\/[^/]+(\/.*)$/);
+      return match ? match[1] : url;
+    }
+    return url;
   },
 
   onShow() {
@@ -204,7 +224,7 @@ Page({
       name: coachForm.name,
       gender: Number(coachForm.gender) || 0,
       dance_styles: coachForm.dance_style_ids || [],
-      avatar_url: coachForm.avatar_url || '',
+      avatar_url: this.extractRelativePath(coachForm.avatar_url || ''),
       status: 'active'
     };
 
@@ -320,7 +340,8 @@ Page({
           });
           const data = JSON.parse(uploadRes.data);
           if (data.code === 200) {
-            const fullUrl = app.globalData.serverBase + data.data.path;
+            const relativePath = data.data.path;
+            const fullUrl = this.fixImageUrl(relativePath);
             that.setData({ 'coachForm.avatar_url': fullUrl });
             wx.hideLoading();
             wx.showToast({ title: '头像上传成功', icon: 'success' });
@@ -364,11 +385,12 @@ Page({
           });
           const data = JSON.parse(uploadRes.data);
           if (data.code === 200) {
-            const fullUrl = app.globalData.serverBase + data.data.path;
+            const relativePath = data.data.path;
+            const fullUrl = this.fixImageUrl(relativePath);
             await request({
               url: `/coaches/${that.data.detailCoach._id}/avatar`,
               method: 'PUT',
-              data: { avatar_url: fullUrl }
+              data: { avatar_url: relativePath }
             });
             that.setData({ 'detailCoach.avatar_url': fullUrl });
             that.loadCoaches();

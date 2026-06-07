@@ -56,21 +56,39 @@ App({
   },
   getUserInfo() {
     const { request } = require('./utils/request');
-    const config = require('./config/index.js');
-    const serverBase = config.serverBase || '';
     request({
       url: '/auth/me',
       method: 'GET'
     }).then(res => {
       const userInfo = res.data;
-      // 规范化avatar_url：确保是完整URL
-      if (userInfo && userInfo.avatar_url && !userInfo.avatar_url.startsWith('http')) {
-        userInfo.avatar_url = serverBase + userInfo.avatar_url;
+      // 规范化avatar_url
+      if (userInfo) {
+        this.normalizeAvatarUrl(userInfo);
+        this.globalData.userInfo = userInfo;
       }
-      this.globalData.userInfo = userInfo;
     }).catch(err => {
       console.error('获取管理员信息失败', err);
     });
+  },
+
+  /**
+   * 规范化头像URL：处理HTTP IP地址旧数据
+   */
+  normalizeAvatarUrl(userInfo) {
+    if (!userInfo || !userInfo.avatar_url) return;
+    const config = require('./config/index.js');
+    const serverBase = config.serverBase || '';
+    const url = userInfo.avatar_url;
+
+    if (url.startsWith('https://')) return;
+
+    if (url.startsWith('http://')) {
+      const match = url.match(/^https?:\/\/[^/]+(\/.*)$/);
+      if (match) userInfo.avatar_url = serverBase + match[1];
+      return;
+    }
+
+    userInfo.avatar_url = serverBase + url;
   },
   getStoreList() {
     const { request } = require('./utils/request');
