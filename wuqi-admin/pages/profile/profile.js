@@ -11,6 +11,7 @@ Page({
     permAccount: false,
     permConfig: false,
     permLog: false,
+    avatarLoadFailed: false,
   },
 
   onShow() {
@@ -92,10 +93,8 @@ Page({
   },
 
   onAvatarError(e) {
-    console.log('[Profile] 头像加载失败，使用首字母头像');
-    const userInfo = { ...this.data.userInfo, avatar_url: '' };
-    this.setData({ userInfo });
-    app.globalData.userInfo = userInfo;
+    console.log('[Profile] 头像加载失败，使用本地默认头像');
+    this.setData({ avatarLoadFailed: true });
   },
 
   onManageAccounts() {

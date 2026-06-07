@@ -1,6 +1,6 @@
 .member-detail-page {
   padding: 20rpx;
-  padding-bottom: 140rpx;
+  padding-bottom: 200rpx;
   background-color: var(--bg-input);
 }
 

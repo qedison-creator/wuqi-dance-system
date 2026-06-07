@@ -21,6 +21,12 @@ router.post('/admin-login', async (req, res, next) => {
   try {
     const { username, password } = req.body;
     const result = await authService.adminLogin(username, password);
+    // 参照banner处理方式：拼接完整头像URL
+    if (result.user && result.user.avatar_url && !result.user.avatar_url.startsWith('http')) {
+      const protocol = req.protocol;
+      const host = req.get('host');
+      result.user.avatar_url = `${protocol}://${host}${result.user.avatar_url}`;
+    }
     res.json(success(result, '管理端登录成功'));
   } catch (err) {
     next(err);
@@ -31,7 +37,14 @@ router.post('/admin-login', async (req, res, next) => {
 router.get('/me', auth, async (req, res, next) => {
   try {
     const user = await authService.getMe(req.user.id);
-    res.json(success(user));
+    const userObj = user.toObject ? user.toObject() : user;
+    // 参照banner处理方式：拼接完整图片URL
+    if (userObj.avatar_url && !userObj.avatar_url.startsWith('http')) {
+      const protocol = req.protocol;
+      const host = req.get('host');
+      userObj.avatar_url = `${protocol}://${host}${userObj.avatar_url}`;
+    }
+    res.json(success(userObj));
   } catch (err) {
     next(err);
   }

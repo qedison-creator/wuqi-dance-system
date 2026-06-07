@@ -18,6 +18,11 @@ Thumbs.db
 .vscode/
 .idea/
 
+# Trae CN 临时工作区
+.codebuddy/
+.superpowers/
+.trae/
+
 # 临时脚本
 test-api.js
 test-coach-salary.js

@@ -73,6 +73,10 @@ Page({
     showWaitlistModal: false,
     waitlistCourse: null,
     waitlistModalText: '',
+    showCountCardModal: false,
+    countCardModalText: '',
+    countCardModalPackages: [],
+    countCardScheduleId: '',
     isHolidayToday: false
   },
 
@@ -450,8 +454,23 @@ Page({
         wx.hideLoading();
       }
       const errMsg = err.message || '预约失败';
-      
-      if (errMsg.includes('套餐') && errMsg.includes('未激活')) {
+      const errCode = err.code || '';
+
+      if (errCode === 'TIME_CARD_LIMIT_REACHED' && err.data && err.data.availablePackages) {
+        // 时间卡限额已满，有待激活次卡，弹窗让会员确认
+        const packages = err.data.availablePackages;
+        const limitType = err.data.limitType === 'weekly' ? '本周' : '今日';
+        const limit = err.data.limit || 0;
+        const used = err.data.used || 0;
+        const remaining = err.data.remaining || 0;
+        let pkgText = packages.map(p => `${p.package_name}(剩余${p.remaining_credits}次)`).join('、');
+        this.setData({
+          showCountCardModal: true,
+          countCardModalText: `您的${limitType}时间卡次数已达上限（${used}/${limit}，剩余${remaining}次）。\n\n继续预约将激活次卡：${pkgText}\n\n激活后服务有效期从今日开始计算，是否确认激活并预约本课程？`,
+          countCardModalPackages: packages,
+          countCardScheduleId: scheduleId
+        });
+      } else if (errMsg.includes('套餐') && errMsg.includes('未激活')) {
         this.showActivatePackageModal(scheduleId);
       } else if (errMsg.includes('已达上限') || errMsg.includes('套餐状态') || errMsg.includes('无可用套餐') || errMsg.includes('已过期') || errMsg.includes('已用完') || errMsg.includes('剩余次数不足')) {
         this.setData({
@@ -925,5 +944,75 @@ Page({
     const id = e.currentTarget.dataset.id;
     if (!id) return;
     this.setData({ ['imageErrors.cover_' + id]: true });
-  }
+  },
+
+  onCloseCountCardModal() {
+    this.setData({
+      showCountCardModal: false,
+      countCardModalText: '',
+      countCardModalPackages: [],
+      countCardScheduleId: ''
+    });
+  },
+
+  onCancelCountCard() {
+    this.setData({
+      showCountCardModal: false,
+      countCardModalText: '',
+      countCardModalPackages: [],
+      countCardScheduleId: ''
+    });
+  },
+
+  async onConfirmCountCard() {
+    const { countCardModalPackages, countCardScheduleId } = this.data;
+    if (!countCardModalPackages || countCardModalPackages.length === 0) return;
+
+    // 请求套餐相关订阅授权
+    try {
+      const { fetchTemplates, requestPackageSubscribe } = require('../../utils/subscribe-message');
+      await fetchTemplates();
+      await requestPackageSubscribe();
+    } catch (e) {
+      console.log('[Booking] 请求套餐订阅授权失败，继续激活流程:', e.message);
+    }
+
+    this.setData({ activating: true });
+    wx.showLoading({ title: '激活次卡中...' });
+
+    try {
+      // 激活第一个可用次卡套餐（按ID精确激活）
+      const pkg = countCardModalPackages[0];
+      await request({
+        url: `/packages/${pkg._id}/activate`,
+        method: 'PUT',
+        data: { activation_type: 'manual_member' }
+      });
+
+      wx.hideLoading();
+      this.setData({
+        showCountCardModal: false,
+        activating: false,
+        countCardModalText: '',
+        countCardModalPackages: [],
+        countCardScheduleId: ''
+      });
+
+      wx.showToast({ title: '次卡已激活', icon: 'success' });
+
+      // 刷新套餐信息
+      this.refreshUserInfo();
+
+      // 重新发起预约
+      if (countCardScheduleId) {
+        setTimeout(() => {
+          this.doBook(countCardScheduleId);
+        }, 500);
+      }
+    } catch (err) {
+      wx.hideLoading();
+      this.setData({ activating: false });
+      wx.showToast({ title: err.message || '激活次卡失败', icon: 'none' });
+    }
+  },
 });

@@ -283,6 +283,7 @@
   flex: 1;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
+  padding-bottom: 24rpx;
 }
 
 .modal-title {
@@ -404,33 +405,51 @@
 /* 弹窗按钮 */
 .modal-buttons {
   display: flex;
-  gap: 24rpx;
+  gap: 16rpx;
   padding: 24rpx 32rpx 32rpx;
   flex-shrink: 0;
+  border-top: 1rpx solid var(--border);
+  background: var(--bg-card);
 }
 
 .btn-secondary, .btn-primary {
   flex: 1;
-  padding: 24rpx 0;
-  border-radius: var(--radius-lg);
-  text-align: center;
+  height: 88rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 16rpx;
+  font-size: 30rpx;
+  font-weight: 500;
+  transition: all 0.2s;
 }
 
 .btn-secondary {
-  background: var(--bg-elevated);
+  background: transparent;
+  border: 2rpx solid var(--color-primary);
 }
 
 .btn-secondary text {
-  font-size: 28rpx;
-  color: var(--text-primary);
+  font-size: 30rpx;
+  color: var(--color-primary);
+}
+
+.btn-secondary:active {
+  background: rgba(197, 116, 75, 0.15);
 }
 
 .btn-primary {
   background: var(--color-primary);
+  box-shadow: 0 8rpx 24rpx rgba(197, 116, 75, 0.3);
 }
 
 .btn-primary text {
-  font-size: 28rpx;
+  font-size: 30rpx;
   color: var(--text-inverse);
   font-weight: 600;
+}
+
+.btn-primary:active {
+  opacity: 0.85;
+  transform: scale(0.98);
 }

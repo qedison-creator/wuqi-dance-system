@@ -130,8 +130,10 @@ Page({
       await this.loadUserData();
     } catch (e) {
       console.error('刷新失败:', e);
+    } finally {
+      // 无论成功失败，都要停止刷新动画
+      this.setData({ refresherTriggered: false });
     }
-    this.setData({ refresherTriggered: false });
   },
 
   checkLoginStatus() {

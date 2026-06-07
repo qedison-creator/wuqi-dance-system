@@ -213,3 +213,18 @@
     <view class="btn-primary" bindtap="onStoreConfirm" disabled="{{!selectedStoreId}}">确认</view>
   </view>
 </view>
+
+<!-- 时间卡限额已满，确认激活次卡弹窗 -->
+<view class="modal-mask" wx:if="{{showCountCardModal}}" bindtap="onCloseCountCardModal">
+  <view class="modal-content modal-confirm" catchtap="onModalTap">
+    <view class="booking-confirm-icon-wrap countcard-icon-wrap">
+      <view class="countcard-icon"></view>
+    </view>
+    <view class="modal-title-text">时间卡次数已用完</view>
+    <view class="modal-body-text">{{countCardModalText}}</view>
+    <view class="modal-actions">
+      <view class="modal-btn-outline" bindtap="onCancelCountCard">取消</view>
+      <view class="modal-btn-primary" bindtap="onConfirmCountCard">激活并预约</view>
+    </view>
+  </view>
+</view>

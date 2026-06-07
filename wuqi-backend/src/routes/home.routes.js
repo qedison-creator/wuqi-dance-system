@@ -10,6 +10,8 @@ const User = require('../models/User');
 const Booking = require('../models/Booking');
 const dayjs = require('dayjs');
 const { success } = require('../utils/response');
+const fs = require('fs');
+const path = require('path');
 
 // GET /api/v1/home/member - 会员端首页数据
 router.get('/member', async (req, res, next) => {
@@ -104,6 +106,26 @@ router.get('/admin', auth, async (req, res, next) => {
       .populate('store_id', 'name')
       .sort({ start_time: 1 });
 
+    // 处理hero背景图URL（参照banners处理方式）
+    const protocol = req.protocol;
+    const host = req.get('host');
+    const uploadsDir = path.join(__dirname, '../../uploads');
+    const hour = new Date().getHours();
+    let theme;
+    if (hour >= 5 && hour < 8) theme = 'sunrise';
+    else if (hour >= 8 && hour < 12) theme = 'morning';
+    else if (hour >= 12 && hour < 14) theme = 'noon';
+    else if (hour >= 14 && hour < 17) theme = 'afternoon';
+    else if (hour >= 17 && hour < 19) theme = 'sunset';
+    else if (hour >= 19 && hour < 22) theme = 'night';
+    else theme = 'late-night';
+
+    let heroBackgroundUrl = '';
+    const heroPath = `/uploads/hero/hero-${theme}.jpg`;
+    if (fs.existsSync(path.join(uploadsDir, `hero/hero-${theme}.jpg`))) {
+      heroBackgroundUrl = `${protocol}://${host}${heroPath}`;
+    }
+
     res.json(success({
       stats: {
         total_members: totalMembers,
@@ -116,6 +138,7 @@ router.get('/admin', auth, async (req, res, next) => {
       },
       pending_review: pendingReview,
       today_schedules: todayScheduleList,
+      hero_background_url: heroBackgroundUrl,
     }));
   } catch (err) {
     next(err);

@@ -221,6 +221,12 @@ exports.createBooking = async (userId, scheduleId) => {
       throw new Error('套餐已过期，请联系管理员');
     }
     if (currentPackage.package_type === 'count_card' && currentPackage.remaining_credits < (schedule.credits_cost || 1)) {
+      // 如果是从时间卡限额满切换过来的，给出更友好的错误信息
+      if (currentPackage._fallbackFromTimeCard === true && currentPackage._limitCheck) {
+        const lc = currentPackage._limitCheck;
+        const limitLabel = lc.limitType === 'weekly' ? '本周' : '今日';
+        throw new Error(`时间卡${limitLabel}次数已用完，且次卡剩余次数不足，请联系管理员`);
+      }
       throw new Error('剩余次数不足');
     }
 
@@ -228,7 +234,52 @@ exports.createBooking = async (userId, scheduleId) => {
       const creditsCost = schedule.credits_cost || 1;
       const limitCheck = await checkTimeCardLimit(currentPackage, schedule.date, creditsCost);
       if (!limitCheck.allowed) {
-        throw new Error(limitCheck.reason);
+        // 时间卡限额已满，查找同门店可用次卡（pending 或 active）
+        const availableCountCards = await UserPackage.find({
+          user_id: userId,
+          store_id: scheduleStoreId,
+          package_type: 'count_card',
+          status: 'active',
+          is_suspended: false,
+          remaining_credits: { $gt: 0 },
+        }).sort({ created_at: 1 });
+
+        const pendingCountCards = await UserPackage.find({
+          user_id: userId,
+          store_id: scheduleStoreId,
+          package_type: 'count_card',
+          status: 'pending',
+          is_suspended: false,
+        }).sort({ created_at: 1 });
+
+        if (availableCountCards.length > 0) {
+          // 有已激活的次卡，直接使用次卡
+          currentPackage = availableCountCards[0];
+          currentPackage._fallbackFromTimeCard = true;
+          currentPackage._limitCheck = limitCheck;
+        } else if (pendingCountCards.length > 0) {
+          // 有未激活的次卡，抛出特殊错误让前端弹窗确认
+          const err = new Error('本周时间卡次数已用完，是否激活次卡继续预约？');
+          err.code = 'TIME_CARD_LIMIT_REACHED';
+          err.data = {
+            limitType: limitCheck.limitType,
+            limit: limitCheck.limit,
+            used: limitCheck.used,
+            remaining: limitCheck.remaining,
+            availablePackages: pendingCountCards.map(p => ({
+              _id: p._id,
+              package_name: p.package_name || `${p.total_credits}次卡`,
+              total_credits: p.total_credits,
+              remaining_credits: p.remaining_credits,
+              duration_value: p.duration_value,
+              duration_unit: p.duration_unit,
+            }))
+          };
+          throw err;
+        } else {
+          // 没有可用次卡，抛出原错误
+          throw new Error(limitCheck.reason);
+        }
       }
     }
 
@@ -866,97 +917,105 @@ exports.getWaitlistSummary = async (storeId) => {
 };
 
 // 候补转正（管理端）
+// 复用 createBooking 的套餐选择逻辑，保持与会员端一致的行为
 exports.promoteWaitlist = async (waitlistId, operatorId) => {
   const Waitlist = require('../models/Waitlist');
   const waitlist = await Waitlist.findById(waitlistId);
-  
+
   if (!waitlist) throw new Error('候补记录不存在');
   if (waitlist.status !== 'waiting' && waitlist.status !== 'notified') {
     throw new Error('该候补记录不可转正');
   }
 
-  const schedule = await Schedule.findById(waitlist.schedule_id);
+  const schedule = await Schedule.findById(waitlist.schedule_id).populate('store_id');
   if (!schedule) throw new Error('课程不存在');
-  
+
   if (schedule.current_bookings >= schedule.max_bookings) {
     throw new Error('名额已满，无法转正');
   }
 
-  // 直接创建预约（跳过会员检查，因为管理员操作）
-  const allActivePackages = await UserPackage.find({
-    user_id: waitlist.user_id,
+  const userId = waitlist.user_id;
+  const scheduleStoreId = schedule.store_id ? (schedule.store_id._id || schedule.store_id) : null;
+
+  // 按门店查找套餐（与 createBooking 逻辑一致）
+  const storeActivePackages = await UserPackage.find({
+    user_id: userId,
+    store_id: scheduleStoreId,
     status: 'active',
     is_suspended: false,
   });
 
-  let currentPackage = null;
-  const timeCard = allActivePackages.find(p => p.package_type === 'time_card');
-  const countCard = allActivePackages.find(p => p.package_type === 'count_card');
+  const storePendingPackages = await UserPackage.find({
+    user_id: userId,
+    store_id: scheduleStoreId,
+    status: 'pending',
+    is_suspended: false,
+  }).sort({ created_at: 1 });
 
-  if (timeCard) {
-    if (!timeCard.end_date || new Date() <= timeCard.end_date) {
-      currentPackage = timeCard;
-    }
+  // 自动激活同门店 pending 套餐
+  if (storeActivePackages.length === 0 && storePendingPackages.length > 0) {
+    await packageService.activatePackageById(storePendingPackages[0]._id, userId, {
+      activationType: 'admin_promote',
+      storeId: scheduleStoreId
+    });
+    storeActivePackages.push(await UserPackage.findById(storePendingPackages[0]._id));
   }
 
-  if (!currentPackage && countCard) {
-    if (countCard.remaining_credits > 0) {
+  // 套餐选择：时间卡优先，限额满时 fallback 到次卡
+  let currentPackage = null;
+  const timeCard = storeActivePackages.find(p => p.package_type === 'time_card' && (!p.end_date || new Date() <= p.end_date));
+  const countCard = storeActivePackages.find(p => p.package_type === 'count_card' && p.remaining_credits > 0);
+
+  if (timeCard) {
+    const creditsCost = schedule.credits_cost || 1;
+    const limitCheck = await checkTimeCardLimit(timeCard, schedule.date, creditsCost);
+    if (limitCheck.allowed) {
+      currentPackage = timeCard;
+    } else if (countCard) {
+      // 时间卡限额满，fallback 到次卡
       currentPackage = countCard;
     }
   }
 
   if (!currentPackage) {
-    // 如果没有可用套餐，直接更新候补状态并创建预约记录
-    waitlist.status = 'booked';
-    await waitlist.save();
-
-    const booking = await Booking.create({
-      schedule_id: waitlist.schedule_id,
-      user_id: waitlist.user_id,
-      coach_id: schedule.coach_id,
-      dance_style_id: schedule.dance_style_id,
-      store_id: schedule.store_id,
-      booking_date: schedule.date,
-      booking_time: schedule.start_time,
-      status: 'booked',
-      booking_status: 'booked',
-      credits_deducted: schedule.credits_cost || 1,
+    // 检查是否有跨门店套餐
+    const anyPackage = await UserPackage.findOne({
+      user_id: userId,
+      status: { $in: ['active', 'pending'] }
     });
-
-    schedule.current_bookings += 1;
-    if (schedule.current_bookings >= schedule.max_bookings) {
-      schedule.status = 'full';
+    if (anyPackage) {
+      const storeName = schedule.store_id && schedule.store_id.name ? schedule.store_id.name : '该门店';
+      throw new Error(`该会员没有${storeName}的可用套餐，请在正确门店的排课中操作`);
     }
-    await schedule.save();
-
-    // 记录日志
-    if (operatorId) {
-      await logService.createLog({
-        operator_id: operatorId,
-        action: 'promote_waitlist',
-        module: 'booking',
-        target_id: booking._id,
-        detail: `管理员将候补转正: 候补ID=${waitlistId}`
-      });
-    }
-
-    return { booking, waitlist };
+    throw new Error('该会员无可用套餐，请联系管理员录入套餐');
   }
 
-  // 校验时间卡每日/每周预约限制
-  if (currentPackage.package_type === 'time_card') {
-    const creditsCost = schedule.credits_cost || 1;
-    const limitCheck = await checkTimeCardLimit(currentPackage, schedule.date, creditsCost);
-    if (!limitCheck.allowed) {
-      throw new Error(limitCheck.reason);
-    }
+  // 确保套餐已激活（补录数据兼容）
+  if (!currentPackage.is_activated) {
+    await packageService.activatePackageById(currentPackage._id, userId, {
+      activationType: 'admin_promote',
+      storeId: scheduleStoreId
+    });
+    currentPackage = await UserPackage.findById(currentPackage._id);
+  }
+
+  // 检查次卡次数
+  const creditsCost = schedule.credits_cost || 1;
+  if (currentPackage.package_type === 'count_card' && currentPackage.remaining_credits < creditsCost) {
+    throw new Error('该会员套餐剩余次数不足');
+  }
+
+  // 检查时间卡过期
+  if (currentPackage.end_date && new Date() > currentPackage.end_date) {
+    currentPackage.status = 'expired';
+    await currentPackage.save();
+    throw new Error('该会员套餐已过期，请联系管理员');
   }
 
   // 创建预约记录
-  const creditsCost = schedule.credits_cost || 1;
   const booking = await Booking.create({
     schedule_id: waitlist.schedule_id,
-    user_id: waitlist.user_id,
+    user_id: userId,
     coach_id: schedule.coach_id,
     dance_style_id: schedule.dance_style_id,
     store_id: schedule.store_id,
@@ -968,7 +1027,7 @@ exports.promoteWaitlist = async (waitlistId, operatorId) => {
     user_package_id: currentPackage._id,
   });
 
-  // 扣减课时
+  // 扣减次卡课时
   if (currentPackage.package_type === 'count_card') {
     currentPackage.remaining_credits -= creditsCost;
     if (currentPackage.remaining_credits <= 0) {
@@ -996,7 +1055,7 @@ exports.promoteWaitlist = async (waitlistId, operatorId) => {
       action: 'promote_waitlist',
       module: 'booking',
       target_id: booking._id,
-      detail: `管理员将候补转正: 候补ID=${waitlistId}`
+      detail: `管理员将候补转正: 候补ID=${waitlistId}, 使用套餐=${currentPackage.package_name || currentPackage._id}`
     });
   }
 
@@ -1045,6 +1104,7 @@ exports.adminRemoveWaitlist = async (waitlistId, operatorId) => {
 };
 
 // 自动将候补用户转正（当有人取消预约有名额空出时调用）
+// 复用套餐选择逻辑，与 createBooking 保持一致
 exports.notifyWaitlistUsers = async (scheduleId) => {
   const schedule = await Schedule.findById(scheduleId);
   if (!schedule) return;
@@ -1058,14 +1118,86 @@ exports.notifyWaitlistUsers = async (scheduleId) => {
   }).sort({ position: 1, created_at: 1 });
 
   const toPromote = waitlist.slice(0, availableSlots);
+  let promotedCount = 0;
 
   for (const item of toPromote) {
     try {
-      const user = await User.findById(item.user_id);
+      const userId = item.user_id;
+      const scheduleStoreId = schedule.store_id;
+
+      // 查找同门店套餐
+      const storeActivePackages = await UserPackage.find({
+        user_id: userId,
+        store_id: scheduleStoreId,
+        status: 'active',
+        is_suspended: false,
+      });
+
+      const storePendingPackages = await UserPackage.find({
+        user_id: userId,
+        store_id: scheduleStoreId,
+        status: 'pending',
+        is_suspended: false,
+      }).sort({ created_at: 1 });
+
+      // 自动激活 pending 套餐
+      if (storeActivePackages.length === 0 && storePendingPackages.length > 0) {
+        await packageService.activatePackageById(storePendingPackages[0]._id, userId, {
+          activationType: 'auto_waitlist',
+          storeId: scheduleStoreId
+        });
+        storeActivePackages.push(await UserPackage.findById(storePendingPackages[0]._id));
+      }
+
+      // 套餐选择：时间卡优先，限额满时 fallback 次卡
+      let currentPackage = null;
+      const timeCard = storeActivePackages.find(p => p.package_type === 'time_card' && (!p.end_date || new Date() <= p.end_date));
+      const countCard = storeActivePackages.find(p => p.package_type === 'count_card' && p.remaining_credits > 0);
+
+      if (timeCard) {
+        const creditsCost = schedule.credits_cost || 1;
+        const limitCheck = await checkTimeCardLimit(timeCard, schedule.date, creditsCost);
+        if (limitCheck.allowed) {
+          currentPackage = timeCard;
+        } else if (countCard) {
+          currentPackage = countCard;
+        }
+      }
+
+      if (!currentPackage) {
+        console.warn('自动转正候补失败: 会员无可用套餐, 候补ID:', item._id);
+        continue;
+      }
+
+      // 确保套餐已激活
+      if (!currentPackage.is_activated) {
+        await packageService.activatePackageById(currentPackage._id, userId, {
+          activationType: 'auto_waitlist',
+          storeId: scheduleStoreId
+        });
+        currentPackage = await UserPackage.findById(currentPackage._id);
+      }
+
+      // 检查过期
+      if (currentPackage.end_date && new Date() > currentPackage.end_date) {
+        currentPackage.status = 'expired';
+        await currentPackage.save();
+        console.warn('自动转正候补失败: 套餐已过期, 候补ID:', item._id);
+        continue;
+      }
+
+      // 检查次卡次数
+      const creditsCost = schedule.credits_cost || 1;
+      if (currentPackage.package_type === 'count_card' && currentPackage.remaining_credits < creditsCost) {
+        console.warn('自动转正候补失败: 套餐次数不足, 候补ID:', item._id);
+        continue;
+      }
+
+      const user = await User.findById(userId);
 
       const booking = await Booking.create({
         schedule_id: item.schedule_id,
-        user_id: item.user_id,
+        user_id: userId,
         coach_id: schedule.coach_id,
         dance_style_id: schedule.dance_style_id,
         store_id: schedule.store_id,
@@ -1073,8 +1205,19 @@ exports.notifyWaitlistUsers = async (scheduleId) => {
         booking_time: schedule.start_time,
         status: 'booked',
         booking_status: 'booked',
-        credits_deducted: schedule.credits_cost || 1,
+        credits_deducted: creditsCost,
+        user_package_id: currentPackage._id,
       });
+
+      // 扣减次卡课时
+      if (currentPackage.package_type === 'count_card') {
+        currentPackage.remaining_credits -= creditsCost;
+        if (currentPackage.remaining_credits <= 0) {
+          currentPackage.remaining_credits = 0;
+          currentPackage.status = 'exhausted';
+        }
+        await currentPackage.save();
+      }
 
       schedule.current_bookings += 1;
       if (schedule.current_bookings >= schedule.max_bookings) {
@@ -1083,6 +1226,7 @@ exports.notifyWaitlistUsers = async (scheduleId) => {
 
       item.status = 'booked';
       await item.save();
+      promotedCount++;
 
       if (user && user.openid) {
         try {
@@ -1100,10 +1244,11 @@ exports.notifyWaitlistUsers = async (scheduleId) => {
     await schedule.save();
   }
 
-  return { promoted_count: toPromote.length };
+  return { promoted_count: promotedCount };
 };
 
-// 候补用户确认预约（保留，管理端主动确认仍可使用）
+// 候补用户确认预约（会员端手动确认候补）
+// 套餐选择逻辑与 createBooking 保持一致
 exports.confirmWaitlistBooking = async (userId, waitlistId) => {
   const waitlist = await Waitlist.findById(waitlistId);
   if (!waitlist) throw new Error('候补记录不存在');
@@ -1111,15 +1256,114 @@ exports.confirmWaitlistBooking = async (userId, waitlistId) => {
 
   if (waitlist.status !== 'waiting') throw new Error('当前状态不可确认');
 
-  const schedule = await Schedule.findById(waitlist.schedule_id);
+  const schedule = await Schedule.findById(waitlist.schedule_id).populate('store_id');
   if (!schedule) throw new Error('课程不存在');
   if (schedule.current_bookings >= schedule.max_bookings) {
     throw new Error('名额已满，候补失败');
   }
 
+  const scheduleStoreId = schedule.store_id ? (schedule.store_id._id || schedule.store_id) : null;
+
+  // 查找同门店套餐
+  const storeActivePackages = await UserPackage.find({
+    user_id: userId,
+    store_id: scheduleStoreId,
+    status: 'active',
+    is_suspended: false,
+  });
+
+  const storePendingPackages = await UserPackage.find({
+    user_id: userId,
+    store_id: scheduleStoreId,
+    status: 'pending',
+    is_suspended: false,
+  }).sort({ created_at: 1 });
+
+  // 自动激活 pending 套餐
+  if (storeActivePackages.length === 0 && storePendingPackages.length > 0) {
+    await packageService.activatePackageById(storePendingPackages[0]._id, userId, {
+      activationType: 'waitlist_confirm',
+      storeId: scheduleStoreId
+    });
+    storeActivePackages.push(await UserPackage.findById(storePendingPackages[0]._id));
+  }
+
+  // 套餐选择：时间卡优先，限额满时 fallback 次卡
+  let currentPackage = null;
+  const timeCard = storeActivePackages.find(p => p.package_type === 'time_card' && (!p.end_date || new Date() <= p.end_date));
+  const countCard = storeActivePackages.find(p => p.package_type === 'count_card' && p.remaining_credits > 0);
+
+  if (timeCard) {
+    const creditsCost = schedule.credits_cost || 1;
+    const limitCheck = await checkTimeCardLimit(timeCard, schedule.date, creditsCost);
+    if (limitCheck.allowed) {
+      currentPackage = timeCard;
+    } else if (countCard) {
+      // 时间卡限额满，fallback 到次卡
+      currentPackage = countCard;
+    }
+    // 时间卡限额满且没有次卡，currentPackage 为 null
+  }
+  if (!currentPackage) {
+    currentPackage = countCard;
+  }
+
+  if (!currentPackage) {
+    const anyPackage = await UserPackage.findOne({ user_id: userId, status: { $in: ['active', 'pending'] } });
+    if (anyPackage) {
+      const storeName = schedule.store_id && schedule.store_id.name ? schedule.store_id.name : '该门店';
+      throw new Error(`您没有${storeName}的可用套餐，请在首页切换到正确的门店`);
+    }
+    throw new Error('暂无有效套餐，请联系管理员');
+  }
+
+  // 确保套餐已激活
+  if (!currentPackage.is_activated) {
+    await packageService.activatePackageById(currentPackage._id, userId, {
+      activationType: 'waitlist_confirm',
+      storeId: scheduleStoreId
+    });
+    currentPackage = await UserPackage.findById(currentPackage._id);
+  }
+
+  // 检查过期
+  if (currentPackage.end_date && new Date() > currentPackage.end_date) {
+    currentPackage.status = 'expired';
+    await currentPackage.save();
+    throw new Error('套餐已过期，请联系管理员');
+  }
+
+  // 检查次卡次数
+  const creditsCost = schedule.credits_cost || 1;
+  if (currentPackage.package_type === 'count_card' && currentPackage.remaining_credits < creditsCost) {
+    throw new Error('剩余次数不足');
+  }
+
+  // 检查时间冲突
+  const conflictSchedules = await Schedule.find({
+    date: schedule.date,
+    status: { $in: ['available', 'full'] },
+    _id: { $ne: schedule._id },
+    $or: [
+      { start_time: { $lt: schedule.end_time }, end_time: { $gt: schedule.start_time } },
+    ],
+  }).distinct('_id');
+
+  if (conflictSchedules.length > 0) {
+    const conflictBooking = await Booking.findOne({
+      user_id: userId,
+      schedule_id: { $in: conflictSchedules },
+      $or: [{ status: 'booked' }, { booking_status: 'booked' }],
+    });
+    if (conflictBooking) {
+      throw new Error('该时间段已有其他预约，请选择其他课程');
+    }
+  }
+
+  // 创建预约
   const booking = await Booking.create({
     schedule_id: waitlist.schedule_id,
-    user_id: waitlist.user_id,
+    user_id: userId,
     coach_id: schedule.coach_id,
     dance_style_id: schedule.dance_style_id,
     store_id: schedule.store_id,
@@ -1127,8 +1371,19 @@ exports.confirmWaitlistBooking = async (userId, waitlistId) => {
     booking_time: schedule.start_time,
     status: 'booked',
     booking_status: 'booked',
-    credits_deducted: schedule.credits_cost || 1,
+    credits_deducted: creditsCost,
+    user_package_id: currentPackage._id,
   });
+
+  // 扣减次卡课时
+  if (currentPackage.package_type === 'count_card') {
+    currentPackage.remaining_credits -= creditsCost;
+    if (currentPackage.remaining_credits <= 0) {
+      currentPackage.remaining_credits = 0;
+      currentPackage.status = 'exhausted';
+    }
+    await currentPackage.save();
+  }
 
   schedule.current_bookings += 1;
   if (schedule.current_bookings >= schedule.max_bookings) {

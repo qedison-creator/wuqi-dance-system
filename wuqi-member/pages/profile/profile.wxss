@@ -1047,8 +1047,8 @@ page {
 }
 
 .pkg-sheet-body {
-  padding: 0 40rpx calc(40rpx + constant(safe-area-inset-bottom) + 60rpx);
-  padding: 0 40rpx calc(40rpx + env(safe-area-inset-bottom) + 60rpx);
+  padding: 0 40rpx calc(40rpx + constant(safe-area-inset-bottom) + 100rpx);
+  padding: 0 40rpx calc(40rpx + env(safe-area-inset-bottom) + 100rpx);
   max-height: 55vh;
   overflow-y: auto;
 }

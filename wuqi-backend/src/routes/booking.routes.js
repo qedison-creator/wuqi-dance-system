@@ -18,6 +18,16 @@ router.post('/', auth, checkPermission(['member']), async (req, res, next) => {
     const booking = await bookingService.createBooking(req.user.id, schedule_id);
     res.json(success(booking, '预约成功'));
   } catch (err) {
+    // 捕获时间卡限额已满、有待激活次卡的特殊情况
+    if (err.code === 'TIME_CARD_LIMIT_REACHED') {
+      // 清理错误消息中的 TIME_CARD_LIMIT_REACHED: 前缀，保留纯文本
+      const cleanMessage = err.message.replace(/^TIME_CARD_LIMIT_REACHED:\s*/, '');
+      return res.status(200).json({
+        code: 'TIME_CARD_LIMIT_REACHED',
+        message: cleanMessage,
+        data: err.data || null
+      });
+    }
     next(err);
   }
 });

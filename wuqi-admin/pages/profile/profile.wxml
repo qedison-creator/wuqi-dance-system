@@ -1,10 +1,11 @@
 <view class="profile-page">
   <view class="profile-card">
     <view class="avatar-wrapper">
-      <image class="avatar-ring-img" src="{{userInfo.avatar_url}}" mode="aspectFill" wx:if="{{userInfo.avatar_url}}" binderror="onAvatarError"></image>
+      <image class="avatar-ring-img" src="{{userInfo.avatar_url}}" mode="aspectFill" wx:if="{{userInfo.avatar_url && !avatarLoadFailed}}" binderror="onAvatarError"></image>
       <view class="avatar-ring" wx:else>
         <view class="avatar-inner">
-          <text class="avatar-char">{{userInfo.nick_name ? userInfo.nick_name[0] : (userInfo.name ? userInfo.name[0] : (userInfo.username ? userInfo.username[0] : '管'))}}</text>
+          <!-- 本地默认管理员头像兜底 -->
+          <image class="avatar-fallback-img" src="/images/default-admin-avatar.svg" mode="aspectFit"></image>
         </view>
       </view>
     </view>

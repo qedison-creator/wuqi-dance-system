@@ -53,6 +53,18 @@ router.put('/activate', auth, checkPermission(['member']), async (req, res, next
   }
 });
 
+// PUT /api/v1/packages/:id/activate - 按ID激活指定pending套餐(member)
+router.put('/:id/activate', auth, checkPermission(['member']), async (req, res, next) => {
+  try {
+    const result = await packageService.activatePackageById(req.params.id, req.user.id, {
+      activation_type: 'manual_member',
+    });
+    res.json(success(result, '套餐激活成功'));
+  } catch (err) {
+    next(err);
+  }
+});
+
 // DELETE /api/v1/packages/user/:id - 删除用户套餐(super_admin/store_manager/staff)
 router.delete('/user/:id', auth, checkPermission(['super_admin', 'store_manager', 'staff']), async (req, res, next) => {
   try {

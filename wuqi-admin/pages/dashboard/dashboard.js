@@ -100,12 +100,11 @@ Page({
       request({ url: '/auth/me', method: 'GET' }).then(res => {
         const data = res.data || {};
         app.globalData.userInfo = data;
-        this.applyUserInfo(data.admin ? data.admin : data);
+        this.applyUserInfo(data);
       }).catch(() => {});
       return;
     }
-    const raw = app.globalData.userInfo;
-    const userInfo = raw.admin ? raw.admin : raw;
+    const userInfo = app.globalData.userInfo;
     this.applyUserInfo(userInfo);
   },
 
@@ -291,7 +290,7 @@ Page({
       this.loadSystemConfigs();
 
       const [homeRes, statsRes, bannersRes] = await Promise.allSettled([
-        request({ url: '/home/admin', method: 'GET' }),
+        request({ url: '/home/admin', method: 'GET' }).catch(() => ({ data: {} })),
         request({ url: '/stats/dashboard', method: 'GET', data: { store_id: storeId } }).catch(() => ({ data: {} })),
         request({ url: '/banners', method: 'GET', data: {} }).catch(() => ({ data: [] }))
       ]);
@@ -327,8 +326,20 @@ Page({
   onRefresh() {
     wx.showLoading({ title: '刷新中...', mask: true });
     this.setData({ loadingSkeleton: true });
-    this.loadAllData().finally(() => {
+    this.loadAllData().then(() => {
       wx.hideLoading();
+      wx.stopPullDownRefresh();
+    }).catch(() => {
+      wx.hideLoading();
+      wx.stopPullDownRefresh();
+    });
+  },
+
+  onPullDownRefresh() {
+    this.setData({ loadingSkeleton: true });
+    this.loadAllData().then(() => {
+      wx.stopPullDownRefresh();
+    }).catch(() => {
       wx.stopPullDownRefresh();
     });
   },

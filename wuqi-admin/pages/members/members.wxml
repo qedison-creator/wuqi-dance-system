@@ -4,13 +4,13 @@
     <view class="header-actions">
       <view class="header-chip-wrap" bindtap="onGoReview">
         <view class="header-chip header-chip-review">
-          <text class="header-chip-text">待审核</text>
+          <text class="header-chip-text">待审核用户</text>
         </view>
         <view class="review-badge" wx:if="{{pendingCount > 0}}">{{pendingCount}}</view>
       </view>
       <view class="header-chip-wrap" bindtap="onGoInfoReview">
         <view class="header-chip header-chip-info">
-          <text class="header-chip-text">信息修改</text>
+          <text class="header-chip-text">会员信息修改请求</text>
         </view>
       </view>
     </view>
@@ -136,14 +136,12 @@
           <text class="meta-text">{{item.package_info}}</text>
         </view>
         <view class="member-actions">
-          <view class="member-action-btn" catchtap="onViewDetail" data-member="{{item}}">
-            <text class="member-action-text">查看详情</text>
-          </view>
           <view class="member-action-btn member-action-contact" wx:if="{{!item.has_package}}" catchtap="onAddPackage" data-member="{{item}}">
             <text class="member-action-text">录入套餐</text>
           </view>
-          <view class="member-action-btn member-action-contact" wx:else catchtap="onAddPackage" data-member="{{item}}">
-            <text class="member-action-text">编辑套餐</text>
+          <view class="member-action-hint" wx:else>
+            <text class="member-action-hint-text">点击卡片查看详情</text>
+            <text class="member-action-hint-arrow">›</text>
           </view>
         </view>
     </view>

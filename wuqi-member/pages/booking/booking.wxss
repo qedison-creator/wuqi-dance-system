@@ -1115,3 +1115,38 @@ page {
   height: 3rpx;
   background: transparent;
 }
+
+/* 次卡激活弹窗样式 */
+.countcard-icon-wrap {
+  background: #FFF8E8;
+}
+
+.countcard-icon {
+  width: 40rpx;
+  height: 40rpx;
+  position: relative;
+}
+
+.countcard-icon::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -60%) rotate(45deg);
+  width: 18rpx;
+  height: 10rpx;
+  border-left: 3rpx solid #D4A016;
+  border-bottom: 3rpx solid #D4A016;
+}
+
+.countcard-icon::after {
+  content: '';
+  position: absolute;
+  bottom: 6rpx;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 24rpx;
+  height: 18rpx;
+  border: 3rpx solid #D4A016;
+  border-radius: 4rpx;
+}

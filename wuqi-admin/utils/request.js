@@ -11,6 +11,7 @@ const request = (options) => {
       url: baseUrl + options.url,
       method: options.method || 'GET',
       data: options.data || {},
+      timeout: options.timeout || 15000,
       header: {
         'Content-Type': 'application/json',
         'Authorization': token ? `Bearer ${token}` : ''
