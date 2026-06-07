@@ -1,0 +1,7 @@
+{
+  "navigationBarTitleText": "课程预约",
+  "usingComponents": {
+    "empty-state": "/components/empty-state/empty-state"
+  },
+  "enablePullDownRefresh": true
+}

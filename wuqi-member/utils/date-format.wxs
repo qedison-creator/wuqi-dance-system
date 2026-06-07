@@ -1,0 +1,11 @@
+function formatMD(dateStr) {
+  if (!dateStr) return '';
+  var parts = dateStr.split('-');
+  if (parts.length >= 2) {
+    var month = parseInt(parts[1]);
+    var day = parseInt(parts.length >= 3 ? parts[2].substring(0, 2) : '0');
+    return month + '/' + day;
+  }
+  return dateStr;
+}
+module.exports = { formatMD: formatMD };

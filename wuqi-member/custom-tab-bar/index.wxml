@@ -1,0 +1,22 @@
+<view class="tab-bar">
+  <view class="tab-bar-capsule">
+    <view class="tab-item {{active === 'index' ? 'active' : ''}}" data-path="/pages/index/index" data-index="0" bindtap="onTabTap">
+      <view class="tab-icon">
+        <view class="ti-shape ti-home"></view>
+      </view>
+      <text class="tab-text">首页</text>
+    </view>
+    <view class="tab-item {{active === 'booking' ? 'active' : ''}}" data-path="/pages/booking/booking" data-index="1" bindtap="onTabTap">
+      <view class="tab-icon">
+        <view class="ti-shape ti-cal"></view>
+      </view>
+      <text class="tab-text">预约</text>
+    </view>
+    <view class="tab-item {{active === 'profile' ? 'active' : ''}}" data-path="/pages/profile/profile" data-index="2" bindtap="onTabTap">
+      <view class="tab-icon">
+        <view class="ti-shape ti-user"></view>
+      </view>
+      <text class="tab-text">我的</text>
+    </view>
+  </view>
+</view>

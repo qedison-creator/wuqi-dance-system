@@ -1,0 +1,6 @@
+var colors = ['#D4786E', '#E8A87C', '#C5A898', '#B8A9C9', '#8DB5B0', '#A8C5B8'];
+function getBarColor(index) {
+  if (typeof index !== 'number') return colors[0];
+  return colors[index % colors.length];
+}
+module.exports = { getBarColor: getBarColor };

@@ -1,0 +1,251 @@
+/* 响应式布局 - 多设备适配 */
+
+/* ========== 基础响应式变量 ========== */
+page {
+  --container-padding: 20rpx;
+  --card-gap: 20rpx;
+  --section-spacing: 30rpx;
+}
+
+/* ========== 手机横屏适配 (>=667px) ========== */
+@media (min-width: 667px) {
+  page {
+    --container-padding: 40rpx;
+    --card-gap: 24rpx;
+    --section-spacing: 40rpx;
+  }
+  
+  .container {
+    padding: 0 var(--container-padding);
+  }
+  
+  /* 教练卡片 - 横屏显示4列 */
+  .coach-card {
+    flex: 0 0 calc(25% - 18rpx) !important;
+    max-width: 220rpx !important;
+  }
+  
+  /* 课程推荐卡片 - 横屏显示3列 */
+  .course-rec-card {
+    flex: 0 0 calc(33.333% - 16rpx) !important;
+    max-width: 320rpx !important;
+  }
+  
+  /* 视频卡片 - 横屏双列 */
+  .video-card {
+    display: inline-block;
+    width: calc(50% - 12rpx);
+    margin-right: 24rpx;
+  }
+  
+  .video-card:nth-child(2n) {
+    margin-right: 0;
+  }
+}
+
+/* ========== 平板竖屏适配 (>=768px) ========== */
+@media (min-width: 768px) {
+  page {
+    --container-padding: 60rpx;
+    --card-gap: 30rpx;
+  }
+  
+  .container {
+    padding: 0 var(--container-padding);
+    max-width: 960rpx;
+    margin: 0 auto;
+  }
+  
+  /* 首页头部 */
+  .home-header {
+    padding: 20rpx 0;
+  }
+  
+  .home-header .title {
+    font-size: clamp(40rpx, 4vw, 48rpx);
+  }
+  
+  /* 教练卡片 - 平板显示4列 */
+  .coach-card {
+    flex: 0 0 calc(25% - 22rpx) !important;
+    max-width: 240rpx !important;
+    padding: 30rpx;
+  }
+  
+  .coach-avatar {
+    width: 140rpx !important;
+    height: 140rpx !important;
+  }
+  
+  /* 课程推荐卡片 - 平板显示3列 */
+  .course-rec-card {
+    flex: 0 0 calc(33.333% - 20rpx) !important;
+    max-width: 360rpx !important;
+    padding: 24rpx;
+  }
+  
+  /* 视频卡片 - 平板双列 */
+  .video-card {
+    width: calc(50% - 15rpx);
+    padding: 30rpx;
+  }
+  
+  /* 门店信息卡片 */
+  .store-card {
+    padding: 40rpx;
+  }
+  
+  .store-name {
+    font-size: 32rpx;
+  }
+  
+  /* 弹窗适配 */
+  .modal {
+    width: min(80%, 700rpx) !important;
+    padding: 60rpx !important;
+  }
+  
+  .modal-title {
+    font-size: 40rpx !important;
+  }
+  
+  /* TabBar高度调整 */
+  .tab-bar {
+    height: calc(96rpx + env(safe-area-inset-bottom));
+  }
+}
+
+/* ========== 平板横屏/折叠屏展开 (>=1024px) ========== */
+@media (min-width: 1024px) {
+  page {
+    --container-padding: 80rpx;
+  }
+  
+  .container {
+    max-width: 1200rpx;
+    padding: 0 var(--container-padding);
+  }
+  
+  /* 教练卡片 - 大屏显示5列 */
+  .coach-card {
+    flex: 0 0 calc(20% - 24rpx) !important;
+    max-width: 260rpx !important;
+  }
+  
+  /* 课程推荐卡片 - 大屏显示4列 */
+  .course-rec-card {
+    flex: 0 0 calc(25% - 22rpx) !important;
+    max-width: 400rpx !important;
+  }
+  
+  /* 视频卡片 - 大屏3列 */
+  .video-card {
+    width: calc(33.333% - 20rpx);
+    margin-right: 30rpx;
+  }
+  
+  .video-card:nth-child(2n) {
+    margin-right: 30rpx;
+  }
+  
+  .video-card:nth-child(3n) {
+    margin-right: 0;
+  }
+  
+  /* 快捷功能入口 */
+  .quick-actions {
+    grid-template-columns: repeat(4, 1fr) !important;
+  }
+  
+  /* 弹窗 */
+  .modal {
+    width: min(70%, 800rpx) !important;
+  }
+}
+
+/* ========== 折叠屏折叠状态 (窄屏优化) ========== */
+@media (max-width: 375px) {
+  .coach-card {
+    flex: 0 0 calc(50% - 12rpx) !important;
+    min-width: 140rpx !important;
+  }
+  
+  .course-rec-card {
+    flex: 0 0 calc(100% - 0rpx) !important;
+    margin-right: 0 !important;
+  }
+  
+  .container {
+    padding: 0 16rpx;
+  }
+}
+
+/* ========== 安全区域适配 ========== */
+/* iPhone X+ 底部安全区域 */
+.safe-area-bottom {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* 顶部安全区域 */
+.safe-area-top {
+  padding-top: env(safe-area-inset-top);
+}
+
+/* ========== 横竖屏切换动画 ========== */
+.page-transition {
+  transition: all 0.3s ease;
+}
+
+/* ========== 字体响应式 ========== */
+.text-responsive {
+  font-size: clamp(24rpx, 2.5vw, 32rpx);
+}
+
+.title-responsive {
+  font-size: clamp(32rpx, 4vw, 48rpx);
+}
+
+/* ========== 图片响应式 ========== */
+.img-responsive {
+  width: 100%;
+  height: auto;
+  object-fit: cover;
+}
+
+/* ========== 按钮响应式 ========== */
+.btn-responsive {
+  min-height: 80rpx;
+  padding: 20rpx 40rpx;
+  font-size: clamp(26rpx, 2.5vw, 30rpx);
+}
+
+/* ========== 列表响应式 ========== */
+.list-responsive {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--card-gap);
+}
+
+.list-item-responsive {
+  flex: 1 1 calc(50% - var(--card-gap));
+  min-width: 280rpx;
+}
+
+/* ========== Grid 响应式 ========== */
+.grid-responsive-2 {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280rpx, 1fr));
+  gap: var(--card-gap);
+}
+
+.grid-responsive-3 {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200rpx, 1fr));
+  gap: var(--card-gap);
+}
+
+.grid-responsive-4 {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160rpx, 1fr));
+  gap: var(--card-gap);
+}

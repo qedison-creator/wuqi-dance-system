@@ -1,0 +1,9 @@
+{
+  "navigationBarTitleText": "教练列表",
+  "navigationBarBackgroundColor": "#FAF8F6",
+  "navigationBarTextStyle": "black",
+  "backgroundColor": "#FAF8F6",
+  "usingComponents": {
+    "empty-state": "/components/empty-state/empty-state"
+  }
+}

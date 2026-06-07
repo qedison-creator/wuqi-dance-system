@@ -1,0 +1,60 @@
+{
+  "pages": [
+    "pages/splash/splash",
+    "pages/login/login",
+    "pages/index/index",
+    "pages/booking/booking",
+    "pages/course-detail/course-detail",
+    "pages/profile/profile",
+    "pages/records/records",
+    "pages/coach-detail/coach-detail",
+    "pages/coach-list/coach-list",
+    "pages/video-player/video-player",
+    "pages/package-detail/package-detail",
+    "pages/member-info/member-info",
+    "pages/privacy/privacy",
+    "pages/agreement/agreement",
+    "pages/about/about"
+  ],
+  "window": {
+    "navigationBarBackgroundColor": "#FBFAF8",
+    "navigationBarTitleText": "舞栖舞蹈社",
+    "navigationBarTextStyle": "black",
+    "backgroundColor": "#FAF8F6",
+    "backgroundTextStyle": "light"
+  },
+  "tabBar": {
+    "custom": true,
+    "color": "#B5A5A5",
+    "selectedColor": "#D4956B",
+    "backgroundColor": "#FFFFFF",
+    "borderStyle": "white",
+    "list": [
+      {
+        "pagePath": "pages/index/index",
+        "text": "首页"
+      },
+      {
+        "pagePath": "pages/booking/booking",
+        "text": "预约"
+      },
+      {
+        "pagePath": "pages/profile/profile",
+        "text": "我的"
+      }
+    ]
+  },
+  "sitemapLocation": "sitemap.json",
+  "style": "v2",
+  "permission": {
+    "scope.userLocation": {
+      "desc": "用于匹配您附近的门店"
+    }
+  },
+  "requiredPrivateInfos": [
+    "getLocation"
+  ],
+  "requiredBackgroundModes": [],
+  "plugins": {},
+  "lazyCodeLoading": "requiredComponents"
+}

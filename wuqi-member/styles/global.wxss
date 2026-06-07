@@ -1,0 +1,25 @@
+/* 全局样式变量 */
+page {
+  --color-primary: #D4786E;
+  --color-primary-deep: #C05D53;
+  --color-primary-light: #EBA89F;
+  --color-primary-wash: #FDF2EF;
+  --color-bg: #FAF8F6;
+  --color-card: #FFFFFF;
+  --color-text: #2A2122;
+  --color-text-secondary: #6B5D5E;
+  --color-text-hint: #948284;
+  --color-border: #E8E0DD;
+  --color-danger: #FF3B30;
+  --color-success: #34C759;
+  --color-warning: #FF9500;
+  --radius-sm: 8rpx;
+  --radius-md: 12rpx;
+  --radius-lg: 16rpx;
+  --radius-xl: 24rpx;
+  --spacing-xs: 8rpx;
+  --spacing-sm: 16rpx;
+  --spacing-md: 24rpx;
+  --spacing-lg: 30rpx;
+  --spacing-xl: 40rpx;
+}

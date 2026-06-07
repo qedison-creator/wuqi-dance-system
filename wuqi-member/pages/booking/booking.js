@@ -1,0 +1,929 @@
+const app = getApp();
+const { request } = require('../../utils/request');
+const { getBeijingDate } = require('../../utils/helpers');
+const auth = require('../../utils/auth');
+
+const WEEK_DAYS = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+
+function getNextDays(count = 7, holidays = []) {
+  const dates = [];
+  const today = getBeijingDate();
+  for (let i = 0; i < count; i++) {
+    const d = getBeijingDate(today);
+    d.setDate(today.getDate() + i);
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const dayNum = d.getDate();
+    const weekDay = WEEK_DAYS[d.getDay()];
+    const dateStr = `${year}-${month}-${String(dayNum).padStart(2, '0')}`;
+    const isHoliday = holidays.some(h => {
+      const hEnd = h.end_date || h.date;
+      return h.date <= dateStr && hEnd >= dateStr;
+    });
+    dates.push({
+      date: dateStr,
+      day: dayNum,
+      weekDay,
+      displayDay: i === 0 ? '当日' : weekDay,
+      isToday: i === 0,
+      isHoliday
+    });
+  }
+  return dates;
+}
+
+Page({
+  data: {
+    isLoggedIn: false,
+    storeList: [],
+    currentStore: null,
+    dates: [],
+    selectedDate: '',
+    danceStyles: [],
+    courses: [],
+    loading: false,
+    showStoreModal: false,
+    showActivateModal: false,
+    pendingPackage: null,
+    activating: false,
+    isOfficial: false,
+    bookedScheduleIds: [],
+    waitlistedScheduleIds: [],
+    memberPackageStoreIds: [],
+    canBookCurrentStore: false,
+    canViewCapacity: false,
+    showBookingModal: false,
+    bookingModalText: '',
+    bookingModalCourse: null,
+    showLimitModal: false,
+    limitModalText: '',
+    showStorePicker: false,
+    storePickerTitle: '确认所在门店',
+    storePickerMode: 'login',
+    selectedStoreId: '',
+    selectedStoreName: '',
+    nearestDistance: null,
+    holidays: [],
+    selectedDateItem: null,
+    weekDays: [],
+    weekDaysIndex: 0,
+    courseCount: 0,
+    sectionTitle: '今日课程',
+    imageErrors: {},
+    showWaitlistModal: false,
+    waitlistCourse: null,
+    waitlistModalText: '',
+    isHolidayToday: false
+  },
+
+  onShow() {
+    if (typeof this.getTabBar === 'function' && this.getTabBar()) {
+      this.getTabBar().setData({ selected: 1, active: 'booking' });
+    }
+    const storeList = app.globalData.storeList || [];
+    const currentStore = app.globalData.currentStore || (storeList.length > 0 ? storeList[0] : null);
+    this.setData({ storeList, currentStore });
+    const { checkLogin } = require('../../utils/auth');
+    if (!checkLogin()) {
+      this.setData({ isLoggedIn: false });
+      return;
+    }
+    this.setData({ isLoggedIn: true });
+    this.refreshUserInfo();
+  },
+
+  refreshUserInfo() {
+    Promise.all([
+      request({ url: '/auth/me', silent: true }),
+      request({ url: '/packages/my', silent: true })
+    ]).then(([authRes, pkgRes]) => {
+      let isOfficial = false;
+      if (authRes && authRes.data) {
+        app.globalData.userInfo = authRes.data;
+        isOfficial = authRes.data.member_status === 'official';
+      }
+      this.setData({ isOfficial });
+      if (isOfficial && pkgRes && pkgRes.data) {
+        this._updatePackageStoreIds(pkgRes.data);
+        this._updateCanViewCapacity(authRes.data, pkgRes.data);
+      } else if (!isOfficial) {
+        this.setData({ memberPackageStoreIds: [], canBookCurrentStore: false, bookedScheduleIds: [], canViewCapacity: false });
+      }
+      this.initPage();
+    }).catch(() => {
+      const userInfo = app.globalData.userInfo || {};
+      const isOfficial = userInfo.member_status === 'official';
+      this.setData({ isOfficial });
+      if (isOfficial) {
+        this.setData({ memberPackageStoreIds: [], canBookCurrentStore: false, bookedScheduleIds: [], canViewCapacity: false });
+      }
+      this.initPage();
+    });
+  },
+
+  _updateCanViewCapacity(userData, pkgData) {
+    if (userData.member_status !== 'official') {
+      this.setData({ canViewCapacity: false });
+      return;
+    }
+    if (userData.status === 'disabled') {
+      this.setData({ canViewCapacity: false });
+      return;
+    }
+    const history = pkgData.history || [];
+    const packages = pkgData.packages || history;
+    const allPackages = Array.isArray(packages) ? packages : [];
+    const hasValidPackage = allPackages.some(pkg => {
+      return pkg.status === 'pending' || pkg.status === 'active';
+    });
+    if (!hasValidPackage) {
+      this.setData({ canViewCapacity: false });
+      return;
+    }
+    const hasActivePackage = allPackages.some(pkg => {
+      if (pkg.status !== 'active') return false;
+      if (pkg.is_suspended) return false;
+      return true;
+    });
+    const hasPendingPackage = allPackages.some(pkg => pkg.status === 'pending');
+    this.setData({ canViewCapacity: hasActivePackage || hasPendingPackage });
+  },
+
+  _updatePackageStoreIds(pkgData) {
+    const packages = pkgData.history || [];
+    const storeIds = new Set();
+    packages.forEach(pkg => {
+      if (pkg.store_id) {
+        const sid = typeof pkg.store_id === 'string' ? pkg.store_id : (pkg.store_id._id || pkg.store_id);
+        if (sid) storeIds.add(String(sid));
+      }
+    });
+    const packageStoreIds = Array.from(storeIds);
+    const currentStoreId = this.data.currentStore ? String(this.data.currentStore._id) : '';
+    const canBookCurrentStore = packageStoreIds.includes(currentStoreId);
+    this.setData({ memberPackageStoreIds: packageStoreIds, canBookCurrentStore });
+    if (!canBookCurrentStore) {
+      this.setData({ bookedScheduleIds: [] });
+    }
+  },
+
+  _updateCanBookForStore() {
+    const currentStoreId = this.data.currentStore ? String(this.data.currentStore._id) : '';
+    const canBookCurrentStore = this.data.memberPackageStoreIds.includes(currentStoreId);
+    const payload = { canBookCurrentStore };
+    if (!canBookCurrentStore) {
+      payload.bookedScheduleIds = [];
+    }
+    this.setData(payload);
+  },
+
+  onLoad() {
+    const isLoggedIn = !!app.globalData.token;
+    this.setData({ isLoggedIn });
+    if (isLoggedIn) {
+      this.initPage();
+    }
+  },
+
+  initPage() {
+    const storeList = app.globalData.storeList || [];
+    const currentStore = app.globalData.currentStore || (storeList.length > 0 ? storeList[0] : null);
+
+    this.setData({ storeList, currentStore });
+
+    this._updateCanBookForStore();
+
+    if (!this.data.dates.length) {
+      const dates = getNextDays(7, this.data.holidays);
+      this.setData({ dates, selectedDate: dates[0].date });
+    }
+
+    this.generateWeekDaysSym();
+
+    if (storeList.length === 0) {
+      this.loadStoreList();
+    }
+
+    this.loadDanceStyles();
+    this.loadCourses();
+    this.loadHolidays();
+  },
+
+  async loadHolidays() {
+    try {
+      const res = await request({ url: '/holidays', method: 'GET' });
+      const list = res.data && Array.isArray(res.data.list) ? res.data.list : (Array.isArray(res.data) ? res.data : []);
+      const activeHolidays = list.filter(h => h.status === 'active');
+      const dates = getNextDays(7, activeHolidays);
+      const weekDays = dates;
+      const selectedDate = dates[0].date;
+      const sectionTitle = dates[0].isToday ? '今日课程' : (this.formatDate(dates[0].date) + ' ' + dates[0].weekDay + ' 课程');
+      this.setData({ holidays: activeHolidays, dates, weekDays, selectedDate, weekDaysIndex: 0, sectionTitle });
+      this.loadCourses();
+    } catch (err) {
+      console.error('加载假期信息失败', err);
+      this.generateWeekDaysSym();
+    }
+  },
+
+  loadStoreList() {
+    request({ url: '/stores', method: 'GET' }).then(res => {
+      const list = res.data && res.data.list
+        ? res.data.list
+        : (Array.isArray(res.data) ? res.data : []);
+      if (list.length > 0) {
+        const savedStore = wx.getStorageSync('currentStore');
+        const store = savedStore || list[0];
+        app.globalData.storeList = list;
+        app.globalData.currentStore = store;
+        this.setData({ storeList: list, currentStore: store });
+      }
+    }).catch((err) => {
+      console.error('加载门店列表失败:', err);
+    });
+  },
+
+  loadDanceStyles() {
+    request({ url: '/dance-styles' }).then(res => {
+      const danceStyles = Array.isArray(res.data) ? res.data : [];
+      this.setData({ danceStyles });
+    }).catch((err) => {
+      console.error('加载舞种列表失败:', err);
+    });
+  },
+
+  loadCourses() {
+    const { holidays, selectedDate } = this.data;
+    const isHoliday = holidays.some(h => {
+      const hEnd = h.end_date || h.date;
+      return h.date <= selectedDate && hEnd >= selectedDate;
+    });
+    if (isHoliday) {
+      this.setData({ courses: [], loading: false, courseCount: 0, isHolidayToday: true });
+      return;
+    }
+    this.setData({ loading: true, isHolidayToday: false });
+    const storeId = this.data.currentStore ? this.data.currentStore._id : '';
+    const reqData = {
+      store_id: storeId,
+      date: this.data.selectedDate
+    };
+
+    request({ url: '/schedules', data: reqData }).then(res => {
+      const courses = res.data && res.data.list
+        ? res.data.list
+        : (Array.isArray(res.data) ? res.data : []);
+      
+      const processedCourses = courses.map(course => {
+        const styleName = course.dance_style_id && course.dance_style_id.name ? course.dance_style_id.name : '';
+        const styleId = course.dance_style_id && course.dance_style_id._id ? String(course.dance_style_id._id) : (course.dance_style_id || '');
+        const tagColor = this._getDanceTagColor(styleName);
+        return {
+          ...course,
+          _id: String(course._id),
+          danceStyleName: styleName,
+          danceStyleId: styleId,
+          danceTagBg: tagColor.bg,
+          danceTagText: tagColor.text
+        };
+      });
+      
+      this.setData({ 
+        courses: processedCourses, 
+        loading: false,
+        courseCount: processedCourses.length
+      });
+      this.loadMyBookings();
+      this.loadMyWaitlists();
+    }).catch((err) => {
+      console.error('加载课程列表失败:', err);
+      this.setData({ loading: false, courseCount: 0 });
+    });
+  },
+
+
+
+  loadMyBookings() {
+    if (!this.data.isOfficial) {
+      this.setData({ bookedScheduleIds: [] });
+      return;
+    }
+    if (!this.data.canBookCurrentStore) {
+      this.setData({ bookedScheduleIds: [] });
+      return;
+    }
+    const storeId = this.data.currentStore ? this.data.currentStore._id : '';
+    let url = '/bookings/my?type=booked&pageSize=50';
+    if (storeId) {
+      url += '&store_id=' + storeId;
+    }
+    request({ url, silent: true }).then(res => {
+      const list = res.data && res.data.list ? res.data.list : (Array.isArray(res.data) ? res.data : []);
+      const bookedScheduleIds = list.map(b => {
+        if (b.schedule_id) {
+          return String(b.schedule_id._id || b.schedule_id);
+        }
+        return null;
+      }).filter(Boolean);
+      this.setData({ bookedScheduleIds });
+    }).catch(() => {
+      this.setData({ bookedScheduleIds: [] });
+    });
+  },
+
+  loadMyWaitlists() {
+    if (!this.data.isOfficial) {
+      this.setData({ waitlistedScheduleIds: [] });
+      return;
+    }
+    request({ url: '/bookings/waitlist/my', silent: true }).then(res => {
+      const list = res.data && res.data.list ? res.data.list : (Array.isArray(res.data) ? res.data : []);
+      const waitlistedScheduleIds = list.map(w => {
+        if (w.schedule_id) {
+          return String(w.schedule_id._id || w.schedule_id);
+        }
+        return null;
+      }).filter(Boolean);
+      this.setData({ waitlistedScheduleIds });
+    }).catch(() => {
+      this.setData({ waitlistedScheduleIds: [] });
+    });
+  },
+
+  onDateSelect(e) {
+    const { date } = e.currentTarget.dataset;
+    const dateItem = this.data.dates.find(d => d.date === date);
+    const weekDaysIndex = this.data.weekDays.findIndex(d => d.date === date);
+    this.setData({
+      selectedDate: date,
+      selectedDateItem: dateItem || null,
+      weekDaysIndex: weekDaysIndex >= 0 ? weekDaysIndex : this.data.weekDaysIndex
+    }, () => {
+      this.loadCourses();
+    });
+  },
+
+  onStoreTap() {
+    this.setData({ showStoreModal: true });
+  },
+
+  onCloseStoreModal() {
+    this.setData({ showStoreModal: false });
+  },
+
+  onModalTap() {},
+
+  onStoreOptionTap(e) {
+    const { id, name, store } = e.currentTarget.dataset;
+    if (this.data.showStoreModal) {
+      if (!store || !store._id) return;
+      app.globalData.currentStore = store;
+      wx.setStorageSync('currentStore', store);
+      this.setData({
+        currentStore: store,
+        showStoreModal: false
+      }, () => {
+        this._updateCanBookForStore();
+        this.loadDanceStyles();
+        this.loadCourses();
+      });
+    } else {
+      this.setData({
+        selectedStoreId: id,
+        selectedStoreName: name
+      });
+    }
+  },
+
+  onSelectStore(e) {
+    const { store } = e.currentTarget.dataset;
+    if (!store || !store._id) {
+      return;
+    }
+    app.globalData.currentStore = store;
+    wx.setStorageSync('currentStore', store);
+    this.setData({
+      currentStore: store,
+      showStoreModal: false
+    }, () => {
+      this._updateCanBookForStore();
+      this.loadDanceStyles();
+      this.loadCourses();
+    });
+  },
+
+  async doBook(scheduleId) {
+    let loadingShown = false;
+    try {
+      const { fetchTemplates, requestBookingSubscribe, getAcceptedTemplates } = require('../../utils/subscribe-message');
+      await fetchTemplates();
+      const subscribeResult = await requestBookingSubscribe();
+      const acceptedTemplates = getAcceptedTemplates(subscribeResult);
+
+      wx.showLoading({ title: '预约中...' });
+      loadingShown = true;
+      
+      await request({
+        url: '/bookings',
+        method: 'POST',
+        data: { schedule_id: scheduleId }
+      });
+      
+      wx.hideLoading();
+      loadingShown = false;
+      
+      if (acceptedTemplates.length > 0) {
+        wx.showModal({
+          title: '预约成功',
+          content: '已为您开启上课提醒，课程开始前将收到通知',
+          showCancel: false,
+          confirmText: '知道了',
+          confirmColor: '#D4786E'
+        });
+      } else {
+        wx.showToast({ title: '预约成功', icon: 'success' });
+      }
+      
+      this.loadCourses();
+    } catch (err) {
+      if (loadingShown) {
+        wx.hideLoading();
+      }
+      const errMsg = err.message || '预约失败';
+      
+      if (errMsg.includes('套餐') && errMsg.includes('未激活')) {
+        this.showActivatePackageModal(scheduleId);
+      } else if (errMsg.includes('已达上限') || errMsg.includes('套餐状态') || errMsg.includes('无可用套餐') || errMsg.includes('已过期') || errMsg.includes('已用完') || errMsg.includes('剩余次数不足')) {
+        this.setData({
+          showLimitModal: true,
+          limitModalText: errMsg
+        });
+      } else if (errMsg.includes('完善个人信息')) {
+        wx.showModal({
+          title: '提示',
+          content: errMsg,
+          confirmText: '去完善',
+          confirmColor: '#D4786E',
+          success: (res) => {
+            if (res.confirm) {
+              wx.navigateTo({ url: '/pages/profile/profile' });
+            }
+          }
+        });
+      } else {
+        wx.showToast({ title: errMsg, icon: 'none' });
+      }
+    }
+  },
+
+  async showActivatePackageModal(scheduleId) {
+    try {
+      const res = await request({
+        url: '/packages/my',
+        method: 'GET'
+      });
+      const pendingPackage = (res.data?.pending || res.data?.history || []).find(p => p.status === 'pending');
+      
+      if (pendingPackage) {
+        this.setData({
+          showActivateModal: true,
+          pendingPackage: pendingPackage,
+          pendingScheduleId: scheduleId
+        });
+      } else {
+        wx.showModal({
+          title: '无法预约',
+          content: '您没有可激活的套餐，请联系管理员',
+          showCancel: false
+        });
+      }
+    } catch (err) {
+      wx.showToast({ title: '获取套餐信息失败', icon: 'none' });
+    }
+  },
+
+  onCloseActivateModal() {
+    this.setData({ showActivateModal: false, pendingPackage: null, pendingScheduleId: null });
+  },
+
+  async onConfirmActivate() {
+    const { pendingPackage, pendingScheduleId } = this.data;
+    if (!pendingPackage) return;
+
+    // 请求套餐相关订阅授权
+    try {
+      const { fetchTemplates, requestPackageSubscribe } = require('../../utils/subscribe-message');
+      await fetchTemplates();
+      await requestPackageSubscribe();
+    } catch (e) {
+      console.log('[Booking] 请求套餐订阅授权失败，继续激活流程:', e.message);
+    }
+
+    this.setData({ activating: true });
+    wx.showLoading({ title: '激活中...' });
+
+    try {
+      await request({
+        url: `/packages/${pendingPackage._id}/activate`,
+        method: 'POST',
+        data: { activation_type: 'manual_member' }
+      });
+
+      wx.hideLoading();
+      this.setData({ showActivateModal: false, activating: false, pendingPackage: null });
+      
+      wx.showToast({ title: '套餐已激活', icon: 'success' });
+
+      if (pendingScheduleId) {
+        setTimeout(() => {
+          this.doBook(pendingScheduleId);
+        }, 500);
+      }
+    } catch (err) {
+      wx.hideLoading();
+      this.setData({ activating: false });
+      wx.showToast({ title: err.message || '激活失败', icon: 'none' });
+    }
+  },
+
+  onCancelActivate() {
+    this.setData({ showActivateModal: false, pendingPackage: null, pendingScheduleId: null });
+  },
+
+  onConfirmWaitlist() {
+    const course = this.data.waitlistCourse;
+    if (!course || !course._id) return;
+    this.setData({ showWaitlistModal: false });
+    wx.showLoading({ title: '加入候补...' });
+    request({
+      url: '/bookings/waitlist',
+      method: 'POST',
+      data: { schedule_id: course._id }
+    }).then(() => {
+      wx.hideLoading();
+      wx.showToast({ title: '已加入候补队列', icon: 'success' });
+      this.loadMyWaitlists();
+    }).catch(err => {
+      wx.hideLoading();
+      const errMsg = err.message || '加入候补失败';
+      if (errMsg.includes('已在候补')) {
+        wx.showToast({ title: '您已在候补队列中', icon: 'none' });
+      } else {
+        wx.showToast({ title: errMsg, icon: 'none' });
+      }
+    });
+  },
+
+  onCancelWaitlist() {
+    this.setData({ showWaitlistModal: false, waitlistCourse: null, waitlistModalText: '' });
+  },
+
+  onConfirmBookingModal() {
+    const course = this.data.bookingModalCourse;
+    this.setData({ showBookingModal: false, bookingModalCourse: null, bookingModalText: '' });
+    if (course && course._id) {
+      this.doBook(course._id);
+    }
+  },
+
+  onCancelBookingModal() {
+    this.setData({ showBookingModal: false, bookingModalCourse: null, bookingModalText: '' });
+  },
+
+  onCloseLimitModal() {
+    this.setData({ showLimitModal: false, limitModalText: '' });
+  },
+
+  onCourseTap(e) {
+    if (!auth.requireLogin()) return;
+    auth.requireMember(() => {
+      const course = e.currentTarget.dataset.course;
+      if (course && course._id) {
+        wx.navigateTo({
+          url: `/pages/course-detail/course-detail?id=${course._id}`
+        });
+      }
+    });
+  },
+
+  onPullDownRefresh() {
+    this.loadCourses();
+    wx.stopPullDownRefresh();
+  },
+
+  onLogin() {
+    this.onLoginTap();
+  },
+
+  onLoginTap() {
+    wx.showLoading({ title: '获取位置信息...' });
+    wx.getLocation({
+      type: 'gcj02',
+      success: (locRes) => {
+        wx.hideLoading();
+        request({
+          url: `/stores/nearest?latitude=${locRes.latitude}&longitude=${locRes.longitude}`
+        }).then(res => {
+          const data = res.data || {};
+          const nearest = data.nearest;
+          const storeList = data.stores || [];
+          if (storeList.length === 0) {
+            wx.showToast({ title: '暂无可选门店', icon: 'none' });
+            return;
+          }
+          let selectedId = '';
+          let selectedName = '';
+          let dist = null;
+          if (nearest && nearest.distance <= 100) {
+            selectedId = nearest._id;
+            selectedName = nearest.name;
+            dist = nearest.distance;
+          } else {
+            const savedStore = app.globalData.currentStore || wx.getStorageSync('currentStore');
+            if (savedStore && savedStore._id) {
+              const found = storeList.find(s => s._id === savedStore._id);
+              if (found) {
+                selectedId = found._id;
+                selectedName = found.name;
+              }
+            }
+          }
+          this.setData({
+            storeList: storeList,
+            showStorePicker: true,
+            storePickerTitle: '确认所在门店',
+            storePickerMode: 'login',
+            selectedStoreId: selectedId,
+            selectedStoreName: selectedName,
+            nearestDistance: dist
+          });
+        }).catch(() => {
+          wx.hideLoading();
+          this._fallbackStorePicker();
+        });
+      },
+      fail: () => {
+        wx.hideLoading();
+        this._fallbackStorePicker();
+      }
+    });
+  },
+
+  _fallbackStorePicker() {
+    request({ url: '/stores' }).then(res => {
+      const storeList = res.data && res.data.list ? res.data.list : (Array.isArray(res.data) ? res.data : []);
+      if (storeList.length === 0) {
+        wx.showToast({ title: '暂无可选门店', icon: 'none' });
+        return;
+      }
+      this.setData({
+        storeList: storeList,
+        showStorePicker: true,
+        storePickerTitle: '选择所在门店',
+        storePickerMode: 'login',
+        selectedStoreId: '',
+        selectedStoreName: '',
+        nearestDistance: null
+      });
+    }).catch(() => {
+      wx.showToast({ title: '获取门店失败', icon: 'none' });
+    });
+  },
+
+  onCloseStorePicker() {
+    this.setData({ showStorePicker: false });
+  },
+
+  onStoreSelect(e) {
+    this.onLoginStoreSelect(e);
+  },
+
+  onStoreConfirm() {
+    this.onLoginStoreConfirm();
+  },
+
+  onLoginStoreSelect(e) {
+    const { id, name } = e.currentTarget.dataset;
+    this.setData({
+      selectedStoreId: id,
+      selectedStoreName: name
+    });
+  },
+
+  onLoginStoreConfirm() {
+    const { selectedStoreId, selectedStoreName, storePickerMode } = this.data;
+    if (!selectedStoreId) return;
+
+    this.setData({ showStorePicker: false });
+
+    if (storePickerMode === 'login') {
+      this.doLogin(selectedStoreId);
+    }
+  },
+
+  doLogin(storeId) {
+    wx.showLoading({ title: '登录中...' });
+    const { wxLogin } = require('../../utils/auth');
+    wxLogin(storeId).then(() => {
+      wx.hideLoading();
+      wx.showToast({ title: '登录成功', icon: 'success' });
+      this.setData({ isLoggedIn: true });
+      this.refreshUserInfo();
+    }).catch(() => {
+      wx.hideLoading();
+      wx.showToast({ title: '登录失败', icon: 'none' });
+    });
+  },
+
+  onSelectDate(e) {
+    const { date, index } = e.currentTarget.dataset;
+    const dateItem = this.data.dates.find(d => d.date === date);
+    const weekDaysIndex = this.data.weekDays.findIndex(d => d.date === date);
+    const idx = weekDaysIndex >= 0 ? weekDaysIndex : this.data.weekDaysIndex;
+    const activeDay = this.data.weekDays[idx] || dateItem;
+    const sectionTitle = activeDay && activeDay.isToday ? '今日课程' : (this.formatDate(activeDay.date) + ' ' + activeDay.weekDay + ' 课程');
+    this.setData({
+      selectedDate: date,
+      selectedDateItem: dateItem || null,
+      weekDaysIndex: idx,
+      sectionTitle
+    }, () => {
+      this.loadCourses();
+    });
+  },
+
+  formatDate(dateStr) {
+    if (!dateStr) return '';
+    const parts = dateStr.split('-');
+    if (parts.length === 3) {
+      return `${parseInt(parts[1])}月${parseInt(parts[2])}日`;
+    }
+    return dateStr;
+  },
+
+
+
+  onBookCourse(e) {
+    if (!auth.requireLogin()) return;
+    if (this.data.isOfficial && !this.data.canBookCurrentStore) {
+      const packageStoreNames = this.data.memberPackageStoreIds.map(id => {
+        const s = this.data.storeList.find(store => String(store._id) === id);
+        return s ? s.name : '';
+      }).filter(Boolean).join('、');
+      wx.showModal({
+        title: '提示',
+        content: `您的套餐只能在${packageStoreNames || '对应'}门店进行预约课程，请选择在该门店进行预约。`,
+        showCancel: false,
+        confirmText: '知道了',
+        confirmColor: '#D4786E'
+      });
+      return;
+    }
+    const course = e.currentTarget.dataset.course;
+    if (!course) return;
+    const courseId = String(course._id);
+    const bookedIds = this.data.bookedScheduleIds || [];
+    const waitlistedIds = this.data.waitlistedScheduleIds || [];
+    if (bookedIds.indexOf(courseId) !== -1) {
+      wx.showToast({ title: '您已预约该课程。如需取消，请在课程详情页面中操作', icon: 'none', duration: 2500 });
+      return;
+    }
+    if (course.status === 'full') {
+      if (waitlistedIds.indexOf(courseId) !== -1) {
+        wx.showToast({ title: '您已在候补队列中', icon: 'none' });
+        return;
+      }
+      auth.requireMember(() => {
+        this.setData({
+          showWaitlistModal: true,
+          waitlistCourse: course,
+          waitlistModalText: `「${course.course_name}」已达到人数上限，是否加入候补队列？\n\n当有名额释放时，系统会按排队顺序通知您。`
+        });
+      });
+      return;
+    }
+    if (waitlistedIds.indexOf(courseId) !== -1) {
+      wx.showToast({ title: '您已在候补队列中', icon: 'none' });
+      return;
+    }
+    auth.requireMember(() => {
+      this.setData({
+        showBookingModal: true,
+        bookingModalCourse: course,
+        bookingModalText: `确认预约「${course.course_name}」？\n时间：${course.start_time}-${course.end_time}\n教练：${course.coach_id && course.coach_id.name || '待定'}`
+      });
+    });
+  },
+
+  generateWeekDaysSym() {
+    const dates = this.data.dates;
+    if (dates.length > 0) {
+      const weekDays = dates;
+      const selectedDate = this.data.selectedDate;
+      const weekDaysIndex = weekDays.findIndex(d => d.date === selectedDate);
+      const idx = weekDaysIndex >= 0 ? weekDaysIndex : 0;
+      const activeDay = weekDays[idx];
+      const sectionTitle = activeDay && activeDay.isToday ? '今日课程' : (this.formatDate(activeDay.date) + ' ' + activeDay.weekDay + ' 课程');
+      this.setData({
+        weekDays,
+        weekDaysIndex: idx,
+        selectedDate: selectedDate || weekDays[0].date,
+        sectionTitle
+      });
+    } else {
+      const newDates = getNextDays(7, this.data.holidays);
+      const activeDay = newDates[0];
+      const sectionTitle = activeDay && activeDay.isToday ? '今日课程' : (this.formatDate(activeDay.date) + ' ' + activeDay.weekDay + ' 课程');
+      this.setData({
+        dates: newDates,
+        weekDays: newDates,
+        selectedDate: newDates[0].date,
+        weekDaysIndex: 0,
+        sectionTitle
+      });
+    }
+  },
+
+  onDatePrev() {
+    const { weekDaysIndex, weekDays } = this.data;
+    if (weekDaysIndex > 0) {
+      const newIndex = weekDaysIndex - 1;
+      const dateItem = weekDays[newIndex];
+      if (dateItem) {
+        const sectionTitle = dateItem.isToday ? '今日课程' : (this.formatDate(dateItem.date) + ' ' + dateItem.weekDay + ' 课程');
+        this.setData({
+          selectedDate: dateItem.date,
+          selectedDateItem: dateItem,
+          weekDaysIndex: newIndex,
+          sectionTitle
+        }, () => {
+          this.loadCourses();
+        });
+      }
+    }
+  },
+
+  onDateNext() {
+    const { weekDaysIndex, weekDays } = this.data;
+    if (weekDaysIndex < weekDays.length - 1) {
+      const newIndex = weekDaysIndex + 1;
+      const dateItem = weekDays[newIndex];
+      if (dateItem) {
+        const sectionTitle = dateItem.isToday ? '今日课程' : (this.formatDate(dateItem.date) + ' ' + dateItem.weekDay + ' 课程');
+        this.setData({
+          selectedDate: dateItem.date,
+          selectedDateItem: dateItem,
+          weekDaysIndex: newIndex,
+          sectionTitle
+        }, () => {
+          this.loadCourses();
+        });
+      }
+    }
+  },
+
+  _getDanceTagColor(styleName) {
+    if (!styleName) return { bg: '#9B89FF', text: '#FFFFFF' };
+    if (styleName.indexOf('古典舞') !== -1 || styleName === '古典舞') {
+      return { bg: '#F8D57E', text: '#6B5B2E' };
+    }
+    if (styleName.indexOf('韩舞') !== -1 || styleName === '韩舞') {
+      return { bg: '#FF9EC5', text: '#FFFFFF' };
+    }
+    if (styleName.indexOf('街舞') !== -1 || styleName === '街舞') {
+      return { bg: '#FF8A7A', text: '#FFFFFF' };
+    }
+    if (styleName.indexOf('流行舞') !== -1 || styleName === '流行舞') {
+      return { bg: '#A0D4FF', text: '#FFFFFF' };
+    }
+    var hash = 0;
+    for (var i = 0; i < styleName.length; i++) {
+      hash = ((hash << 5) - hash) + styleName.charCodeAt(i);
+      hash = hash & hash;
+    }
+    hash = Math.abs(hash);
+    var TAG_COLORS = [
+      '#9B89FF',
+      '#8DD0C9',
+      '#D4A6FF',
+      '#FFCE8A',
+      '#A0D4FF',
+      '#B8E5A8',
+      '#FFC4D0',
+      '#C8C6FF'
+    ];
+    return { bg: TAG_COLORS[hash % TAG_COLORS.length], text: '#FFFFFF' };
+  },
+
+  onCoachImgError(e) {
+    const id = e.currentTarget.dataset.id;
+    if (!id) return;
+    this.setData({ ['imageErrors.coach_' + id]: true });
+  },
+
+  onCourseImgError(e) {
+    const id = e.currentTarget.dataset.id;
+    if (!id) return;
+    this.setData({ ['imageErrors.cover_' + id]: true });
+  }
+});

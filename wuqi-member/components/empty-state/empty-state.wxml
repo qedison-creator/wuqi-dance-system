@@ -1,0 +1,11 @@
+<view class="empty-state">
+  <view class="empty-icon" wx:if="{{!iconText}}">
+    <view class="empty-icon-inner"></view>
+  </view>
+  <text class="empty-icon" wx:else>{{icon}}</text>
+  <text class="empty-text">{{text}}</text>
+  <text class="empty-hint" wx:if="{{hint}}">{{hint}}</text>
+  <view class="empty-action" wx:if="{{showAction}}" bindtap="onActionTap">
+    <text class="action-text">{{actionText}}</text>
+  </view>
+</view>

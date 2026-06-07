@@ -1,0 +1,28 @@
+<view class="login-page">
+  <view class="login-body">
+    <view class="login-logo">
+      <image class="login-logo-img" src="/images/logo2.png" mode="aspectFit"></image>
+    </view>
+
+    <text class="login-title">舞栖舞蹈社</text>
+    <text class="login-subtitle">微信一键登录，开启舞蹈之旅</text>
+
+    <view class="login-form">
+      <view class="login-btn btn-primary {{!agreed ? 'btn-disabled' : ''}}" bindtap="onLogin">
+        <text class="login-btn-text">微信一键登录</text>
+      </view>
+    </view>
+  </view>
+
+  <view class="login-agreement">
+    <view class="agreement-check" bindtap="onAgreeTap">
+      <view class="check-box {{agreed ? 'checked' : ''}}">
+        <text class="check-icon" wx:if="{{agreed}}">✓</text>
+      </view>
+    </view>
+    <text class="agreement-text">我已阅读并同意</text>
+    <text class="agreement-link" catchtap="onAgreementTap">《用户协议》</text>
+    <text class="agreement-text">和</text>
+    <text class="agreement-link" catchtap="onPrivacyTap">《隐私政策》</text>
+  </view>
+</view>

@@ -1,0 +1,110 @@
+.store-picker {
+  display: flex;
+  align-items: center;
+  padding: 10rpx 20rpx;
+  background-color: #FFFFFF;
+  border-radius: 30rpx;
+  height: 60rpx;
+  box-shadow: 0 2rpx 10rpx rgba(0, 0, 0, 0.06);
+}
+
+.store-icon {
+  font-size: 26rpx;
+  margin-right: 8rpx;
+}
+
+.store-name {
+  font-size: 26rpx;
+  color: #2A2122;
+  max-width: 200rpx;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.store-arrow {
+  font-size: 20rpx;
+  color: #6B5D5E;
+  margin-left: 8rpx;
+}
+
+.store-modal-mask {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.6);
+  z-index: 200;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.store-modal {
+  background-color: #FFFFFF;
+  border-radius: 24rpx 24rpx 0 0;
+  width: 100%;
+  max-height: 70vh;
+  padding: 30rpx 24rpx;
+  padding-bottom: calc(30rpx + env(safe-area-inset-bottom));
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 30rpx;
+}
+
+.modal-title {
+  font-size: 32rpx;
+  color: #2A2122;
+  font-weight: bold;
+}
+
+.modal-close {
+  font-size: 32rpx;
+  color: #6B5D5E;
+  padding: 10rpx;
+}
+
+.store-list {
+  max-height: 50vh;
+  overflow-y: auto;
+}
+
+.store-item {
+  display: flex;
+  flex-direction: column;
+  padding: 24rpx 0;
+  border-bottom: 1rpx solid #E8E0DD;
+  position: relative;
+}
+
+.store-item:last-child {
+  border-bottom: none;
+}
+
+.store-item.active .store-item-name {
+  color: #D4786E;
+}
+
+.store-item-name {
+  font-size: 28rpx;
+  color: #2A2122;
+  margin-bottom: 8rpx;
+}
+
+.store-item-address {
+  font-size: 24rpx;
+  color: #6B5D5E;
+}
+
+.store-item-check {
+  position: absolute;
+  right: 0;
+  top: 24rpx;
+  font-size: 32rpx;
+  color: #D4786E;
+}

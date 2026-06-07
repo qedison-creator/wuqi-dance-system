@@ -1,0 +1,177 @@
+<view class="page" wx:if="{{course}}">
+  <view class="cover-section">
+    <image class="cover-img" src="{{course.cover}}" binderror="onCoverImgError" mode="aspectFill" wx:if="{{course.cover && !imageErrors.cover}}" />
+    <view class="cover-placeholder" wx:else>
+      <view class="cp-icon"></view>
+    </view>
+    <view class="cover-gradient"></view>
+  </view>
+
+  <view class="content">
+    <view class="course-title-card">
+      <view class="ctc-store-tag" wx:if="{{course.storeName}}">
+        <view class="cst-dot"></view>
+        <text>{{course.storeName}}</text>
+      </view>
+      <view class="ctc-name-row">
+        <text class="ctc-name">{{course.name}}</text>
+        <view class="ctc-tag" style="background: {{course.danceTagBg}}; color: {{course.danceTagText}}">{{course.danceStyle || '舞蹈'}}</view>
+      </view>
+    </view>
+
+    <view class="info-card">
+      <view class="ic-row">
+        <view class="ic-left">
+          <view class="ic-icon coach"></view>
+          <text class="ic-label">教练</text>
+        </view>
+        <text class="ic-value link" bindtap="onCoachTap">{{course.coachName || '待定'}}</text>
+      </view>
+      <view class="ic-row">
+        <view class="ic-left">
+          <view class="ic-icon time"></view>
+          <text class="ic-label">时间</text>
+        </view>
+        <text class="ic-value">{{course.dateStr}} {{course.weekDayStr}} {{course.startTime}}-{{course.endTime}}</text>
+      </view>
+      <view class="ic-row" wx:if="{{course.room}}">
+        <view class="ic-left">
+          <view class="ic-icon room"></view>
+          <text class="ic-label">教室</text>
+        </view>
+        <text class="ic-value">{{course.room}}</text>
+      </view>
+      <view class="ic-row" wx:if="{{isOfficial}}">
+        <view class="ic-left">
+          <view class="ic-icon people"></view>
+          <text class="ic-label">已预约</text>
+        </view>
+        <view class="ic-value-highlight">{{course.bookedCount || 0}} / {{course.maxCount || 20}}<text class="ic-val-unit">人</text></view>
+      </view>
+      <view class="ic-row" wx:if="{{course.minBookings}}">
+        <view class="ic-left">
+          <view class="ic-icon min-people"></view>
+          <text class="ic-label">最低开课</text>
+        </view>
+        <text class="ic-value">{{course.minBookings}}人起开课</text>
+      </view>
+      <view class="ic-row" wx:if="{{isOfficial}}">
+        <view class="ic-left">
+          <view class="ic-icon credit"></view>
+          <text class="ic-label">消耗次数</text>
+        </view>
+        <view class="ic-value-highlight gold">{{course.creditsCost || 1}}<text class="ic-val-unit">次</text></view>
+      </view>
+    </view>
+
+    <view class="desc-card" wx:if="{{course.description}}">
+      <view class="dc-header">
+        <view class="dc-dot"></view>
+        <text class="dc-title">课程介绍</text>
+      </view>
+      <text class="dc-text">{{course.description}}</text>
+    </view>
+
+    <view class="desc-card" wx:if="{{course.suitableFor}}">
+      <view class="dc-header">
+        <view class="dc-dot lavender"></view>
+        <text class="dc-title">适合人群</text>
+      </view>
+      <text class="dc-text">{{course.suitableFor}}</text>
+    </view>
+  </view>
+
+  <view class="bottom-bar">
+    <view class="bb-btns" wx:if="{{isBooked && isOfficial}}">
+      <view class="bb-secondary" bindtap="onCancelTap">取消预约</view>
+      <view class="bb-primary state-booked">已预约</view>
+    </view>
+    <view class="bb-btns" wx:elif="{{isWaitlisted && isOfficial}}">
+      <view class="bb-secondary" bindtap="onLeaveWaitlistTap">退出候补</view>
+      <view class="bb-primary state-waitlist">候补第{{waitlistPosition}}位</view>
+    </view>
+    <view class="bb-primary" wx:elif="{{isOfficial && !course.isFull}}" bindtap="onBookTap">
+      立即预约
+    </view>
+    <view class="bb-primary state-waitlist-btn" wx:elif="{{isOfficial && course.isFull}}" bindtap="onWaitlistTap">
+      加入候补
+    </view>
+    <view class="bb-primary disabled" wx:else bindtap="onBookTap">立即预约</view>
+  </view>
+
+  <view class="modal-mask" wx:if="{{showActivationModal}}" bindtap="onCancelActivation">
+    <view class="modal-content" catchtap="onModalTap">
+      <view class="mc-title">套餐待激活</view>
+      <view class="mc-body">您有未激活的套餐，首次预约将自动激活套餐</view>
+      <view class="mc-footer">
+        <view class="mcf-btn secondary" bindtap="onCancelActivation">取消</view>
+        <view class="mcf-btn primary" bindtap="onConfirmActivation">确认预约</view>
+      </view>
+    </view>
+  </view>
+
+  <view class="modal-mask" wx:if="{{showBookingModal}}" bindtap="onCancelBooking">
+    <view class="modal-content" catchtap="onModalTap">
+      <view class="mc-title">确认预约</view>
+      <view class="mc-body">{{bookingModalText}}</view>
+      <view class="mc-footer">
+        <view class="mcf-btn secondary" bindtap="onCancelBooking">取消</view>
+        <view class="mcf-btn primary" bindtap="onConfirmBooking">确定</view>
+      </view>
+    </view>
+  </view>
+
+  <view class="modal-mask" wx:if="{{showCancelModal}}" bindtap="onCancelCancel">
+    <view class="modal-content" catchtap="onModalTap">
+      <view class="mc-title">取消预约</view>
+      <view class="mc-body">{{bookingModalText}}</view>
+      <view class="mc-footer">
+        <view class="mcf-btn secondary" bindtap="onCancelCancel">取消</view>
+        <view class="mcf-btn primary" bindtap="onConfirmCancel">确定取消</view>
+      </view>
+    </view>
+  </view>
+
+  <view class="modal-mask" wx:if="{{showWaitlistModal}}" bindtap="onCancelWaitlistModal">
+    <view class="modal-content" catchtap="onModalTap">
+      <view class="mc-title">加入候补排队</view>
+      <view class="mc-body">{{bookingModalText}}</view>
+      <view class="mc-footer">
+        <view class="mcf-btn secondary" bindtap="onCancelWaitlistModal">取消</view>
+        <view class="mcf-btn primary" bindtap="onConfirmWaitlist">加入候补</view>
+      </view>
+    </view>
+  </view>
+
+  <view class="modal-mask" wx:if="{{showLeaveWaitlistModal}}" bindtap="onCancelLeaveWaitlist">
+    <view class="modal-content" catchtap="onModalTap">
+      <view class="mc-title">退出候补</view>
+      <view class="mc-body">{{bookingModalText}}</view>
+      <view class="mc-footer">
+        <view class="mcf-btn secondary" bindtap="onCancelLeaveWaitlist">取消</view>
+        <view class="mcf-btn primary" bindtap="onConfirmLeaveWaitlist">确定退出</view>
+      </view>
+    </view>
+  </view>
+
+  <view class="modal-mask" wx:if="{{showLimitModal}}" bindtap="onCloseLimitModal">
+    <view class="modal-content" catchtap="onModalTap">
+      <view class="mc-title">预约提醒</view>
+      <view class="mc-body">{{limitModalText}}</view>
+      <view class="mc-footer single">
+        <view class="mcf-btn primary full" bindtap="onCloseLimitModal">好的</view>
+      </view>
+    </view>
+  </view>
+</view>
+
+<view class="loading-state" wx:if="{{loading}}">
+  <view class="loading-spinner"></view>
+  <text class="loading-text">加载中...</text>
+</view>
+
+<empty-state 
+  wx:if="{{!loading && !course}}" 
+  text="课程不存在" 
+  hint="请返回首页查看其他课程">
+</empty-state>

@@ -1,0 +1,78 @@
+<view class="page">
+  <view class="privacy-section">
+    <view class="privacy-title">舞栖DANCE - 用户服务协议</view>
+    <view class="privacy-date">更新日期：2026年5月31日</view>
+    <view class="privacy-date">生效日期：2026年5月31日</view>
+
+    <view class="privacy-text">
+      <text>欢迎使用舞栖舞蹈社（以下简称"我们"）的服务。本协议是您与双瑗文化艺术（深圳）有限公司之间关于使用舞栖舞蹈社会员预约小程序（以下简称"本小程序"）的约定。在使用本小程序之前，请务必仔细阅读并理解本协议的全部内容。</text>
+    </view>
+
+    <view class="privacy-heading">商标声明</view>
+    <view class="privacy-text">
+      <text>“舞栖DANCE”是深圳市双瑗文艺有限公司的注册商标，已授权双瑗文化艺术（深圳）有限公司使用。</text>
+    </view>
+
+    <view class="privacy-heading">一、服务内容</view>
+    <view class="privacy-text">
+      <text>我们通过本小程序为您提供以下服务：</text>
+    </view>
+    <view class="privacy-text">
+      <text>• 课程浏览和预约\n</text>
+      <text>• 会员信息管理\n</text>
+      <text>• 套餐使用查询\n</text>
+      <text>• 签到和课程记录\n</text>
+      <text>• 联系门店客服\n</text>
+    </view>
+
+    <view class="privacy-heading">二、账号注册与使用</view>
+    <view class="privacy-text">
+      <text>• 您需要使用微信账号登录并授权使用本小程序。\n</text>
+      <text>• 您应确保提交的个人信息真实、准确、完整。\n</text>
+      <text>• 您应对您的账号行为负责，不得转借他人使用。\n</text>
+    </view>
+
+    <view class="privacy-heading">三、会员服务</view>
+    <view class="privacy-text">
+      <text>• 会员服务的具体内容以您购买的套餐为准。\n</text>
+      <text>• 您应遵守门店的课程预约、取消、签到规则。\n</text>
+      <text>• 您应遵守门店的其他相关管理规定。\n</text>
+    </view>
+
+    <view class="privacy-heading">四、用户行为规范</view>
+    <view class="privacy-text">
+      <text>• 您不得利用本小程序进行任何违法或违规活动。\n</text>
+      <text>• 您不得恶意预约、恶意取消课程，影响正常经营秩序。\n</text>
+      <text>• 您不得攻击或破坏本小程序的正常运行。\n</text>
+    </view>
+
+    <view class="privacy-heading">五、知识产权</view>
+    <view class="privacy-text">
+      <text>本小程序的软件著作权、商标权、标识等知识产权归舞栖舞蹈社所有。</text>
+    </view>
+    <view class="privacy-text">
+      <text>小程序内展示的部分内容（如图片、视频等），其知识产权归相应的权利人所有。我们仅在业务范围内合理使用该等内容。</text>
+    </view>
+
+    <view class="privacy-heading">六、免责声明</view>
+    <view class="privacy-text">
+      <text>• 因不可抗力导致服务中断，我们不承担责任，但会尽力恢复服务。\n</text>
+      <text>• 因您违反本协议造成的损失，我们有权要求赔偿。\n</text>
+    </view>
+
+    <view class="privacy-heading">七、协议变更</view>
+    <view class="privacy-text">
+      <text>我们可能会适时更新本协议。更新后的协议将在小程序内发布，继续使用即视为同意。</text>
+    </view>
+
+    <view class="privacy-heading">八、争议解决</view>
+    <view class="privacy-text">
+      <text>如您与我们发生争议，应友好协商解决。协商不成的，可向门店所在地人民法院提起诉讼。</text>
+    </view>
+
+    <view class="privacy-heading">九、联系我们</view>
+    <view class="privacy-text">
+      <text>如有疑问，请通过小程序内的联系电话或直接到门店咨询。</text>
+    </view>
+  </view>
+</view>

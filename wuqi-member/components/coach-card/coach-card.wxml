@@ -1,0 +1,23 @@
+<view class="cc-card" bindtap="onCoachTap">
+  <view class="cc-avatar-wrap">
+    <image
+      class="cc-avatar"
+      src="{{imageErrors['coach_'+coach._id] ? '/images/default-avatar.svg' : (coach.avatar_url || '/images/default-avatar.svg')}}"
+      binderror="onImgError"
+      data-type="coach"
+      data-id="{{coach._id}}"
+      mode="aspectFill"
+    />
+    <view class="cc-avatar-ring"></view>
+  </view>
+  <view class="cc-info">
+    <text class="cc-name">{{coach.name || '教练名称'}}</text>
+    <view class="cc-tags" wx:if="{{coach.dance_styles && coach.dance_styles.length > 0}}">
+      <text class="tag tag-rose" wx:for="{{coach.dance_styles}}" wx:key="index">{{item.name || item}}</text>
+    </view>
+    <view class="cc-tags" wx:elif="{{coach.dance_style_names}}">
+      <text class="tag tag-rose">{{coach.dance_style_names}}</text>
+    </view>
+    <text class="cc-bio" wx:if="{{coach.bio || coach.achievements}}">{{coach.bio || coach.achievements}}</text>
+  </view>
+</view>

@@ -1,0 +1,29 @@
+<view class="cc-card" bindtap="onCourseTap">
+  <view class="cc-thumb">
+    <image
+      class="cc-thumb-img"
+      src="{{imageErrors['course_'+course._id] ? '/images/default-course.svg' : (course.cover_url || '/images/default-course.svg')}}"
+      binderror="onImgError"
+      data-type="course"
+      data-id="{{course._id}}"
+      mode="aspectFill"
+    />
+  </view>
+  <view class="cc-accent"></view>
+  <view class="cc-body">
+    <text class="cc-name">{{course.course_name || course.name || '课程名称'}}</text>
+    <view class="cc-meta-row">
+      <text class="cc-meta">{{course.coach_name || course.coach_id && course.coach_id.name || '教练'}}</text>
+    </view>
+    <view class="cc-meta-row">
+      <text class="cc-meta">{{course.start_time || '00:00'}} - {{course.end_time || '00:00'}}</text>
+    </view>
+    <view class="cc-meta-row">
+      <text class="cc-meta">{{course.classroom || ''}}</text>
+    </view>
+    <view class="cc-bottom">
+      <text class="tag tag-teal">{{course.dance_style_name || course.dance_style_id && course.dance_style_id.name || '舞蹈'}}</text>
+      <text class="cc-capacity">已预约 {{course.current_bookings || 0}}/{{course.max_bookings || 20}}人</text>
+    </view>
+  </view>
+</view>

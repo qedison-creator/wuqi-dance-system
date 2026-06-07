@@ -1,0 +1,10 @@
+{
+  "navigationBarTitleText": "课程列表",
+  "navigationBarBackgroundColor": "#FBFAF8",
+  "navigationBarTextStyle": "black",
+  "enablePullDownRefresh": true,
+  "backgroundColor": "#FBFAF8",
+  "usingComponents": {
+    "empty-state": "/components/empty-state/empty-state"
+  }
+}

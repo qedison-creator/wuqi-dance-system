@@ -1,0 +1,215 @@
+<wxs src="../../utils/date-format.wxs" module="df" />
+<wxs src="../../utils/dance-colors.wxs" module="dc" />
+<wxs src="../../utils/compare.wxs" module="cmp" />
+
+<view class="booking-page">
+  <block wx:if="{{isLoggedIn}}">
+    <view class="header-section">
+      <view class="store-card" bindtap="onStoreTap">
+        <view class="store-card-left">
+          <view class="store-icon-wrap">
+            <view class="store-icon-shape"></view>
+          </view>
+          <view class="store-info">
+            <text class="store-name">{{currentStore.name || '选择门店'}}</text>
+          </view>
+        </view>
+        <view class="store-arrow-wrap">
+          <view class="store-arrow"></view>
+        </view>
+      </view>
+    </view>
+
+    <view class="section-header">
+      <view class="section-title-row">
+        <view class="section-dot"></view>
+        <text class="section-title">{{sectionTitle}}</text>
+      </view>
+    </view>
+
+    <view class="holiday-notice" wx:if="{{isHolidayToday && holidays.length > 0}}">
+      <view class="holiday-notice-icon"></view>
+      <text class="holiday-notice-text">放假期间无课程安排</text>
+    </view>
+
+    <view class="date-section">
+      <view class="date-arrow date-arrow-left" bindtap="onDatePrev">
+        <view class="arrow-icon-left"></view>
+      </view>
+      <scroll-view class="date-scroll" scroll-x enhanced show-scrollbar="{{false}}" scroll-into-view="date-{{selectedDate}}" scroll-with-animation>
+        <view class="date-scroll-inner">
+          <block wx:for="{{weekDays}}" wx:key="date">
+            <view class="date-item {{selectedDate === item.date ? 'active' : ''}}" id="date-{{item.date}}" data-date="{{item.date}}" data-index="{{index}}" bindtap="onSelectDate">
+              <text class="date-md">{{df.formatMD(item.date)}}</text>
+              <text class="date-wd">{{item.displayDay}}</text>
+            </view>
+          </block>
+        </view>
+      </scroll-view>
+      <view class="date-arrow date-arrow-right" bindtap="onDateNext">
+        <view class="arrow-icon-right"></view>
+      </view>
+    </view>
+
+
+
+    <scroll-view class="course-list-scroll" scroll-y enhanced show-scrollbar="{{false}}" wx:if="{{courses.length > 0}}">
+      <view class="course-card" wx:for="{{courses}}" wx:key="_id" bindtap="onCourseTap" data-course="{{item}}">
+        <view class="course-accent-bar" style="background: {{dc.getBarColor(index)}};"></view>
+        <view class="card-left">
+          <image class="coach-avatar" src="{{item.coach_id && item.coach_id.avatar_url}}" mode="aspectFill" wx:if="{{item.coach_id && item.coach_id.avatar_url && !imageErrors['coach_' + item._id]}}" binderror="onCoachImgError" data-id="{{item._id}}" />
+          <view class="coach-avatar coach-avatar-fallback" wx:else>
+            <text class="caf-text">{{item.coach_id && item.coach_id.name ? item.coach_id.name.charAt(0) : '师'}}</text>
+          </view>
+          <text class="coach-name-below">{{item.coach_id && item.coach_id.name || '待定'}}</text>
+        </view>
+        <view class="card-right">
+          <view class="card-right-actions">
+            <view class="course-book-btn {{cmp.contains(bookedScheduleIds, item._id) ? 'booked' : ''}} {{item.status === 'full' || (isOfficial && !canBookCurrentStore) ? 'disabled' : ''}}" data-course="{{item}}" catchtap="onBookCourse">
+              <text wx:if="{{cmp.contains(bookedScheduleIds, item._id)}}">已预约</text>
+              <text wx:elif="{{item.status === 'full'}}">已满</text>
+              <text wx:elif="{{isOfficial && !canBookCurrentStore}}">不可约</text>
+              <text wx:else>预约</text>
+            </view>
+            <view class="course-book-btn waitlist-btn {{cmp.contains(waitlistedScheduleIds, item._id) ? 'waitlisted' : ''}}" wx:if="{{item.status === 'full' && !cmp.contains(bookedScheduleIds, item._id)}}" data-course="{{item}}" catchtap="onBookCourse">
+              <text wx:if="{{cmp.contains(waitlistedScheduleIds, item._id)}}">候补中</text>
+              <text wx:else>加入候补</text>
+            </view>
+          </view>
+          <view class="course-time-row">
+            <text class="course-time">{{item.start_time}} - {{item.end_time}}</text>
+          </view>
+          <view class="course-title-row">
+            <text class="course-title">{{item.course_name || '课程名称'}}</text>
+          </view>
+          <view class="course-tag-row">
+            <view class="course-tag" wx:if="{{item.danceStyleName}}" style="background: {{item.danceTagBg}}; color: {{item.danceTagText}}">{{item.danceStyleName}}</view>
+          </view>
+          <view class="course-detail-row">
+            <text class="course-room" wx:if="{{item.room || item.classroom}}">{{item.room || item.classroom}}</text>
+          </view>
+          <view class="card-meta-row">
+            <view class="card-stats">
+              <text class="capacity-text" wx:if="{{canViewCapacity}}">已约{{item.current_bookings || 0}}/{{item.max_bookings || 20}}</text>
+              <text class="capacity-text capacity-locked" wx:else>已约?/?</text>
+              <text class="min-capacity-text">最低{{item.min_bookings || 5}}人开课</text>
+            </view>
+            <view class="booked-avatars" wx:if="{{item.booked_users && item.booked_users.length > 0}}">
+              <block wx:for="{{item.booked_users}}" wx:for-index="ui" wx:key="user_id" wx:if="{{ui < 10}}">
+                <image class="booked-avatar" src="{{item.avatar_url}}" mode="aspectFill" style="margin-left: {{ui === 0 ? 0 : -16}}rpx; z-index: {{10 - ui}};" />
+              </block>
+              <view class="booked-more" wx:if="{{item.booked_users.length > 10}}">
+                <text>+{{item.booked_users.length - 10}}</text>
+              </view>
+            </view>
+          </view>
+        </view>
+      </view>
+      <view class="list-bottom-safe"></view>
+    </scroll-view>
+
+    <empty-state 
+      wx:if="{{courses.length === 0 && !loading}}" 
+      text="暂无课程安排" 
+      hint="试试切换门店或日期">
+    </empty-state>
+  </block>
+
+  <block wx:else>
+    <view class="guest-view">
+      <view class="guest-avatar-wrap">
+        <view class="guest-avatar-icon"></view>
+      </view>
+      <text class="guest-title">登录后解锁近期课程浏览</text>
+      <text class="guest-hint">欲解锁全部功能，请与门店工作人员联系。</text>
+      <view class="guest-login-btn" bindtap="onLogin">
+        <text>微信一键登录</text>
+      </view>
+    </view>
+  </block>
+</view>
+
+<view class="modal-mask" wx:if="{{showStoreModal}}" bindtap="onCloseStoreModal">
+  <view class="modal-content" catchtap="onModalTap">
+    <view class="modal-title-text">选择门店</view>
+    <view class="modal-subtitle">切换门店后将重新加载课程</view>
+    <view class="store-list">
+      <view class="store-opt {{currentStore && currentStore._id === item._id ? 'active' : ''}}" wx:for="{{storeList}}" wx:key="_id" data-store="{{item}}" bindtap="onSelectStore">
+        <view class="store-opt-left">
+          <text class="store-opt-name">{{item.name}}</text>
+          <text class="store-opt-addr" wx:if="{{item.address}}">{{item.address}}</text>
+        </view>
+        <view class="store-opt-check" wx:if="{{currentStore && currentStore._id === item._id}}"></view>
+      </view>
+    </view>
+    <view class="modal-close-btn" bindtap="onCloseStoreModal">关闭</view>
+  </view>
+</view>
+
+<view class="modal-mask" wx:if="{{showBookingModal}}" bindtap="onCancelBookingModal">
+  <view class="modal-content modal-confirm" catchtap="onModalTap">
+    <view class="booking-confirm-icon-wrap">
+      <view class="booking-confirm-icon"></view>
+    </view>
+    <view class="modal-title-text">确认预约</view>
+    <view class="modal-body-text">{{bookingModalText}}</view>
+    <view class="modal-actions">
+      <view class="modal-btn-outline" bindtap="onCancelBookingModal">取消</view>
+      <view class="modal-btn-primary" bindtap="onConfirmBookingModal">确认预约</view>
+    </view>
+  </view>
+</view>
+
+<view class="modal-mask" wx:if="{{showActivateModal}}" bindtap="onCloseActivateModal">
+  <view class="modal-content modal-confirm" catchtap="onModalTap">
+    <view class="booking-confirm-icon-wrap activate-icon-wrap">
+      <view class="activate-icon"></view>
+    </view>
+    <view class="modal-title-text">套餐激活提醒</view>
+    <view class="modal-body-text">您有待激活的套餐，激活后即可预约课程。</view>
+    <view class="modal-actions">
+      <view class="modal-btn-outline" bindtap="onCancelActivate">暂不激活</view>
+      <view class="modal-btn-primary" bindtap="onConfirmActivate">立即激活</view>
+    </view>
+  </view>
+</view>
+
+<view class="modal-mask" wx:if="{{showLimitModal}}" bindtap="onCloseLimitModal">
+  <view class="modal-content modal-confirm" catchtap="onModalTap">
+    <view class="booking-confirm-icon-wrap limit-icon-wrap">
+      <view class="limit-icon"></view>
+    </view>
+    <view class="modal-title-text">预约提醒</view>
+    <view class="modal-body-text">{{limitModalText}}</view>
+    <view class="modal-actions modal-actions-single">
+      <view class="modal-btn-primary" bindtap="onCloseLimitModal">好的</view>
+    </view>
+  </view>
+</view>
+
+<view class="modal-mask" wx:if="{{showWaitlistModal}}" bindtap="onCancelWaitlist">
+  <view class="modal-content modal-confirm" catchtap="onModalTap">
+    <view class="booking-confirm-icon-wrap waitlist-icon-wrap">
+      <view class="waitlist-icon"></view>
+    </view>
+    <view class="modal-title-text">加入候补队列</view>
+    <view class="modal-body-text">{{waitlistModalText}}</view>
+    <view class="modal-actions">
+      <view class="modal-btn-outline" bindtap="onCancelWaitlist">取消</view>
+      <view class="modal-btn-primary" bindtap="onConfirmWaitlist">确认候补</view>
+    </view>
+  </view>
+</view>
+
+<view class="modal-mask" wx:if="{{showStorePicker}}" bindtap="onCloseStorePicker">
+  <view class="modal-content" catchtap="onModalTap">
+    <view class="modal-title-text">{{storePickerTitle}}</view>
+    <view class="store-list">
+      <view class="store-opt {{selectedStoreId === item._id ? 'active' : ''}}" wx:for="{{storeList}}" wx:key="_id" data-id="{{item._id}}" data-name="{{item.name}}" bindtap="onStoreSelect">
+        <text class="store-opt-name">{{item.name}}</text>
+        <text class="store-opt-dist" wx:if="{{item.distance !== undefined}}">{{item.distance}}km</text>
+      </view>
+    </view>
+    <view class="btn-primary" bindtap="onStoreConfirm" disabled="{{!selectedStoreId}}">确认</view>
+  </view>
+</view>

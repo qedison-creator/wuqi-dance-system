@@ -1,0 +1,329 @@
+<page-meta page-style="{{showAnnounceModal ? 'overflow: hidden;' : ''}}"/>
+<view class="page">
+  <!-- ===== 骨架屏 ===== -->
+  <view class="sk-page" wx:if="{{loading}}">
+    <view class="sk-banner"></view>
+    <view class="sk-content">
+      <view class="sk-hero-card">
+        <view class="sk-greeting">
+          <view class="sk-emoji"></view>
+          <view class="sk-greet-main"></view>
+          <view class="sk-greet-sub"></view>
+        </view>
+        <view class="sk-store">
+          <view class="sk-store-icon"></view>
+          <view class="sk-store-info">
+            <view class="sk-store-name"></view>
+            <view class="sk-store-addr"></view>
+          </view>
+        </view>
+      </view>
+      <view class="sk-announce"></view>
+      <view class="sk-section">
+        <view class="sk-section-header">
+          <view class="sk-section-dot"></view>
+          <view class="sk-section-title"></view>
+        </view>
+        <view class="sk-coach-row">
+          <view class="sk-coach" wx:for="{{[1,2,3,4]}}" wx:key="*this">
+            <view class="sk-coach-avatar"></view>
+            <view class="sk-coach-name"></view>
+          </view>
+        </view>
+      </view>
+      <view class="sk-section">
+        <view class="sk-section-header">
+          <view class="sk-section-dot course"></view>
+          <view class="sk-section-title"></view>
+        </view>
+        <view class="sk-course-row">
+          <view class="sk-course-card" wx:for="{{[1,2]}}" wx:key="*this">
+            <view class="sk-course-thumb"></view>
+            <view class="sk-course-info">
+              <view class="sk-course-tag"></view>
+              <view class="sk-course-name"></view>
+              <view class="sk-course-meta"></view>
+            </view>
+          </view>
+        </view>
+      </view>
+      <view class="sk-section">
+        <view class="sk-section-header">
+          <view class="sk-section-dot video"></view>
+          <view class="sk-section-title"></view>
+        </view>
+        <view class="sk-video-grid">
+          <view class="sk-video-card" wx:for="{{[1,2]}}" wx:key="*this">
+            <view class="sk-video-thumb"></view>
+            <view class="sk-video-title"></view>
+          </view>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <!-- ===== 真实内容 ===== -->
+  <view wx:else>
+    <view class="banner-section" wx:if="{{banners.length > 0}}">
+      <swiper class="banner-swiper" indicator-dots="{{false}}" autoplay circular interval="5000" easing-function="easeInOutCubic" duration="600" bindchange="onBannerChange">
+        <swiper-item wx:for="{{banners}}" wx:key="_id">
+          <image class="banner-img" src="{{imageErrors['banner_'+item._id] ? '/images/default-course.svg' : item.image_url}}" binderror="onImgError" data-type="banner" data-id="{{item._id}}" mode="aspectFill" />
+        </swiper-item>
+      </swiper>
+      <view class="banner-dots" wx:if="{{banners.length > 1}}">
+        <view class="bdot {{bannerCurrent === idx ? 'active' : ''}}" wx:for="{{banners}}" wx:key="_id" wx:for-index="idx"></view>
+      </view>
+      <view class="banner-gradient"></view>
+    </view>
+
+    <view class="banner-placeholder" wx:if="{{banners.length === 0}}">
+      <view class="bp-greeting">
+        <text class="bp-emoji">{{greeting.emoji}}</text>
+        <text class="bp-text">{{greeting.text}}</text>
+      </view>
+      <view class="bp-sub">{{greeting.sub}}</view>
+    </view>
+
+    <view class="content-section" style="padding-top: {{contentPaddingTop}}rpx;">
+      <view class="hero-card">
+        <view class="hc-greeting" wx:if="{{banners.length > 0}}">
+          <text class="hc-greet-emoji">{{greeting.emoji}}</text>
+          <view class="hc-greet-text">
+            <text class="hc-greet-main">{{greeting.text}}</text>
+            <text class="hc-greet-sub">{{greeting.sub}}</text>
+          </view>
+        </view>
+
+        <view class="hc-store-wrap" wx:if="{{currentStore}}">
+          <view class="hc-store-top">
+            <view class="hc-store-name-row">
+              <view class="hc-store-icon">
+                <view class="hcs-icon-shape"></view>
+              </view>
+              <view class="hc-store-info">
+                <view class="hc-store-name-wrap">
+                  <text class="hc-store-name">{{currentStore.name}}</text>
+                  <view class="hc-switch-btn" bindtap="onStoreTap">
+                    <text>切换</text>
+                    <view class="hcs-sw-arrow"></view>
+                  </view>
+                </view>
+                <view class="hc-store-addr-wrap" bindtap="onNavTap" wx:if="{{currentStore.address}}">
+                  <text class="hc-store-addr">{{currentStore.address}}</text>
+                  <view class="hca-nav-icon"></view>
+                </view>
+                <view class="hc-store-phone-wrap" bindtap="onStoreCall" wx:if="{{currentStore.phone}}">
+                  <text class="hc-store-phone">{{currentStore.phone}}</text>
+                  <view class="hca-call-icon"></view>
+                </view>
+              </view>
+            </view>
+          </view>
+        </view>
+
+        <view class="hc-no-store" wx:else>
+          <text class="hcn-text">暂未选择门店</text>
+          <view class="hcn-btn" bindtap="onStoreTap">
+            <text>选择门店</text>
+          </view>
+        </view>
+      </view>
+
+      <view class="announce-bar" wx:if="{{announces.length > 0}}" bindtap="onAnnounceTap">
+        <view class="ab-dot"></view>
+        <view class="ab-flip-wrap">
+          <text class="ab-flip-text {{announceAnimPhase === 'out' ? 'anim-out' : ''}} {{announceAnimPhase === 'in' ? 'anim-in' : ''}}">{{announces[announceBarIndex].title || announces[announceBarIndex].content}}</text>
+        </view>
+        <view class="ab-badge" wx:if="{{hasMultipleAnnounces}}">
+          <text>{{announces.length}}</text>
+        </view>
+      </view>
+
+      <view class="section">
+        <view class="section-header">
+          <view class="section-title-wrap">
+            <view class="section-dot"></view>
+            <text class="section-title">舞栖教练</text>
+          </view>
+          <text class="section-more" bindtap="goCoachList">全部</text>
+        </view>
+        <scroll-view class="coach-scroll" scroll-x wx:if="{{hotCoaches.length > 0}}">
+          <view class="coach-item" wx:for="{{hotCoaches}}" wx:key="_id" data-id="{{item._id}}" bindtap="onCoachTap">
+            <view class="coach-avatar-wrap">
+              <image class="coach-avatar" src="{{imageErrors['coach_'+item._id] ? '/images/default-avatar.svg' : (item.avatar_url || '/images/default-avatar.svg')}}" binderror="onImgError" data-type="coach" data-id="{{item._id}}" mode="aspectFill" lazy-load />
+              <view class="coach-avatar-ring"></view>
+            </view>
+            <text class="coach-name">{{item.name}}</text>
+          </view>
+        </scroll-view>
+        <view class="empty-inline" wx:else>
+          <text class="eit">暂无教练信息</text>
+        </view>
+      </view>
+
+      <view class="section">
+        <view class="section-header">
+          <view class="section-title-wrap">
+            <view class="section-dot course-dot"></view>
+            <text class="section-title">近期课程</text>
+          </view>
+        </view>
+        <scroll-view class="course-scroll" scroll-x wx:if="{{recentCourses.length > 0}}">
+          <view class="course-card-h" wx:for="{{recentCourses}}" wx:key="_id" data-id="{{item._id}}" bindtap="onCourseTap">
+            <image class="course-thumb" src="{{imageErrors['course_'+item._id] ? '/images/default-course.svg' : (item.cover || '/images/default-course.svg')}}" binderror="onImgError" data-type="course" data-id="{{item._id}}" mode="aspectFill" lazy-load />
+            <view class="course-info-h">
+              <view class="cih-tag" wx:if="{{item.danceStyleName}}" style="background: {{item.danceTagBg}}; color: {{item.danceTagText}}">{{item.danceStyleName}}</view>
+              <text class="cih-name">{{item.course_name || '课程'}}</text>
+              <view class="cih-meta">
+                <text class="cih-day">{{item.weekday || ''}}</text>
+                <text class="cih-time">{{item.start_time || ''}} - {{item.end_time || ''}}</text>
+              </view>
+            </view>
+          </view>
+        </scroll-view>
+        <view class="empty-inline" wx:else>
+          <text class="eit">暂无近期课程</text>
+        </view>
+      </view>
+
+      <view class="section">
+        <view class="section-header">
+          <view class="section-title-wrap">
+            <view class="section-dot video-dot"></view>
+            <text class="section-title">教练作品</text>
+          </view>
+        </view>
+        <view class="video-grid" wx:if="{{videos.length > 0}}">
+          <view class="video-card" wx:for="{{videos}}" wx:key="_id" data-id="{{item._id}}" bindtap="onVideoTap">
+            <view class="vc-thumb-wrap">
+              <image class="vc-thumb-img" src="{{imageErrors['video_'+item._id] ? '/images/default-course.svg' : (item.display_cover || '/images/default-course.svg')}}" binderror="onImgError" data-type="video" data-id="{{item._id}}" mode="aspectFill" lazy-load />
+              <view class="vc-play-btn">
+                <view class="vc-play-icon"></view>
+              </view>
+            </view>
+            <view class="vc-info">
+              <text class="vc-title">{{item.title || '视频作品'}}</text>
+            </view>
+          </view>
+        </view>
+        <view class="empty-inline" wx:else>
+          <text class="eit">暂无视频作品</text>
+        </view>
+      </view>
+    </view>
+  </view>
+</view>
+
+<view class="modal-mask" wx:if="{{showStoreModal}}" bindtap="onCloseStoreModal">
+  <view class="modal-content" catchtap="onModalTap">
+    <view class="modal-title-text">选择门店</view>
+    <view class="store-list">
+      <view class="store-opt {{currentStore && currentStore._id === item._id ? 'active' : ''}}" wx:for="{{storeList}}" wx:key="_id" data-store="{{item}}" bindtap="onSelectStore">
+        <view class="store-opt-left">
+          <text class="store-opt-name">{{item.name}}</text>
+          <text class="store-opt-distance" wx:if="{{item.distance !== undefined && item.distance !== null}}">{{item.distance}}km</text>
+        </view>
+        <view class="store-opt-check" wx:if="{{currentStore && currentStore._id === item._id}}"></view>
+      </view>
+    </view>
+    <view class="modal-close-btn" bindtap="onCloseStoreModal">关闭</view>
+  </view>
+</view>
+
+<view class="modal-mask announce-modal" wx:if="{{ showAnnounceModal }}" catchtouchmove="onPreventMove">
+  <view class="am-wrapper" catchtouchmove="onPreventMove">
+    <view class="am-stack" style="transform: translateX({{stackShift}}rpx);">
+      <view class="am-card am-card-below" wx:for="{{ announces }}" wx:key="_id" wx:if="{{ idx > announceSwiperIndex }}" wx:for-index="idx" wx:for-item="card" style="transform: translateX({{idx * stackEdgeWidth}}rpx); z-index: {{10 - (idx - announceSwiperIndex)}};">
+        <view class="am-header">
+          <view class="am-badge">
+            <view class="am-badge-icon"></view>
+            <text class="am-badge-text">公告</text>
+          </view>
+        </view>
+        <view class="am-body">
+          <text class="am-title">{{card.title}}</text>
+          <view class="am-line"></view>
+          <scroll-view class="am-content" scroll-y enhanced show-scrollbar="{{ false }}">
+            <text class="am-text">{{card.content}}</text>
+          </scroll-view>
+        </view>
+        <view class="am-footer">
+          <view class="am-date-wrap">
+            <view class="am-date-dot"></view>
+            <text class="am-date">{{card.createdAtDisplay}}</text>
+          </view>
+        </view>
+      </view>
+      <view class="am-card am-card-return" wx:if="{{returnCardVisible}}" style="transform: translateX({{(announceSwiperIndex - 1) * stackEdgeWidth}}rpx) translateX({{returnCardOffsetX}}px); transition: {{isDragging ? 'none' : 'transform 300ms ease'}}; z-index: 25;">
+        <view class="am-header">
+          <view class="am-badge">
+            <view class="am-badge-icon"></view>
+            <text class="am-badge-text">公告</text>
+          </view>
+          <text class="am-page" wx:if="{{ hasMultipleAnnounces }}">{{ announceSwiperIndex }}/{{ announces.length }}</text>
+        </view>
+        <view class="am-body">
+          <text class="am-title">{{ announces[announceSwiperIndex - 1].title }}</text>
+          <view class="am-line"></view>
+          <scroll-view class="am-content" scroll-y enhanced show-scrollbar="{{ false }}">
+            <text class="am-text">{{ announces[announceSwiperIndex - 1].content }}</text>
+          </scroll-view>
+        </view>
+        <view class="am-footer">
+          <view class="am-date-wrap">
+            <view class="am-date-dot"></view>
+            <text class="am-date">{{ announces[announceSwiperIndex - 1].createdAtDisplay }}</text>
+          </view>
+        </view>
+      </view>
+      <view class="am-card-front" style="transform: translateX({{announceSwiperIndex * stackEdgeWidth}}rpx); z-index: 20;">
+        <view class="am-card am-card-drag" style="transform: translateX({{cardOffsetX}}px); transition: {{isDragging ? 'none' : 'transform 300ms ease, opacity 300ms ease'}}; opacity: {{cardOpacity}};" bindtouchstart="onCardTouchStart" bindtouchmove="onCardTouchMove" bindtouchend="onCardTouchEnd">
+          <view class="am-header">
+            <view class="am-badge">
+              <view class="am-badge-icon"></view>
+              <text class="am-badge-text">公告</text>
+            </view>
+            <text class="am-page" wx:if="{{ hasMultipleAnnounces }}">{{ announceSwiperIndex + 1 }}/{{ announces.length }}</text>
+          </view>
+          <view class="am-body">
+            <text class="am-title">{{ announces[announceSwiperIndex].title }}</text>
+            <view class="am-line"></view>
+            <scroll-view class="am-content" scroll-y enhanced show-scrollbar="{{ false }}">
+              <text class="am-text">{{ announces[announceSwiperIndex].content }}</text>
+            </scroll-view>
+          </view>
+          <view class="am-footer">
+            <view class="am-date-wrap">
+              <view class="am-date-dot"></view>
+              <text class="am-date">{{ announces[announceSwiperIndex].createdAtDisplay }}</text>
+            </view>
+          </view>
+        </view>
+      </view>
+    </view>
+    <view class="am-close-btn" bindtap="onCloseAnnounceModal">
+      <view class="am-close-ring">
+        <view class="am-close-x"></view>
+      </view>
+      <text class="am-close-label">关闭</text>
+    </view>
+  </view>
+</view>
+
+<view class="modal-mask" wx:if="{{showLocationAuthModal}}" catchtap="">
+  <view class="lam-card">
+    <view class="lam-icon-wrap">
+      <view class="lam-icon"></view>
+    </view>
+    <text class="lam-title">开启位置服务</text>
+    <text class="lam-desc">授权位置信息后，为您智能匹配距离最近的门店，推荐附近的课程和教练。</text>
+    <view class="lam-btns">
+      <view class="lam-btn lam-btn-cancel" bindtap="onLocationAuthCancel">
+        <text>暂不</text>
+      </view>
+      <view class="lam-btn lam-btn-confirm" bindtap="onLocationAuthConfirm">
+        <text>去授权</text>
+      </view>
+    </view>
+  </view>
+</view>

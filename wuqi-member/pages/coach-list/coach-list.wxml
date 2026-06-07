@@ -1,0 +1,31 @@
+<view class="cl-page">
+  <view class="cl-header">
+    <view class="cl-dot"></view>
+    <text class="cl-title">舞栖教练</text>
+  </view>
+
+  <view class="loading-area" wx:if="{{loading}}">
+    <view class="loading-spinner"></view>
+    <text class="loading-text">加载中...</text>
+  </view>
+
+  <view wx:elif="{{coaches.length > 0}}">
+    <view class="coach-card" wx:for="{{coaches}}" wx:key="_id" data-id="{{item._id}}" bindtap="onCoachTap">
+      <image class="coach-avatar" src="{{imageErrors['coach_'+item._id] ? '/images/default-avatar.svg' : (item.avatar_url || '/images/default-avatar.svg')}}" binderror="onImgError" data-type="coach" data-id="{{item._id}}" mode="aspectFill" />
+      <view class="coach-info">
+        <text class="coach-name">{{item.name}}</text>
+        <view class="coach-tags" wx:if="{{item.danceNames && item.danceNames.length > 0}}">
+          <text class="coach-tag" wx:for="{{item.danceNames}}" wx:key="*this">{{item}}</text>
+        </view>
+        <text class="coach-bio" wx:if="{{item.bio}}">{{item.bio}}</text>
+      </view>
+      <view class="coach-arrow"></view>
+    </view>
+  </view>
+
+  <empty-state 
+    wx:elif="{{!loading && coaches.length === 0}}" 
+    text="暂无教练信息" 
+    hint="敬请期待更多优秀教练加入">
+  </empty-state>
+</view>

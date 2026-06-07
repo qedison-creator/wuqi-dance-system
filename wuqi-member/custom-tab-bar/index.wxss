@@ -1,0 +1,181 @@
+.tab-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  background: #FFFFFF;
+  border-top: 1rpx solid #F0E8E5;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.tab-bar-capsule {
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  height: 120rpx;
+  padding: 0 60rpx;
+  box-sizing: border-box;
+}
+
+.tab-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 120rpx;
+  transition: all 250ms cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+}
+
+.tab-item.active::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 32rpx;
+  height: 4rpx;
+  border-radius: 2rpx;
+  background: #D4786E;
+}
+
+.tab-icon {
+  width: 60rpx;
+  height: 60rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 250ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.tab-item.active .tab-icon {
+  transform: scale(1.1);
+}
+
+.ti-shape {
+  transition: all 250ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.ti-home {
+  width: 40rpx;
+  height: 38rpx;
+  border: 4rpx solid #948284;
+  border-radius: 6rpx 6rpx 0 0;
+  border-bottom: none;
+  position: relative;
+  box-sizing: border-box;
+}
+
+.ti-home::after {
+  content: '';
+  position: absolute;
+  bottom: -3rpx;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 24rpx;
+  height: 4rpx;
+  background: #948284;
+  border-radius: 2rpx;
+}
+
+.tab-item.active .ti-home {
+  border-color: #D4786E;
+}
+
+.tab-item.active .ti-home::after {
+  background: #D4786E;
+}
+
+.ti-cal {
+  width: 38rpx;
+  height: 36rpx;
+  border: 4rpx solid #948284;
+  border-radius: 6rpx;
+  position: relative;
+  box-sizing: border-box;
+}
+
+.ti-cal::before {
+  content: '';
+  position: absolute;
+  top: -6rpx;
+  left: -4rpx;
+  right: -4rpx;
+  height: 6rpx;
+  background: #948284;
+  border-radius: 3rpx 3rpx 0 0;
+}
+
+.ti-cal::after {
+  content: '';
+  position: absolute;
+  top: 10rpx;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 6rpx;
+  height: 6rpx;
+  border-radius: 50%;
+  background: #948284;
+  box-shadow: 10rpx 0 0 #948284, -10rpx 0 0 #948284;
+}
+
+.tab-item.active .ti-cal {
+  border-color: #D4786E;
+}
+
+.tab-item.active .ti-cal::before {
+  background: #D4786E;
+}
+
+.tab-item.active .ti-cal::after {
+  background: #D4786E;
+  box-shadow: 8rpx 0 0 #D4786E, -8rpx 0 0 #D4786E;
+}
+
+.ti-user {
+  width: 36rpx;
+  height: 36rpx;
+  border: 4rpx solid #948284;
+  border-radius: 50%;
+  position: relative;
+  box-sizing: border-box;
+}
+
+.ti-user::after {
+  content: '';
+  position: absolute;
+  bottom: -24rpx;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 44rpx;
+  height: 20rpx;
+  border: 4rpx solid #948284;
+  border-radius: 20rpx 20rpx 0 0;
+  border-bottom: none;
+  box-sizing: border-box;
+}
+
+.tab-item.active .ti-user {
+  border-color: #D4786E;
+}
+
+.tab-item.active .ti-user::after {
+  border-color: #D4786E;
+}
+
+.tab-text {
+  font-size: 26rpx;
+  color: #948284;
+  font-weight: 500;
+  margin-top: 6rpx;
+  transition: color 250ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.tab-item.active .tab-text {
+  color: #D4786E;
+  font-weight: 600;
+}

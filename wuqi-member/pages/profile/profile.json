@@ -1,0 +1,9 @@
+{
+  "navigationBarTitleText": "个人中心",
+  "enablePullDownRefresh": false,
+  "backgroundColor": "#F6F3F0",
+  "backgroundTextStyle": "dark",
+  "usingComponents": {
+    "empty-state": "/components/empty-state/empty-state"
+  }
+}

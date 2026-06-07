@@ -1,0 +1,6 @@
+{
+  "dependencies": {
+    "weapp-qrcode": "^1.0.0",
+    "weapp-qrcode-canvas-2d": "^1.1.6"
+  }
+}

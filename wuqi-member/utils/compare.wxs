@@ -1,0 +1,10 @@
+function contains(array, item) {
+  if (!array || !array.length) return false;
+  for (var i = 0; i < array.length; i++) {
+    var str1 = '' + array[i];
+    var str2 = '' + item;
+    if (str1 === str2) return true;
+  }
+  return false;
+}
+module.exports = { contains: contains };

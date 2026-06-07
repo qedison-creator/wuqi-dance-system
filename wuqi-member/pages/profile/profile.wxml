@@ -1,0 +1,676 @@
+<scroll-view class="page-scroll" scroll-y enhanced show-scrollbar="{{false}}" refresher-enabled="{{canPullRefresh}}" bindrefresherrefresh="onRefresh" refresher-triggered="{{refresherTriggered}}">
+<view class="profile-page">
+  <block wx:if="{{isLoggedIn}}">
+    <view class="hero-card">
+      <view class="hero-top">
+        <view class="hero-avatar-wrap">
+          <image class="hero-avatar" src="{{avatarSrc}}" binderror="onImgError" data-type="avatar" data-id="user" mode="aspectFill"></image>
+          <view class="hero-avatar-ring"></view>
+        </view>
+        <view class="hero-info">
+          <view class="hero-name-row">
+            <text class="hero-name">{{userInfo.real_name || userInfo.nickname || '舞栖会员'}}</text>
+            <view class="hero-gender male" wx:if="{{userInfo.gender === 1}}">
+              <view class="hero-gender-icon-m"></view>
+            </view>
+            <view class="hero-gender female" wx:if="{{userInfo.gender === 2}}">
+              <view class="hero-gender-icon-f"></view>
+            </view>
+          </view>
+          <text class="hero-member-id" wx:if="{{userInfo.member_code}}">会员编号：{{userInfo.member_code}}</text>
+          <text class="hero-since">加入{{memberSinceDays}}天</text>
+        </view>
+        <view class="hero-action" wx:if="{{userInfo.member_status === 'official'}}">
+          <view class="qr-btn" bindtap="onShowQRCode">
+            <view class="qr-btn-icon"></view>
+            <text class="qr-btn-text">会员码</text>
+          </view>
+        </view>
+      </view>
+      <view class="hero-status-row" wx:if="{{userInfo.member_status === 'official'}}">
+        <view class="status-chip {{memberStatus}}">
+          <text>{{memberStatusText}}</text>
+        </view>
+        <text class="status-sub" wx:if="{{currentPackageType}}">当前套餐：{{currentPackageType}}</text>
+      </view>
+    </view>
+
+    <view class="pending-section" wx:if="{{userInfo.member_status === 'registered'}}">
+      <view class="pending-card">
+        <view class="pending-icon-wrap">
+          <view class="pending-icon"></view>
+        </view>
+        <view class="pending-text">
+          <text class="pending-title">审核中</text>
+          <text class="pending-desc">您的会员申请正在审核中，请耐心等待</text>
+        </view>
+      </view>
+    </view>
+
+    <view class="stats-section" wx:if="{{userInfo.member_status === 'official'}}">
+      <view class="stats-row">
+        <view class="stat-card">
+          <text class="stat-num">{{stats.totalBookings}}</text>
+          <text class="stat-label">总预约</text>
+        </view>
+        <view class="stat-divider"></view>
+        <view class="stat-card">
+          <text class="stat-num">{{stats.completedClasses}}</text>
+          <text class="stat-label">已上课</text>
+        </view>
+        <view class="stat-divider"></view>
+        <view class="stat-card">
+          <text class="stat-num {{stats.remainingClasses === -1 ? 'stat-infinity' : ''}}">{{stats.remainingClasses === -1 ? '∞' : stats.remainingClasses}}</text>
+          <text class="stat-label">{{stats.remainingClasses === -1 ? '不限次数' : '本周剩余'}}</text>
+        </view>
+      </view>
+    </view>
+
+    <view class="stats-section guest-stats" wx:if="{{userInfo.member_status !== 'official'}}">
+      <view class="stats-row">
+        <view class="stat-card guest-stat">
+          <text class="stat-num">--</text>
+          <text class="stat-label">总预约</text>
+        </view>
+        <view class="stat-divider"></view>
+        <view class="stat-card guest-stat">
+          <text class="stat-num">--</text>
+          <text class="stat-label">已上课</text>
+        </view>
+        <view class="stat-divider"></view>
+        <view class="stat-card guest-stat">
+          <text class="stat-num">--</text>
+          <text class="stat-label">本周剩余</text>
+        </view>
+      </view>
+    </view>
+
+    <view class="package-section" wx:if="{{userInfo.member_status === 'official'}}">
+      <block wx:if="{{allPackages.length > 0}}">
+        <view class="section-header">
+          <view class="section-header-left">
+            <view class="section-left-bar"></view>
+            <text class="section-title">我的套餐</text>
+          </view>
+        </view>
+
+        <!-- 当前使用中套餐卡片 -->
+        <view class="pkg-card-new {{currentPackage.status}} {{currentPackage.package_type}}" wx:if="{{currentPackage}}" bindtap="onPackageTap" data-id="{{currentPackage._id}}">
+          <!-- 装饰圆 -->
+          <view class="pkg-new-decorate-circle"></view>
+          
+          <!-- 卡片内容区 -->
+          <view class="pkg-new-content">
+            <!-- 第一行：门店 + 套餐类型 -->
+            <view class="pkg-new-header">
+              <view class="pkg-new-header-left">
+                <view class="pkg-tag pkg-tag-store" wx:if="{{currentPackage._storeName}}">
+                  <text class="pkg-tag-text">{{currentPackage._storeName}}</text>
+                </view>
+                <view class="pkg-tag pkg-tag-type-{{currentPackage.package_type}}" wx:if="{{currentPackage._typeLabel}}">
+                  <text class="pkg-tag-text">{{currentPackage._typeLabel}}</text>
+                </view>
+              </view>
+            </view>
+
+            <!-- 第二行：核心数据区 -->
+            <view class="pkg-new-main">
+              <!-- 左侧：大数字 + 状态圆点 -->
+              <view class="pkg-new-main-left">
+                <view class="pkg-new-main-value-wrap">
+                  <block wx:if="{{currentPackage.package_type === 'count_card'}}">
+                    <text class="pkg-new-main-value">{{currentPackage.remaining_credits || 0}}</text>
+                    <text class="pkg-new-main-unit">次</text>
+                  </block>
+                  <block wx:elif="{{currentPackage.package_type === 'time_card'}}">
+                    <text class="pkg-new-main-value">{{currentPackage.remaining_days || 0}}</text>
+                  </block>
+                </view>
+                <text class="pkg-new-main-label">
+                  {{currentPackage.package_type === 'count_card' ? '本周剩余' : '剩余天数'}}
+                </text>
+                <!-- 状态圆点 -->
+                <view class="pkg-new-status-dot-wrap {{currentPackage.status}} {{currentPackage.is_suspended ? 'suspended' : ''}}">
+                  <view class="pkg-new-status-dot"></view>
+                  <text class="pkg-new-status-label">{{currentPackage._statusText}}</text>
+                </view>
+              </view>
+
+              <!-- 右侧：信息胶囊 -->
+              <view class="pkg-new-main-right">
+                <view class="pkg-new-info-capsule" wx:if="{{currentPackage.package_type === 'time_card'}}">
+                  <text class="pkg-new-info-capsule-label">服务有效期</text>
+                  <text class="pkg-new-info-capsule-value">{{currentPackage.duration_value || '-'}}{{currentPackage.duration_unit === 'month' ? '个月' : '天'}}</text>
+                </view>
+                <view class="pkg-new-info-capsule" wx:if="{{currentPackage.package_type === 'count_card'}}">
+                  <text class="pkg-new-info-capsule-label">总次数</text>
+                  <text class="pkg-new-info-capsule-value">{{currentPackage.total_credits || 0}} 次</text>
+                </view>
+                <view class="pkg-new-info-capsule" wx:if="{{currentPackage.package_type === 'time_card' && currentPackage._weekRemaining !== undefined}}">
+                  <text class="pkg-new-info-capsule-label">{{currentPackage._periodLabel || '本周'}}剩余</text>
+                  <text class="pkg-new-info-capsule-value">{{currentPackage._weekRemaining}} 次</text>
+                </view>
+                <view class="pkg-new-info-capsule" wx:if="{{currentPackage.package_type === 'count_card'}}">
+                  <text class="pkg-new-info-capsule-label">已使用</text>
+                  <text class="pkg-new-info-capsule-value">{{(currentPackage.total_credits || 0) - (currentPackage.remaining_credits || 0)}} 次</text>
+                </view>
+              </view>
+            </view>
+
+            <!-- 第三行：进度条 -->
+            <view class="pkg-new-progress" wx:if="{{currentPackage._hasProgress}}">
+              <view class="pkg-new-progress-bar">
+                <view class="pkg-new-progress-fill {{currentPackage._progressFillClass}}" style="{{currentPackage._progressWidthStyle}}"></view>
+              </view>
+              <view class="pkg-new-progress-info">
+                <text class="pkg-new-progress-label">{{currentPackage._progressLabel}}</text>
+                <text class="pkg-new-progress-pct">{{currentPackage._progressPercent}}%</text>
+              </view>
+            </view>
+
+            <!-- 第四行：服务有效期 -->
+            <view class="pkg-new-footer" wx:if="{{currentPackage.is_activated && currentPackage.start_date_display}}">
+              <text class="pkg-new-date-text">服务有效期：{{currentPackage.start_date_display}}至{{currentPackage.end_date_display}}</text>
+            </view>
+          </view>
+        </view>
+
+        <!-- 待激活套餐卡片 -->
+        <view class="pkg-card-new pending {{item.package_type}}" wx:for="{{pendingPackages}}" wx:key="_id" wx:if="{{pendingPackages.length > 0}}" bindtap="onPackageTap" data-id="{{item._id}}">
+          <view class="pkg-new-decorate-circle"></view>
+          <view class="pkg-new-content">
+            <view class="pkg-new-header">
+              <view class="pkg-new-header-left">
+                <view class="pkg-tag pkg-tag-store" wx:if="{{item._storeName}}">
+                  <text class="pkg-tag-text">{{item._storeName}}</text>
+                </view>
+                <view class="pkg-tag pkg-tag-type-{{item.package_type}}" wx:if="{{item._typeLabel}}">
+                  <text class="pkg-tag-text">{{item._typeLabel}}</text>
+                </view>
+              </view>
+            </view>
+            <view class="pkg-new-main">
+              <view class="pkg-new-main-left">
+                <view class="pkg-new-main-value-wrap">
+                  <block wx:if="{{item.package_type === 'count_card'}}">
+                    <text class="pkg-new-main-value">{{item.total_credits || item.remaining_credits || 0}}</text>
+                    <text class="pkg-new-main-unit">次</text>
+                  </block>
+                  <block wx:elif="{{item.package_type === 'time_card'}}">
+                    <text class="pkg-new-main-value">{{item.duration_value || '-'}}</text>
+                  </block>
+                </view>
+                <text class="pkg-new-main-label">
+                  {{item.package_type === 'count_card' ? '待激活课次' : '待激活天数'}}
+                </text>
+                <view class="pkg-new-status-dot-wrap pending">
+                  <view class="pkg-new-status-dot"></view>
+                  <text class="pkg-new-status-label">静待开启</text>
+                </view>
+              </view>
+              <view class="pkg-new-main-right">
+                <view class="pkg-new-info-capsule">
+                  <text class="pkg-new-info-capsule-label">服务有效期</text>
+                  <text class="pkg-new-info-capsule-value">{{item.duration_value || '-'}}{{item.duration_unit === 'month' ? '个月' : '天'}}</text>
+                </view>
+              </view>
+            </view>
+            <!-- 自动激活提示 -->
+            <view class="pkg-new-auto-activate" wx:if="{{item._autoActivateDate}}">
+              <text class="pkg-new-auto-text">套餐将于{{item._autoActivateDate}}自动激活，有效期开始计算</text>
+              <text class="pkg-new-auto-countdown" wx:if="{{item._autoActivateDays <= 30}}">距自动激活还有 {{item._autoActivateDays}} 天</text>
+            </view>
+            <view class="pkg-new-footer">
+              <text class="pkg-new-date-text">服务有效期：激活后开始计算</text>
+            </view>
+          </view>
+        </view>
+
+        <!-- 历史套餐区域 -->
+        <view class="package-history-section" wx:if="{{historyPackages.length > 0}}">
+          <view class="phs-toggle" bindtap="onTogglePackageHistory">
+            <text class="phs-toggle-text">历史套餐 · {{historyPackages.length}}</text>
+            <view class="phs-toggle-arrow {{showPackageHistory ? 'expanded' : ''}}"></view>
+          </view>
+          <view class="phs-list {{showPackageHistory ? 'show' : ''}}">
+            <view class="pkg-card-new {{item.status}} {{item.package_type}}" wx:for="{{historyPackages}}" wx:key="_id" bindtap="onPackageTap" data-id="{{item._id}}">
+              <view class="pkg-new-decorate-circle"></view>
+              <view class="pkg-new-content">
+                <view class="pkg-new-header">
+                  <view class="pkg-new-header-left">
+                    <view class="pkg-tag pkg-tag-store" wx:if="{{item._storeName}}">
+                      <text class="pkg-tag-text">{{item._storeName}}</text>
+                    </view>
+                    <view class="pkg-tag pkg-tag-type-{{item.package_type}}" wx:if="{{item._typeLabel}}">
+                      <text class="pkg-tag-text">{{item._typeLabel}}</text>
+                    </view>
+                  </view>
+                </view>
+                <view class="pkg-new-main">
+                  <view class="pkg-new-main-left">
+                    <view class="pkg-new-main-value-wrap">
+                      <block wx:if="{{item.package_type === 'count_card'}}">
+                        <text class="pkg-new-main-value">{{item.remaining_credits || 0}}</text>
+                        <text class="pkg-new-main-unit">次</text>
+                      </block>
+                      <block wx:elif="{{item.package_type === 'time_card'}}">
+                        <text class="pkg-new-main-value">{{item.remaining_days || 0}}</text>
+                      </block>
+                    </view>
+                    <text class="pkg-new-main-label">
+                      {{item.package_type === 'count_card' ? '本周剩余' : '剩余天数'}}
+                    </text>
+                    <view class="pkg-new-status-dot-wrap {{item.status}}">
+                      <view class="pkg-new-status-dot"></view>
+                      <text class="pkg-new-status-label">{{item._statusText}}</text>
+                    </view>
+                  </view>
+                  <view class="pkg-new-main-right">
+                    <view class="pkg-new-info-capsule">
+                      <text class="pkg-new-info-capsule-label">{{item.package_type === 'count_card' ? '总次数' : '服务有效期'}}</text>
+                      <text class="pkg-new-info-capsule-value">{{item.package_type === 'count_card' ? (item.total_credits || 0) + ' 次' : (item.duration_value || '-') + (item.duration_unit === 'month' ? '个月' : '天')}}</text>
+                    </view>
+                    <view class="pkg-new-info-capsule" wx:if="{{item.package_type === 'count_card'}}">
+                      <text class="pkg-new-info-capsule-label">已使用</text>
+                      <text class="pkg-new-info-capsule-value">{{(item.total_credits || 0) - (item.remaining_credits || 0)}} 次</text>
+                    </view>
+                  </view>
+                </view>
+                <view class="pkg-new-footer" wx:if="{{item.start_date_display && item.end_date_display}}">
+                  <text class="pkg-new-date-text">服务有效期：{{item.start_date_display}}至{{item.end_date_display}}</text>
+                </view>
+              </view>
+            </view>
+          </view>
+        </view>
+      </block>
+      <view class="package-empty" wx:else>
+        <view class="package-empty-icon"></view>
+        <text class="package-empty-title">开启你的舞蹈之旅</text>
+        <text class="package-empty-desc">联系门店客服录入套餐后即可开始预约</text>
+      </view>
+    </view>
+
+    <view class="package-section" wx:if="{{userInfo.member_status !== 'official'}}">
+      <view class="section-header">
+        <view class="section-header-left">
+          <view class="section-left-bar"></view>
+          <text class="section-title">我的套餐</text>
+        </view>
+      </view>
+      <view class="package-empty guest-empty">
+        <text>登录后查看套餐信息</text>
+      </view>
+    </view>
+
+    <view class="menu-section" wx:if="{{userInfo.member_status === 'official'}}">
+      <view class="section-header">
+        <view class="section-header-left">
+          <view class="section-left-bar"></view>
+          <text class="section-title">功能</text>
+        </view>
+      </view>
+      <view class="menu-card">
+        <view class="menu-item" bindtap="onMemberInfo">
+          <view class="menu-icon-wrap rose">
+            <image class="menu-icon" src="/images/icons/document.svg" mode="aspectFit"></image>
+          </view>
+          <text class="menu-item-title">个人信息</text>
+          <view class="menu-item-arrow"></view>
+        </view>
+        <view class="menu-item" bindtap="onMyBookings">
+          <view class="menu-icon-wrap teal">
+            <image class="menu-icon" src="/images/icons/calendar.svg" mode="aspectFit"></image>
+          </view>
+          <text class="menu-item-title">我的记录</text>
+          <view class="menu-item-arrow"></view>
+        </view>
+        <view class="menu-item" bindtap="onTransferCard">
+          <view class="menu-icon-wrap gold">
+            <image class="menu-icon" src="/images/icons/credit-card.svg" mode="aspectFit"></image>
+          </view>
+          <text class="menu-item-title">转卡申请</text>
+          <view class="menu-item-arrow"></view>
+        </view>
+        <view class="menu-item" bindtap="onContactStore">
+          <view class="menu-icon-wrap rose">
+            <image class="menu-icon" src="/images/icons/phone.svg" mode="aspectFit"></image>
+          </view>
+          <text class="menu-item-title">联系门店</text>
+          <view class="menu-item-arrow"></view>
+        </view>
+        <view class="menu-item" bindtap="onAbout">
+          <view class="menu-icon-wrap muted">
+            <image class="menu-icon" src="/images/icons/info.svg" mode="aspectFit"></image>
+          </view>
+          <text class="menu-item-title">关于系统</text>
+          <view class="menu-item-arrow"></view>
+        </view>
+      </view>
+    </view>
+
+    <view class="menu-section" wx:if="{{userInfo.member_status !== 'official'}}">
+      <view class="section-header">
+        <view class="section-header-left">
+          <view class="section-left-bar"></view>
+          <text class="section-title">功能</text>
+        </view>
+      </view>
+      <view class="menu-card">
+        <view class="menu-item" bindtap="handleGuestTap">
+          <view class="menu-icon-wrap rose">
+            <image class="menu-icon" src="/images/icons/document.svg" mode="aspectFit"></image>
+          </view>
+          <text class="menu-item-title">个人信息</text>
+          <view class="menu-item-arrow"></view>
+        </view>
+        <view class="menu-item" bindtap="handleGuestTap">
+          <view class="menu-icon-wrap teal">
+            <image class="menu-icon" src="/images/icons/calendar.svg" mode="aspectFit"></image>
+          </view>
+          <text class="menu-item-title">我的记录</text>
+          <view class="menu-item-arrow"></view>
+        </view>
+        <view class="menu-item" bindtap="onContactStore">
+          <view class="menu-icon-wrap rose">
+            <image class="menu-icon" src="/images/icons/phone.svg" mode="aspectFit"></image>
+          </view>
+          <text class="menu-item-title">联系门店</text>
+          <view class="menu-item-arrow"></view>
+        </view>
+        <view class="menu-item" bindtap="onAbout">
+          <view class="menu-icon-wrap muted">
+            <image class="menu-icon" src="/images/icons/info.svg" mode="aspectFit"></image>
+          </view>
+          <text class="menu-item-title">关于系统</text>
+          <view class="menu-item-arrow"></view>
+        </view>
+      </view>
+    </view>
+
+    <view class="menu-section menu-section-other" wx:if="{{isLoggedIn}}">
+      <view class="section-header">
+        <view class="section-header-left">
+          <view class="section-left-bar"></view>
+          <text class="section-title">其他</text>
+        </view>
+      </view>
+      <view class="menu-card">
+        <view class="menu-item" bindtap="onPrivacy">
+          <view class="menu-icon-wrap muted">
+            <image class="menu-icon" src="/images/icons/settings.svg" mode="aspectFit"></image>
+          </view>
+          <text class="menu-item-title">隐私保护指引</text>
+          <view class="menu-item-arrow"></view>
+        </view>
+        <view class="menu-item" bindtap="onAgreement">
+          <view class="menu-icon-wrap muted">
+            <image class="menu-icon" src="/images/icons/document.svg" mode="aspectFit"></image>
+          </view>
+          <text class="menu-item-title">用户服务协议</text>
+          <view class="menu-item-arrow"></view>
+        </view>
+      </view>
+      <view class="menu-logout-row">
+        <view class="menu-logout" bindtap="onLogout">退出登录</view>
+      </view>
+    </view>
+  </block>
+
+  <block wx:else>
+    <view class="hero-card guest-hero">
+      <view class="hero-top">
+        <view class="hero-avatar-wrap">
+          <view class="guest-avatar-icon-small"></view>
+          <view class="hero-avatar-ring"></view>
+        </view>
+        <view class="hero-info">
+          <view class="hero-name-row">
+            <text class="hero-name">游客</text>
+          </view>
+          <text class="hero-since">登录解锁会员特权</text>
+        </view>
+        <view class="hero-action">
+          <view class="qr-btn" bindtap="handleGuestTap">
+            <view class="qr-btn-icon"></view>
+            <text class="qr-btn-text">会员码</text>
+          </view>
+        </view>
+      </view>
+      <view class="guest-login-btn-row">
+        <view class="guest-login-btn-small" bindtap="onLogin">
+          <text>微信一键登录</text>
+        </view>
+      </view>
+    </view>
+
+    <view class="stats-section guest-stats">
+      <view class="stats-row">
+        <view class="stat-card guest-stat">
+          <text class="stat-num">--</text>
+          <text class="stat-label">总预约</text>
+        </view>
+        <view class="stat-divider"></view>
+        <view class="stat-card guest-stat">
+          <text class="stat-num">--</text>
+          <text class="stat-label">已上课</text>
+        </view>
+        <view class="stat-divider"></view>
+        <view class="stat-card guest-stat">
+          <text class="stat-num">--</text>
+          <text class="stat-label">本周剩余</text>
+        </view>
+      </view>
+    </view>
+
+    <view class="package-section">
+      <view class="section-header">
+        <view class="section-header-left">
+          <view class="section-left-bar"></view>
+          <text class="section-title">我的套餐</text>
+        </view>
+      </view>
+      <view class="package-empty guest-empty">
+        <text>登录后查看套餐信息</text>
+      </view>
+    </view>
+
+    <view class="menu-section">
+      <view class="section-header">
+        <view class="section-header-left">
+          <view class="section-left-bar"></view>
+          <text class="section-title">功能</text>
+        </view>
+      </view>
+      <view class="menu-card">
+        <view class="menu-item" bindtap="handleGuestTap">
+          <view class="menu-icon-wrap rose">
+            <image class="menu-icon" src="/images/icons/document.svg" mode="aspectFit"></image>
+          </view>
+          <text class="menu-item-title">个人信息</text>
+          <view class="menu-item-arrow"></view>
+        </view>
+        <view class="menu-item" bindtap="handleGuestTap">
+          <view class="menu-icon-wrap teal">
+            <image class="menu-icon" src="/images/icons/calendar.svg" mode="aspectFit"></image>
+          </view>
+          <text class="menu-item-title">我的记录</text>
+          <view class="menu-item-arrow"></view>
+        </view>
+        <view class="menu-item" bindtap="onContactStore">
+          <view class="menu-icon-wrap rose">
+            <image class="menu-icon" src="/images/icons/phone.svg" mode="aspectFit"></image>
+          </view>
+          <text class="menu-item-title">联系门店</text>
+          <view class="menu-item-arrow"></view>
+        </view>
+        <view class="menu-item" bindtap="onAbout">
+          <view class="menu-icon-wrap muted">
+            <image class="menu-icon" src="/images/icons/info.svg" mode="aspectFit"></image>
+          </view>
+          <text class="menu-item-title">关于系统</text>
+          <view class="menu-item-arrow"></view>
+        </view>
+      </view>
+    </view>
+  </block>
+</view>
+</scroll-view>
+
+<!-- 套餐详情 Sheet -->
+<view class="pkg-sheet-mask {{showPackageDetail ? 'show' : ''}}" bindtap="onClosePackageDetail" catchtouchmove="preventTouchMove">
+  <view class="pkg-sheet {{showPackageDetail ? 'show' : ''}} {{sheetDragging ? 'dragging' : ''}}" style="{{sheetDragY > 0 ? 'transform: translateY(' + sheetDragY + 'px)' : ''}}" catchtouchmove="preventTouchMove">
+    <view class="pkg-sheet-handle" catchtouchstart="onHandleTouchStart" catchtouchmove="onHandleTouchMove" catchtouchend="onHandleTouchEnd">
+      <view class="pkg-sheet-handle-bar"></view>
+    </view>
+    <scroll-view class="pkg-sheet-body" scroll-y wx:if="{{detailPackage}}">
+      <view class="pkg-sheet-section">
+        <text class="pkg-sheet-label">所属门店</text>
+        <text class="pkg-sheet-value">{{detailPackage._storeName || '未指定'}}</text>
+      </view>
+      <view class="pkg-sheet-section">
+        <text class="pkg-sheet-label">套餐类型</text>
+        <text class="pkg-sheet-value">{{detailPackage._typeLabel}}</text>
+      </view>
+      <view class="pkg-sheet-section">
+        <text class="pkg-sheet-label">使用状态</text>
+        <view class="pkg-status-badge {{detailPackage.status}} pkg-sheet-badge">
+          <text>{{detailPackage._statusText}}</text>
+        </view>
+      </view>
+      <view class="pkg-sheet-section" wx:if="{{detailPackage.package_type === 'count_card'}}">
+        <text class="pkg-sheet-label">套餐次数</text>
+        <text class="pkg-sheet-value">共 {{detailPackage.total_credits || 0}} 次，剩余 {{detailPackage.remaining_credits || 0}} 次</text>
+      </view>
+      <view class="pkg-sheet-section" wx:if="{{detailPackage.package_type === 'time_card' && detailPackage._periodLabel}}">
+        <text class="pkg-sheet-label">{{detailPackage._periodLabel}}预约</text>
+        <text class="pkg-sheet-value">已约 {{detailPackage._weekUsed}}/{{detailPackage._weekLimit}} 次</text>
+      </view>
+      <view class="pkg-sheet-section">
+        <text class="pkg-sheet-label">服务有效期</text>
+        <text class="pkg-sheet-value">
+          <block wx:if="{{detailPackage.is_activated && detailPackage.start_date_display}}">{{detailPackage.start_date_display}} 至 {{detailPackage.end_date_display}}</block>
+          <block wx:else>{{detailPackage.duration_value || '-'}}{{detailPackage.duration_unit === 'month' ? '个月' : '天'}}</block>
+        </text>
+      </view>
+      <view class="pkg-sheet-section" wx:if="{{detailPackage.is_activated && detailPackage.status === 'active' && detailPackage.remaining_days !== undefined && detailPackage.remaining_days !== null}}">
+        <text class="pkg-sheet-label">剩余服务有效期</text>
+        <text class="pkg-sheet-value">{{detailPackage.remaining_days}} 天</text>
+      </view>
+      <view class="pkg-sheet-section" wx:if="{{detailPackage._autoActivateDate}}">
+        <text class="pkg-sheet-label">自动激活日期</text>
+        <text class="pkg-sheet-value">将于 {{detailPackage._autoActivateDate}} 自动激活套餐，服务有效期开始计算</text>
+      </view>
+    </scroll-view>
+  </view>
+</view>
+
+  <view class="modal-mask" wx:if="{{showStorePicker}}" bindtap="onCloseStorePicker">
+    <view class="modal-content" catchtap="onModalTap">
+      <view class="modal-title-text">{{storePickerTitle}}</view>
+      <view class="store-list">
+        <view class="store-opt {{selectedStoreId === item._id ? 'active' : ''}}" wx:for="{{storeList}}" wx:key="_id" data-id="{{item._id}}" data-name="{{item.name}}" bindtap="onStoreSelect">
+          <text class="store-opt-name">{{item.name}}</text>
+          <text class="store-opt-dist" wx:if="{{item.distance !== undefined}}">{{item.distance}}km</text>
+        </view>
+      </view>
+      <view class="btn-primary" bindtap="onStoreConfirm" disabled="{{!selectedStoreId}}">确认</view>
+    </view>
+  </view>
+
+  <view class="modal-mask" wx:if="{{showForceProfileModal}}" bindtap="onCloseForceProfileModal">
+    <view class="modal-content" catchtap="onModalTap">
+      <view class="modal-title-text">完善个人信息</view>
+      <view class="modal-hint-text">为了更好地为您服务，请完善以下信息</view>
+      <view class="form-group">
+        <text class="form-label">真实姓名 *</text>
+        <input class="form-input" type="text" placeholder="请输入真实姓名" placeholder-class="ph" value="{{profileForm.real_name}}" bindinput="onRealNameInput"></input>
+      </view>
+      <view class="form-group">
+        <text class="form-label">手机号 *</text>
+        <input class="form-input" type="number" maxlength="11" placeholder="请输入手机号" placeholder-class="ph" value="{{profileForm.phone}}" bindinput="onPhoneInput"></input>
+      </view>
+      <view class="form-group">
+        <text class="form-label">性别 *</text>
+        <view class="gender-picker">
+          <view class="gp-option {{profileForm.gender === 1 ? 'active' : ''}}" data-gender="1" bindtap="onGenderSelect">男</view>
+          <view class="gp-option {{profileForm.gender === 2 ? 'active' : ''}}" data-gender="2" bindtap="onGenderSelect">女</view>
+        </view>
+      </view>
+      <view class="btn-primary" bindtap="onSaveProfile">确认保存</view>
+    </view>
+  </view>
+
+  <view class="modal-mask qr-modal" wx:if="{{showQRModal}}" bindtap="onCloseQRModal">
+    <view class="modal-content qr" catchtap="onModalTap">
+      <view class="modal-title-text">会员码</view>
+      <view class="qr-user">
+        <text class="qr-name">{{userInfo.real_name || userInfo.nickname || '会员'}}</text>
+        <text class="qr-code-txt" wx:if="{{userInfo.member_code}}">{{userInfo.member_code}}</text>
+      </view>
+      <view class="qr-img-area">
+        <canvas type="2d" id="qrCheckInCanvas" class="qr-canvas" wx:if="{{showQRModal && qrCodeToken}}"></canvas>
+        <image class="qr-canvas" src="{{qrCodeUrl}}" mode="aspectFit" wx:elif="{{qrCodeUrl && !qrCodeToken}}"></image>
+        <view class="qr-loading" wx:else>
+          <view class="loading-spinner"></view>
+          <text class="loading-text">加载中...</text>
+        </view>
+      </view>
+      <view class="qr-timer">{{qrCountdown}}秒后自动刷新</view>
+      <view class="qr-tip-box">此码为动态码，每60秒自动刷新，截图无效</view>
+    </view>
+  </view>
+
+  <view class="modal-mask success" wx:if="{{showCheckInSuccess}}" catchtap="onCloseCheckInSuccess">
+    <view class="modal-content checkin" catchtap="onModalTap">
+      <view class="checkin-icon-wrap">
+        <view class="checkin-ok"></view>
+      </view>
+      <text class="checkin-title">签到成功</text>
+      <view class="checkin-list">
+        <view class="chk-item" wx:for="{{checkInCourses}}" wx:key="course_name">
+          <text class="chk-name">{{item.course_name}}</text>
+          <view class="chk-meta">
+            <text class="chk-time">{{item.time}}</text>
+            <view class="chk-source">{{item.source}}</view>
+          </view>
+        </view>
+      </view>
+      <text class="chk-hint">3秒后自动关闭</text>
+      <view class="btn-primary" bindtap="onCloseCheckInSuccess">关闭</view>
+    </view>
+  </view>
+
+  <view class="modal-mask" wx:if="{{showChangePhoneModal}}" bindtap="onCloseChangePhoneModal">
+    <view class="modal-content" catchtap="onModalTap">
+      <view class="modal-title-text">修改预留手机号</view>
+      <view class="form-group">
+        <text class="form-label">当前预留手机号</text>
+        <text class="current-phone">{{userInfo.reserve_phone || '未设置'}}</text>
+      </view>
+      <view class="form-group">
+        <text class="form-label">新手机号</text>
+        <input class="form-input" type="number" maxlength="11" placeholder="请输入新的手机号" placeholder-class="ph" value="{{newPhone}}" bindinput="onNewPhoneInput"></input>
+      </view>
+      <view class="tip-box">修改手机号需要管理员审核通过后生效</view>
+      <view class="btn-primary" bindtap="onSubmitChangePhone">提交审核</view>
+    </view>
+  </view>
+
+  <view class="modal-mask" wx:if="{{showTransferModal}}" bindtap="onCloseTransferModal">
+    <view class="modal-content" catchtap="onModalTap">
+      <view class="modal-title-text">转卡申请</view>
+      <view class="modal-hint-text">请选择要转入的目标门店</view>
+      <view class="store-list">
+        <view class="store-opt {{transferStoreId === item._id ? 'active' : ''}}" wx:for="{{transferStoreList}}" wx:key="_id" data-id="{{item._id}}" data-name="{{item.name}}" bindtap="onTransferStoreSelect">
+          <text class="store-opt-name">{{item.name}}</text>
+          <text class="store-opt-dist" wx:if="{{item.distance !== undefined}}">{{item.distance}}km</text>
+        </view>
+      </view>
+      <view class="form-group">
+        <text class="form-label">申请原因（选填）</text>
+        <textarea class="transfer-textarea" placeholder="请输入转卡原因" placeholder-class="ph" maxlength="200" value="{{transferReason}}" bindinput="onTransferReasonInput"></textarea>
+      </view>
+      <view class="btn-primary" bindtap="onSubmitTransfer" disabled="{{!transferStoreId}}">提交申请</view>
+    </view>
+  </view>

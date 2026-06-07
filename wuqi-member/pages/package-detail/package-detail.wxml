@@ -1,0 +1,67 @@
+<view class="page">
+  <view class="package-list" wx:if="{{packages.length > 0}}">
+    <view class="pkg-card {{item.status}}" wx:for="{{packages}}" wx:key="_id">
+      <view class="pkg-top-bar"></view>
+      <view class="pkg-hd">
+        <view class="pkg-type-badge">
+          <text>{{item.package_type === 'count_card' ? '次卡' : '时间卡'}}</text>
+        </view>
+        <view class="pkg-status-badge {{item.status}}">
+          <text>{{item.status === 'pending' ? '待激活' : (item.status === 'active' ? '使用中' : (item.status === 'expired' ? '已过期' : (item.status === 'paused' ? '已暂停' : '已用完')))}}</text>
+        </view>
+      </view>
+
+      <view class="pkg-body">
+        <view class="pkg-row" wx:if="{{item.package_type === 'count_card'}}">
+          <text class="pkg-label">总次数</text>
+          <text class="pkg-val">{{item.total_credits || 0}} 次</text>
+        </view>
+        <view class="pkg-row" wx:if="{{item.package_type === 'count_card'}}">
+          <text class="pkg-label">剩余次数</text>
+          <text class="pkg-val accent">{{item.remaining_credits || 0}} 次</text>
+        </view>
+
+        <view class="pkg-row" wx:if="{{item.package_type === 'time_card'}}">
+          <text class="pkg-label">使用限制</text>
+          <text class="pkg-val">{{item.daily_limit ? '每日' + item.daily_limit + '次' : (item.weekly_limit ? '每周' + item.weekly_limit + '次' : '不限次数')}}</text>
+        </view>
+        <view class="pkg-row" wx:if="{{item.package_type === 'time_card' && item.status === 'active' && item.timeCardUsage}}">
+          <text class="pkg-label">本周剩余</text>
+          <text class="pkg-val accent">{{item.timeCardUsage.weekly_remaining !== null ? item.timeCardUsage.weekly_remaining + '次/' + item.timeCardUsage.weekly_limit + '次' : ''}}{{item.timeCardUsage.daily_remaining !== null ? ' · 今日' + item.timeCardUsage.daily_remaining + '次' : ''}}</text>
+        </view>
+        <view class="pkg-row" wx:if="{{item.package_type === 'time_card' && item.status === 'active' && item.timeCardUsage && item.timeCardUsage.next_week_remaining !== null}}">
+          <text class="pkg-label">下周剩余</text>
+          <text class="pkg-val">{{item.timeCardUsage.next_week_remaining}}次/{{item.timeCardUsage.weekly_limit}}次</text>
+        </view>
+
+        <view class="pkg-row">
+          <text class="pkg-label">服务有效期</text>
+          <text class="pkg-val" wx:if="{{item.status === 'pending'}}">激活后{{item.duration_value || '-'}}{{item.duration_unit === 'month' ? '个月' : '天'}}</text>
+          <text class="pkg-val" wx:elif="{{item.start_date}}">{{item.start_date_display || formatDateFn(item.start_date)}} 至 {{item.end_date_display || formatDateFn(item.end_date)}}</text>
+          <text class="pkg-val" wx:else>-</text>
+        </view>
+        <view class="pkg-row" wx:if="{{item.remaining_days !== null && item.remaining_days !== undefined}}">
+          <text class="pkg-label"></text>
+          <text class="pkg-val accent">剩余 {{item.remaining_days}} 天</text>
+        </view>
+      </view>
+
+      <view class="pkg-actions" wx:if="{{item.status === 'pending'}}">
+        <view class="btn-primary" bindtap="onActivateTap" data-pkg="{{item}}">
+          <text>立即激活</text>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <empty-state 
+    wx:if="{{!loading && packages.length === 0}}" 
+    text="暂无套餐信息" 
+    hint="请联系管理员购买套餐">
+  </empty-state>
+
+  <view class="loading-state" wx:if="{{loading}}">
+    <view class="loading-spinner"></view>
+    <text class="loading-text">加载中...</text>
+  </view>
+</view>

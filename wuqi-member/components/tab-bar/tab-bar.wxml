@@ -1,0 +1,14 @@
+<view class="tab-bar">
+  <view class="tab-item {{selected === 0 ? 'active' : ''}}" bindtap="switchTab" data-index="0" data-path="/pages/index/index">
+    <text class="tab-icon">🏠</text>
+    <text class="tab-text">首页</text>
+  </view>
+  <view class="tab-item {{selected === 1 ? 'active' : ''}}" bindtap="switchTab" data-index="1" data-path="/pages/booking/booking">
+    <text class="tab-icon">📅</text>
+    <text class="tab-text">预约</text>
+  </view>
+  <view class="tab-item {{selected === 2 ? 'active' : ''}}" bindtap="switchTab" data-index="2" data-path="/pages/profile/profile">
+    <text class="tab-icon">👤</text>
+    <text class="tab-text">我的</text>
+  </view>
+</view>

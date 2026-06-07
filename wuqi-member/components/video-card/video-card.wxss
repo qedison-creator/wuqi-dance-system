@@ -1,0 +1,81 @@
+.video-card {
+  padding: 0;
+  overflow: hidden;
+}
+
+.video-cover {
+  position: relative;
+  width: 100%;
+  height: 360rpx;
+}
+
+.cover-img {
+  width: 100%;
+  height: 100%;
+  background-color: #333333;
+}
+
+.play-btn {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 80rpx;
+  height: 80rpx;
+  background-color: rgba(0, 0, 0, 0.6);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.play-icon {
+  font-size: 36rpx;
+  color: #FFFFFF;
+  margin-left: 6rpx;
+}
+
+.video-duration {
+  position: absolute;
+  bottom: 12rpx;
+  right: 12rpx;
+  background-color: rgba(0, 0, 0, 0.7);
+  padding: 4rpx 12rpx;
+  border-radius: 6rpx;
+}
+
+.duration-text {
+  color: #FFFFFF;
+  font-size: 22rpx;
+}
+
+.video-info {
+  padding: 20rpx 24rpx;
+}
+
+.video-title {
+  font-size: 28rpx;
+  color: #FFFFFF;
+  margin-bottom: 12rpx;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.video-meta {
+  display: flex;
+  align-items: center;
+}
+
+.coach-avatar-small {
+  width: 40rpx;
+  height: 40rpx;
+  margin-right: 12rpx;
+  background-color: #444444;
+}
+
+.coach-name {
+  font-size: 24rpx;
+  color: #999999;
+}
