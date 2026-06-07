@@ -8,8 +8,8 @@ const config = {
     serverBase: 'http://101.33.203.22:3000'
   },
   prod: {
-    baseUrl: 'https://admin-api.yuekeme.cn/api/v1',
-    serverBase: 'https://admin-api.yuekeme.cn'
+    baseUrl: 'https://api.yuekeme.cn/api/v1',
+    serverBase: 'https://api.yuekeme.cn'
   }
 };
 

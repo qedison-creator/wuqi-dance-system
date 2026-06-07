@@ -258,14 +258,30 @@ Page({
 
   applyHeroBackground(themeOrConfigs) {
     let theme;
+    let bgUrl = '';
+
     if (typeof themeOrConfigs === 'string') {
       theme = themeOrConfigs;
+    } else if (themeOrConfigs && typeof themeOrConfigs === 'object') {
+      theme = this.data.theme;
+      // 参照会员端banner方式：优先使用后端API返回的图片URL
+      if (themeOrConfigs.hero_background_url) {
+        bgUrl = themeOrConfigs.hero_background_url;
+        // 参照会员端avatar_url处理：相对路径拼接serverBase，完整URL直接使用
+        if (!bgUrl.startsWith('http')) {
+          bgUrl = config.serverBase + bgUrl;
+        }
+      }
     } else {
       theme = this.data.theme;
     }
-    // 只用服务器 HTTPS 图片
-    const serverBgUrl = config.serverBase + '/uploads/hero/hero-' + theme + '.jpg';
-    this.setData({ heroBackgroundUrl: serverBgUrl });
+
+    // 没有后端配置URL时，使用默认路径拼接
+    if (!bgUrl) {
+      bgUrl = config.serverBase + '/uploads/hero/hero-' + theme + '.jpg';
+    }
+
+    this.setData({ heroBackgroundUrl: bgUrl });
   },
 
   async loadAllData() {
