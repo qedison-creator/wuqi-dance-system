@@ -130,7 +130,7 @@ Page({
           this.setData({ announceAnimPhase: '' });
         }, 400);
       }, 400);
-    }, 2000);
+    }, 3000);
   },
 
   stopAnnounceFlip() {

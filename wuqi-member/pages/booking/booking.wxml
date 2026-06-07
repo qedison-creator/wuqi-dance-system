@@ -33,21 +33,15 @@
     </view>
 
     <view class="date-section">
-      <view class="date-arrow date-arrow-left" bindtap="onDatePrev">
-        <view class="arrow-icon-left"></view>
-      </view>
-      <scroll-view class="date-scroll" scroll-x enhanced show-scrollbar="{{false}}" scroll-into-view="date-{{selectedDate}}" scroll-with-animation>
+      <view class="date-scroll">
         <view class="date-scroll-inner">
           <block wx:for="{{weekDays}}" wx:key="date">
-            <view class="date-item {{selectedDate === item.date ? 'active' : ''}}" id="date-{{item.date}}" data-date="{{item.date}}" data-index="{{index}}" bindtap="onSelectDate">
+            <view class="date-item {{selectedDate === item.date ? 'active' : ''}}" data-date="{{item.date}}" data-index="{{index}}" bindtap="onSelectDate">
               <text class="date-md">{{df.formatMD(item.date)}}</text>
               <text class="date-wd">{{item.displayDay}}</text>
             </view>
           </block>
         </view>
-      </scroll-view>
-      <view class="date-arrow date-arrow-right" bindtap="onDateNext">
-        <view class="arrow-icon-right"></view>
       </view>
     </view>
 

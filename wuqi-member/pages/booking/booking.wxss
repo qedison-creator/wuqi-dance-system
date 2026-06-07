@@ -152,61 +152,15 @@ page {
   margin-bottom: 24rpx;
 }
 
-.date-arrow {
-  width: 60rpx;
-  height: 100rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  border-radius: 20rpx;
-  background: #FFFFFF;
-  box-shadow: 0 2rpx 12rpx rgba(42,33,34,0.04);
-  transition: transform 150ms cubic-bezier(0.4, 0, 0.2, 1);
-  border: 1rpx solid rgba(212,120,110,0.08);
-}
-
-.date-arrow:active {
-  transform: scale(0.92);
-}
-
-.date-arrow-left {
-  margin-right: 12rpx;
-}
-
-.date-arrow-right {
-  margin-left: 12rpx;
-}
-
-.arrow-icon-left,
-.arrow-icon-right {
-  width: 16rpx;
-  height: 16rpx;
-  border-top: 3rpx solid #D4786E;
-  border-right: 3rpx solid #D4786E;
-}
-
-.arrow-icon-left {
-  transform: rotate(-135deg);
-  margin-left: 6rpx;
-}
-
-.arrow-icon-right {
-  transform: rotate(45deg);
-  margin-right: 6rpx;
-}
-
 .date-scroll {
   flex: 1;
-  white-space: nowrap;
-}
-
-.date-scroll::-webkit-scrollbar {
-  display: none;
+  overflow: hidden;
 }
 
 .date-scroll-inner {
   display: flex;
+  justify-content: space-between;
+  width: 100%;
 }
 
 .date-item {
@@ -214,11 +168,11 @@ page {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  width: 84rpx;
-  height: 100rpx;
+  width: calc(14.2857% - 10rpx);
+  min-width: 60rpx;
+  height: 108rpx;
   border-radius: 24rpx;
   background: #FFFFFF;
-  margin-right: 12rpx;
   box-shadow: 0 2rpx 12rpx rgba(42,33,34,0.04);
   transition: all 250ms cubic-bezier(0.34, 1.56, 0.64, 1);
   flex-shrink: 0;
@@ -241,14 +195,14 @@ page {
 }
 
 .date-md {
-  font-size: 25rpx;
+  font-size: 28rpx;
   color: #6B5D5E;
   font-weight: 500;
-  margin-bottom: 4rpx;
+  margin-bottom: 6rpx;
 }
 
 .date-wd {
-  font-size: 20rpx;
+  font-size: 22rpx;
   color: #948284;
 }
 

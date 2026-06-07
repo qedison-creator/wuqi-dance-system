@@ -597,13 +597,42 @@ page {
 }
 
 .ab-dot {
-  width: 8rpx;
-  height: 8rpx;
-  min-width: 8rpx;
-  border-radius: 50%;
+  width: 32rpx;
+  height: 32rpx;
+  min-width: 32rpx;
+  border-radius: 10rpx;
   background: linear-gradient(135deg, #D4786E, #E8985E);
   margin-right: 12rpx;
-  box-shadow: 0 0 0 4rpx rgba(212,120,110,0.15);
+  box-shadow: 0 2rpx 8rpx rgba(212,120,110,0.25);
+  position: relative;
+  flex-shrink: 0;
+}
+
+.ab-dot::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 16rpx;
+  height: 18rpx;
+  border: 3rpx solid #FFFFFF;
+  border-radius: 3rpx;
+  border-bottom-left-radius: 6rpx;
+  border-bottom-right-radius: 6rpx;
+}
+
+.ab-dot::after {
+  content: '';
+  position: absolute;
+  top: 6rpx;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 8rpx;
+  height: 5rpx;
+  border: 3rpx solid #FFFFFF;
+  border-bottom: none;
+  border-radius: 3rpx 3rpx 0 0;
 }
 
 .ab-flip-wrap {
