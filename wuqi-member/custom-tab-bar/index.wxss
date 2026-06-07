@@ -57,6 +57,14 @@
 }
 
 .ti-shape {
+  width: 48rpx;
+  height: 48rpx;
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding-bottom: 8rpx;
+  box-sizing: border-box;
   transition: all 250ms cubic-bezier(0.4, 0, 0.2, 1);
 }
 
@@ -68,6 +76,7 @@
   border-bottom: none;
   position: relative;
   box-sizing: border-box;
+  transform: translateY(-3rpx);
 }
 
 .ti-home::after {
@@ -91,12 +100,13 @@
 }
 
 .ti-cal {
-  width: 38rpx;
-  height: 36rpx;
+  width: 40rpx;
+  height: 38rpx;
   border: 4rpx solid #948284;
   border-radius: 6rpx;
   position: relative;
   box-sizing: border-box;
+  transform: translateY(0rpx);
 }
 
 .ti-cal::before {
@@ -137,12 +147,13 @@
 }
 
 .ti-user {
-  width: 36rpx;
-  height: 36rpx;
+  width: 32rpx;
+  height: 32rpx;
   border: 4rpx solid #948284;
   border-radius: 50%;
   position: relative;
   box-sizing: border-box;
+  transform: translateY(-12rpx);
 }
 
 .ti-user::after {
@@ -151,8 +162,8 @@
   bottom: -24rpx;
   left: 50%;
   transform: translateX(-50%);
-  width: 44rpx;
-  height: 20rpx;
+  width: 40rpx;
+  height: 18rpx;
   border: 4rpx solid #948284;
   border-radius: 20rpx 20rpx 0 0;
   border-bottom: none;
