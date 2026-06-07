@@ -45,7 +45,7 @@
             <view class="status-dot {{item.status === 'active' ? 'active' : 'disabled'}}"></view>
           </view>
           <text class="account-detail">账号: {{item.username}}</text>
-          <text class="account-detail" wx:if="{{item.store_id}}">门店: {{item.store_id.name || '未知'}}</text>
+          <text class="account-detail" wx:if="{{item.storeNames}}">门店: {{item.storeNames}}</text>
           <text class="account-detail">权限: {{item.permCount}}</text>
         </view>
       </view>
@@ -98,11 +98,21 @@
       </view>
       <view class="form-group" wx:if="{{formData.role !== 'super_admin'}}">
         <text class="form-label">所属门店</text>
-        <picker mode="selector" range="{{stores}}" range-key="name" value="{{storeIndex}}" bindchange="onStoreChange">
-          <view class="input-field picker-field">
-            <text class="{{formData.store_id ? '' : 'placeholder'}}">{{formData.store_id ? (stores[storeIndex] && stores[storeIndex].name) : '请选择门店'}}</text>
+        <view class="store-select-all" bindtap="onStoreToggleAll">
+          <view class="checkbox {{storeSelectAll ? 'checked' : ''}}">
+            <text wx:if="{{storeSelectAll}}">✓</text>
           </view>
-        </picker>
+          <text class="select-all-label">全选</text>
+        </view>
+        <scroll-view class="store-list" scroll-y="true" style="max-height: 300rpx;">
+          <view class="store-item" wx:for="{{stores}}" wx:key="_id" data-index="{{index}}" bindtap="onStoreToggle">
+            <view class="checkbox {{storeCheckboxes[index] ? 'checked' : ''}}">
+              <text wx:if="{{storeCheckboxes[index]}}">✓</text>
+            </view>
+            <text class="store-name">{{item.name}}</text>
+          </view>
+        </scroll-view>
+        <text class="form-tip" wx:if="{{formData.store_ids.length === 0}}">请至少选择一个门店</text>
       </view>
       <button class="btn-primary submit-btn" bindtap="onSubmit">确认</button>
     </view>

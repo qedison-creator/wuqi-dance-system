@@ -43,6 +43,7 @@ router.get('/', auth, checkModulePermission('account'), async (req, res, next) =
     const list = await User.find(filter)
       .select('-password -openid -unionid -__v')
       .populate('store_id', 'name')
+      .populate('store_ids', 'name')
       .sort({ created_at: -1 })
       .skip((page - 1) * pageSize)
       .limit(Number(pageSize));
@@ -146,7 +147,7 @@ router.put('/roles/:roleId', auth, checkPermission(['super_admin']), async (req,
 // POST /api/v1/accounts - 新增子账号
 router.post('/', auth, checkModulePermission('account'), async (req, res, next) => {
   try {
-    const { username, password, nick_name, role, store_id } = req.body;
+    const { username, password, nick_name, role, store_ids } = req.body;
 
     if (!username) throw new Error('账号名不能为空');
     if (!password) throw new Error('密码不能为空');
@@ -178,7 +179,7 @@ router.post('/', auth, checkModulePermission('account'), async (req, res, next) 
       nick_name: nick_name || username,
       user_type: role === 'store_manager' ? 'admin' : 'staff',
       role,
-      store_id: store_id || null,
+      store_ids: store_ids || [],
       permissions,
       status: 'active',
     });
@@ -209,9 +210,9 @@ router.put('/:id', auth, checkModulePermission('account'), async (req, res, next
       }
     }
 
-    const { nick_name, role, store_id } = req.body;
+    const { nick_name, role, store_ids } = req.body;
     if (nick_name) account.nick_name = nick_name;
-    if (store_id !== undefined) account.store_id = store_id;
+    if (store_ids !== undefined) account.store_ids = store_ids;
     if (currentRole === 'super_admin' && role) {
       account.role = role;
       account.user_type = role === 'store_manager' ? 'admin' : 'staff';

@@ -90,7 +90,8 @@ router.put('/admin-profile', auth, async (req, res, next) => {
     await user.save();
     const populated = await User.findById(user._id)
       .select('-password -__v')
-      .populate('store_id', 'name phone address');
+      .populate('store_id', 'name phone address')
+      .populate('store_ids', 'name');
     res.json(success(populated, '更新成功'));
   } catch (err) {
     next(err);

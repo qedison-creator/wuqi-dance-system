@@ -14,6 +14,7 @@ const userSchema = new mongoose.Schema({
   gender: { type: Number, default: 0 },
   real_name: { type: String },
   store_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Store' },
+  store_ids: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Store' }],
   role: { type: String, enum: ['super_admin', 'store_manager', 'staff'] },
   permissions: { type: [String], default: [] },
   username: { type: String, unique: true, sparse: true },

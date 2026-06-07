@@ -128,6 +128,7 @@ exports.adminLogin = async (username, password) => {
       user_type: user.user_type,
       role: user.role,
       store_id: user.store_id,
+      store_ids: user.store_ids || [],
       permissions: user.permissions || [],
     },
   };
@@ -137,7 +138,8 @@ exports.adminLogin = async (username, password) => {
 exports.getMe = async (userId) => {
   const user = await User.findById(userId)
     .select('-password -__v')
-    .populate('store_id', 'name phone address');
+    .populate('store_id', 'name phone address')
+    .populate('store_ids', 'name');
 
   if (!user) {
     throw new Error('用户不存在');

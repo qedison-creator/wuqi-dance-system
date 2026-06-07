@@ -292,3 +292,62 @@
   border-radius: 16rpx;
   padding: 20rpx;
 }
+
+/* 门店多选 */
+.store-select-all {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  padding: 16rpx 20rpx;
+  background-color: var(--bg-root);
+  border: 2rpx solid var(--border);
+  border-radius: 14rpx;
+  margin-bottom: 12rpx;
+}
+
+.select-all-label {
+  font-size: 28rpx;
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.store-list {
+  background-color: var(--bg-root);
+  border: 2rpx solid var(--border);
+  border-radius: 14rpx;
+  padding: 8rpx 0;
+}
+
+.store-item {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  padding: 18rpx 20rpx;
+}
+
+.store-item:active {
+  background-color: rgba(0, 0, 0, 0.03);
+}
+
+.store-name {
+  font-size: 28rpx;
+  color: var(--text-primary);
+}
+
+.checkbox {
+  width: 40rpx;
+  height: 40rpx;
+  border-radius: 8rpx;
+  border: 3rpx solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24rpx;
+  color: #fff;
+  flex-shrink: 0;
+}
+
+.checkbox.checked {
+  background-color: var(--color-primary);
+  border-color: var(--color-primary);
+}

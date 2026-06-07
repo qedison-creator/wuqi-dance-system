@@ -9,7 +9,6 @@ Page({
     showModal: false,
     editingAccount: null,
     roleIndex: 1,
-    storeIndex: 0,
     roles: [
       { id: 'super_admin', name: '超级管理员' },
       { id: 'store_manager', name: '店长' },
@@ -20,8 +19,10 @@ Page({
       username: '',
       password: '',
       role: 'staff',
-      store_id: ''
-    }
+      store_ids: []
+    },
+    storeCheckboxes: [],
+    storeSelectAll: false
   },
 
   onShow() {
@@ -59,6 +60,9 @@ Page({
       const processedList = list.map(item => ({
         ...item,
         roleName: roleMap[item.role] || item.role,
+        storeNames: item.store_ids && item.store_ids.length > 0
+          ? item.store_ids.map(s => s.name || '未知').join('、')
+          : (item.store_id ? (item.store_id.name || '未知') : ''),
         permCount: item.role === 'super_admin' ? '全部'
           : (item.permissions && item.permissions.length > 0
             ? (item.permissions[0] === '*' ? '全部' : item.permissions.length + '项')
@@ -69,18 +73,19 @@ Page({
   },
 
   onAddAccount() {
+    const allStoreIds = this.data.stores.map(s => s._id);
+    const allChecked = this.data.stores.map(() => true);
     this.setData({
       showModal: true,
       editingAccount: null,
       roleIndex: 1,
-      storeIndex: 0,
-      formData: {
-        name: '',
-        username: '',
-        password: '',
-        role: 'staff',
-        store_id: this.data.stores.length > 0 ? this.data.stores[0]._id : ''
-      }
+      'formData.name': '',
+      'formData.username': '',
+      'formData.password': '',
+      'formData.role': 'staff',
+      'formData.store_ids': allStoreIds,
+      storeCheckboxes: allChecked,
+      storeSelectAll: allStoreIds.length > 0
     });
   },
 
@@ -88,24 +93,27 @@ Page({
     const { index } = e.currentTarget.dataset;
     const account = this.data.accounts[index];
     const roleIndex = this.data.roles.findIndex(r => r.id === account.role);
-    let storeId = '';
-    let storeIndex = -1;
-    if (account.store_id) {
-      storeId = typeof account.store_id === 'object' ? account.store_id._id : account.store_id;
-      storeIndex = this.data.stores.findIndex(s => s._id === storeId);
+    // 处理门店多选：优先使用 store_ids，兼容旧的 store_id
+    let storeIds = [];
+    if (account.store_ids && account.store_ids.length > 0) {
+      storeIds = account.store_ids.map(s => typeof s === 'object' ? s._id : s);
+    } else if (account.store_id) {
+      const sid = typeof account.store_id === 'object' ? account.store_id._id : account.store_id;
+      if (sid) storeIds = [sid];
     }
+    const checkboxes = this.data.stores.map(s => storeIds.includes(s._id));
+    const allChecked = this.data.stores.length > 0 && checkboxes.every(c => c);
     this.setData({
       showModal: true,
       editingAccount: account,
       roleIndex: roleIndex >= 0 ? roleIndex : 1,
-      storeIndex: storeIndex >= 0 ? storeIndex : 0,
-      formData: {
-        name: account.nick_name || account.name || '',
-        username: account.username || '',
-        password: '',
-        role: account.role || 'staff',
-        store_id: storeId
-      }
+      'formData.name': account.nick_name || account.name || '',
+      'formData.username': account.username || '',
+      'formData.password': '',
+      'formData.role': account.role || 'staff',
+      'formData.store_ids': storeIds,
+      storeCheckboxes: checkboxes,
+      storeSelectAll: allChecked
     });
   },
 
@@ -123,18 +131,52 @@ Page({
   onRoleChange(e) {
     const index = e.detail.value;
     const newRole = this.data.roles[index].id;
+    if (newRole === 'super_admin') {
+      // 超级管理员不属于任何门店
+      this.setData({
+        roleIndex: index,
+        'formData.role': newRole,
+        'formData.store_ids': [],
+        storeCheckboxes: this.data.stores.map(() => false),
+        storeSelectAll: false
+      });
+    } else {
+      // 店长、员工默认全部门店
+      const allStoreIds = this.data.stores.map(s => s._id);
+      const allChecked = this.data.stores.map(() => true);
+      this.setData({
+        roleIndex: index,
+        'formData.role': newRole,
+        'formData.store_ids': allStoreIds,
+        storeCheckboxes: allChecked,
+        storeSelectAll: allStoreIds.length > 0
+      });
+    }
+  },
+
+  onStoreToggle(e) {
+    const { index } = e.currentTarget.dataset;
+    const checkboxes = [...this.data.storeCheckboxes];
+    checkboxes[index] = !checkboxes[index];
+    const storeIds = this.data.stores
+      .filter((s, i) => checkboxes[i])
+      .map(s => s._id);
+    const allChecked = this.data.stores.length > 0 && checkboxes.every(c => c);
     this.setData({
-      roleIndex: index,
-      'formData.role': newRole,
-      'formData.store_id': newRole === 'super_admin' ? '' : this.data.formData.store_id
+      storeCheckboxes: checkboxes,
+      'formData.store_ids': storeIds,
+      storeSelectAll: allChecked
     });
   },
 
-  onStoreChange(e) {
-    const index = e.detail.value;
-    const store = this.data.stores[index];
+  onStoreToggleAll() {
+    const newAll = !this.data.storeSelectAll;
+    const checkboxes = this.data.stores.map(() => newAll);
+    const storeIds = newAll ? this.data.stores.map(s => s._id) : [];
     this.setData({
-      'formData.store_id': store ? store._id : ''
+      storeCheckboxes: checkboxes,
+      'formData.store_ids': storeIds,
+      storeSelectAll: newAll
     });
   },
 
@@ -154,11 +196,10 @@ Page({
       data = {
         nick_name: formData.name
       };
-      if (formData.role !== 'super_admin' && formData.store_id) {
-        data.store_id = formData.store_id;
-      }
-      if (formData.role === 'super_admin') {
-        data.store_id = null;
+      if (formData.role !== 'super_admin') {
+        data.store_ids = formData.store_ids;
+      } else {
+        data.store_ids = [];
       }
       if (currentUserRole === 'super_admin') {
         data.role = formData.role;
@@ -170,7 +211,7 @@ Page({
         user_type: formData.role === 'store_manager' ? 'admin' : 'staff',
         role: formData.role,
         password: formData.password,
-        store_id: formData.role !== 'super_admin' ? formData.store_id : null
+        store_ids: formData.role !== 'super_admin' ? formData.store_ids : []
       };
     }
 
