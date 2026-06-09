@@ -79,8 +79,8 @@
   },
   "sitemapLocation": "sitemap.json",
   "style": "v2",
-  "resizable": false,
   "lazyCodeLoading": "requiredComponents",
+  "resizable": false,
   "permission": {
     "scope.userLocation": {
       "desc": "获取位置信息用于导航"

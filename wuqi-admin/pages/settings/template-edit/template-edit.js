@@ -25,6 +25,12 @@ Page({
     this.loadTemplates();
   },
 
+  onShow() {
+    if (this.data.templates.length === 0) {
+      this.loadTemplates();
+    }
+  },
+
   async loadBizFieldOptions() {
     try {
       const res = await request({ url: '/template-mappings/biz-fields', method: 'GET' });
@@ -50,11 +56,13 @@ Page({
     return {
       _id: t._id,
       template_key: t.template_key,
+      template_title: t.template_title || '',
       template_name: t.template_name || '',
       template_id: t.template_id || '',
       description: t.description || TEMPLATE_SCENARIOS[t.template_key] || '',
       expanded: false,
       mappings: (t.mappings || []).map(m => ({
+        field_name: m.field_name || '',
         wx_field: m.wx_field,
         biz_field: m.biz_field,
         biz_field_index: this.getBizFieldIndex(m.biz_field),
@@ -93,6 +101,7 @@ Page({
     const templates = [...this.data.templates];
     const mappings = [...templates[idx].mappings];
     mappings.push({
+      field_name: '',
       wx_field: '',
       biz_field: this.data.bizFieldOptions.length > 0 ? this.data.bizFieldOptions[0].value : '',
       biz_field_index: 0,
@@ -116,6 +125,11 @@ Page({
     this.setData({ [`templates[${idx}].template_name`]: e.detail.value });
   },
 
+  onTitleInput(e) {
+    const idx = e.currentTarget.dataset.index;
+    this.setData({ [`templates[${idx}].template_title`]: e.detail.value });
+  },
+
   onDescInput(e) {
     const idx = e.currentTarget.dataset.index;
     this.setData({ [`templates[${idx}].description`]: e.detail.value });
@@ -130,6 +144,12 @@ Page({
     const tplIdx = e.currentTarget.dataset.tplIndex;
     const mapIdx = e.currentTarget.dataset.mapIndex;
     this.setData({ [`templates[${tplIdx}].mappings[${mapIdx}].wx_field`]: e.detail.value });
+  },
+
+  onFieldNameInput(e) {
+    const tplIdx = e.currentTarget.dataset.tplIndex;
+    const mapIdx = e.currentTarget.dataset.mapIndex;
+    this.setData({ [`templates[${tplIdx}].mappings[${mapIdx}].field_name`]: e.detail.value });
   },
 
   onBizFieldChange(e) {
@@ -184,10 +204,12 @@ Page({
         method: 'PUT',
         data: {
           template_key: template.template_key,
+          template_title: template.template_title,
           template_name: template.template_name,
           template_id: template.template_id,
           description: template.description,
           mappings: template.mappings.map(m => ({
+            field_name: m.field_name || '',
             wx_field: m.wx_field.trim(),
             biz_field: m.biz_field,
             example_value: m.example_value || ''

@@ -25,8 +25,9 @@ async function sendPackageExpireReminder(user, packageInfo, daysLeft) {
     const expireDate = packageInfo.end_date ? dayjs(packageInfo.end_date).format('YYYY年MM月DD日') : '即将到期';
 
     await sendByTemplateKey(user.openid, 'packageExpiring', {
-      packageName,
-      expireDate,
+      packageType: packageName,
+      remindType: '到期提醒',
+      remindReason: `您的套餐将于${expireDate}到期`,
       tipMessage: `套餐还有${daysLeft}天到期，记得续费哦`
     }, 'pages/profile/profile');
 
@@ -45,9 +46,10 @@ async function sendLowCountReminder(user, packageInfo) {
     const remainCount = String(packageInfo.remaining_credits || 0);
 
     await sendByTemplateKey(user.openid, 'countCardLowRemind', {
-      packageName,
-      remainCount,
-      tipMessage: '跳舞次数快用完啦，赶紧囤卡'
+      packageType: `${packageInfo.total_credits}次卡`,
+      remindType: '次数不足提醒',
+      remindReason: `剩余次数仅剩${packageInfo.remaining_credits}次`,
+      tipMessage: '跳舞次数快用完啦，赶紧囤卡哟'
     }, 'pages/profile/profile');
 
     console.log(`[Reminder] 发送次卡低次数提醒给会员 ${user._id}, 套餐: ${packageInfo._id}, 剩余${packageInfo.remaining_credits}次`);
@@ -59,13 +61,19 @@ async function sendLowCountReminder(user, packageInfo) {
 }
 
 // ========== 会员不活跃提醒 ==========
-async function sendInactiveReminder(user, daysInactive) {
+async function sendInactiveReminder(user, daysInactive, packageInfo) {
   try {
     const memberNickname = user.nick_name || user.real_name || '会员';
+    const packageType = packageInfo
+      ? (packageInfo.package_type === 'count_card'
+        ? `${packageInfo.total_credits}次卡`
+        : `${packageInfo.duration_value || ''}${packageInfo.duration_unit === 'month' ? '个月' : '天'}时间卡`)
+      : '会员卡';
 
     await sendByTemplateKey(user.openid, 'memberInactiveRemind', {
-      memberNickname,
-      inactiveDays: String(daysInactive),
+      packageType,
+      remindType: '不活跃提醒',
+      remindReason: `您已超过${daysInactive}天未预约课程`,
       tipMessage: '舞蹈社想你啦，快来跳支舞吧'
     }, 'pages/booking/booking');
 
@@ -224,8 +232,8 @@ async function checkInactiveMemberReminders() {
     }
 
     if (daysInactive >= inactiveDays) {
-      await sendInactiveReminder(user, daysInactive);
-      user.last_inactive_reminded_at = new Date();
+          await sendInactiveReminder(user, daysInactive, activePackage);
+          user.last_inactive_reminded_at = new Date();
       await user.save();
       sentCount++;
     }

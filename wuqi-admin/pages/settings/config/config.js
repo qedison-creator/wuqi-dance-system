@@ -1,5 +1,6 @@
 const app = getApp();
 const { request } = require('../../../utils/request');
+const serverConfig = require('../../../config/index.js');
 
 const HERO_THEMES = [
   { key: 'sunrise', label: '清晨 (5:00-8:00)' },
@@ -62,7 +63,7 @@ Page({
       const heroConfigs = HERO_THEMES.map(t => ({
         ...t,
         config_key: `hero_bg_${t.key}`,
-        config_value: systemConfigs[`hero_bg_${t.key}`] || '',
+        config_value: systemConfigs[`hero_bg_${t.key}`] || (serverConfig.serverBase + '/uploads/hero/hero-' + t.key + '.jpg'),
         uploading: false
       }));
       
@@ -78,7 +79,7 @@ Page({
           { config_key: 'timeout_cancel_window', config_value: '10', description: '超时取消窗口(分钟)' },
           { config_key: 'default_schedule_duration', config_value: '75', description: '默认排课时长(分钟)' }
         ],
-        heroConfigs: HERO_THEMES.map(t => ({ ...t, config_key: `hero_bg_${t.key}`, config_value: '', uploading: false })),
+        heroConfigs: HERO_THEMES.map(t => ({ ...t, config_key: `hero_bg_${t.key}`, config_value: serverConfig.serverBase + '/uploads/hero/hero-' + t.key + '.jpg', uploading: false })),
         loading: false
       });
     });

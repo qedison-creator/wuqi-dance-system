@@ -120,108 +120,130 @@ const initDefaultConfigs = async () => {
 
     // 初始化默认字段映射（仅在不存在时创建）
     const defaultMappings = [
-      {
+{
         template_key: 'bookingSuccess',
-        template_name: '课程预约成功通知',
+        template_title: '预约成功通知',
+        template_name: '预约成功通知',
         description: '用户在小程序中预约课程成功后，系统自动推送微信订阅消息，告知用户预约已生效。消息中将展示课程名称、授课教练、上课门店及具体上课时间，帮助用户快速确认预约详情。',
         mappings: [
-          { wx_field: 'thing1', biz_field: 'courseName', example_value: '拉伸课' },
-          { wx_field: 'phrase2', biz_field: 'coachName', example_value: '张三' },
-          { wx_field: 'thing3', biz_field: 'storeName', example_value: '微信健身馆' },
-          { wx_field: 'time4', biz_field: 'courseTime', example_value: '2018-07-08 11:00~12:00' },
-          { wx_field: 'time16', biz_field: 'bookingTime', example_value: '2024年10月17日15:01' }
+          { field_name: '课程名称', wx_field: 'thing1', biz_field: 'courseName', example_value: '爵士舞入门' },
+          { field_name: '上课时间', wx_field: 'time2', biz_field: 'courseTime', example_value: '2026-06-09 19:00' },
+          { field_name: '教练', wx_field: 'thing3', biz_field: 'coachName', example_value: '小张' },
+          { field_name: '门店', wx_field: 'thing4', biz_field: 'storeName', example_value: '固戍店' }
         ]
       },
       {
         template_key: 'classReminder',
+        template_title: '课程即将开始提醒',
         template_name: '上课提醒',
-        description: '课程开始前，系统自动向已预约该课程的用户推送上课提醒通知。消息中将展示课程名称、上课时间及具体教室位置，避免用户遗忘或跑错教室，提升学员出勤体验。',
+        template_id: 'gdyNSKNqL1o44tUE1o16x6gzd0aeCEI21CH73o4lgr8',
+        description: '课程开始前，系统自动向已预约该课程的用户推送上课提醒通知。消息中将展示课程名称、上课时间、教练、地址及温馨提醒，避免用户遗忘或跑错教室。',
         mappings: [
-          { wx_field: 'thing1', biz_field: 'courseName', example_value: '爵士舞入门' },
-          { wx_field: 'time2', biz_field: 'courseTime', example_value: '2026-06-01 19:00' },
-          { wx_field: 'thing3', biz_field: 'classroom', example_value: '固戍店A教室' }
+          { field_name: '课程名称', wx_field: 'thing1', biz_field: 'courseName', example_value: '爵士舞入门' },
+          { field_name: '开始时间', wx_field: 'date2', biz_field: 'courseTime', example_value: '2026-06-09 19:00' },
+          { field_name: '教练', wx_field: 'thing7', biz_field: 'coachName', example_value: '小张' },
+          { field_name: '温馨提醒', wx_field: 'thing4', biz_field: 'tipMessage', example_value: '请准时到场，记得带水杯哟' },
+          { field_name: '地址', wx_field: 'thing3', biz_field: 'classroom', example_value: '固戍店A教室' }
         ]
       },
       {
         template_key: 'bookingCancel',
-        template_name: '课程预约取消通知',
-        description: '用户在小程序中取消已预约的课程后，系统自动推送取消确认通知。消息中将展示取消的课程名称、教练、门店及取消时间，并附带取消原因说明，让用户清晰了解取消结果。',
+        template_title: '预约取消通知',
+        template_name: '预约取消通知',
+        description: '用户在小程序中取消已预约的课程后，系统自动推送取消确认通知。消息中将展示取消的课程名称及取消原因，让用户清晰了解取消结果。',
         mappings: [
-          { wx_field: 'thing3', biz_field: 'courseName', example_value: '普拉提' },
-          { wx_field: 'thing10', biz_field: 'coachName', example_value: 'John' },
-          { wx_field: 'const5', biz_field: 'cancelReason', example_value: '恶劣天气' },
-          { wx_field: 'thing1', biz_field: 'storeName', example_value: '瑜伽馆' },
-          { wx_field: 'time12', biz_field: 'cancelTime', example_value: '2022年11月22日 16:00' }
+          { field_name: '课程名称', wx_field: 'thing1', biz_field: 'courseName', example_value: '爵士舞入门' },
+          { field_name: '取消时间', wx_field: 'date2', biz_field: 'cancelTime', example_value: '2026-06-09 20:00' },
+          { field_name: '取消原因', wx_field: 'thing3', biz_field: 'cancelReason', example_value: '个人时间安排有变' }
         ]
       },
       {
         template_key: 'waitlistAvailable',
+        template_title: '团课有位提醒',
         template_name: '候补成功通知',
-        description: '当已满员的课程有名额空出时，系统自动向候补队列中的用户推送通知，提醒用户当前可预约该课程。消息中将展示课程名称、上课时间，引导用户尽快完成预约。',
+        template_id: 'igNOuX0hvk2rytUCaa1NcED3wSU9LrNzCtIvb5nDo-U',
+        description: '当用户加入候补队列，且有已预约用户取消导致名额释放时，系统自动推送候补成功通知。消息中将展示课程名称、上课时间、上课门店及温馨提示。',
         mappings: [
-          { wx_field: 'thing1', biz_field: 'courseName', example_value: '有氧舞蹈' },
-          { wx_field: 'time2', biz_field: 'courseTime', example_value: '2026-06-02 10:00' },
-          { wx_field: 'thing3', biz_field: 'tipMessage', example_value: '候补成功！记得准时去上课哦' }
+          { field_name: '预约课程', wx_field: 'thing2', biz_field: 'courseName', example_value: '垫上普拉提' },
+          { field_name: '上课时间', wx_field: 'time4', biz_field: 'courseTime', example_value: '9月28日 10:00-12:00' },
+          { field_name: '上课门店', wx_field: 'thing5', biz_field: 'storeName', example_value: '固戍店' },
+          { field_name: '温馨提示', wx_field: 'thing6', biz_field: 'tipMessage', example_value: '候补成功！记得准时去上课哦' }
         ]
       },
       {
         template_key: 'packageExpiring',
+        template_title: '会员卡状态提醒',
         template_name: '套餐即将到期',
-        description: '当用户的舞蹈课程套餐即将到期时，系统自动推送到期提醒通知。消息中将展示套餐名称、到期日期及续费提示，帮助用户及时续费避免权益中断。',
+        template_id: '8aYQBsrmJ-01NuYizZILTB6fbgcx2CkJxbfcpEKr3hw',
+        description: '当用户的舞蹈课程套餐即将到期时，系统自动推送到期提醒通知。消息中将展示会员卡类型、提醒类型、到期原因及续费提示，帮助用户及时续费避免权益中断。使用模板：会员卡状态提醒。',
         mappings: [
-          { wx_field: 'thing1', biz_field: 'packageName', example_value: '月卡套餐' },
-          { wx_field: 'date2', biz_field: 'expireDate', example_value: '2026-06-30' },
-          { wx_field: 'thing3', biz_field: 'tipMessage', example_value: '套餐还有3天到期，记得续费哦' }
+          { field_name: '会员卡类型', wx_field: 'thing2', biz_field: 'packageType', example_value: '时间卡3个月' },
+          { field_name: '提醒类型', wx_field: 'short_thing1', biz_field: 'remindType', example_value: '到期提醒' },
+          { field_name: '提醒原因', wx_field: 'thing3', biz_field: 'remindReason', example_value: '您的套餐还30天到期' },
+          { field_name: '温馨提示', wx_field: 'thing4', biz_field: 'tipMessage', example_value: '还有30天到期，记得续费哦' }
         ]
       },
       {
         template_key: 'packageActivated',
+        template_title: '会员卡状态提醒',
         template_name: '套餐已激活',
-        description: '用户成功购买或激活舞蹈课程套餐后，系统自动推送激活确认通知。消息中将展示套餐名称、有效期截止日期及引导语，鼓励用户立即开始预约课程。',
+        template_id: '8aYQBsrmJ-01NuYizZILTB6fbgcx2CkJxbfcpEKr3hw',
+        description: '用户成功购买或激活舞蹈课程套餐后，系统自动推送激活确认通知。消息中将展示会员卡类型、提醒类型及引导语，鼓励用户立即开始预约课程。使用模板：会员卡状态提醒。',
         mappings: [
-          { wx_field: 'thing1', biz_field: 'packageName', example_value: '次卡30次' },
-          { wx_field: 'date2', biz_field: 'expireDate', example_value: '2026-12-31' },
-          { wx_field: 'thing3', biz_field: 'tipMessage', example_value: '解锁跳舞权限！快来约课吧' }
+          { field_name: '会员卡类型', wx_field: 'thing2', biz_field: 'packageType', example_value: '次卡30次' },
+          { field_name: '提醒类型', wx_field: 'short_thing1', biz_field: 'remindType', example_value: '激活提醒' },
+          { field_name: '提醒原因', wx_field: 'thing3', biz_field: 'remindReason', example_value: '您的新套餐已激活' },
+          { field_name: '温馨提示', wx_field: 'thing4', biz_field: 'tipMessage', example_value: '解锁跳舞权限！快来约课吧' }
         ]
       },
       {
         template_key: 'countCardLowRemind',
+        template_title: '会员卡状态提醒',
         template_name: '次卡低次数提醒',
-        description: '当用户的次卡剩余可用次数低于设定阈值时，系统自动推送低次数提醒通知。消息中将展示套餐名称、剩余次数及续费引导语，提醒用户及时补充次卡以免影响正常上课。',
+        template_id: '8aYQBsrmJ-01NuYizZILTB6fbgcx2CkJxbfcpEKr3hw',
+        description: '当用户的次卡剩余可用次数低于设定阈值时，系统自动推送低次数提醒通知。消息中将展示会员卡类型、提醒类型及续费引导语，提醒用户及时补充次卡。使用模板：会员卡状态提醒。',
         mappings: [
-          { wx_field: 'thing1', biz_field: 'packageName', example_value: '次卡20次' },
-          { wx_field: 'number2', biz_field: 'remainCount', example_value: '3' },
-          { wx_field: 'thing3', biz_field: 'tipMessage', example_value: '跳舞次数快用完啦，赶紧囤卡' }
+          { field_name: '会员卡类型', wx_field: 'thing2', biz_field: 'packageType', example_value: '次卡20次' },
+          { field_name: '提醒类型', wx_field: 'short_thing1', biz_field: 'remindType', example_value: '次数不足提醒' },
+          { field_name: '提醒原因', wx_field: 'thing3', biz_field: 'remindReason', example_value: '剩余次数仅剩3次' },
+          { field_name: '温馨提示', wx_field: 'thing4', biz_field: 'tipMessage', example_value: '跳舞次数快用完啦，赶紧囤卡哟' }
         ]
       },
       {
         template_key: 'memberInactiveRemind',
+        template_title: '会员卡状态提醒',
         template_name: '会员不活跃提醒',
-        description: '当会员连续多日未在小程序中预约任何课程时，系统自动推送不活跃提醒通知。消息中将展示会员昵称、未活跃天数及暖心引导语，鼓励学员重新回到课堂，提升会员活跃度和留存率。',
+        template_id: '8aYQBsrmJ-01NuYizZILTB6fbgcx2CkJxbfcpEKr3hw',
+        description: '当会员连续多日未在小程序中预约任何课程时，系统自动推送不活跃提醒通知。消息中将展示会员卡类型、提醒类型及暖心引导语，鼓励学员重新回到课堂。使用模板：会员卡状态提醒。',
         mappings: [
-          { wx_field: 'thing1', biz_field: 'memberNickname', example_value: '小明' },
-          { wx_field: 'number2', biz_field: 'inactiveDays', example_value: '30' },
-          { wx_field: 'thing3', biz_field: 'tipMessage', example_value: '舞蹈社想你啦，快来跳支舞吧' }
+          { field_name: '会员卡类型', wx_field: 'thing2', biz_field: 'packageType', example_value: '时间卡3个月' },
+          { field_name: '提醒类型', wx_field: 'short_thing1', biz_field: 'remindType', example_value: '不活跃提醒' },
+          { field_name: '提醒原因', wx_field: 'thing3', biz_field: 'remindReason', example_value: '您已超过30天未预约课程' },
+          { field_name: '温馨提示', wx_field: 'thing4', biz_field: 'tipMessage', example_value: '舞蹈社想你啦，快来跳支舞吧' }
         ]
       },
       {
         template_key: 'phoneAuditResult',
+        template_title: '审核通过提醒',
         template_name: '手机号审核结果',
-        description: '当用户在小程序中提交手机号修改申请并完成审核后，系统自动推送审核结果通知。消息中将展示审核事项、审核结果及备注说明，使用户第一时间了解手机号变更的处理结果。',
+        template_id: '5XXIA0wMTBDrqMMteN80EFvvooQKTqv5p2XIESRazus',
+        description: '当用户提交手机号修改申请，管理员审核通过或驳回后，系统自动推送审核结果通知。消息中将展示审核事项、审核结果及审核意见，帮助用户及时了解申请进度。',
         mappings: [
-          { wx_field: 'thing1', biz_field: 'auditItem', example_value: '预留手机号修改' },
-          { wx_field: 'phrase2', biz_field: 'auditResult', example_value: '审核通过' },
-          { wx_field: 'thing3', biz_field: 'remark', example_value: '手机号已更新成功' }
+          { field_name: '审核事项', wx_field: 'thing39', biz_field: 'auditItem', example_value: '手机号修改' },
+          { field_name: '审核结果', wx_field: 'phrase1', biz_field: 'auditResult', example_value: '通过' },
+          { field_name: '审核意见', wx_field: 'thing29', biz_field: 'remark', example_value: '您的预留手机号已更新成功' }
         ]
       }
     ];
 
     for (const dm of defaultMappings) {
-      const exists = await TemplateFieldMapping.findOne({ template_key: dm.template_key });
-      if (!exists) {
-        await TemplateFieldMapping.create(dm);
-        console.log(`[Config] 初始化字段映射: ${dm.template_key}`);
+      const existing = await TemplateFieldMapping.findOne({ template_key: dm.template_key });
+      if (existing) {
+        // 已存在：跳过，由管理员在管理端自行维护
+        continue;
       }
+      await TemplateFieldMapping.create(dm);
+      console.log(`[Config] 初始化字段映射: ${dm.template_key}`);
     }
   } catch (err) {
     console.error('初始化默认配置失败:', err);

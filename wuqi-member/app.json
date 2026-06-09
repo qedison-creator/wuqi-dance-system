@@ -46,6 +46,7 @@
   },
   "sitemapLocation": "sitemap.json",
   "style": "v2",
+  "lazyCodeLoading": "requiredComponents",
   "permission": {
     "scope.userLocation": {
       "desc": "用于匹配您附近的门店"
@@ -55,6 +56,5 @@
     "getLocation"
   ],
   "requiredBackgroundModes": [],
-  "plugins": {},
-  "lazyCodeLoading": "requiredComponents"
+  "plugins": {}
 }

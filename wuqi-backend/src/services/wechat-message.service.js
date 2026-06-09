@@ -182,6 +182,8 @@ exports.sendClassReminder = async (user, schedule, clientType = 'member') => {
   const bizData = {
     courseName: schedule.course_name || '舞蹈课程',
     courseTime: `${schedule.date} ${schedule.start_time}`,
+    coachName: schedule.coach_id?.name || schedule.coach_name || '待定',
+    tipMessage: '请准时到场，记得带水杯哟',
     classroom: schedule.classroom || '请准时到场',
   };
 
@@ -195,6 +197,7 @@ exports.sendWaitlistAvailable = async (user, schedule, clientType = 'member') =>
   const bizData = {
     courseName: schedule.course_name || '舞蹈课程',
     courseTime: `${schedule.date} ${schedule.start_time}`,
+    storeName: schedule.store_id?.name || '舞栖舞蹈',
     tipMessage: '候补成功！记得准时去上课哦',
   };
 
@@ -219,8 +222,9 @@ exports.sendPackageActivated = async (user, packageName, endDate, clientType = '
   if (!user.openid) return;
 
   const bizData = {
-    packageName: packageName || '舞蹈套餐',
-    expireDate: endDate,
+    packageType: packageName || '舞蹈套餐',
+    remindType: '激活提醒',
+    remindReason: '您的新套餐已成功激活',
     tipMessage: '解锁跳舞权限！快来约课吧',
   };
 

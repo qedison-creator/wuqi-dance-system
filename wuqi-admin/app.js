@@ -13,6 +13,7 @@ App({
     deviceFingerprint: ''
   },
   onLaunch() {
+    this.silenceUnsupportedApi();
     this.registerPrivacyHandler();
     this.initDeviceFingerprint();
     const token = wx.getStorageSync('admin_token');

@@ -26,7 +26,7 @@
     <view class="hero-item" wx:for="{{heroConfigs}}" wx:key="config_key">
       <view class="hero-left">
         <text class="hero-label">{{item.label}}</text>
-        <image class="hero-preview" src="{{item.config_value || '/images/hero/hero-' + item.key + '.jpg'}}" mode="aspectFill"></image>
+        <image class="hero-preview" src="{{item.config_value}}" mode="aspectFill"></image>
       </view>
       <view class="hero-actions">
         <view class="hero-btn upload-btn" bindtap="onChooseHeroImage" data-index="{{index}}">

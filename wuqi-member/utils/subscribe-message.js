@@ -73,7 +73,7 @@ const fetchTemplates = (force = false) => {
  */
 const requestSubscribeMessage = (tmplIds) => {
   return new Promise((resolve) => {
-    const validIds = (Array.isArray(tmplIds) ? tmplIds : [tmplIds]).filter(id => id && id.trim());
+    const validIds = [...new Set((Array.isArray(tmplIds) ? tmplIds : [tmplIds]).filter(id => id && id.trim()))];
     if (validIds.length === 0) {
       resolve({});
       return;

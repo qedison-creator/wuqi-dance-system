@@ -1,6 +1,5 @@
 .page {
   padding: 20rpx;
-  padding-bottom: 120rpx;
 }
 
 .guide-card {
@@ -22,6 +21,7 @@
   font-size: 30rpx;
   font-weight: bold;
   color: var(--text-primary);
+  flex: 1;
 }
 
 .guide-text {
@@ -67,6 +67,16 @@
 .row-key {
   font-size: 22rpx;
   color: var(--text-tertiary);
+}
+
+.row-title {
+  font-size: 24rpx;
+  color: var(--color-primary);
+  display: block;
+  margin-bottom: 2rpx;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .row-right {
@@ -154,6 +164,19 @@
   box-sizing: border-box;
 }
 
+.input-field-mono {
+  height: 80rpx;
+  background-color: var(--bg-root);
+  border: 2rpx solid var(--border);
+  border-radius: 14rpx;
+  padding: 0 24rpx;
+  font-size: 28rpx;
+  font-family: monospace;
+  color: var(--text-primary);
+  width: 100%;
+  box-sizing: border-box;
+}
+
 .mapping-section {
   margin-top: 24rpx;
   padding-top: 24rpx;
@@ -209,13 +232,18 @@
   border-bottom: none;
 }
 
+.col-name {
+  width: 130rpx;
+  flex-shrink: 0;
+}
+
 .col-wx {
-  width: 170rpx;
+  width: 140rpx;
   flex-shrink: 0;
 }
 
 .col-biz {
-  width: 200rpx;
+  width: 170rpx;
   flex-shrink: 0;
 }
 
@@ -308,24 +336,21 @@
 }
 
 .add-template-btn {
-  position: fixed;
-  bottom: 30rpx;
-  left: 20rpx;
-  right: 20rpx;
-  height: 96rpx;
-  border-radius: 16rpx;
+  height: 56rpx;
+  padding: 0 20rpx;
+  border-radius: 14rpx;
   background: linear-gradient(135deg, var(--color-primary-hover), var(--color-primary));
   color: #ffffff;
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 12rpx;
-  font-size: 30rpx;
+  gap: 6rpx;
+  font-size: 26rpx;
   font-weight: bold;
-  box-shadow: 0 8rpx 24rpx rgba(197, 116, 75, 0.3);
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .add-template-btn .icon {
-  font-size: 40rpx;
+  font-size: 32rpx;
   line-height: 1;
 }

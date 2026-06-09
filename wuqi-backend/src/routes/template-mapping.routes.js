@@ -14,6 +14,9 @@ const BIZ_FIELD_OPTIONS = [
   { value: 'cancelTime', label: '取消时间' },
   { value: 'cancelReason', label: '取消原因' },
   { value: 'packageName', label: '套餐名称' },
+  { value: 'packageType', label: '会员卡类型' },
+  { value: 'remindType', label: '提醒类型' },
+  { value: 'remindReason', label: '提醒原因' },
   { value: 'expireDate', label: '到期日期' },
   { value: 'remainCount', label: '剩余次数' },
   { value: 'memberNickname', label: '会员昵称' },
@@ -53,7 +56,7 @@ router.get('/:templateKey', auth, async (req, res, next) => {
 // PUT /api/v1/template-mappings/:templateKey - 保存指定模板的映射
 router.put('/:templateKey', auth, async (req, res, next) => {
   try {
-    const { template_key, template_name, template_id, description, mappings } = req.body;
+    const { template_key, template_title, template_name, template_id, description, mappings } = req.body;
 
     if (!mappings || !Array.isArray(mappings)) {
       return res.status(400).json({ code: 400, message: '映射数据格式不正确', data: null });
@@ -79,10 +82,12 @@ router.put('/:templateKey', auth, async (req, res, next) => {
       { template_key: req.params.templateKey },
       {
         template_key,
+        template_title: template_title || '',
         template_name: template_name || req.params.templateKey,
         template_id: template_id || '',
         description: description || '',
         mappings: mappings.map(m => ({
+          field_name: m.field_name || '',
           wx_field: m.wx_field.trim(),
           biz_field: m.biz_field,
           example_value: m.example_value || ''
