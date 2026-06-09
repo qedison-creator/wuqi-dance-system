@@ -2,5 +2,8 @@
   "navigationBarTitleText": "套餐记录查询",
   "navigationBarBackgroundColor": "#FAF8F5",
   "navigationBarTextStyle": "black",
-  "backgroundColor": "#FAF8F5"
+  "backgroundColor": "#FAF8F5",
+  "usingComponents": {
+    "empty-state": "/components/empty-state/empty-state"
+  }
 }

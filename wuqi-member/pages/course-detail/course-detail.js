@@ -237,11 +237,53 @@ Page({
   async doJoinWaitlist() {
     let loadingShown = false;
     try {
-      const { fetchTemplates, requestBookingSubscribe, requestWaitlistSubscribe, getAcceptedTemplates } = require('../../utils/subscribe-message');
+      // 检查是否有可用套餐（已激活或待激活）
+      const { userPackages, course } = this.data;
+      const hasActivePackage = userPackages && userPackages.current;
+      const hasPendingPackage = userPackages && userPackages.pending && userPackages.pending.length > 0;
+      if (!hasActivePackage && !hasPendingPackage) {
+        wx.showModal({
+          title: '无法加入候补',
+          content: '您当前没有可用套餐，请先购买套餐后再加入候补排队。',
+          confirmText: '去购买',
+          confirmColor: '#D4786E',
+          showCancel: true,
+          cancelText: '取消',
+          success: (res) => {
+            if (res.confirm) {
+              wx.navigateTo({ url: '/pages/package-list/package-list' });
+            }
+          }
+        });
+        return;
+      }
+
+      // 次卡用户检查剩余次数（如有已激活的次卡）
+      if (hasActivePackage && userPackages.current.package_type === 'count_card') {
+        const remaining = userPackages.current.remaining_credits || 0;
+        const creditsCost = course.creditsCost || 1;
+        if (remaining < creditsCost) {
+          wx.showModal({
+            title: '次数不足',
+            content: `您的次卡剩余${remaining}次，不足以预约本课程（需要${creditsCost}次）。请先购买新套餐或联系门店处理。`,
+            confirmText: '去购买',
+            confirmColor: '#D4786E',
+            showCancel: true,
+            cancelText: '取消',
+            success: (res) => {
+              if (res.confirm) {
+                wx.navigateTo({ url: '/pages/package-list/package-list' });
+              }
+            }
+          });
+          return;
+        }
+      }
+
+      const { fetchTemplates, requestWaitlistAndBookingSubscribe, getAcceptedTemplates } = require('../../utils/subscribe-message');
       await fetchTemplates();
-      // 候补通知 + 预约相关通知一起授权
-      const subscribeResult = await requestWaitlistSubscribe();
-      await requestBookingSubscribe();
+      // 候补通知 + 预约相关通知合并授权（只弹1次窗）
+      const subscribeResult = await requestWaitlistAndBookingSubscribe();
       const acceptedTemplates = getAcceptedTemplates(subscribeResult);
 
       wx.showLoading({ title: '加入候补...' });

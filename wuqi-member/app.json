@@ -14,7 +14,8 @@
     "pages/member-info/member-info",
     "pages/privacy/privacy",
     "pages/agreement/agreement",
-    "pages/about/about"
+    "pages/about/about",
+    "pages/subscribe-settings/subscribe-settings"
   ],
   "window": {
     "navigationBarBackgroundColor": "#FBFAF8",

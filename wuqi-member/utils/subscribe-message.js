@@ -68,10 +68,42 @@ const fetchTemplates = (force = false) => {
 };
 
 /**
+ * 引导弹窗去重缓存
+ * 用户在引导弹窗点"暂不开启"后，24小时内不再提示该场景
+ */
+const GUIDE_SKIP_DURATION = 24 * 60 * 60 * 1000; // 24小时
+
+const getGuideCacheKey = (sceneKey) => `subscribe_guide_${sceneKey}`;
+const getGuideSkipped = (sceneKey) => {
+  try {
+    const cached = wx.getStorageSync(getGuideCacheKey(sceneKey));
+    if (cached && cached.expireAt > Date.now()) {
+      return true;
+    }
+  } catch (e) {}
+  return false;
+};
+const setGuideSkipped = (sceneKey) => {
+  try {
+    wx.setStorageSync(getGuideCacheKey(sceneKey), {
+      expireAt: Date.now() + GUIDE_SKIP_DURATION
+    });
+  } catch (e) {}
+};
+const setGuideAccepted = (sceneKey) => {
+  try {
+    wx.removeStorageSync(getGuideCacheKey(sceneKey));
+  } catch (e) {}
+};
+
+/**
  * 请求订阅消息授权（单次最多3个模板ID，弹1次窗）
  * 先弹引导提示，再调微信授权
+ * @param {string[]} tmplIds - 模板ID列表
+ * @param {string} sceneKey - 场景标识，用于去重缓存（如 'booking', 'waitlist', 'package', 'cancel', 'phoneAudit'）
+ * @param {boolean} skipGuide - 是否跳过引导弹窗，直接调微信授权
  */
-const requestSubscribeMessage = (tmplIds) => {
+const requestSubscribeMessage = (tmplIds, sceneKey = '', skipGuide = false) => {
   return new Promise((resolve) => {
     const validIds = [...new Set((Array.isArray(tmplIds) ? tmplIds : [tmplIds]).filter(id => id && id.trim()))];
     if (validIds.length === 0) {
@@ -79,23 +111,61 @@ const requestSubscribeMessage = (tmplIds) => {
       return;
     }
 
+    // 检查用户是否曾跳过该场景的引导（24小时内不再提示）
+    if (sceneKey && getGuideSkipped(sceneKey)) {
+      // 用户跳过引导，直接调微信授权（微信会根据"总是保持"设置决定是否弹窗）
+      wx.requestSubscribeMessage({
+        tmplIds: validIds,
+        success: (res) => {
+          resolve(res);
+        },
+        fail: (err) => {
+          console.error('[SubscribeMessage] 授权失败:', err);
+          resolve({});
+        }
+      });
+      return;
+    }
+
     // 先弹引导提示，引导用户勾选"总是保持以上选择"
+    const doRequestWechat = () => {
+      setGuideAccepted(sceneKey);
+      wx.requestSubscribeMessage({
+        tmplIds: validIds,
+        success: (res) => {
+          resolve(res);
+        },
+        fail: (err) => {
+          console.error('[SubscribeMessage] 授权失败:', err);
+          resolve({});
+        }
+      });
+    };
+
+    if (skipGuide) {
+      doRequestWechat();
+      return;
+    }
+
     wx.showModal({
       title: '开启消息通知',
-      content: '为了及时收到上课提醒、课程变动等通知，请在接下来弹出的窗口中勾选「总是保持以上选择，不再询问」，这样以后就不会再重复弹窗啦～',
-      confirmText: '知道了',
-      showCancel: false,
-      success: () => {
-        wx.requestSubscribeMessage({
-          tmplIds: validIds,
-          success: (res) => {
-            resolve(res);
-          },
-          fail: (err) => {
-            console.error('[SubscribeMessage] 授权失败:', err);
-            resolve({});
+      content: '为了及时收到上课提醒、预约结果等通知，请在接下来弹出的窗口中勾选「总是保持以上选择，不再询问」，这样以后就不会再重复弹窗啦～',
+      confirmText: '去授权',
+      cancelText: '暂不开启',
+      showCancel: true,
+      success: (modalRes) => {
+        if (modalRes.confirm) {
+          doRequestWechat();
+        } else {
+          // 用户点"暂不开启"，缓存跳过状态（24小时内不再提示该场景）
+          if (sceneKey) {
+            setGuideSkipped(sceneKey);
           }
-        });
+          resolve({});
+        }
+      },
+      fail: () => {
+        resolve({});
       }
     });
   });
@@ -114,7 +184,7 @@ const requestBookingSubscribe = async () => {
     SUBSCRIBE_TEMPLATES.BOOKING_CANCEL
   ].filter(id => id);
   if (ids.length === 0) return Promise.resolve({});
-  return requestSubscribeMessage(ids);
+  return requestSubscribeMessage(ids, 'booking');
 };
 
 /**
@@ -128,7 +198,7 @@ const requestCancelSubscribe = async () => {
     SUBSCRIBE_TEMPLATES.COUNT_CARD_LOW_REMIND
   ].filter(id => id);
   if (ids.length === 0) return Promise.resolve({});
-  return requestSubscribeMessage(ids);
+  return requestSubscribeMessage(ids, 'cancel');
 };
 
 /**
@@ -142,7 +212,30 @@ const requestWaitlistSubscribe = async () => {
     SUBSCRIBE_TEMPLATES.MEMBER_INACTIVE_REMIND
   ].filter(id => id);
   if (ids.length === 0) return Promise.resolve({});
-  return requestSubscribeMessage(ids);
+  return requestSubscribeMessage(ids, 'waitlist');
+};
+
+/**
+ * 加入候补时（合并候补+预约两个场景的模板，只弹1次窗）
+ * 候补：WAITLIST_AVAILABLE, CLASS_REMINDER, MEMBER_INACTIVE_REMIND
+ * 预约：BOOKING_SUCCESS, CLASS_REMINDER, BOOKING_CANCEL
+ * 合并去重后最多3个，优先保留候补相关
+ */
+const requestWaitlistAndBookingSubscribe = async () => {
+  await fetchTemplates(true);
+  const idSet = new Set();
+  const ids = [];
+  // 优先候补相关模板
+  [SUBSCRIBE_TEMPLATES.WAITLIST_AVAILABLE, SUBSCRIBE_TEMPLATES.CLASS_REMINDER, SUBSCRIBE_TEMPLATES.MEMBER_INACTIVE_REMIND, SUBSCRIBE_TEMPLATES.BOOKING_SUCCESS, SUBSCRIBE_TEMPLATES.BOOKING_CANCEL].forEach(id => {
+    if (id && !idSet.has(id)) {
+      idSet.add(id);
+      ids.push(id);
+    }
+  });
+  // 微信一次最多3个模板
+  const limitedIds = ids.slice(0, 3);
+  if (limitedIds.length === 0) return Promise.resolve({});
+  return requestSubscribeMessage(limitedIds, 'waitlist');
 };
 
 /**
@@ -157,7 +250,7 @@ const requestPackageSubscribe = async () => {
     SUBSCRIBE_TEMPLATES.MEMBER_INACTIVE_REMIND
   ].filter(id => id);
   if (ids.length === 0) return Promise.resolve({});
-  return requestSubscribeMessage(ids);
+  return requestSubscribeMessage(ids, 'package');
 };
 
 /**
@@ -171,7 +264,7 @@ const requestPhoneAuditSubscribe = async () => {
     SUBSCRIBE_TEMPLATES.COUNT_CARD_LOW_REMIND
   ].filter(id => id);
   if (ids.length === 0) return Promise.resolve({});
-  return requestSubscribeMessage(ids);
+  return requestSubscribeMessage(ids, 'phoneAudit');
 };
 
 /**
@@ -192,6 +285,7 @@ module.exports = {
   requestCancelSubscribe,
   requestPackageSubscribe,
   requestWaitlistSubscribe,
+  requestWaitlistAndBookingSubscribe,
   requestPhoneAuditSubscribe,
   getAcceptedTemplates
 };

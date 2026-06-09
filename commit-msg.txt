@@ -1,0 +1,20 @@
+feat: 1.1.0 版本更新
+
+管理端:
+- 移除 lazyCodeLoading 避免页面栈错误
+- config 页面 hero 图 fallback 改为后端 uploads/hero 路径
+- template-edit 增加微信模板标题和字段名输入列
+- template-edit 模板ID输入框改等宽字体
+- app.js 静默 unsupported API 调用
+
+后端:
+- server.js 移除 initDefaultConfigs 自动调用(防覆盖用户数据)
+- config.routes.js initDefaultConfigs 改为跳过已存在记录
+- TemplateFieldMapping model 新增 template_title 和 field_name 字段
+- template-mapping.routes.js 支持保存 template_title 和 field_name
+- reminder.service / wechat-message.service 新增字段映射
+- 新增 cleanup-custom-templates.js 清理重复模板
+
+会员端:
+- 移除 lazyCodeLoading
+- subscribe-message 模板ID去重

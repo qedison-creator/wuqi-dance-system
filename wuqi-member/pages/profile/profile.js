@@ -926,6 +926,11 @@ Page({
     wx.navigateTo({ url: '/pages/member-info/member-info' });
   },
 
+  onSubscribeSettings() {
+    if (!requireLogin()) return;
+    wx.navigateTo({ url: '/pages/subscribe-settings/subscribe-settings' });
+  },
+
   onMyBookings() {
     if (!requireLogin()) return;
     wx.navigateTo({ url: '/pages/records/records' });

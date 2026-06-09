@@ -100,7 +100,7 @@ const getAccessToken = async (clientType = 'member') => {
   }
 };
 
-const sendSubscribeMessage = async (openid, templateId, data, page = '', clientType = 'member') => {
+const sendSubscribeMessage = async (openid, templateId, data, page = '', clientType = 'member', retryCount = 0) => {
   try {
     const accessToken = await getAccessToken(clientType);
     if (!accessToken || !templateId) return false;
@@ -114,10 +114,28 @@ const sendSubscribeMessage = async (openid, templateId, data, page = '', clientT
       console.log(`[WeChatMessage] 用户未订阅: ${openid.substring(0, 8)}...`);
       return false;
     }
+    // 可恢复错误：token过期（40001）、系统繁忙（45009）等，尝试重试
+    if (result.errcode === 40001 || result.errcode === 45009) {
+      if (retryCount < 2) {
+        console.log(`[WeChatMessage] 发送失败(errcode=${result.errcode})，${retryCount < 1 ? '刷新token后' : ''}重试...`);
+        if (result.errcode === 40001) {
+          // 清除缓存的 token，强制重新获取
+          accessTokenCaches[clientType].token = null;
+        }
+        await new Promise(resolve => setTimeout(resolve, 1000 * (retryCount + 1))); // 指数退避
+        return await sendSubscribeMessage(openid, templateId, data, page, clientType, retryCount + 1);
+      }
+    }
     console.error('[WeChatMessage] 发送失败:', result);
     return false;
   } catch (err) {
-    console.error('[WeChatMessage] 发送异常:', err.message);
+    // 网络异常也重试
+    if (retryCount < 2) {
+      console.log(`[WeChatMessage] 发送异常: ${err.message}，重试...`);
+      await new Promise(resolve => setTimeout(resolve, 1000 * (retryCount + 1)));
+      return await sendSubscribeMessage(openid, templateId, data, page, clientType, retryCount + 1);
+    }
+    console.error('[WeChatMessage] 发送异常（重试失败）:', err.message);
     return false;
   }
 };

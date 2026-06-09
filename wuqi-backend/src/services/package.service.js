@@ -301,13 +301,19 @@ exports.checkAutoActivation = async () => {
     }
 
     try {
-      const wechatMessageService = require('./wechat-message.service');
-      const User = require('../models/User');
-      const user = await User.findById(pkg.user_id);
-      if (user && user.openid) {
-        const packageName = pkg.package_type === 'count_card' ? `${pkg.total_credits}次卡` : `${pkg.duration_value || ''}${pkg.duration_unit === 'month' ? '个月' : '天'}时间卡`;
-        const endDate = pkg.end_date ? dayjs(pkg.end_date).format('YYYY年MM月DD日') : '长期有效';
-        await wechatMessageService.sendPackageActivated(user, packageName, endDate);
+      // 自动激活时，如果是凌晨（0-8点），则不发送消息（用户在睡觉，收到也没用）
+      const currentHour = new Date().getHours();
+      if (currentHour >= 8) {
+        const wechatMessageService = require('./wechat-message.service');
+        const User = require('../models/User');
+        const user = await User.findById(pkg.user_id);
+        if (user && user.openid) {
+          const packageName = pkg.package_type === 'count_card' ? `${pkg.total_credits}次卡` : `${pkg.duration_value || ''}${pkg.duration_unit === 'month' ? '个月' : '天'}时间卡`;
+          const endDate = pkg.end_date ? dayjs(pkg.end_date).format('YYYY年MM月DD日') : '长期有效';
+          await wechatMessageService.sendPackageActivated(user, packageName, endDate);
+        }
+      } else {
+        console.log(`[Package] 自动激活跳过消息发送(凌晨${currentHour}点): ${pkg._id}`);
       }
     } catch (notifyErr) {
       console.error('[Package] 发送自动激活通知失败:', notifyErr.message);

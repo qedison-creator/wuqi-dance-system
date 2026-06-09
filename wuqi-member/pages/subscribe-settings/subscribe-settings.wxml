@@ -1,0 +1,137 @@
+<view class="page">
+  <view class="header-section">
+    <view class="header-icon-wrap">
+      <text class="header-icon-text">🔔</text>
+    </view>
+    <text class="header-title">消息推送订阅设置</text>
+    <text class="header-desc">开启您需要的消息通知，及时掌握课程动态</text>
+  </view>
+
+  <view class="settings-section">
+    <view class="section-label">课程相关</view>
+    <view class="settings-card">
+      <view class="setting-item" bindtap="onSubscribe" data-type="booking">
+        <view class="setting-info">
+          <text class="setting-name">预约成功通知</text>
+          <text class="setting-desc">预约课程成功后收到确认通知</text>
+        </view>
+        <view class="setting-action">
+          <text class="setting-status subscribed" wx:if="{{subscribedStatus.booking}}">已订阅</text>
+          <text class="setting-status" wx:else>去订阅</text>
+          <view class="setting-arrow"></view>
+        </view>
+      </view>
+      <view class="setting-divider"></view>
+      <view class="setting-item" bindtap="onSubscribe" data-type="cancel">
+        <view class="setting-info">
+          <text class="setting-name">取消预约通知</text>
+          <text class="setting-desc">课程取消后收到通知</text>
+        </view>
+        <view class="setting-action">
+          <text class="setting-status subscribed" wx:if="{{subscribedStatus.cancel}}">已订阅</text>
+          <text class="setting-status" wx:else>去订阅</text>
+          <view class="setting-arrow"></view>
+        </view>
+      </view>
+      <view class="setting-divider"></view>
+      <view class="setting-item" bindtap="onSubscribe" data-type="classReminder">
+        <view class="setting-info">
+          <text class="setting-name">上课提醒</text>
+          <text class="setting-desc">课程开始前1小时和30分钟收到提醒</text>
+        </view>
+        <view class="setting-action">
+          <text class="setting-status subscribed" wx:if="{{subscribedStatus.classReminder}}">已订阅</text>
+          <text class="setting-status" wx:else>去订阅</text>
+          <view class="setting-arrow"></view>
+        </view>
+      </view>
+      <view class="setting-divider"></view>
+      <view class="setting-item" bindtap="onSubscribe" data-type="waitlist">
+        <view class="setting-info">
+          <text class="setting-name">候补成功通知</text>
+          <text class="setting-desc">候补转正后收到通知</text>
+        </view>
+        <view class="setting-action">
+          <text class="setting-status subscribed" wx:if="{{subscribedStatus.waitlist}}">已订阅</text>
+          <text class="setting-status" wx:else>去订阅</text>
+          <view class="setting-arrow"></view>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <view class="settings-section">
+    <view class="section-label">套餐相关</view>
+    <view class="settings-card">
+      <view class="setting-item" bindtap="onSubscribe" data-type="package">
+        <view class="setting-info">
+          <text class="setting-name">套餐到期提醒</text>
+          <text class="setting-desc">套餐即将到期时收到提醒</text>
+        </view>
+        <view class="setting-action">
+          <text class="setting-status subscribed" wx:if="{{subscribedStatus.package}}">已订阅</text>
+          <text class="setting-status" wx:else>去订阅</text>
+          <view class="setting-arrow"></view>
+        </view>
+      </view>
+      <view class="setting-divider"></view>
+      <view class="setting-item" bindtap="onSubscribe" data-type="countCardLow">
+        <view class="setting-info">
+          <text class="setting-name">次卡低次数提醒</text>
+          <text class="setting-desc">次卡剩余次数不足时收到提醒</text>
+        </view>
+        <view class="setting-action">
+          <text class="setting-status subscribed" wx:if="{{subscribedStatus.countCardLow}}">已订阅</text>
+          <text class="setting-status" wx:else>去订阅</text>
+          <view class="setting-arrow"></view>
+        </view>
+      </view>
+      <view class="setting-divider"></view>
+      <view class="setting-item" bindtap="onSubscribe" data-type="packageActivated">
+        <view class="setting-info">
+          <text class="setting-name">套餐激活通知</text>
+          <text class="setting-desc">套餐激活后收到确认通知</text>
+        </view>
+        <view class="setting-action">
+          <text class="setting-status subscribed" wx:if="{{subscribedStatus.packageActivated}}">已订阅</text>
+          <text class="setting-status" wx:else>去订阅</text>
+          <view class="setting-arrow"></view>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <view class="settings-section">
+    <view class="section-label">其他</view>
+    <view class="settings-card">
+      <view class="setting-item" bindtap="onSubscribe" data-type="inactive">
+        <view class="setting-info">
+          <text class="setting-name">不活跃提醒</text>
+          <text class="setting-desc">超过一段时间未预约课程时收到提醒</text>
+        </view>
+        <view class="setting-action">
+          <text class="setting-status subscribed" wx:if="{{subscribedStatus.inactive}}">已订阅</text>
+          <text class="setting-status" wx:else>去订阅</text>
+          <view class="setting-arrow"></view>
+        </view>
+      </view>
+      <view class="setting-divider"></view>
+      <view class="setting-item" bindtap="onSubscribe" data-type="phoneAudit">
+        <view class="setting-info">
+          <text class="setting-name">手机号审核结果</text>
+          <text class="setting-desc">手机号修改审核通过后收到通知</text>
+        </view>
+        <view class="setting-action">
+          <text class="setting-status subscribed" wx:if="{{subscribedStatus.phoneAudit}}">已订阅</text>
+          <text class="setting-status" wx:else>去订阅</text>
+          <view class="setting-arrow"></view>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <view class="tips-section">
+    <view class="tips-icon">💡</view>
+    <text class="tips-text">温馨提示：微信订阅消息需要每次手动授权，建议在上方各场景中及时授权，以便及时收到通知。</text>
+  </view>
+</view>

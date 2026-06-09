@@ -2,5 +2,8 @@
   "navigationBarTitleText": "教练薪酬管理",
   "navigationBarBackgroundColor": "#FAF8F5",
   "navigationBarTextStyle": "black",
-  "backgroundColor": "#FAF8F5"
+  "backgroundColor": "#FAF8F5",
+  "usingComponents": {
+    "empty-state": "/components/empty-state/empty-state"
+  }
 }

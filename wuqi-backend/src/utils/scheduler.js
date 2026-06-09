@@ -12,6 +12,30 @@ const dayjs = require('dayjs');
 let reminderExecutedToday = false;
 let lastExecutionDate = null;
 
+// 上课提醒去重缓存：记录已发送的提醒，避免重复发送
+// key 格式：${bookingId}_1h 或 ${bookingId}_30m
+// 每天凌晨清空
+let classReminderCache = new Set();
+let classReminderCacheDate = null;
+
+function isClassReminderSent(bookingId, remindType) {
+  const key = `${bookingId}_${remindType}`;
+  return classReminderCache.has(key);
+}
+
+function markClassReminderSent(bookingId, remindType) {
+  const key = `${bookingId}_${remindType}`;
+  classReminderCache.add(key);
+}
+
+function clearClassReminderCacheIfNeeded() {
+  const today = dayjs().format('YYYY-MM-DD');
+  if (classReminderCacheDate !== today) {
+    classReminderCache.clear();
+    classReminderCacheDate = today;
+  }
+}
+
 function shouldExecuteReminder() {
   const now = dayjs();
   const today = now.format('YYYY-MM-DD');
@@ -148,65 +172,86 @@ const startScheduler = () => {
   });
 
   // 任务4: 每小时检查并发送上课提醒（提前1小时和30分钟提醒）
+  // 修复：改为时间范围内匹配，避免非整点课程漏提醒；增加去重缓存，避免重复发送
   cron.schedule('0 * * * *', async () => {
     try {
+      clearClassReminderCacheIfNeeded(); // 每天凌晨清空缓存
+
       const wechatMessageService = require('../services/wechat-message.service');
       let totalReminderCount = 0;
 
-      // 轮次1: 提前1小时提醒
-      const oneHourLaterDate = dayjs().add(1, 'hour').format('YYYY-MM-DD');
-      const oneHourLaterTime = dayjs().add(1, 'hour').format('HH:mm');
+      const now = dayjs();
 
+      // 轮次1: 提前1小时提醒（匹配时间范围内的课程）
+      const oneHourLater = now.add(1, 'hour');
+      const oneHourLaterDate = oneHourLater.format('YYYY-MM-DD');
       const schedules1h = await Schedule.find({
         date: oneHourLaterDate,
-        start_time: oneHourLaterTime,
         status: { $in: ['available', 'full'] },
+      }).lean();
+
+      // 在内存中过滤时间匹配的课程（允许±5分钟误差）
+      const matched1h = schedules1h.filter(s => {
+        if (!s.start_time) return false;
+        const [h, m] = s.start_time.split(':').map(Number);
+        const scheduleMinutes = h * 60 + m;
+        const targetMinutes = oneHourLater.hour() * 60 + oneHourLater.minute();
+        return Math.abs(scheduleMinutes - targetMinutes) <= 5;
       });
 
-      for (const schedule of schedules1h) {
+      for (const schedule of matched1h) {
         const bookings = await Booking.find({
           schedule_id: schedule._id,
           status: 'booked',
         }).populate('user_id', 'openid nick_name');
 
         for (const booking of bookings) {
+          if (isClassReminderSent(booking._id.toString(), '1h')) continue; // 已发送过，跳过
           if (booking.user_id && booking.user_id.openid) {
             await wechatMessageService.sendClassReminder(booking.user_id, schedule);
+            markClassReminderSent(booking._id.toString(), '1h');
             totalReminderCount++;
           }
         }
       }
 
-      console.log(`[Scheduler] 上课提醒(1小时前): ${schedules1h.length}节课, ${totalReminderCount}条提醒`);
+      console.log(`[Scheduler] 上课提醒(1小时前): ${matched1h.length}节课, ${totalReminderCount}条提醒`);
 
       // 轮次2: 提前30分钟提醒
-      const thirtyMinLater = dayjs().add(30, 'minute');
+      const thirtyMinLater = now.add(30, 'minute');
       const thirtyMinLaterDate = thirtyMinLater.format('YYYY-MM-DD');
-      const thirtyMinLaterTime = thirtyMinLater.format('HH:mm');
-
       const schedules30m = await Schedule.find({
         date: thirtyMinLaterDate,
-        start_time: thirtyMinLaterTime,
         status: { $in: ['available', 'full'] },
+      }).lean();
+
+      const matched30m = schedules30m.filter(s => {
+        if (!s.start_time) return false;
+        const [h, m] = s.start_time.split(':').map(Number);
+        const scheduleMinutes = h * 60 + m;
+        const targetMinutes = thirtyMinLater.hour() * 60 + thirtyMinLater.minute();
+        return Math.abs(scheduleMinutes - targetMinutes) <= 5;
       });
 
       let count30m = 0;
-      for (const schedule of schedules30m) {
+      for (const schedule of matched30m) {
         const bookings = await Booking.find({
           schedule_id: schedule._id,
           status: 'booked',
         }).populate('user_id', 'openid nick_name');
 
         for (const booking of bookings) {
+          if (isClassReminderSent(booking._id.toString(), '30m')) continue; // 已发送过，跳过
           if (booking.user_id && booking.user_id.openid) {
             await wechatMessageService.sendClassReminder(booking.user_id, schedule);
+            markClassReminderSent(booking._id.toString(), '30m');
             count30m++;
           }
         }
       }
 
       totalReminderCount += count30m;
-      console.log(`[Scheduler] 上课提醒(30分钟前): ${schedules30m.length}节课, ${count30m}条提醒`);
+      console.log(`[Scheduler] 上课提醒(30分钟前): ${matched30m.length}节课, ${count30m}条提醒`);
       console.log(`[Scheduler] 上课提醒总计: ${totalReminderCount}条`);
     } catch (err) {
       console.error('[Scheduler] 上课提醒任务执行失败:', err.message);
