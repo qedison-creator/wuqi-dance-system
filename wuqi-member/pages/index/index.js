@@ -165,17 +165,27 @@ Page({
   loadHomeData() {
     this.setData({ loading: true });
     const storeId = this.data.currentStore ? this.data.currentStore._id : '';
+    const weekdays = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+    const today = getBeijingDate();
+    const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    const endDate = new Date(today);
+    endDate.setDate(endDate.getDate() + 5);
+    const endStr = `${endDate.getFullYear()}-${String(endDate.getMonth() + 1).padStart(2, '0')}-${String(endDate.getDate()).padStart(2, '0')}`;
 
-    request({ url: '/home/banners', data: { store_id: storeId } }).then(res => {
-      const banners = Array.isArray(res.data) ? res.data : (res.data && res.data.data) || [];
+    // 并行加载所有数据
+    Promise.all([
+      request({ url: '/home/banners', data: { store_id: storeId } }),
+      request({ url: '/home/coaches', data: { store_id: storeId, limit: 6 } }),
+      request({ url: '/schedules', data: { store_id: storeId, limit: 50 } }),
+      request({ url: '/home/videos', data: { limit: 3 } })
+    ]).then(([bannerRes, coachRes, scheduleRes, videoRes]) => {
+      // 处理轮播图
+      const banners = Array.isArray(bannerRes.data) ? bannerRes.data : (bannerRes.data && bannerRes.data.data) || [];
       this.setData({ banners });
-    }).catch((err) => {
-      console.error('加载轮播图失败:', err);
-    });
 
-    request({ url: '/home/coaches', data: { store_id: storeId, limit: 6 } }).then(res => {
-      const data = res.data || {};
-      const rawCoaches = Array.isArray(data) ? data : (data.data || data.list || []);
+      // 处理热门教练
+      const coachData = coachRes.data || {};
+      const rawCoaches = Array.isArray(coachData) ? coachData : (coachData.data || coachData.list || []);
       const coaches = rawCoaches.map(c => ({
         ...c,
         avatar_url: c.avatar_url
@@ -183,20 +193,10 @@ Page({
           : ''
       }));
       this.setData({ hotCoaches: coaches });
-    }).catch((err) => {
-      console.error('加载热门教练失败:', err);
-    });
 
-    request({ url: '/schedules', data: { store_id: storeId, limit: 50 } }).then(res => {
-      const data = res.data || {};
-      const courses = Array.isArray(data) ? data : (data.data || data.list || []);
-      const weekdays = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
-      const today = getBeijingDate();
-      const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-      const endDate = new Date(today);
-      endDate.setDate(endDate.getDate() + 5);
-      const endStr = `${endDate.getFullYear()}-${String(endDate.getMonth() + 1).padStart(2, '0')}-${String(endDate.getDate()).padStart(2, '0')}`;
-
+      // 处理近期课程
+      const scheduleData = scheduleRes.data || {};
+      const courses = Array.isArray(scheduleData) ? scheduleData : (scheduleData.data || scheduleData.list || []);
       const recentCourses = courses
         .filter(course => {
           if (!course.date) return false;
@@ -220,21 +220,19 @@ Page({
             danceTagText: tagColor.text
           };
         });
-
       this.setData({ recentCourses });
-    }).catch((err) => {
-      console.error('加载近期课程失败:', err);
-    });
 
-    request({ url: '/home/videos', data: { limit: 3 } }).then(res => {
-      const data = res.data || {};
-      const videos = Array.isArray(data) ? data : (data.data || data.list || []);
+      // 处理视频
+      const videoData = videoRes.data || {};
+      const videos = Array.isArray(videoData) ? videoData : (videoData.data || videoData.list || []);
       this.setData({ videos, loading: false });
+
     }).catch((err) => {
-      console.error('加载视频失败:', err);
+      console.error('加载首页数据失败:', err);
       this.setData({ loading: false });
     });
 
+    // 并行加载公告和假期信息
     this.loadAnnounces();
     this.loadHolidays();
   },
