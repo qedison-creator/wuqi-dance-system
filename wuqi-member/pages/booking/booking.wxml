@@ -102,6 +102,12 @@
       <view class="list-bottom-safe"></view>
     </scroll-view>
 
+    <!-- 加载状态提示 -->
+    <view class="loading-wrap" wx:if="{{loading}}">
+      <view class="loading-spinner"></view>
+      <text class="loading-text">加载课程中...</text>
+    </view>
+    
     <empty-state 
       wx:if="{{courses.length === 0 && !loading}}" 
       text="暂无课程安排" 

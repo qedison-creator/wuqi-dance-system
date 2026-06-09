@@ -3,6 +3,7 @@ const config = require('./config/index.js');
 App({
   globalData: {
     userInfo: null,
+    userInfoLastFetch: 0,  // 上次获取用户信息的时间戳
     token: '',
     currentStore: null,
     storeList: [],
@@ -56,13 +57,24 @@ App({
     }
   },
 
-  getUserInfo() {
+  getUserInfo(forceRefresh = false) {
+    const now = Date.now();
+    const cacheTimeout = 5 * 60 * 1000; // 5分钟缓存
+    
+    // 如果缓存有效且不强制刷新，直接返回缓存的用户信息
+    if (!forceRefresh && this.globalData.userInfo && 
+        (now - this.globalData.userInfoLastFetch < cacheTimeout)) {
+      console.log('[App] 使用缓存的用户信息');
+      return Promise.resolve(this.globalData.userInfo);
+    }
+    
     const { request } = require('./utils/request');
-    request({
+    return request({
       url: '/auth/me',
       method: 'GET'
     }).then(res => {
       this.globalData.userInfo = res.data;
+      this.globalData.userInfoLastFetch = Date.now(); // 更新缓存时间
       
       // 优先使用用户信息中绑定的门店
       const userInfo = res.data;
