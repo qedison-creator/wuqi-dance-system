@@ -1,4 +1,4 @@
-<page-meta page-style="{{showCoachModal || showDetailModal || showDanceStyleModal || showStoreModal ? 'overflow: hidden;' : ''}}"/>
+<page-meta page-style="{{showCoachModal || showDanceStyleModal || showStoreModal ? 'overflow: hidden;' : ''}}"/>
 <view class="coaches-page">
   <!-- 顶部Tab切换 -->
   <view class="tab-switch">
@@ -30,14 +30,13 @@
             <view class="coach-name-row">
               <text class="coach-name">{{item.name}}</text>
               <text class="coach-gender">{{item.gender === 1 ? '男' : (item.gender === 2 ? '女' : '未知')}}</text>
+              <text class="coach-sort">排序: {{item.sort_order || 0}}</text>
             </view>
             <text class="coach-dance">擅长: {{item.dance_style_names || '未设置'}}</text>
+            <text class="coach-home-tag {{item.show_on_home !== false ? 'tag-home-show' : 'tag-home-hide'}}">{{item.show_on_home !== false ? '首页展示' : '不展示'}}</text>
           </view>
         </view>
         <view class="coach-actions">
-          <view class="action-btn-small" data-index="{{index}}" bindtap="onCoachDetail">
-            <text>详情</text>
-          </view>
           <view class="action-btn-small" data-index="{{index}}" bindtap="onEditCoach">
             <text>编辑</text>
           </view>
@@ -114,87 +113,53 @@
     </view>
   </view>
 
-  <!-- 新增/编辑教练弹窗 -->
+  <!-- 新增/编辑教练弹窗（含相册管理） -->
   <view class="modal-mask" wx:if="{{showCoachModal}}" bindtap="onCloseCoachModal">
-    <view class="modal-content" catchtap="onModalTap">
+    <view class="modal-content modal-large" catchtap="onModalTap">
       <view class="modal-header">
         <text class="modal-title">{{coachForm._id ? '编辑教练' : '新增教练'}}</text>
         <text class="modal-close" bindtap="onCloseCoachModal">✕</text>
       </view>
-      <view class="form-group">
-        <text class="form-label">头像</text>
-        <view class="avatar-upload" bindtap="onChooseAvatar">
-          <image class="avatar-preview" src="{{coachForm.avatar_url || '/images/default-avatar.svg'}}" mode="aspectFill"></image>
-          <text class="avatar-upload-text">点击上传</text>
-        </view>
-      </view>
-      <view class="form-group">
-        <text class="form-label">姓名 *</text>
-        <input class="input-field" placeholder="请输入教练姓名" value="{{coachForm.name}}" data-field="name" bindinput="onCoachInput" />
-      </view>
-      <view class="form-group">
-        <text class="form-label">性别</text>
-        <radio-group bindchange="onCoachGenderChange">
-          <label class="radio-label"><radio value="1" checked="{{coachForm.gender === '1'}}" color="#FFCC00"/> 男</label>
-          <label class="radio-label"><radio value="2" checked="{{coachForm.gender === '2'}}" color="#FFCC00"/> 女</label>
-        </radio-group>
-      </view>
-      <view class="form-group">
-        <text class="form-label">擅长舞种</text>
-        <view class="checkbox-list">
-          <view class="checkbox-item {{item.selected ? 'active' : ''}}" wx:for="{{danceStyleList}}" wx:key="_id" data-index="{{index}}" bindtap="onToggleDanceStyle">
-            <text>{{item.name}}</text>
+      <scroll-view scroll-y class="detail-scroll">
+        <view class="form-group">
+          <text class="form-label">头像</text>
+          <view class="avatar-upload" bindtap="onChooseAvatar">
+            <image class="avatar-preview" src="{{coachForm.avatar_url || '/images/default-avatar.svg'}}" mode="aspectFill"></image>
+            <text class="avatar-upload-text">点击上传</text>
           </view>
         </view>
-      </view>
+        <view class="form-group">
+          <text class="form-label">姓名 *</text>
+          <input class="input-field" placeholder="请输入教练姓名" value="{{coachForm.name}}" data-field="name" bindinput="onCoachInput" />
+        </view>
+        <view class="form-group">
+          <text class="form-label">性别</text>
+          <radio-group bindchange="onCoachGenderChange">
+            <label class="radio-label"><radio value="1" checked="{{coachForm.gender === '1'}}" color="#FFCC00"/> 男</label>
+            <label class="radio-label"><radio value="2" checked="{{coachForm.gender === '2'}}" color="#FFCC00"/> 女</label>
+          </radio-group>
+        </view>
+        <view class="form-group">
+          <text class="form-label">擅长舞种</text>
+          <view class="checkbox-list">
+            <view class="checkbox-item {{item.selected ? 'active' : ''}}" wx:for="{{danceStyleList}}" wx:key="_id" data-index="{{index}}" bindtap="onToggleDanceStyle">
+              <text>{{item.name}}</text>
+            </view>
+          </view>
+        </view>
+        <view class="form-group">
+          <text class="form-label">排序（数字越小越靠前）</text>
+          <input class="input-field" type="number" placeholder="0" value="{{coachForm.sort_order}}" data-field="sort_order" bindinput="onCoachInput" />
+        </view>
+        <view class="form-group">
+          <text class="form-label">在首页展示</text>
+          <switch checked="{{coachForm.show_on_home}}" data-field="show_on_home" bindchange="onCoachSwitchChange" color="#FFCC00"></switch>
+        </view>
+      </scroll-view>
       <view class="modal-buttons">
         <view class="btn-secondary" bindtap="onCloseCoachModal"><text>取消</text></view>
         <view class="btn-primary" bindtap="onSubmitCoach"><text>确认</text></view>
       </view>
-    </view>
-  </view>
-
-  <!-- 教练详情弹窗（相册管理） -->
-  <view class="modal-mask" wx:if="{{showDetailModal}}" bindtap="onCloseDetailModal">
-    <view class="modal-content modal-large" catchtap="onModalTap">
-      <view class="modal-header">
-        <text class="modal-title">教练详情 - {{detailCoach.name}}</text>
-        <text class="modal-close" bindtap="onCloseDetailModal">✕</text>
-      </view>
-      <scroll-view scroll-y class="detail-scroll">
-        <!-- 头像 -->
-        <view class="detail-avatar-section">
-          <image class="detail-avatar" src="{{detailCoach.avatar_url || '/images/default-avatar.svg'}}" mode="aspectFill"></image>
-          <view class="btn-primary btn-small" bindtap="onDetailChooseAvatar">更换头像</view>
-        </view>
-        <!-- 基本信息 -->
-        <view class="detail-info-row">
-          <text class="detail-label">姓名：</text>
-          <text class="detail-value">{{detailCoach.name}}</text>
-        </view>
-        <view class="detail-info-row">
-          <text class="detail-label">性别：</text>
-          <text class="detail-value">{{detailCoach.gender === 1 ? '男' : (detailCoach.gender === 2 ? '女' : '未知')}}</text>
-        </view>
-        <view class="detail-info-row">
-          <text class="detail-label">擅长：</text>
-          <text class="detail-value">{{detailCoach.dance_style_names || '未设置'}}</text>
-        </view>
-        <!-- 相册管理 -->
-        <view class="detail-section">
-          <view class="detail-section-header">
-            <text class="detail-section-title">教练相册</text>
-            <view class="btn-primary btn-small" bindtap="onAddGalleryPhoto">+ 添加照片</view>
-          </view>
-          <view class="gallery-grid" wx:if="{{detailCoach.gallery && detailCoach.gallery.length > 0}}">
-            <view class="gallery-item" wx:for="{{detailCoach.gallery}}" wx:key="photoId">
-              <image class="gallery-img" src="{{item.url}}" mode="aspectFill" bindtap="onPreviewGallery" data-photoid="{{item.photoId}}" data-index="{{index}}"></image>
-              <view class="gallery-delete" data-photoid="{{item.photoId}}" data-index="{{index}}" catchtap="onDeleteGalleryPhoto">✕</view>
-            </view>
-          </view>
-          <view class="detail-empty" wx:else>暂无相册照片，点击上方按钮添加</view>
-        </view>
-      </scroll-view>
     </view>
   </view>
 

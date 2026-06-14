@@ -76,21 +76,6 @@ Page({
       return;
     }
 
-    // 验证设备指纹：防止token被移植到其他设备
-    const savedFingerprint = wx.getStorageSync('device_fingerprint');
-    const currentFingerprint = app.globalData.deviceFingerprint;
-    if (savedFingerprint && currentFingerprint && savedFingerprint !== currentFingerprint) {
-      wx.removeStorageSync('admin_token');
-      wx.removeStorageSync('saved_username');
-      wx.removeStorageSync('saved_password');
-      wx.removeStorageSync('saved_device_fingerprint');
-      wx.removeStorageSync('device_fingerprint');
-      app.globalData.token = '';
-      app.globalData.userInfo = null;
-      wx.redirectTo({ url: '/pages/login/login' });
-      return;
-    }
-
     // 有token，验证是否有效
     try {
       await request({ url: '/auth/me', method: 'GET' });

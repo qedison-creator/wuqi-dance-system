@@ -491,71 +491,132 @@ Page({
   },
 
   // ========== 导出 ==========
-  async onExport(e) {
-    const { scheduleId } = e.currentTarget.dataset;
-    try {
-      wx.showLoading({ title: '导出中...' });
-      const app = getApp();
-      const token = wx.getStorageSync('admin_token') || (app.globalData && app.globalData.token) || '';
-      const baseUrl = (app.globalData && app.globalData.baseUrl) || config.baseUrl;
+  // 从当前 yearGroups 数据生成 HTML 表格，导出为 .xls
+  onExport() {
+    const { yearGroups, startDate, endDate, summary } = this.data;
 
-      const storeId = this.data.activeStoreId;
-      const params = [];
-      if (storeId) params.push(`store_id=${storeId}`);
-      if (this.data.startDate) params.push(`start_date=${this.data.startDate}`);
-      if (this.data.endDate) params.push(`end_date=${this.data.endDate}`);
+    // 收集所有预约记录，按 年-月-日-课程-会员-记录 展开
+    const rows = [];
+    yearGroups.forEach(yg => {
+      (yg.months || []).forEach(mg => {
+        (mg.dates || []).forEach(dg => {
+          (dg.schedules || []).forEach(course => {
+            const info = course.schedule_info || {};
+            const timeRange = info.start_time && info.end_time ? `${info.start_time}-${info.end_time}` : (info.start_time || '');
+            (course._sortedMemberGroups || course.memberGroups || []).forEach(mg => {
+              const user = mg.user_info || {};
+              const memberName = user.real_name || user.nick_name || '未知会员';
+              const memberPhone = user.phone || '';
+              // 每个会员的所有记录（预约/取消/完成）都展开
+              (mg.records || []).forEach(rec => {
+                let statusText = '';
+                if (rec.status === 'booked') statusText = '已预约';
+                else if (rec.status === 'completed') statusText = '已完成';
+                else if (rec.status === 'cancelled') statusText = '已取消';
+                else statusText = rec.status || '未知';
 
-      const url = `${baseUrl}/bookings/export?${params.join('&')}`;
+                let detailText = '';
+                if (rec.status === 'cancelled') {
+                  detailText = rec.cancel_type_text || '已取消';
+                  if (rec.cancel_reason) detailText += ` · ${rec.cancel_reason}`;
+                }
 
-      wx.request({
-        url,
-        header: { 'Authorization': token ? `Bearer ${token}` : '' },
-        responseType: 'text',
-        success: (res) => {
-          wx.hideLoading();
-          if (res.statusCode === 200 && res.data) {
-            const csvContent = typeof res.data === 'string' ? res.data : JSON.stringify(res.data);
-            const timestamp = Date.now();
-            const fs = wx.getFileSystemManager();
-            // 使用 .xls 扩展名，因为 wx.openDocument 不支持 csv 格式
-            const filePath = `${wx.env.USER_DATA_PATH}/bookings_${timestamp}.xls`;
-            fs.writeFile({
-              filePath,
-              data: csvContent,
-              encoding: 'utf8',
-              success: () => {
-                wx.openDocument({
-                  filePath,
-                  fileType: 'xls',
-                  showMenu: true,
-                  success: () => {
-                    wx.showToast({ title: '导出成功', icon: 'success' });
-                  },
-                  fail: (err) => {
-                    console.error('openDocument失败', err);
-                    wx.showModal({
-                      title: '导出完成',
-                      content: '文件已保存，可在微信文件中查看',
-                      showCancel: false
-                    });
-                  }
+                rows.push({
+                  date: dg.date,
+                  weekday: dg.weekday || '',
+                  time: timeRange,
+                  course: info.course_name || '未知课程',
+                  coach: info.coach_name || '',
+                  store: info.store_name || '',
+                  member: memberName,
+                  phone: memberPhone,
+                  status: statusText,
+                  detail: detailText,
+                  creditsDeducted: rec.credits_deducted || 0,
+                  creditsRefunded: rec.credits_refunded || 0,
+                  recordTime: rec.created_at_display || ''
                 });
-              },
-              fail: () => {
-                wx.showToast({ title: '保存失败', icon: 'none' });
-              }
+              });
             });
-          } else {
-            wx.showToast({ title: '导出失败', icon: 'none' });
-          }
+          });
+        });
+      });
+    });
+
+    if (rows.length === 0) {
+      wx.showToast({ title: '暂无数据可导出', icon: 'none' });
+      return;
+    }
+
+    wx.showLoading({ title: '生成表格中...' });
+
+    // 生成 HTML 表格格式，保存为 .xls（Excel/WPS 可直接打开）
+    let html = '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">';
+    html += '<head><meta charset="UTF-8"></head><body>';
+
+    // 标题和汇总
+    html += '<table border="1" cellspacing="0" cellpadding="4" style="font-family:微软雅黑;font-size:12px;">';
+    html += '<tr><td colspan="13" style="text-align:center;font-size:16px;font-weight:bold;">舞栖DANCE · 预约记录汇总</td></tr>';
+    html += `<tr><td colspan="2">日期范围</td><td colspan="11">${startDate || ''} ~ ${endDate || ''}</td></tr>`;
+    html += `<tr><td colspan="2">导出时间</td><td colspan="11">${new Date().toLocaleString('zh-CN')}</td></tr>`;
+    html += `<tr><td colspan="2">汇总</td><td colspan="11">总课程${summary.totalCourses || 0}节｜总预约${summary.totalBookings || 0}单｜已上课${summary.checkedIn || 0}人｜已取消${summary.cancelled || 0}人</td></tr>`;
+    html += '<tr></tr>';
+
+    // 表头
+    html += '<tr style="background-color:#f5f5f5;font-weight:bold;text-align:center;">';
+    const headers = ['日期', '星期', '时间段', '课程名称', '教练', '门店', '会员姓名', '手机号', '状态', '详情', '扣课时', '退课时', '记录时间'];
+    headers.forEach(h => {
+      html += `<td>${h}</td>`;
+    });
+    html += '</tr>';
+
+    // 数据行
+    rows.forEach(r => {
+      const statusColor = r.status === '已完成' ? '#5B8C5A' : (r.status === '已取消' ? '#C44B4B' : '#2C2416');
+      html += '<tr>';
+      html += `<td style="text-align:center;">${r.date}</td>`;
+      html += `<td style="text-align:center;">${r.weekday}</td>`;
+      html += `<td style="text-align:center;">${r.time}</td>`;
+      html += `<td>${r.course}</td>`;
+      html += `<td>${r.coach}</td>`;
+      html += `<td>${r.store}</td>`;
+      html += `<td>${r.member}</td>`;
+      html += `<td style="text-align:center;">${r.phone}</td>`;
+      html += `<td style="text-align:center;color:${statusColor};font-weight:bold;">${r.status}</td>`;
+      html += `<td>${r.detail}</td>`;
+      html += `<td style="text-align:center;">${r.creditsDeducted}</td>`;
+      html += `<td style="text-align:center;">${r.creditsRefunded}</td>`;
+      html += `<td style="text-align:center;">${r.recordTime}</td>`;
+      html += '</tr>';
+    });
+
+    // 合计
+    html += `<tr style="background-color:#fff4ec;font-weight:bold;"><td colspan="10" style="text-align:right;">合计</td><td style="text-align:center;">${rows.length}条</td><td></td><td></td></tr>`;
+
+    html += '</table></body></html>';
+
+    const fs = wx.getFileSystemManager();
+    const dateStr = startDate === endDate ? startDate : `${startDate}_${endDate}`;
+    const filePath = `${wx.env.USER_DATA_PATH}/预约记录_${dateStr || Date.now()}.xls`;
+
+    try {
+      fs.writeFileSync(filePath, html, 'utf8');
+      wx.hideLoading();
+      wx.openDocument({
+        filePath,
+        fileType: 'xls',
+        showMenu: true,
+        success: () => {
+          wx.showToast({ title: '导出成功，可保存/分享', icon: 'none', duration: 2500 });
         },
-        fail: () => {
-          wx.hideLoading();
-          wx.showToast({ title: '导出失败', icon: 'none' });
+        fail: (err) => {
+          console.error('打开文档失败:', err);
+          wx.showToast({ title: '打开文档失败', icon: 'none' });
         }
       });
     } catch (err) {
       wx.hideLoading();
+      console.error('写入文件失败:', err);
       wx.showToast({ title: '导出失败', icon: 'none' });
     }
   },

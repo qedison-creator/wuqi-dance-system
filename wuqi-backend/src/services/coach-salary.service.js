@@ -224,9 +224,9 @@ exports.createSalaryStat = async (scheduleId, operatorId) => {
   const schedule = await Schedule.findById(scheduleId);
   if (!schedule) throw new Error('排课不存在');
 
-  const attendanceCount = await Booking.countDocuments({
-    schedule_id: scheduleId,
-    $or: [{ status: 'completed' }, { booking_status: 'completed' }]
+  const Attendance = require('../models/Attendance');
+  const attendanceCount = await Attendance.countDocuments({
+    schedule_id: scheduleId
   });
 
   const duration = schedule.duration || 75;
@@ -389,18 +389,35 @@ exports.getSalarySummary = async (query) => {
 };
 
 // 批量生成薪酬统计账单
-exports.generateSalaryBill = async (startDate, endDate, preview = false, operatorId = null) => {
+exports.generateSalaryBill = async (startDate, endDate, preview = false, operatorId = null, coachIds = null) => {
   const start = new Date(startDate);
   const end = new Date(endDate);
+  const Attendance = require('../models/Attendance');
   
-  const schedules = await Schedule.find({
+  // 只统计有签到的排课（有人上课教练才算干活）
+  const attendanceRecords = await Attendance.find({
     date: {
-      $gte: start,
-      $lte: end
-    },
-    status: 'completed',
+      $gte: startDate,
+      $lte: endDate
+    }
+  }).select('schedule_id');
+  
+  const attendedScheduleIds = [...new Set(attendanceRecords.map(a => a.schedule_id.toString()))];
+  
+  if (attendedScheduleIds.length === 0) {
+    return { bill: [], settled_warning: '', total_amount: 0 };
+  }
+  
+  const scheduleFilter = {
+    _id: { $in: attendedScheduleIds },
     coach_id: { $ne: null }
-  }).populate('coach_id', 'name');
+  };
+  // 支持只生成选中教练的账单
+  if (coachIds && Array.isArray(coachIds) && coachIds.length > 0) {
+    scheduleFilter.coach_id = { $in: coachIds };
+  }
+  
+  const schedules = await Schedule.find(scheduleFilter).populate('coach_id', 'name');
 
   if (schedules.length === 0) {
     return { bill: [], settled_warning: '', total_amount: 0 };
@@ -496,6 +513,12 @@ exports.generateSalaryBill = async (startDate, endDate, preview = false, operato
           if (!existingStat) {
             const schedule = await Schedule.findById(scheduleId);
             if (schedule) {
+              // 从 Attendance 表获取实际签到人数
+              const Attendance = require('../models/Attendance');
+              const realAttendance = await Attendance.countDocuments({
+                schedule_id: scheduleId
+              });
+              
               await CoachSalaryStat.create({
                 coach_id: coachBill.coach_id,
                 store_id: schedule.store_id,
@@ -503,7 +526,7 @@ exports.generateSalaryBill = async (startDate, endDate, preview = false, operato
                 schedule_id: scheduleId,
                 class_date: new Date(schedule.date),
                 duration: item.duration,
-                attendance_count: 0,
+                attendance_count: realAttendance,
                 salary_rate: item.rate,
                 total_salary: item.rate,
                 status: 'pending',
@@ -515,6 +538,27 @@ exports.generateSalaryBill = async (startDate, endDate, preview = false, operato
       }
     }
 
+    // 保存账单文档（持久化成果）
+    const SalaryBill = require('../models/SalaryBill');
+    await SalaryBill.create({
+      start_date: new Date(startDate),
+      end_date: new Date(endDate),
+      coaches: bill.map(c => ({
+        coach_id: c.coach_id,
+        coach_name: c.coach_name,
+        items: c.items.map(i => ({
+          duration: i.duration,
+          count: i.count,
+          rate: i.rate,
+          amount: i.amount
+        })),
+        total_amount: c.total_amount
+      })),
+      total_amount: totalAmount,
+      coach_count: bill.length,
+      generated_by: operatorId
+    });
+
     await logService.createLog({
       operator_id: operatorId,
       operator_name: operatorName,
@@ -525,4 +569,307 @@ exports.generateSalaryBill = async (startDate, endDate, preview = false, operato
   }
 
   return { bill, settled_warning: settledWarning, total_amount: totalAmount };
+};
+
+// ========== 账单列表 ==========
+
+/**
+ * 获取生成的账单列表
+ */
+exports.getBillList = async (query) => {
+  const { page = 1, pageSize = 20 } = query;
+  const SalaryBill = require('../models/SalaryBill');
+
+  const list = await SalaryBill.find()
+    .sort({ created_at: -1 })
+    .skip((page - 1) * pageSize)
+    .limit(Number(pageSize));
+
+  const total = await SalaryBill.countDocuments();
+  return { list, total, page: Number(page), pageSize: Number(pageSize) };
+};
+
+/**
+ * 获取单个账单详情
+ */
+exports.getBillDetail = async (id) => {
+  const SalaryBill = require('../models/SalaryBill');
+  const bill = await SalaryBill.findById(id);
+  if (!bill) throw new Error('账单不存在');
+  return bill;
+};
+
+/**
+ * 删除账单
+ */
+exports.deleteBill = async (id) => {
+  const SalaryBill = require('../models/SalaryBill');
+  const bill = await SalaryBill.findById(id);
+  if (!bill) throw new Error('账单不存在');
+  await SalaryBill.deleteOne({ _id: id });
+  return { success: true };
+};
+
+// ========== 薪酬按月聚合（基于实际上课数据） ==========
+
+/**
+ * 获取月度薪酬明细（基于Attendance实际签到 + CoachSalary配置计算）
+ * 不依赖生成账单，直接用上课数据 × 薪酬配置得出每位教练每月薪酬
+ * 
+ * @param {Object} query - { year?, coach_id?, store_id? }
+ * @returns {Object} { years: [{ year, yearLabel, months: [{ monthKey, monthLabel, totalAmount, coaches: [{ coach_id, coach_name, durations: [{ duration, count, rate, amount }], total_amount }] }] }] }
+ */
+exports.getMonthlySalaryBreakdown = async (query) => {
+  const { coach_id, store_id } = query;
+  const Attendance = require('../models/Attendance');
+
+  // 步骤1：获取所有签到记录中的排课ID
+  const attendanceFilter = {};
+  if (coach_id) attendanceFilter.coach_id = coach_id;
+  if (store_id) attendanceFilter.store_id = store_id;
+
+  const attendances = await Attendance.find(attendanceFilter).select('schedule_id coach_id store_id');
+  const scheduleIds = [...new Set(attendances.map(a => a.schedule_id.toString()))];
+
+  if (scheduleIds.length === 0) {
+    return { years: [] };
+  }
+
+  // 步骤2：查询这些排课的详情
+  const scheduleFilter = { _id: { $in: scheduleIds } };
+  if (coach_id) scheduleFilter.coach_id = coach_id;
+  if (store_id) scheduleFilter.store_id = store_id;
+
+  const schedules = await Schedule.find(scheduleFilter)
+    .populate('coach_id', 'name')
+    .populate('store_id', 'name')
+    .sort({ date: 1 });
+
+  // 步骤3：按年份→月份→教练→时长分组，统计课时数
+  const yearsMap = {};
+
+  schedules.forEach(schedule => {
+    const date = new Date(schedule.date);
+    const year = date.getFullYear();
+    const monthKey = String(date.getMonth() + 1).padStart(2, '0');
+    const monthLabel = `${date.getMonth() + 1}月`;
+    const coachId = schedule.coach_id ? schedule.coach_id._id.toString() : '_unknown';
+    const coachName = schedule.coach_id ? schedule.coach_id.name : '未知';
+    const duration = schedule.duration || 75;
+
+    if (!yearsMap[year]) yearsMap[year] = { year, yearLabel: `${year}年`, monthsMap: {} };
+    if (!yearsMap[year].monthsMap[monthKey]) {
+      yearsMap[year].monthsMap[monthKey] = { monthKey, monthLabel, sort: monthKey, coachesMap: {} };
+    }
+    if (!yearsMap[year].monthsMap[monthKey].coachesMap[coachId]) {
+      yearsMap[year].monthsMap[monthKey].coachesMap[coachId] = {
+        coach_id: coachId,
+        coach_name: coachName,
+        durationsMap: {}
+      };
+    }
+
+    const coach = yearsMap[year].monthsMap[monthKey].coachesMap[coachId];
+    if (!coach.durationsMap[duration]) {
+      coach.durationsMap[duration] = { duration, count: 0 };
+    }
+    coach.durationsMap[duration].count++;
+  });
+
+  // 步骤4：批量查询所有教练的薪酬配置（按coach_id + duration匹配）
+  const allCoachIds = [...new Set(
+    Object.values(yearsMap).flatMap(y =>
+      Object.values(y.monthsMap).flatMap(m => Object.keys(m.coachesMap))
+    )
+  )];
+
+  // 一次查询所有相关教练的配置
+  const salaryConfigs = await CoachSalary.find({
+    coach_id: { $in: allCoachIds },
+    is_active: true
+  }).sort({ effective_from: -1 });
+
+  // 构建 (coach_id + duration) → rate 的映射（取最新配置）
+  const rateMap = {};
+  salaryConfigs.forEach(cfg => {
+    const key = `${cfg.coach_id.toString()}_${cfg.duration}`;
+    if (!rateMap[key]) {
+      rateMap[key] = cfg.salary_rate;
+    }
+  });
+
+  // 步骤5：计算金额并转换为数组
+  const years = Object.values(yearsMap)
+    .sort((a, b) => b.year - a.year)
+    .map(y => ({
+      year: y.year,
+      yearLabel: y.yearLabel,
+      months: Object.values(y.monthsMap)
+        .sort((a, b) => b.sort.localeCompare(a.sort))
+        .map(m => {
+          const coaches = Object.values(m.coachesMap)
+            .map(c => {
+              const durations = Object.values(c.durationsMap)
+                .map(d => {
+                  const key = `${c.coach_id}_${d.duration}`;
+                  const rate = rateMap[key] || 0;
+                  return {
+                    duration: d.duration,
+                    count: d.count,
+                    rate,
+                    amount: Math.round(d.count * rate * 100) / 100
+                  };
+                })
+                .sort((a, b) => a.duration - b.duration);
+
+              const total_amount = Math.round(
+                durations.reduce((sum, d) => sum + d.amount, 0) * 100
+              ) / 100;
+
+              return {
+                coach_id: c.coach_id,
+                coach_name: c.coach_name,
+                durations,
+                total_amount
+              };
+            })
+            .sort((a, b) => b.total_amount - a.total_amount);
+
+          const totalAmount = Math.round(
+            coaches.reduce((sum, c) => sum + c.total_amount, 0) * 100
+          ) / 100;
+
+          return {
+            monthKey: m.monthKey,
+            monthLabel: m.monthLabel,
+            totalAmount,
+            coaches
+          };
+        })
+    }));
+
+  return { years };
+};
+
+// ========== 课时统计 ==========
+
+/**
+ * 获取教练课时统计（按月份分组，按教练分组）
+ * @param {Object} query - { year?, coach_id?, store_id? }
+ * @returns {Object} { months: [{ month, label, coaches: [{ coach_name, total_classes, durations: [{duration, count}], records: [{...}] }] }] }
+ */
+exports.getClassHoursStats = async (query) => {
+  const { coach_id, store_id } = query;
+  const Attendance = require('../models/Attendance');
+
+  // 步骤1：先查所有有签到记录的排课ID（只有实际上过课的才算课时）
+  const attendanceFilter = {};
+  if (coach_id) attendanceFilter.coach_id = coach_id;
+  if (store_id) attendanceFilter.store_id = store_id;
+  
+  const attendances = await Attendance.find(attendanceFilter).select('schedule_id coach_id store_id');
+  const scheduleIds = [...new Set(attendances.map(a => a.schedule_id.toString()))];
+
+  if (scheduleIds.length === 0) {
+    return { years: [], summary: { total_years: 0, total_classes: 0 } };
+  }
+
+  // 步骤2：只查这些有签到的排课
+  const filter = { _id: { $in: scheduleIds } };
+  if (coach_id) filter.coach_id = coach_id;
+  if (store_id) filter.store_id = store_id;
+
+  const schedules = await Schedule.find(filter)
+    .populate('coach_id', 'name avatar_url')
+    .populate('store_id', 'name')
+    .sort({ date: 1, start_time: 1 });
+
+  // 步骤3：按排课ID统计签到人数
+  const attendanceMap = {};
+  attendances.forEach(a => {
+    const sid = a.schedule_id.toString();
+    attendanceMap[sid] = (attendanceMap[sid] || 0) + 1;
+  });
+
+  // 按年份 → 月份 → 教练 → 门店分组
+  const yearsMap = {};
+
+  schedules.forEach(schedule => {
+    const date = new Date(schedule.date);
+    const year = date.getFullYear();
+    const monthKey = String(date.getMonth() + 1).padStart(2, '0');
+    const monthLabel = `${date.getMonth() + 1}月`;
+    const coachId = schedule.coach_id._id.toString();
+    const coachName = schedule.coach_id.name || '未知教练';
+    const storeId = schedule.store_id ? schedule.store_id._id.toString() : '_none';
+    const storeName = schedule.store_id ? schedule.store_id.name : '未知门店';
+    const duration = schedule.duration || 75;
+    const dayOfWeek = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'][date.getDay()];
+
+    // 年份
+    if (!yearsMap[year]) yearsMap[year] = { year, yearLabel: `${year}年`, monthsMap: {} };
+    // 月份
+    if (!yearsMap[year].monthsMap[monthKey]) yearsMap[year].monthsMap[monthKey] = { monthKey, monthLabel, sort: monthKey, coachesMap: {} };
+    // 教练
+    if (!yearsMap[year].monthsMap[monthKey].coachesMap[coachId]) {
+      yearsMap[year].monthsMap[monthKey].coachesMap[coachId] = {
+        coach_id: coachId,
+        coach_name: coachName,
+        avatar_url: schedule.coach_id.avatar_url || '',
+        storesMap: {}
+      };
+    }
+    // 门店（教练下面）
+    const coach = yearsMap[year].monthsMap[monthKey].coachesMap[coachId];
+    if (!coach.storesMap[storeId]) {
+      coach.storesMap[storeId] = { store_id: storeId, store_name: storeName, durationsMap: {}, records: [] };
+    }
+
+    const store = coach.storesMap[storeId];
+    if (!store.durationsMap[duration]) store.durationsMap[duration] = { duration, count: 0 };
+    store.durationsMap[duration].count++;
+
+    store.records.push({
+      class_date: schedule.date,
+      weekday: dayOfWeek,
+      start_time: schedule.start_time,
+      end_time: schedule.end_time,
+      duration,
+      attendance_count: attendanceMap[schedule._id.toString()] || 0,
+      store_name: storeName
+    });
+  });
+
+  // 转换为数组：年份降序，月份降序，教练按课时降序，门店按课时降序
+  const years = Object.values(yearsMap)
+    .sort((a, b) => b.year - a.year)
+    .map(y => ({
+      ...y,
+      months: Object.values(y.monthsMap)
+        .sort((a, b) => b.sort.localeCompare(a.sort))
+        .map(m => ({
+          ...m,
+          coaches: Object.values(m.coachesMap)
+            .map(c => {
+              const stores = Object.values(c.storesMap)
+                .map(s => ({
+                  ...s,
+                  total_classes: s.records.length,
+                  durations: Object.values(s.durationsMap).sort((a, b) => a.duration - b.duration)
+                }))
+                .sort((a, b) => b.total_classes - a.total_classes);
+              const total = stores.reduce((sum, s) => sum + s.total_classes, 0);
+              return { ...c, total_classes: total, stores };
+            })
+            .sort((a, b) => b.total_classes - a.total_classes)
+        }))
+    }));
+
+  return {
+    years,
+    summary: {
+      total_years: years.length,
+      total_classes: years.reduce((sum, y) => sum + (y.months || []).reduce((s, m) => s + (m.coaches || []).reduce((cs, c) => cs + (c.total_classes || 0), 0), 0), 0)
+    }
+  };
 };

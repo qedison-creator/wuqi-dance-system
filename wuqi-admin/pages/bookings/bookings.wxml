@@ -37,6 +37,9 @@
     <view class="tab-item {{activeTab === 'booked' ? 'active' : ''}}" data-tab="booked" bindtap="onTabChange">
       <text>已预约({{bookedList.length}})</text>
     </view>
+    <view class="tab-item {{activeTab === 'checkedIn' ? 'active' : ''}}" data-tab="checkedIn" bindtap="onTabChange">
+      <text>已签到({{attendanceList.length}})</text>
+    </view>
     <view class="tab-item {{activeTab === 'cancelled' ? 'active' : ''}}" data-tab="cancelled" bindtap="onTabChange">
       <text>已取消({{cancelledList.length}})</text>
     </view>
@@ -116,8 +119,8 @@
     </view>
   </view>
 
-  <!-- 上课记录 -->
-  <view class="booking-list" wx:if="{{viewMode === 'attendance'}}">
+  <!-- 已签到名单（仅在预约视图的checkedIn Tab或attendance视图） -->
+  <view class="booking-list" wx:if="{{viewMode === 'attendance' || activeTab === 'checkedIn'}}">
     <view class="booking-item card" wx:for="{{attendanceList}}" wx:key="_id">
       <view class="user-info">
         <image class="user-avatar" src="{{item.userAvatar || '/images/default-avatar.svg'}}" mode="aspectFill"></image>

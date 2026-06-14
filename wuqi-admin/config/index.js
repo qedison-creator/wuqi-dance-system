@@ -8,8 +8,8 @@ const config = {
     serverBase: 'http://101.33.203.22:3000'
   },
   prod: {
-    baseUrl: 'https://api.yuekeme.cn/api/v1',
-    serverBase: 'https://api.yuekeme.cn'
+    baseUrl: 'https://admin-api.yuekeme.cn/api/v1',
+    serverBase: 'https://admin-api.yuekeme.cn'
   }
 };
 
@@ -23,5 +23,5 @@ const config = {
  * - dev/test 模式：设置为 false（可请求 localhost/IP）
  * - prod 模式：设置为 true（仅可请求已备案的合法域名）
  */
-const env = 'test';
+const env = 'prod';
 module.exports = config[env];

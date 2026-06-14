@@ -8,8 +8,8 @@ const { success } = require('../utils/response');
 // POST /api/v1/auth/wx-login
 router.post('/wx-login', async (req, res, next) => {
   try {
-    const { code, store_id, client_type } = req.body;
-    const result = await authService.wxLogin(code, store_id, client_type);
+    const { code, store_id, client_type, avatar_url, nick_name, phone_code } = req.body;
+    const result = await authService.wxLogin(code, store_id, client_type, { avatar_url, nick_name, phone_code });
     res.json(success(result, '微信登录成功'));
   } catch (err) {
     next(err);
@@ -44,6 +44,9 @@ router.get('/me', auth, async (req, res, next) => {
       const host = req.get('host');
       userObj.avatar_url = `${protocol}://${host}${userObj.avatar_url}`;
     }
+    // 别名：前端统一使用 avatar / nickname，兼容旧代码
+    userObj.avatar = userObj.avatar_url;
+    userObj.nickname = userObj.nick_name;
     res.json(success(userObj));
   } catch (err) {
     next(err);
@@ -53,13 +56,15 @@ router.get('/me', auth, async (req, res, next) => {
 // PUT /api/v1/auth/profile - 更新会员个人信息
 router.put('/profile', auth, checkPermission(['member']), async (req, res, next) => {
   try {
-    const { real_name, phone, gender, store_id } = req.body;
+    const { real_name, phone, gender, store_id, nick_name, avatar_url } = req.body;
     const user = await User.findById(req.user.id);
     if (!user) return res.status(404).json({ code: 404, message: '用户不存在', data: null });
 
     if (real_name !== undefined) user.real_name = real_name;
     if (phone !== undefined) user.phone = phone;
     if (gender !== undefined) user.gender = gender;
+    if (nick_name !== undefined) user.nick_name = nick_name;
+    if (avatar_url !== undefined) user.avatar_url = avatar_url;
 
     // 门店修改限制：审核通过且有套餐后不能修改门店
     if (store_id !== undefined) {
@@ -76,6 +81,39 @@ router.put('/profile', auth, checkPermission(['member']), async (req, res, next)
       .select('-password -__v')
       .populate('store_id', 'name phone address');
     res.json(success(populated, '更新成功'));
+  } catch (err) {
+    next(err);
+  }
+});
+
+// POST /api/v1/auth/avatar - 上传头像
+const multer = require('multer');
+const path = require('path');
+const avatarUpload = multer({
+  storage: multer.diskStorage({
+    destination: path.join(__dirname, '../../uploads/avatars'),
+    filename: (req, file, cb) => {
+      cb(null, `user_${req.user.id}_${Date.now()}${path.extname(file.originalname)}`);
+    }
+  }),
+  limits: { fileSize: 2 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    const allowed = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
+    const ext = path.extname(file.originalname).toLowerCase();
+    cb(null, allowed.includes(ext));
+  }
+});
+
+router.post('/avatar', auth, checkPermission(['member']), avatarUpload.single('avatar'), async (req, res, next) => {
+  try {
+    if (!req.file) return res.status(400).json({ code: 400, message: '请上传头像文件', data: null });
+
+    const avatarUrl = `/uploads/avatars/${req.file.filename}`;
+
+    // 同时更新数据库
+    await User.findByIdAndUpdate(req.user.id, { avatar_url: avatarUrl });
+
+    res.json(success({ url: avatarUrl }, '头像上传成功'));
   } catch (err) {
     next(err);
   }

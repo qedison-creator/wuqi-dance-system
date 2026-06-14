@@ -1,6 +1,9 @@
 const app = getApp();
 const { request } = require('../../utils/request');
 const auth = require('../../utils/auth');
+const { normalizeImageUrl } = require('../../utils/util');
+const config = require('../../config/index.js');
+const SERVER_BASE = config.serverBase;
 
 Page({
   data: {
@@ -29,8 +32,13 @@ Page({
     }).then(res => {
       const data = res.data || {};
       const list = Array.isArray(data) ? data : (data.courses || data.data || data.list || []);
+      // 规范化封面图URL
+      const courses = list.map(c => ({
+        ...c,
+        cover: normalizeImageUrl(c.cover, SERVER_BASE)
+      }));
 
-      this.setData({ courses: list, loading: false });
+      this.setData({ courses, loading: false });
     }).catch(() => {
       this.setData({ loading: false });
     });

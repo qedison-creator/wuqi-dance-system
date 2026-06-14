@@ -83,7 +83,9 @@
 }
 
 .scan-icon {
-  font-size: 40rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .scan-text {

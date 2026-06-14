@@ -7,6 +7,7 @@ Page({
     showModal: false,
     editingBanner: null,
     uploading: false,
+    deleting: false, // 防抖标志位
     formData: {
       title: '',
       subtitle: '',
@@ -77,15 +78,26 @@ Page({
     this.setData({ [`formData.${field}`]: e.detail.value });
   },
 
-  // 选择并上传图片
+  // 选择并上传图片（含裁剪）
   onChooseImage() {
-    wx.chooseImage({
+    const that = this;
+    wx.chooseMedia({
       count: 1,
-      sizeType: ['compressed'],
-      sourceType: ['album', 'camera'],
-      success: (res) => {
-        const tempFilePath = res.tempFilePaths[0];
-        this.uploadImage(tempFilePath);
+      mediaType: ['image'],
+      success: async (res) => {
+        let filePath = res.tempFiles[0].tempFilePath;
+        // 裁剪：2:1横屏比例，用户可缩放/拖动
+        try {
+          if (wx.cropImage) {
+            const cropRes = await new Promise((resolve, reject) => {
+              wx.cropImage({ src: filePath, cropScale: '2:1', success: resolve, fail: reject });
+            });
+            filePath = cropRes.tempFilePath;
+          }
+        } catch (cropErr) {
+          if (cropErr.errMsg && cropErr.errMsg.indexOf('cancel') !== -1) return;
+        }
+        that.uploadImage(filePath);
       }
     });
   },
@@ -197,6 +209,12 @@ Page({
   },
 
   async onDeleteBanner(e) {
+    // 防抖处理：如果正在删除中，则直接返回
+    if (this.data.deleting) {
+      wx.showToast({ title: '正在删除中，请稍候', icon: 'none' });
+      return;
+    }
+    
     const { id } = e.currentTarget.dataset;
     wx.showModal({
       title: '确认删除',
@@ -204,13 +222,23 @@ Page({
       success: async (res) => {
         if (res.confirm) {
           try {
+            // 设置防抖标志位
+            this.setData({ deleting: true });
             await request({ url: `/banners/${id}`, method: 'DELETE' });
             wx.showToast({ title: '已删除', icon: 'success' });
             this.loadBanners();
           } catch (err) {
             console.error('删除失败', err);
+            wx.showToast({ title: '删除失败', icon: 'none' });
+          } finally {
+            // 无论成功或失败，都重置防抖标志位
+            this.setData({ deleting: false });
           }
         }
+      },
+      fail: () => {
+        // 用户取消删除，重置防抖标志位
+        this.setData({ deleting: false });
       }
     });
   },

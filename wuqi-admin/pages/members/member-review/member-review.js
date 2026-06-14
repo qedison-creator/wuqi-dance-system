@@ -49,15 +49,14 @@ Page({
       const total = result.total || 0;
 
       const members = list.map(member => {
-        let phone = member.phone;
-        if (phone && phone.length === 11) {
-          phone = phone.replace(/(\d{3})\d{4}(\d{4})/, '$1****$2');
-        }
+        const wechatPhone = member.wechat_phone || '';
+        const reservePhone = member.reserve_phone || member.phone || '';
         return {
           ...member,
           nickname: member.nick_name,
           avatar: member.avatar_url,
-          phone: phone,
+          wechat_phone_display: wechatPhone,
+          reserve_phone_display: reservePhone,
           created_at: formatDate(member.created_at),
           store_name: member.store_id && member.store_id.name ? member.store_id.name : '',
           store_id: member.store_id && member.store_id._id ? member.store_id._id : null

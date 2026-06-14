@@ -33,6 +33,21 @@ Page({
     }
   },
 
+  onAddStore() {
+    // 新增门店：清空表单
+    this.setData({
+      editingStore: { _id: 'new' }, // 使用特殊ID标识新增模式
+      editForm: {
+        name: '',
+        address: '',
+        phone: '',
+        nav_name: '',
+        latitude: '',
+        longitude: '',
+      },
+    });
+  },
+
   onEditStore(e) {
     const { store } = e.currentTarget.dataset;
     if (!store) return;
@@ -61,35 +76,6 @@ Page({
     this.setData({ editForm });
   },
 
-  onGetLocation() {
-    this.setData({ gettingLocation: true });
-    wx.getLocation({
-      type: 'gcj02',
-      altitude: true,
-      highAccuracyExpireTime: 10000,
-      success: (res) => {
-        const editForm = { ...this.data.editForm };
-        editForm.latitude = String(res.latitude);
-        editForm.longitude = String(res.longitude);
-        this.setData({ editForm, gettingLocation: false });
-        wx.showToast({ title: '获取位置成功', icon: 'success' });
-      },
-      fail: () => {
-        this.setData({ gettingLocation: false });
-        wx.showModal({
-          title: '提示',
-          content: '获取位置失败，请检查是否授权位置权限',
-          confirmText: '去设置',
-          success: (modalRes) => {
-            if (modalRes.confirm) {
-              wx.openSetting();
-            }
-          }
-        });
-      }
-    });
-  },
-
   async onSave() {
     const { editingStore, editForm } = this.data;
     if (!editingStore) return;
@@ -106,7 +92,7 @@ Page({
       return;
     }
 
-    const updateData = {
+    const saveData = {
       name: editForm.name.trim(),
       address: editForm.address.trim(),
       phone: editForm.phone.trim(),
@@ -114,31 +100,49 @@ Page({
     };
 
     if (!isNaN(lat) && !isNaN(lng)) {
-      updateData.location = { latitude: lat, longitude: lng };
+      saveData.location = { latitude: lat, longitude: lng };
     }
 
     this.setData({ saving: true });
     wx.showLoading({ title: '保存中...' });
+    
     try {
-      const res = await request({
-        url: `/stores/${editingStore._id}`,
-        method: 'PUT',
-        data: updateData,
-      });
+      let res;
+      let storeList = [...this.data.storeList];
+      
+      if (editingStore._id === 'new') {
+        // 新增门店
+        res = await request({
+          url: '/stores',
+          method: 'POST',
+          data: saveData,
+        });
+        
+        const newStore = res.data || {};
+        storeList.push(newStore);
+        wx.showToast({ title: '新增成功', icon: 'success' });
+      } else {
+        // 更新门店
+        res = await request({
+          url: `/stores/${editingStore._id}`,
+          method: 'PUT',
+          data: saveData,
+        });
 
-      const updatedStore = res.data || {};
-      const storeList = this.data.storeList.map(s =>
-        s._id === editingStore._id ? updatedStore : s
-      );
+        const updatedStore = res.data || {};
+        storeList = storeList.map(s =>
+          s._id === editingStore._id ? updatedStore : s
+        );
 
-      app.globalData.storeList = storeList;
-      if (app.globalData.currentStore && app.globalData.currentStore._id === editingStore._id) {
-        app.globalData.currentStore = updatedStore;
+        app.globalData.storeList = storeList;
+        if (app.globalData.currentStore && app.globalData.currentStore._id === editingStore._id) {
+          app.globalData.currentStore = updatedStore;
+        }
+        wx.showToast({ title: '保存成功', icon: 'success' });
       }
 
       wx.hideLoading();
       this.setData({ storeList, editingStore: null, saving: false });
-      wx.showToast({ title: '保存成功', icon: 'success' });
     } catch (err) {
       wx.hideLoading();
       this.setData({ saving: false });

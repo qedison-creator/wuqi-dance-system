@@ -64,13 +64,13 @@
         <image class="menu-arrow" src="/images/icons/chevron-right.svg" mode="aspectFit"></image>
       </view>
 
-      <view class="menu-item" wx:if="{{permVideo}}" bindtap="onGoToVideos">
+      <view class="menu-item" wx:if="{{permImage}}" bindtap="onGoToImages">
         <view class="menu-icon-wrap" style="background:rgba(107,163,190,0.10)">
-          <image class="menu-icon" src="/images/icons/shop-video.svg" mode="aspectFit"></image>
+          <image class="menu-icon" src="/images/icons/shop-image.svg" mode="aspectFit"></image>
         </view>
         <view class="menu-text">
-          <text class="menu-label">教练作品</text>
-          <text class="menu-desc">视频作品集</text>
+          <text class="menu-label">此间画面</text>
+          <text class="menu-desc">图片作品管理</text>
         </view>
         <image class="menu-arrow" src="/images/icons/chevron-right.svg" mode="aspectFit"></image>
       </view>
@@ -80,8 +80,8 @@
           <image class="menu-icon" src="/images/icons/shop-wallet.svg" mode="aspectFit"></image>
         </view>
         <view class="menu-text">
-          <text class="menu-label">教练薪酬</text>
-          <text class="menu-desc">薪资与结算</text>
+          <text class="menu-label">教练课时与薪酬</text>
+          <text class="menu-desc">教练课时统计与薪酬结算管理</text>
         </view>
         <image class="menu-arrow" src="/images/icons/chevron-right.svg" mode="aspectFit"></image>
       </view>

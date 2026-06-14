@@ -5,7 +5,7 @@ const { COURSE_DURATIONS, DEFAULT_DURATION } = require('../../utils/config');
 
 Page({
   data: {
-    activeTab: 'config',
+    activeTab: 'hours',
     salaryConfigList: [],
     salaryStatsList: [],
     statsSummary: null,
@@ -31,21 +31,40 @@ Page({
       startDate: '',
       endDate: ''
     },
-    showBillModal: false,
     billPreview: null,
+    billGenerated: false,
     settledWarning: '',
-    totalBillAmount: 0
+    totalBillAmount: 0,
+    billSelectedCount: 0,
+    billSelectedAmount: 0,
+    // 账单列表
+    billList: [],
+    // 薪酬统计月份列表
+    salaryMonthlyYears: [],
+    // 自定义时长弹窗
+    showCustomDurationModal: false,
+    customDurationIndex: -1,
+    customDurationValue: '',
+    // 课时统计（年份-月份两级结构）
+    classHoursYears: [],
+    classHoursSummary: null
   },
 
   onShow() {
     if (!app.checkAuth()) return;
-    if (this.data.showConfigModal || this.data.showStatModal || this.data.showBillModal) {
+    if (this.data.showConfigModal || this.data.showStatModal) {
       return;
     }
+    
+    this.loadClassHours();
+    this.loadSalaryMonthly();
+    this.loadBillList();
+    
     if (!this.data.salaryConfigList || this.data.salaryConfigList.length === 0) {
-      this.setData({ loading: true });
       this.loadCoachList();
       this.loadConfigList();
+    } else {
+      this.setData({ loading: false });
     }
     if (this.data.activeTab === 'stats') {
       this.initStatForm();
@@ -67,15 +86,17 @@ Page({
     const tab = e.currentTarget.dataset.tab;
     this.setData({ 
       activeTab: tab, 
-      loading: true,
       page: 1 
     });
     if (tab === 'config') {
+      this.setData({ loading: true });
       this.loadConfigList();
-    } else {
+    } else if (tab === 'stats') {
       this.initStatForm();
-      this.loadStatsList();
-      this.loadStatsSummary();
+      this.loadSalaryMonthly();
+      this.loadBillList();
+    } else if (tab === 'hours') {
+      this.loadClassHours();
     }
   },
 
@@ -233,21 +254,10 @@ Page({
     const configItems = [...this.data.configItems];
     
     if (option === '自定义') {
-      wx.showModal({
-        title: '自定义时长',
-        editable: true,
-        placeholderText: '请输入时长（分钟）',
-        success: (res) => {
-          if (res.confirm && res.content) {
-            const duration = parseInt(res.content);
-            if (duration > 0) {
-              configItems[index].duration = duration;
-              this.setData({ configItems });
-            } else {
-              wx.showToast({ title: '请输入有效的时长', icon: 'none' });
-            }
-          }
-        }
+      // wx.showModal 不支持 editable 参数，使用自定义弹窗
+      this.setData({
+        showCustomDurationModal: true,
+        customDurationIndex: index
       });
     } else {
       configItems[index].duration = parseInt(option);
@@ -320,6 +330,36 @@ Page({
         wx.showToast({ title: err.message || '保存失败，请重试', icon: 'none' });
       }, 100);
     }
+  },
+
+  // 自定义时长弹窗相关方法
+  onCustomDurationInput(e) {
+    this.setData({ customDurationValue: e.detail.value });
+  },
+
+  onConfirmCustomDuration() {
+    const duration = parseInt(this.data.customDurationValue);
+    if (!duration || duration <= 0) {
+      wx.showToast({ title: '请输入有效的时长', icon: 'none' });
+      return;
+    }
+    
+    const { configItems, customDurationIndex } = this.data;
+    const newConfigItems = [...configItems];
+    newConfigItems[customDurationIndex].duration = duration;
+    
+    this.setData({
+      configItems: newConfigItems,
+      showCustomDurationModal: false,
+      customDurationValue: ''
+    });
+  },
+
+  onCloseCustomDurationModal() {
+    this.setData({
+      showCustomDurationModal: false,
+      customDurationValue: ''
+    });
   },
 
   onDeleteConfig(e) {
@@ -401,10 +441,6 @@ Page({
 
   onCloseModal() {
     this.setData({ showConfigModal: false, showStatModal: false });
-  },
-
-  onCloseBillModal() {
-    this.setData({ showBillModal: false, billPreview: null, settledWarning: '' });
   },
 
   onCommonInputChange(e) {
@@ -517,12 +553,17 @@ Page({
       
       if (res.data) {
         const { bill, settled_warning, total_amount } = res.data;
+        // 默认全选，计算勾选汇总
+        const preview = (bill || []).map(c => ({ ...c, _selected: true }));
+        const selectedTotal = preview.reduce((sum, c) => sum + (c.total_amount || 0), 0);
         
         this.setData({
-          billPreview: bill,
+          billPreview: preview,
+          billGenerated: false,
           settledWarning: settled_warning,
           totalBillAmount: total_amount,
-          showBillModal: true
+          billSelectedCount: preview.length,
+          billSelectedAmount: Math.round(selectedTotal * 100) / 100
         });
       }
     } catch (err) {
@@ -530,6 +571,159 @@ Page({
       console.error('生成账单失败', err);
       wx.showToast({ title: err.message || '生成账单失败', icon: 'none' });
     }
+  },
+
+  onCloseBillContent() {
+    this.setData({ billPreview: null, billGenerated: false, settledWarning: '', billSelectedCount: 0, billSelectedAmount: 0 });
+  },
+
+  // ==================== 账单列表 ====================
+
+  async loadBillList() {
+    try {
+      const res = await request({
+        url: '/coach-salaries/stats/bills',
+        method: 'GET'
+      });
+      if (res.data) {
+        // 预格式化日期，生成唯一标题
+        const fmt = (v) => {
+          if (!v) return '';
+          const s = typeof v === 'string' ? v.split('T')[0] : new Date(v).toISOString().split('T')[0];
+          const parts = s.split('-');
+          return `${parts[1]}/${parts[2]}`;
+        };
+        const bills = (res.data.list || []).map(b => {
+          b._title = `${fmt(b.start_date)}-${fmt(b.end_date)} 教练薪酬结算`;
+          b._start = fmt(b.start_date);
+          b._end = fmt(b.end_date);
+          b._gen = fmt(b.created_at);
+          b._coaches = (b.coaches || []).map(c => c.coach_name).join('、');
+          return b;
+        });
+        this.setData({ billList: bills });
+      }
+    } catch (err) {
+      console.error('加载账单列表失败:', err);
+    }
+  },
+
+  // ==================== 账单卡片操作 ====================
+
+  onToggleBillCard(e) {
+    const { index } = e.currentTarget.dataset;
+    const billList = this.data.billList;
+    billList[index]._expanded = !billList[index]._expanded;
+    this.setData({ billList });
+  },
+
+  onExportBillCard(e) {
+    const { index } = e.currentTarget.dataset;
+    const bill = this.data.billList[index];
+    if (!bill) return;
+
+    const fmt = (v) => {
+      if (!v) return '';
+      const s = typeof v === 'string' ? v.split('T')[0] : new Date(v).toISOString().split('T')[0];
+      return s;
+    };
+
+    wx.showLoading({ title: '生成表格中...' });
+
+    // 生成 HTML 表格格式，保存为 .xls（Excel/WPS 可直接打开）
+    let html = '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">';
+    html += '<head><meta charset="UTF-8"></head><body>';
+    html += '<table border="1" cellspacing="0" cellpadding="4" style="font-family:微软雅黑;font-size:12px;">';
+
+    // 标题行
+    html += '<tr><td colspan="4" style="text-align:center;font-size:16px;font-weight:bold;">舞栖DANCE · 教练薪酬结算单</td></tr>';
+    html += `<tr><td colspan="2">结算周期</td><td colspan="2">${fmt(bill.start_date)} ~ ${fmt(bill.end_date)}</td></tr>`;
+    html += `<tr><td colspan="2">生成日期</td><td colspan="2">${fmt(bill.created_at)}</td></tr>`;
+    html += '<tr></tr>';
+
+    // 表头
+    html += '<tr style="background-color:#f5f5f5;font-weight:bold;">';
+    html += '<td style="text-align:center;width:120px;">教练</td>';
+    html += '<td style="text-align:center;width:160px;">课程明细</td>';
+    html += '<td style="text-align:center;width:120px;">单价/数量</td>';
+    html += '<td style="text-align:center;width:100px;">金额</td>';
+    html += '</tr>';
+
+    // 数据行
+    (bill.coaches || []).forEach(c => {
+      const items = c.items || [];
+      if (items.length === 0) {
+        html += `<tr><td>${c.coach_name}</td><td>-</td><td>-</td><td style="text-align:right;">¥${c.total_amount || 0}</td></tr>`;
+      } else {
+        items.forEach((it, idx) => {
+          html += '<tr>';
+          if (idx === 0) {
+            html += `<td rowspan="${items.length}">${c.coach_name}</td>`;
+          }
+          html += `<td style="text-align:center;">${it.duration}分钟 × ${it.count}节</td>`;
+          html += `<td style="text-align:center;">¥${it.rate}/节</td>`;
+          html += `<td style="text-align:right;">¥${it.amount}</td>`;
+          html += '</tr>';
+        });
+      }
+      // 教练小计
+      html += `<tr style="background-color:#fff8f5;"><td colspan="3" style="text-align:right;">${c.coach_name} 小计</td><td style="text-align:right;font-weight:bold;">¥${c.total_amount}</td></tr>`;
+    });
+
+    // 合计行
+    html += `<tr style="background-color:#fcebeb;font-weight:bold;"><td colspan="3" style="text-align:right;">合计金额</td><td style="text-align:right;">¥${bill.total_amount}</td></tr>`;
+
+    html += '</table></body></html>';
+
+    const fs = wx.getFileSystemManager();
+    const filePath = `${wx.env.USER_DATA_PATH}/教练薪酬结算单_${fmt(bill.start_date)}_${fmt(bill.end_date)}.xls`;
+
+    try {
+      fs.writeFileSync(filePath, html, 'utf8');
+      wx.hideLoading();
+      wx.openDocument({
+        filePath: filePath,
+        fileType: 'xls',
+        showMenu: true,
+        success: () => {
+          wx.showToast({ title: '导出成功，可保存/分享', icon: 'none', duration: 2500 });
+        },
+        fail: (err) => {
+          console.error('打开文档失败:', err);
+          wx.showToast({ title: '打开文档失败', icon: 'none' });
+        }
+      });
+    } catch (err) {
+      wx.hideLoading();
+      console.error('写入文件失败:', err);
+      wx.showToast({ title: '导出失败', icon: 'none' });
+    }
+  },
+
+  onDeleteBill(e) {
+    const { index } = e.currentTarget.dataset;
+    const bill = this.data.billList[index];
+    if (!bill) return;
+
+    wx.showModal({
+      title: '删除账单',
+      content: `确定删除「${bill._title}」吗？此操作不可恢复。`,
+      confirmColor: '#C44B4B',
+      success: async (res) => {
+        if (res.confirm) {
+          try {
+            await request({
+              url: `/coach-salaries/stats/bills/${bill._id}`,
+              method: 'DELETE'
+            });
+            wx.showToast({ title: '已删除', icon: 'success' });
+            this.loadBillList();
+          } catch (err) {
+            wx.showToast({ title: '删除失败', icon: 'none' });
+          }
+        }
+      }
+    });
   },
 
   async onConfirmGenerateBill() {
@@ -551,6 +745,16 @@ Page({
   },
 
   async confirmBillGeneration(startDate, endDate) {
+    // 只生成选中的教练
+    const selectedCoachIds = this.data.billPreview
+      .filter(c => c._selected)
+      .map(c => c.coach_id);
+    
+    if (selectedCoachIds.length === 0) {
+      wx.showToast({ title: '请至少选择一位教练', icon: 'none' });
+      return;
+    }
+    
     wx.showLoading({ title: '生成账单中...' });
     
     try {
@@ -560,7 +764,8 @@ Page({
         data: {
           start_date: startDate,
           end_date: endDate,
-          preview: false
+          preview: false,
+          coach_ids: selectedCoachIds
         }
       });
       
@@ -568,18 +773,204 @@ Page({
       
       if (res.data) {
         wx.showToast({ title: '账单生成成功', icon: 'success' });
+        // 清除预览、关闭面板、刷新账单列表和月度薪酬
         this.setData({ 
-          showBillModal: false, 
           billPreview: null, 
-          settledWarning: '' 
+          billGenerated: false, 
+          settledWarning: '',
+          billSelectedCount: 0,
+          billSelectedAmount: 0
         });
-        this.loadStatsList();
-        this.loadStatsSummary();
+        this.loadSalaryMonthly();
+        this.loadBillList();
       }
     } catch (err) {
       wx.hideLoading();
-      console.error('生成账单失败', err);
       wx.showToast({ title: err.message || '生成账单失败', icon: 'none' });
     }
-  }
+  },
+
+  // ==================== 课时统计 ====================
+
+  async loadClassHours() {
+    try {
+      const res = await request({
+        url: '/coach-salaries/stats/class-hours',
+        method: 'GET'
+      });
+      if (res.data) {
+        const { years, summary } = res.data;
+        this.setData({
+          classHoursYears: years || [],
+          classHoursSummary: summary || null,
+          loading: false
+        });
+      } else {
+        this.setData({ loading: false });
+      }
+    } catch (err) {
+      console.error('加载课时统计失败', err);
+      this.setData({ loading: false });
+    }
+  },
+
+  // 点击月份横条展开/收起
+  onToggleHoursMonth(e) {
+    const { yi, mi } = e.currentTarget.dataset;
+    const years = this.data.classHoursYears;
+    const month = years[yi].months[mi];
+    month._expanded = !month._expanded;
+    this.setData({ classHoursYears: years });
+  },
+
+  // 点击教练卡片展开/收起上课记录
+  onToggleHoursCoach(e) {
+    const { yi, mi, ci } = e.currentTarget.dataset;
+    const years = this.data.classHoursYears;
+    const coach = years[yi].months[mi].coaches[ci];
+    coach._expanded = !coach._expanded;
+    this.setData({ classHoursYears: years });
+  },
+
+  // ==================== 薪酬统计月份列表 ====================
+
+  async loadSalaryMonthly() {
+    try {
+      const res = await request({
+        url: '/coach-salaries/stats/monthly-salary',
+        method: 'GET'
+      });
+      if (res.data) {
+        const years = (res.data.years || []).map(year => ({
+          ...year,
+          months: (year.months || []).map(month => ({
+            ...month,
+            totalAmount: Math.round((month.coaches || []).reduce((sum, c) => sum + (c.total_amount || 0), 0) * 100) / 100
+          }))
+        }));
+        this.setData({ salaryMonthlyYears: years, loading: false });
+      } else {
+        this.setData({ loading: false });
+      }
+    } catch (err) {
+      console.error('加载月度薪酬明细失败:', err);
+      this.setData({ loading: false });
+    }
+  },
+
+  onToggleSalaryMonth(e) {
+    const { yi, mi } = e.currentTarget.dataset;
+    const years = this.data.salaryMonthlyYears;
+    const month = years[yi].months[mi];
+    month._expanded = !month._expanded;
+    this.setData({ salaryMonthlyYears: years });
+  },
+
+  // ==================== 账单勾选 ====================
+
+  onToggleBillCoach(e) {
+    if (this.data.billGenerated) return;
+    const { index } = e.currentTarget.dataset;
+    const billPreview = this.data.billPreview;
+    billPreview[index]._selected = !billPreview[index]._selected;
+    this.updateBillSelection(billPreview);
+  },
+
+  updateBillSelection(billPreview) {
+    const selected = billPreview.filter(c => c._selected);
+    const total = selected.reduce((sum, c) => sum + (c.total_amount || 0), 0);
+    this.setData({
+      billPreview,
+      billSelectedCount: selected.length,
+      billSelectedAmount: Math.round(total * 100) / 100
+    });
+  },
+
+  // ==================== 账单导出 ====================
+
+  onExportBill() {
+    const { billPreview, statForm, billSelectedCount, billSelectedAmount } = this.data;
+    if (!billPreview || billPreview.length === 0) {
+      wx.showToast({ title: '暂无账单数据', icon: 'none' });
+      return;
+    }
+
+    const selected = billPreview.filter(c => c._selected);
+    if (selected.length === 0) {
+      wx.showToast({ title: '请至少选择一位教练', icon: 'none' });
+      return;
+    }
+
+    wx.showLoading({ title: '生成表格中...' });
+
+    // 生成 HTML 表格格式，保存为 .xls（Excel/WPS 可直接打开）
+    let html = '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">';
+    html += '<head><meta charset="UTF-8"></head><body>';
+    html += '<table border="1" cellspacing="0" cellpadding="4" style="font-family:微软雅黑;font-size:12px;">';
+
+    // 标题行
+    html += '<tr><td colspan="4" style="text-align:center;font-size:16px;font-weight:bold;">舞栖DANCE · 教练薪酬账单</td></tr>';
+    html += `<tr><td colspan="2">结算周期</td><td colspan="2">${statForm.startDate} ~ ${statForm.endDate}</td></tr>`;
+    html += `<tr><td colspan="2">导出时间</td><td colspan="2">${new Date().toLocaleString('zh-CN')}</td></tr>`;
+    html += `<tr><td colspan="2">教练数量</td><td colspan="2">${billSelectedCount} 位</td></tr>`;
+    html += '<tr></tr>';
+
+    // 表头
+    html += '<tr style="background-color:#f5f5f5;font-weight:bold;">';
+    html += '<td style="text-align:center;width:120px;">教练</td>';
+    html += '<td style="text-align:center;width:160px;">课程明细</td>';
+    html += '<td style="text-align:center;width:120px;">单价/数量</td>';
+    html += '<td style="text-align:center;width:100px;">金额</td>';
+    html += '</tr>';
+
+    // 数据行
+    selected.forEach(c => {
+      const items = c.items || [];
+      if (items.length === 0) {
+        html += `<tr><td>${c.coach_name}</td><td>-</td><td>-</td><td style="text-align:right;">¥${c.total_amount || 0}</td></tr>`;
+      } else {
+        items.forEach((it, idx) => {
+          html += '<tr>';
+          if (idx === 0) {
+            html += `<td rowspan="${items.length}">${c.coach_name}</td>`;
+          }
+          html += `<td style="text-align:center;">${it.duration}分钟 × ${it.count}节</td>`;
+          html += `<td style="text-align:center;">¥${it.rate}/节</td>`;
+          html += `<td style="text-align:right;">¥${it.amount}</td>`;
+          html += '</tr>';
+        });
+      }
+      // 教练小计
+      html += `<tr style="background-color:#fff8f5;"><td colspan="3" style="text-align:right;">${c.coach_name} 小计</td><td style="text-align:right;font-weight:bold;">¥${c.total_amount}</td></tr>`;
+    });
+
+    // 合计行
+    html += `<tr style="background-color:#fcebeb;font-weight:bold;"><td colspan="3" style="text-align:right;">合计金额</td><td style="text-align:right;">¥${billSelectedAmount}</td></tr>`;
+
+    html += '</table></body></html>';
+
+    const fs = wx.getFileSystemManager();
+    const filePath = `${wx.env.USER_DATA_PATH}/教练薪酬账单_${statForm.startDate}_${statForm.endDate}.xls`;
+
+    try {
+      fs.writeFileSync(filePath, html, 'utf8');
+      wx.hideLoading();
+      wx.openDocument({
+        filePath: filePath,
+        fileType: 'xls',
+        showMenu: true,
+        success: () => {
+          wx.showToast({ title: '导出成功，可保存/分享', icon: 'none', duration: 2500 });
+        },
+        fail: (err) => {
+          console.error('打开文档失败:', err);
+          wx.showToast({ title: '打开文档失败', icon: 'none' });
+        }
+      });
+    } catch (err) {
+      wx.hideLoading();
+      console.error('写入文件失败:', err);
+      wx.showToast({ title: '导出失败', icon: 'none' });
+    }
+  },
 });

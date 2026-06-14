@@ -20,7 +20,7 @@
     >
       <image
         class="course-thumb"
-        src="{{imageErrors['course_'+item._id] ? '/images/default-course.svg' : (item.cover_url || '/images/default-course.svg')}}"
+        src="{{imageErrors['course_'+item._id] ? '/images/default-course.svg' : (item.cover || item.cover_url || '/images/default-course.svg')}}"
         binderror="onImgError"
         data-type="course"
         data-id="{{item._id}}"

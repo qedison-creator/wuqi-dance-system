@@ -1,5 +1,6 @@
 const router = require('express').Router();
 const auth = require('../middleware/auth');
+const { optionalAuth } = require('../middleware/auth');
 const checkPermission = require('../middleware/permission');
 const storeFilter = require('../middleware/storeFilter');
 const scheduleService = require('../services/schedule.service');
@@ -57,8 +58,8 @@ router.post('/batch-cancel', auth, checkPermission(['super_admin', 'store_manage
   }
 });
 
-// GET /api/v1/schedules/:id - 获取排课详情(需认证)
-router.get('/:id', auth, async (req, res, next) => {
+// GET /api/v1/schedules/:id - 获取排课详情(游客可浏览)
+router.get('/:id', optionalAuth, async (req, res, next) => {
   try {
     const schedule = await scheduleService.getScheduleById(req.params.id);
     res.json(success(schedule));

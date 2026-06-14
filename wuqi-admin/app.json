@@ -20,7 +20,7 @@
     "pages/waitlist/waitlist",
     "pages/transfers/transfers",
     "pages/package-logs/package-logs",
-    "pages/videos/videos",
+    "pages/images/images",
     "pages/banner/banner",
     "pages/settings/settings",
     "pages/settings/roles/roles",
@@ -80,13 +80,5 @@
   "sitemapLocation": "sitemap.json",
   "style": "v2",
   "lazyCodeLoading": "requiredComponents",
-  "resizable": false,
-  "permission": {
-    "scope.userLocation": {
-      "desc": "获取位置信息用于导航"
-    }
-  },
-  "requiredPrivateInfos": [
-    "getLocation"
-  ]
+  "resizable": false
 }

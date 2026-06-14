@@ -17,7 +17,8 @@ Page({
     formStoreIndex: 0,
     formStoreName: '全部',
     formStoreId: '',
-    formStatus: 'active'
+    formStatus: 'active',
+    deleting: false // 防抖标志位
   },
 
   onShow() {
@@ -215,19 +216,38 @@ Page({
   },
 
   onDelete(e) {
+    // 防抖处理：如果正在删除中，则直接返回
+    if (this.data.deleting) {
+      wx.showToast({ title: '正在删除中，请稍候', icon: 'none' });
+      return;
+    }
+    
     const { id } = e.currentTarget.dataset;
     wx.showModal({
       title: '确认删除',
       content: '删除后不可恢复，确定继续？',
       success: async (modalRes) => {
-        if (!modalRes.confirm) return;
+        if (!modalRes.confirm) {
+          // 用户取消删除，重置防抖标志位
+          this.setData({ deleting: false });
+          return;
+        }
         try {
+          // 设置防抖标志位
+          this.setData({ deleting: true });
           await request({ url: `/announces/${id}`, method: 'DELETE' });
           wx.showToast({ title: '已删除', icon: 'success' });
           this.loadAnnouncements();
         } catch (err) {
           wx.showToast({ title: err.message || '删除失败', icon: 'none' });
+        } finally {
+          // 无论成功或失败，都重置防抖标志位
+          this.setData({ deleting: false });
         }
+      },
+      fail: () => {
+        // 用户取消删除，重置防抖标志位
+        this.setData({ deleting: false });
       }
     });
   }

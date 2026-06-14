@@ -1,0 +1,507 @@
+.page {
+  padding: 24rpx;
+  padding-bottom: 48rpx;
+}
+
+.page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24rpx;
+}
+
+.ph-title {
+  font-size: 36rpx;
+  font-weight: 700;
+  color: #2A2122;
+  display: block;
+}
+
+.ph-desc {
+  font-size: 24rpx;
+  color: #948284;
+  display: block;
+  margin-top: 4rpx;
+}
+
+.btn-add {
+  background: #D4786E;
+  color: #FFFFFF;
+  font-size: 26rpx;
+  font-weight: 600;
+  padding: 16rpx 32rpx;
+  border-radius: 40rpx;
+  white-space: nowrap;
+}
+
+/* 筛选栏 */
+.filter-bar {
+  margin-bottom: 24rpx;
+}
+
+.fb-scroll {
+  white-space: nowrap;
+  margin-bottom: 16rpx;
+}
+
+.fb-row {
+  display: flex;
+  gap: 16rpx;
+}
+
+.fb-chip {
+  display: inline-block;
+  font-size: 24rpx;
+  color: #5A4E4F;
+  background: #F5F0EE;
+  padding: 10rpx 24rpx;
+  border-radius: 32rpx;
+  margin-right: 12rpx;
+}
+
+.fb-chip.active {
+  background: #D4786E;
+  color: #FFFFFF;
+}
+
+.fb-chip.small {
+  font-size: 22rpx;
+  padding: 8rpx 20rpx;
+  margin-right: 0;
+}
+
+.fb-manage {
+  margin-left: auto;
+  font-size: 22rpx;
+  color: #D4786E;
+  font-weight: 500;
+  padding: 8rpx 0;
+}
+
+/* 图片卡片 */
+.img-list {
+  display: flex;
+  flex-direction: column;
+  gap: 20rpx;
+}
+
+.img-card {
+  background: #FFFFFF;
+  border-radius: 20rpx;
+  padding: 24rpx;
+  box-shadow: 0 4rpx 20rpx rgba(42, 33, 34, 0.06);
+}
+
+.ic-row {
+  display: flex;
+  gap: 20rpx;
+  margin-bottom: 20rpx;
+}
+
+.ic-thumb-wrap {
+  width: 160rpx;
+  height: 160rpx;
+  border-radius: 12rpx;
+  overflow: hidden;
+  flex-shrink: 0;
+  background: #F5F0EE;
+}
+
+.ic-thumb {
+  width: 100%;
+  height: 100%;
+}
+
+.ic-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 8rpx;
+  min-width: 0;
+}
+
+.ic-title {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: #2A2122;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ic-coach {
+  font-size: 24rpx;
+  color: #D4786E;
+}
+
+.ic-coach.muted {
+  color: #ABA0A1;
+}
+
+.ic-size {
+  font-size: 22rpx;
+  color: #948284;
+}
+
+.ic-time {
+  font-size: 22rpx;
+  color: #ABA0A1;
+}
+
+.ic-actions {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  padding-top: 16rpx;
+  border-top: 1rpx solid #F0EBE9;
+}
+
+.ic-switch-row {
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+  flex-shrink: 0;
+}
+
+.ic-switch-label {
+  font-size: 24rpx;
+  color: #5A4E4F;
+}
+
+.ic-btn-row {
+  display: flex;
+  gap: 16rpx;
+  justify-content: flex-end;
+}
+
+.ic-btn {
+  font-size: 24rpx;
+  padding: 10rpx 28rpx;
+  border-radius: 32rpx;
+  font-weight: 500;
+  flex-shrink: 0;
+}
+
+.ic-btn-edit {
+  background: rgba(126, 200, 126, 0.15);
+  color: #5BA05B;
+}
+
+.ic-btn-del {
+  background: rgba(212, 120, 110, 0.12);
+  color: #D4786E;
+}
+
+/* 空状态 */
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 120rpx 0;
+}
+
+.empty-text {
+  font-size: 28rpx;
+  color: #ABA0A1;
+  margin-top: 24rpx;
+}
+
+.empty-hint {
+  font-size: 24rpx;
+  color: #C4BABB;
+  margin-top: 8rpx;
+}
+
+/* 弹窗 */
+.modal-mask {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  width: 620rpx;
+  max-height: 80vh;
+  background: #FFFFFF;
+  border-radius: 24rpx;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.modal-title {
+  font-size: 32rpx;
+  font-weight: 700;
+  color: #2A2122;
+  text-align: center;
+  padding: 32rpx 0 20rpx;
+}
+
+.modal-body {
+  padding: 0 32rpx;
+  max-height: 60vh;
+}
+
+.modal-footer {
+  display: flex;
+  gap: 20rpx;
+  padding: 24rpx 32rpx 32rpx;
+}
+
+.mf-btn {
+  flex: 1;
+  text-align: center;
+  font-size: 28rpx;
+  font-weight: 600;
+  padding: 20rpx 0;
+  border-radius: 40rpx;
+}
+
+.mf-btn-cancel {
+  background: #F5F0EE;
+  color: #5A4E4F;
+}
+
+.mf-btn-confirm {
+  background: #D4786E;
+  color: #FFFFFF;
+}
+
+/* 表单 */
+.form-upload {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 200rpx;
+  background: #FAF7F6;
+  border: 2rpx dashed #E0D8D6;
+  border-radius: 16rpx;
+  margin-bottom: 24rpx;
+}
+
+.fu-add-icon {
+  font-size: 48rpx;
+  color: #ABA0A1;
+  line-height: 1;
+}
+
+.fu-text {
+  font-size: 26rpx;
+  color: #D4786E;
+  font-weight: 500;
+  margin-top: 8rpx;
+}
+
+.fu-hint {
+  font-size: 22rpx;
+  color: #ABA0A1;
+  margin-top: 4rpx;
+}
+
+.fu-preview {
+  width: 100%;
+  max-height: 200rpx;
+  border-radius: 12rpx;
+}
+
+.form-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20rpx 0;
+  border-bottom: 1rpx solid #F0EBE9;
+}
+
+.form-item-col {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 16rpx;
+}
+
+.fi-label {
+  font-size: 26rpx;
+  color: #2A2122;
+  font-weight: 500;
+  flex-shrink: 0;
+  margin-right: 24rpx;
+}
+
+.fi-input {
+  flex: 1;
+  font-size: 26rpx;
+  color: #2A2122;
+  text-align: right;
+}
+
+.fi-placeholder {
+  color: #ABA0A1;
+}
+
+/* 教练多选触发器 */
+.fi-coach-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 26rpx;
+  color: #2A2122;
+}
+
+.fi-arrow {
+  width: 0;
+  height: 0;
+  border-left: 10rpx solid transparent;
+  border-right: 10rpx solid transparent;
+  border-top: 12rpx solid #ABA0A1;
+  transition: transform 0.2s;
+}
+
+.fi-arrow.up {
+  transform: rotate(180deg);
+}
+
+/* 教练多选面板 */
+.fi-coach-panel {
+  max-height: 320rpx;
+  overflow-y: auto;
+  background: #FAF7F6;
+  border-radius: 12rpx;
+  padding: 8rpx 0;
+}
+
+.fcp-item {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  padding: 16rpx 20rpx;
+}
+
+.fcp-check {
+  width: 36rpx;
+  height: 36rpx;
+  border: 2rpx solid #D0C8C6;
+  border-radius: 8rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22rpx;
+  color: #FFFFFF;
+  flex-shrink: 0;
+}
+
+.fcp-check.checked {
+  background: #D4786E;
+  border-color: #D4786E;
+}
+
+.fcp-name {
+  font-size: 26rpx;
+  color: #2A2122;
+}
+
+/* 多选模式 */
+.select-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #FFFFFF;
+  border-radius: 16rpx;
+  padding: 20rpx 24rpx;
+  margin-bottom: 20rpx;
+  box-shadow: 0 4rpx 20rpx rgba(42, 33, 34, 0.06);
+}
+
+.sb-left {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+}
+
+.sb-check {
+  width: 36rpx;
+  height: 36rpx;
+  border: 2rpx solid #D0C8C6;
+  border-radius: 8rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22rpx;
+  color: #FFFFFF;
+}
+
+.sb-check.checked {
+  background: #D4786E;
+  border-color: #D4786E;
+}
+
+.sb-label {
+  font-size: 26rpx;
+  color: #2A2122;
+}
+
+.sb-count {
+  font-size: 24rpx;
+  color: #948284;
+}
+
+.sb-btns {
+  display: flex;
+  gap: 16rpx;
+}
+
+.sb-btn {
+  font-size: 24rpx;
+  padding: 10rpx 28rpx;
+  border-radius: 32rpx;
+  font-weight: 500;
+}
+
+.sb-btn-cancel {
+  background: #F5F0EE;
+  color: #5A4E4F;
+}
+
+.sb-btn-del {
+  background: rgba(212, 120, 110, 0.12);
+  color: #D4786E;
+}
+
+.sb-btn-del.disabled {
+  opacity: 0.4;
+}
+
+.img-card.selected {
+  background: #FFF8F7;
+  border: 2rpx solid #D4786E;
+}
+
+.ic-checkbox {
+  display: flex;
+  align-items: center;
+  padding: 0 8rpx 12rpx 0;
+}
+
+.ic-check {
+  width: 36rpx;
+  height: 36rpx;
+  border: 2rpx solid #D0C8C6;
+  border-radius: 8rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22rpx;
+  color: #FFFFFF;
+}
+
+.ic-check.checked {
+  background: #D4786E;
+  border-color: #D4786E;
+}

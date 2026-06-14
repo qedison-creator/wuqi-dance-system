@@ -8,6 +8,28 @@
   padding-bottom: 60rpx;
 }
 
+.subscribe-all-card {
+  margin: 0 24rpx 24rpx;
+  background: linear-gradient(135deg, #D4786E 0%, #E8958B 100%);
+  border-radius: 20rpx;
+  padding: 32rpx;
+  text-align: center;
+}
+
+.sa-text {
+  display: block;
+  font-size: 32rpx;
+  font-weight: 600;
+  color: #fff;
+  margin-bottom: 8rpx;
+}
+
+.sa-sub {
+  display: block;
+  font-size: 24rpx;
+  color: rgba(255, 255, 255, 0.75);
+}
+
 .header-section {
   display: flex;
   flex-direction: column;

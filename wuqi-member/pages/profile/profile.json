@@ -4,6 +4,7 @@
   "backgroundColor": "#F6F3F0",
   "backgroundTextStyle": "dark",
   "usingComponents": {
-    "empty-state": "/components/empty-state/empty-state"
+    "empty-state": "/components/empty-state/empty-state",
+    "login-modal": "/components/login-modal/login-modal"
   }
 }

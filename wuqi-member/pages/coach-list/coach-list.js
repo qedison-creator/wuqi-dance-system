@@ -2,6 +2,7 @@ const app = getApp();
 const { request } = require('../../utils/request');
 const auth = require('../../utils/auth');
 const config = require('../../config/index.js');
+const { normalizeImageUrl } = require('../../utils/util');
 const SERVER_BASE = config.serverBase;
 
 Page({
@@ -30,9 +31,7 @@ Page({
 
       const coaches = list.map(coach => ({
         ...coach,
-        avatar_url: coach.avatar_url
-          ? (coach.avatar_url.startsWith('http') ? coach.avatar_url : SERVER_BASE + coach.avatar_url)
-          : '',
+        avatar_url: normalizeImageUrl(coach.avatar_url, SERVER_BASE),
         danceNames: coach.dance_style_names
           ? coach.dance_style_names.split(/[,，、]/).map(s => s.trim()).filter(Boolean)
           : []

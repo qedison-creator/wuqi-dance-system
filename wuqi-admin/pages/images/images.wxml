@@ -1,0 +1,123 @@
+<view class="page">
+  <view class="page-header">
+    <view class="ph-left">
+      <text class="ph-title">此间画面</text>
+      <text class="ph-desc">管理图片作品</text>
+    </view>
+    <view class="ph-right">
+      <view class="btn-add" bindtap="onShowAdd">+ 上传图片</view>
+    </view>
+  </view>
+
+  <!-- 筛选栏 -->
+  <view class="filter-bar">
+    <scroll-view class="fb-scroll" scroll-x>
+      <view class="fb-chip {{filterCoachId === '' ? 'active' : ''}}" bindtap="onFilterCoach" data-id="">全部教练</view>
+      <view class="fb-chip {{filterCoachId === item._id ? 'active' : ''}}" wx:for="{{coachList}}" wx:key="_id" bindtap="onFilterCoach" data-id="{{item._id}}">{{item.name}}</view>
+    </scroll-view>
+    <view class="fb-row">
+      <view class="fb-chip small {{filterShowHome === '' ? 'active' : ''}}" bindtap="onFilterShowHome" data-val="">全部</view>
+      <view class="fb-chip small {{filterShowHome === 'true' ? 'active' : ''}}" bindtap="onFilterShowHome" data-val="true">首页展示中</view>
+      <view class="fb-chip small {{filterShowHome === 'false' ? 'active' : ''}}" bindtap="onFilterShowHome" data-val="false">首页未展示</view>
+      <view class="fb-manage" wx:if="{{!selectMode && list.length > 0}}" bindtap="onEnterSelectMode">管理</view>
+    </view>
+  </view>
+
+  <view class="img-list" wx:if="{{list.length > 0}}">
+    <!-- 多选工具栏 -->
+    <view class="select-bar" wx:if="{{selectMode}}">
+      <view class="sb-left">
+        <view class="sb-check {{selectAll ? 'checked' : ''}}" bindtap="onToggleSelectAll">
+          <text wx:if="{{selectAll}}">✓</text>
+        </view>
+        <text class="sb-label">全选</text>
+      </view>
+      <text class="sb-count">已选 {{selectedIds.length}} 项</text>
+      <view class="sb-btns">
+        <view class="sb-btn sb-btn-cancel" bindtap="onExitSelectMode">取消</view>
+        <view class="sb-btn sb-btn-del {{selectedIds.length === 0 ? 'disabled' : ''}}" bindtap="onBatchDelete">删除</view>
+      </view>
+    </view>
+
+    <view class="img-card {{selectMode && item._selected ? 'selected' : ''}}" wx:for="{{list}}" wx:key="_id">
+      <!-- 多选勾选框 -->
+      <view class="ic-checkbox" wx:if="{{selectMode}}" catchtap="onToggleSelect" data-id="{{item._id}}">
+        <view class="ic-check {{item._selected ? 'checked' : ''}}">
+          <text wx:if="{{item._selected}}">✓</text>
+        </view>
+      </view>
+      <view class="ic-row">
+        <view class="ic-thumb-wrap">
+          <image class="ic-thumb" src="{{item.thumbnail_url || item.image_url}}" mode="aspectFill" />
+        </view>
+        <view class="ic-info">
+          <text class="ic-title">{{item.title || '未命名'}}</text>
+          <text class="ic-coach" wx:if="{{item.coachNames}}">{{item.coachNames}}</text>
+          <text class="ic-coach muted" wx:else>未关联教练</text>
+          <text class="ic-size" wx:if="{{item.width && item.height}}">{{item.width}}×{{item.height}}（{{item.orientation === 'portrait' ? '竖屏' : item.orientation === 'square' ? '方形' : '横屏'}}）</text>
+          <text class="ic-time">上传时间：{{item.created_at}}</text>
+        </view>
+      </view>
+      <view class="ic-actions" wx:if="{{!selectMode}}">
+        <view class="ic-switch-row">
+          <text class="ic-switch-label">首页显示</text>
+          <switch checked="{{item.show_on_home}}" color="#7EC87E" bindchange="onToggleHome" data-id="{{item._id}}" data-val="{{item.show_on_home}}" />
+        </view>
+        <view class="ic-btn ic-btn-edit" bindtap="onShowEdit" data-item="{{item}}">编辑</view>
+        <view class="ic-btn ic-btn-del" bindtap="onDelete" data-id="{{item._id}}">删除</view>
+      </view>
+    </view>
+  </view>
+
+  <view class="empty" wx:else>
+    <text class="empty-text">暂无图片</text>
+    <text class="empty-hint">点击 "上传图片" 添加作品</text>
+  </view>
+</view>
+
+<!-- 弹窗 -->
+<view class="modal-mask" wx:if="{{showModal}}" bindtap="onCloseModal">
+  <view class="modal-content" catchtap="onModalTap">
+    <view class="modal-title">{{editingId ? '编辑图片' : '上传图片'}}</view>
+    <scroll-view class="modal-body" scroll-y="true">
+      <!-- 上传区域 -->
+      <view class="form-upload" wx:if="{{!editingId}}" bindtap="onChooseImage">
+        <block wx:if="{{!tempImagePath}}">
+          <text class="fu-add-icon">+</text>
+          <text class="fu-text">点击上传图片</text>
+          <text class="fu-hint">支持 jpg / png / webp 格式</text>
+        </block>
+        <image wx:else class="fu-preview" src="{{tempImagePath}}" mode="widthFix" />
+      </view>
+
+      <view class="form-item">
+        <text class="fi-label">图片名称</text>
+        <input class="fi-input" placeholder="请输入图片名称" value="{{formTitle}}" bindinput="onTitleInput" />
+      </view>
+
+      <view class="form-item form-item-col">
+        <text class="fi-label">所属教练</text>
+        <view class="fi-coach-trigger" bindtap="onToggleCoachPicker">
+          <text class="{{formCoachIds.length > 0 ? '' : 'fi-placeholder'}}">{{formCoachIds.length > 0 ? '已选 ' + formCoachIds.length + ' 位教练' : '选择教练（可不选）'}}</text>
+          <view class="fi-arrow {{showCoachPicker ? 'up' : ''}}"></view>
+        </view>
+        <!-- 教练多选面板 -->
+        <view class="fi-coach-panel" wx:if="{{showCoachPicker}}">
+          <view class="fcp-item" wx:for="{{coachList}}" wx:key="_id" bindtap="onCoachCheck" data-id="{{item._id}}">
+            <view class="fcp-check {{formCoachChecked[item._id] ? 'checked' : ''}}">{{formCoachChecked[item._id] ? '✓' : ''}}</view>
+            <text class="fcp-name">{{item.name}}</text>
+          </view>
+        </view>
+      </view>
+
+      <view class="form-item">
+        <text class="fi-label">首页显示</text>
+        <switch checked="{{formShowHome}}" color="#7EC87E" bindchange="onShowHomeChange" />
+      </view>
+    </scroll-view>
+    <view class="modal-footer">
+      <view class="mf-btn mf-btn-cancel" bindtap="onCloseModal">取消</view>
+      <view class="mf-btn mf-btn-confirm" bindtap="onSubmit">保存</view>
+    </view>
+  </view>
+</view>

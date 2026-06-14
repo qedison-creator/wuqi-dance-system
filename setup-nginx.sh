@@ -42,8 +42,27 @@ server {
         proxy_set_header X-Forwarded-Proto $scheme;
     }
 
+    # 静态文件（图片/视频）
     location /uploads/ {
         alias /home/ubuntu/wuqi-dance-system/backend/uploads/;
+        # 视频流支持
+        add_header Accept-Ranges bytes;
+        add_header Cache-Control "public, max-age=86400";
+        # 允许跨域
+        add_header Access-Control-Allow-Origin *;
+        # 确保正确的 MIME 类型
+        types {
+            video/mp4 mp4;
+            video/webm webm;
+            video/ogg ogv;
+            image/jpeg jpg jpeg;
+            image/png png;
+            image/gif gif;
+            image/webp webp;
+            image/svg+xml svg;
+        }
+        # 禁止目录列表
+        autoindex off;
     }
 
     location /health {
@@ -72,8 +91,23 @@ server {
         proxy_set_header X-Forwarded-Proto $scheme;
     }
 
+    # 静态文件（图片/视频）
     location /uploads/ {
         alias /home/ubuntu/wuqi-dance-system/backend/uploads/;
+        add_header Accept-Ranges bytes;
+        add_header Cache-Control "public, max-age=86400";
+        add_header Access-Control-Allow-Origin *;
+        types {
+            video/mp4 mp4;
+            video/webm webm;
+            video/ogg ogv;
+            image/jpeg jpg jpeg;
+            image/png png;
+            image/gif gif;
+            image/webp webp;
+            image/svg+xml svg;
+        }
+        autoindex off;
     }
 
     location /health {

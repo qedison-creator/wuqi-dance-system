@@ -1,0 +1,35 @@
+{
+  "name": "wuqi-dance-system",
+  "version": "1.1.0.1",
+  "description": "舞栖舞蹈社微信小程序管理系统，包含管理端、会员端和后端服务。",
+  "main": "wuqi-backend/server.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "test:member": "node member-test.js",
+    "test:admin": "node admin-test.js",
+    "test:all": "node member-test.js && node admin-test.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/qedison-creator/wuqi-dance-system.git"
+  },
+  "keywords": [
+    "wechat-miniprogram",
+    "dance-studio",
+    "booking-system",
+    "wechat-app"
+  ],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/qedison-creator/wuqi-dance-system/issues"
+  },
+  "homepage": "https://github.com/qedison-creator/wuqi-dance-system#readme",
+  "devDependencies": {
+    "miniprogram-automator": "^0.12.1"
+  }
+}

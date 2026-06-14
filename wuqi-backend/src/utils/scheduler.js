@@ -8,36 +8,20 @@ const UserPackage = require('../models/UserPackage');
 const Waitlist = require('../models/Waitlist');
 const Holiday = require('../models/Holiday');
 const dayjs = require('dayjs');
+const utc = require('dayjs/plugin/utc');
+const timezone = require('dayjs/plugin/timezone');
+
+dayjs.extend(utc);
+dayjs.extend(timezone);
+
+const BEIJING_TZ = 'Asia/Shanghai';
+const bjNow = () => dayjs().tz(BEIJING_TZ);
 
 let reminderExecutedToday = false;
 let lastExecutionDate = null;
 
-// 上课提醒去重缓存：记录已发送的提醒，避免重复发送
-// key 格式：${bookingId}_1h 或 ${bookingId}_30m
-// 每天凌晨清空
-let classReminderCache = new Set();
-let classReminderCacheDate = null;
-
-function isClassReminderSent(bookingId, remindType) {
-  const key = `${bookingId}_${remindType}`;
-  return classReminderCache.has(key);
-}
-
-function markClassReminderSent(bookingId, remindType) {
-  const key = `${bookingId}_${remindType}`;
-  classReminderCache.add(key);
-}
-
-function clearClassReminderCacheIfNeeded() {
-  const today = dayjs().format('YYYY-MM-DD');
-  if (classReminderCacheDate !== today) {
-    classReminderCache.clear();
-    classReminderCacheDate = today;
-  }
-}
-
 function shouldExecuteReminder() {
-  const now = dayjs();
+  const now = bjNow();
   const today = now.format('YYYY-MM-DD');
   
   if (lastExecutionDate !== today) {
@@ -172,11 +156,9 @@ const startScheduler = () => {
   });
 
   // 任务4: 每小时检查并发送上课提醒（提前1小时和30分钟提醒）
-  // 修复：改为时间范围内匹配，避免非整点课程漏提醒；增加去重缓存，避免重复发送
+  // 修复：改为时间范围内匹配，避免非整点课程漏提醒
   cron.schedule('0 * * * *', async () => {
     try {
-      clearClassReminderCacheIfNeeded(); // 每天凌晨清空缓存
-
       const wechatMessageService = require('../services/wechat-message.service');
       let totalReminderCount = 0;
 
@@ -185,6 +167,7 @@ const startScheduler = () => {
       // 轮次1: 提前1小时提醒（匹配时间范围内的课程）
       const oneHourLater = now.add(1, 'hour');
       const oneHourLaterDate = oneHourLater.format('YYYY-MM-DD');
+      // 匹配 start_time 在 [oneHourLater-5min, oneHourLater+5min] 范围内
       const schedules1h = await Schedule.find({
         date: oneHourLaterDate,
         status: { $in: ['available', 'full'] },
@@ -206,10 +189,8 @@ const startScheduler = () => {
         }).populate('user_id', 'openid nick_name');
 
         for (const booking of bookings) {
-          if (isClassReminderSent(booking._id.toString(), '1h')) continue; // 已发送过，跳过
           if (booking.user_id && booking.user_id.openid) {
             await wechatMessageService.sendClassReminder(booking.user_id, schedule);
-            markClassReminderSent(booking._id.toString(), '1h');
             totalReminderCount++;
           }
         }
@@ -241,10 +222,8 @@ const startScheduler = () => {
         }).populate('user_id', 'openid nick_name');
 
         for (const booking of bookings) {
-          if (isClassReminderSent(booking._id.toString(), '30m')) continue; // 已发送过，跳过
           if (booking.user_id && booking.user_id.openid) {
             await wechatMessageService.sendClassReminder(booking.user_id, schedule);
-            markClassReminderSent(booking._id.toString(), '30m');
             count30m++;
           }
         }
@@ -416,7 +395,7 @@ const startScheduler = () => {
     }
   });
 
-  // 任务8: 每分钟检查是否到达套餐提醒推送时间
+  // 任务8: 每分钟检查是否到达套餐提醒推送时间（使用北京时间）
   cron.schedule('* * * * *', async () => {
     try {
       if (!shouldExecuteReminder()) {
@@ -427,7 +406,7 @@ const startScheduler = () => {
       const reminderConfig = await Config.findOne({ key: 'reminder_send_time' });
       const sendTime = reminderConfig ? reminderConfig.value : '14:00';
 
-      const now = dayjs();
+      const now = bjNow();
       const currentTime = now.format('HH:mm');
 
       if (currentTime === sendTime) {
@@ -447,18 +426,12 @@ const startScheduler = () => {
     try {
       console.log('[Scheduler] 开始执行: 清理孤立上传文件');
       const Banner = require('../models/Banner');
-      const Video = require('../models/Video');
       const uploadsDir = path.join(__dirname, '../../uploads');
       const files = fs.readdirSync(uploadsDir);
       const banners = await Banner.find({}, 'image_url').lean();
-      const videos = await Video.find({}, 'video_url cover_url').lean();
       const referencedFiles = new Set();
       for (const b of banners) {
         if (b.image_url) referencedFiles.add(path.basename(b.image_url));
-      }
-      for (const v of videos) {
-        if (v.video_url) referencedFiles.add(path.basename(v.video_url));
-        if (v.cover_url) referencedFiles.add(path.basename(v.cover_url));
       }
       let deletedCount = 0;
       for (const file of files) {

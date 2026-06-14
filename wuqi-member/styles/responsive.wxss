@@ -30,17 +30,6 @@ page {
     flex: 0 0 calc(33.333% - 16rpx) !important;
     max-width: 320rpx !important;
   }
-  
-  /* 视频卡片 - 横屏双列 */
-  .video-card {
-    display: inline-block;
-    width: calc(50% - 12rpx);
-    margin-right: 24rpx;
-  }
-  
-  .video-card:nth-child(2n) {
-    margin-right: 0;
-  }
 }
 
 /* ========== 平板竖屏适配 (>=768px) ========== */
@@ -82,12 +71,6 @@ page {
     flex: 0 0 calc(33.333% - 20rpx) !important;
     max-width: 360rpx !important;
     padding: 24rpx;
-  }
-  
-  /* 视频卡片 - 平板双列 */
-  .video-card {
-    width: calc(50% - 15rpx);
-    padding: 30rpx;
   }
   
   /* 门店信息卡片 */
@@ -136,20 +119,6 @@ page {
   .course-rec-card {
     flex: 0 0 calc(25% - 22rpx) !important;
     max-width: 400rpx !important;
-  }
-  
-  /* 视频卡片 - 大屏3列 */
-  .video-card {
-    width: calc(33.333% - 20rpx);
-    margin-right: 30rpx;
-  }
-  
-  .video-card:nth-child(2n) {
-    margin-right: 30rpx;
-  }
-  
-  .video-card:nth-child(3n) {
-    margin-right: 0;
   }
   
   /* 快捷功能入口 */

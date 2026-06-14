@@ -11,10 +11,13 @@
           <view class="sk-greet-sub"></view>
         </view>
         <view class="sk-store">
-          <view class="sk-store-icon"></view>
-          <view class="sk-store-info">
-            <view class="sk-store-name"></view>
-            <view class="sk-store-addr"></view>
+          <view class="sk-store-inner">
+            <view class="sk-store-icon"></view>
+            <view class="sk-store-info">
+              <view class="sk-store-name"></view>
+              <view class="sk-store-addr"></view>
+              <view class="sk-store-phone"></view>
+            </view>
           </view>
         </view>
       </view>
@@ -44,18 +47,6 @@
               <view class="sk-course-name"></view>
               <view class="sk-course-meta"></view>
             </view>
-          </view>
-        </view>
-      </view>
-      <view class="sk-section">
-        <view class="sk-section-header">
-          <view class="sk-section-dot video"></view>
-          <view class="sk-section-title"></view>
-        </view>
-        <view class="sk-video-grid">
-          <view class="sk-video-card" wx:for="{{[1,2]}}" wx:key="*this">
-            <view class="sk-video-thumb"></view>
-            <view class="sk-video-title"></view>
           </view>
         </view>
       </view>
@@ -186,29 +177,22 @@
         </view>
       </view>
 
-      <view class="section">
-        <view class="section-header">
-          <view class="section-title-wrap">
-            <view class="section-dot video-dot"></view>
-            <text class="section-title">教练作品</text>
+      <view class="gallery-section" wx:if="{{images.length > 0}}">
+        <view class="gs-header">
+          <view class="gs-title-line">
+            <view class="gs-accent"></view>
+            <text class="gs-title">此间画面</text>
+            <view class="gs-accent"></view>
           </view>
+          <text class="gs-subtitle">舞栖瞬间 · 光影留存</text>
         </view>
-        <view class="video-grid" wx:if="{{videos.length > 0}}">
-          <view class="video-card" wx:for="{{videos}}" wx:key="_id" data-id="{{item._id}}" bindtap="onVideoTap">
-            <view class="vc-thumb-wrap">
-              <image class="vc-thumb-img" src="{{imageErrors['video_'+item._id] ? '/images/default-course.svg' : (item.display_cover || '/images/default-course.svg')}}" binderror="onImgError" data-type="video" data-id="{{item._id}}" mode="aspectFill" lazy-load />
-              <view class="vc-play-btn">
-                <view class="vc-play-icon"></view>
-              </view>
-            </view>
-            <view class="vc-info">
-              <text class="vc-title">{{item.title || '视频作品'}}</text>
+        <scroll-view class="gs-scroll" scroll-x enhanced show-scrollbar="{{false}}">
+          <view class="gs-frame {{item.orientation === 'portrait' ? 'gs-portrait' : 'gs-landscape'}}" wx:for="{{images}}" wx:key="_id">
+            <view class="gs-frame-inner">
+              <image class="gs-img" src="{{item.thumbnail_url || item.image_url}}" mode="aspectFill" lazy-load="{{true}}" binderror="onImageError" data-id="{{item._id}}" />
             </view>
           </view>
-        </view>
-        <view class="empty-inline" wx:else>
-          <text class="eit">暂无视频作品</text>
-        </view>
+        </scroll-view>
       </view>
     </view>
   </view>
@@ -309,6 +293,8 @@
     </view>
   </view>
 </view>
+
+<login-modal visible="{{showLoginModal}}" bind:close="onLoginModalClose" bind:success="onLoginSuccess"></login-modal>
 
 <view class="modal-mask" wx:if="{{showLocationAuthModal}}" catchtap="">
   <view class="lam-card">

@@ -944,28 +944,36 @@ page {
   margin-bottom: 48rpx;
 }
 
-.guest-login-btn {
-  width: 100%;
-  max-width: 520rpx;
-  height: 96rpx;
-  border-radius: 48rpx;
-  background: linear-gradient(135deg, #D4786E, #C05D53);
-  box-shadow: 0 8rpx 32rpx rgba(212,120,110,0.35);
+.guest-login-btn-row {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-top: 20rpx;
+  padding-top: 20rpx;
+  border-top: 1rpx solid rgba(212, 120, 110, 0.08);
+  position: relative;
+  z-index: 1;
+}
+
+.guest-login-btn-small {
+  padding: 20rpx 48rpx;
+  border-radius: 36rpx;
+  background: linear-gradient(135deg, #D4786E, #B89CDA);
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 200ms cubic-bezier(0.34, 1.56, 0.64, 1);
+  box-shadow: 0 6rpx 20rpx rgba(212, 120, 110, 0.3);
+  transition: transform 0.2s ease;
 }
 
-.guest-login-btn:active {
-  transform: scale(0.96);
-  box-shadow: 0 4rpx 16rpx rgba(212,120,110,0.25);
+.guest-login-btn-small:active {
+  transform: scale(0.95);
 }
 
-.guest-login-btn text {
-  font-size: 32rpx;
-  font-weight: 700;
+.guest-login-btn-small text {
+  font-size: 28rpx;
   color: #FFFFFF;
+  font-weight: 600;
 }
 
 .store-opt-dist {

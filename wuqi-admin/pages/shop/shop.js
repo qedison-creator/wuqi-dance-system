@@ -8,7 +8,7 @@ Page({
     isStoreManager: false,
     permSchedule: false,
     permCoach: false,
-    permVideo: false,
+    permImage: app.hasPermission('image'),
     permSalary: false,
     permPackage: false,
     permWaitlist: false,
@@ -44,7 +44,6 @@ Page({
         isStoreManager,
         permSchedule: app.hasPermission('schedule'),
         permCoach: app.hasPermission('coach'),
-        permVideo: app.hasPermission('video'),
         permSalary: app.hasPermission('salary'),
         permPackage: app.hasPermission('package'),
         permWaitlist: app.hasPermission('waitlist'),
@@ -81,8 +80,8 @@ Page({
     wx.navigateTo({ url: '/pages/coaches/coaches' });
   },
 
-  onGoToVideos() {
-    wx.navigateTo({ url: '/pages/videos/videos' });
+  onGoToImages() {
+    wx.navigateTo({ url: '/pages/images/images' });
   },
 
   onGoToBanner() {

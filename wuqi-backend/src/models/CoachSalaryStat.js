@@ -3,7 +3,7 @@ const mongoose = require('mongoose');
 const coachSalaryStatSchema = new mongoose.Schema({
   coach_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Coach', required: true },
   store_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Store', required: true },
-  booking_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Booking', required: true },
+  booking_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Booking', default: null },
   schedule_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Schedule', required: true },
   class_date: { type: Date, required: true },
   duration: { type: Number, required: true },

@@ -1,6 +1,27 @@
 const app = getApp();
 const { request } = require('../../utils/request');
 
+// 最大图片上传大小（与后端 multer limits.fileSize 一致）
+const MAX_IMAGE_SIZE = 10 * 1024 * 1024; // 10MB
+
+// 从上传错误中提取有意义的提示信息
+function getUploadErrorMessage(err) {
+  if (!err) return '上传失败，请重试';
+  const msg = err.message || err.errMsg || String(err);
+  // 服务器返回的具体错误
+  if (msg.includes('文件过大')) return msg;
+  if (msg.includes('不支持的图片类型')) return msg;
+  if (msg.includes('413')) return '图片文件过大，最大支持 10MB';
+  if (msg.includes('timeout') || msg.includes('超时')) return '上传超时，请检查网络后重试';
+  if (msg.includes('fail') || msg.includes('网络')) return '网络异常，请检查网络后重试';
+  // 服务器返回的业务错误
+  try {
+    const data = JSON.parse(msg);
+    if (data && data.message) return data.message;
+  } catch (e) {}
+  return '上传失败，请重试';
+}
+
 Page({
   data: {
     activeTab: 'coaches',
@@ -16,7 +37,9 @@ Page({
       name: '',
       gender: '1',
       dance_style_ids: [],
-      avatar_url: ''
+      avatar_url: '',
+      sort_order: 0,
+      show_on_home: true
     },
     // 新增门店弹窗
     showStoreModal: false,
@@ -33,16 +56,7 @@ Page({
       name: '',
       sort_order: 0
     },
-    // 教练详情弹窗
-    showDetailModal: false,
-    detailCoach: {
-      _id: '',
-      name: '',
-      gender: 0,
-      avatar_url: '',
-      dance_style_names: '',
-      gallery: []
-    }
+    deleting: false // 防抖标志位
   },
 
   // 补全图片 URL
@@ -97,8 +111,7 @@ Page({
       // 补全图片路径
       const processedList = list.map(coach => ({
         ...coach,
-        avatar_url: this.fixImageUrl(coach.avatar_url),
-        gallery: (coach.gallery || []).map(url => this.fixImageUrl(url))
+        avatar_url: this.fixImageUrl(coach.avatar_url)
       }));
       this.setData({ coaches: processedList });
     } catch (err) {
@@ -173,7 +186,9 @@ Page({
         name: '',
         gender: '1',
         dance_style_ids: [],
-        avatar_url: ''
+        avatar_url: '',
+        sort_order: 0,
+        show_on_home: true
       }
     }, () => {
       this.buildDanceStyleList();
@@ -192,7 +207,9 @@ Page({
         name: coach.name,
         gender: String(coach.gender || '1'),
         dance_style_ids: danceStyleIds,
-        avatar_url: coach.avatar_url || ''
+        avatar_url: coach.avatar_url || '',
+        sort_order: coach.sort_order || 0,
+        show_on_home: coach.show_on_home !== false
       }
     }, () => {
       this.buildDanceStyleList();
@@ -212,6 +229,11 @@ Page({
     this.setData({ 'coachForm.gender': e.detail.value });
   },
 
+  onCoachSwitchChange(e) {
+    const { field } = e.currentTarget.dataset;
+    this.setData({ [`coachForm.${field}`]: e.detail.value });
+  },
+
   async onSubmitCoach() {
     const { coachForm } = this.data;
     if (!coachForm.name) {
@@ -225,6 +247,8 @@ Page({
       gender: Number(coachForm.gender) || 0,
       dance_styles: coachForm.dance_style_ids || [],
       avatar_url: this.extractRelativePath(coachForm.avatar_url || ''),
+      sort_order: Number(coachForm.sort_order) || 0,
+      show_on_home: coachForm.show_on_home !== false,
       status: 'active'
     };
 
@@ -253,6 +277,12 @@ Page({
   },
 
   async onDeleteCoach(e) {
+    // 防抖处理：如果正在删除中，则直接返回
+    if (this.data.deleting) {
+      wx.showToast({ title: '正在删除中，请稍候', icon: 'none' });
+      return;
+    }
+    
     const index = e.currentTarget.dataset.index;
     const coach = this.data.coaches[index];
     wx.showModal({
@@ -261,6 +291,8 @@ Page({
       success: async (res) => {
         if (res.confirm) {
           try {
+            // 设置防抖标志位
+            this.setData({ deleting: true });
             await request({
               url: `/coaches/${coach._id}`,
               method: 'DELETE'
@@ -269,8 +301,16 @@ Page({
             this.loadCoaches();
           } catch (err) {
             console.error('删除教练失败', err);
+            wx.showToast({ title: '删除失败', icon: 'none' });
+          } finally {
+            // 无论成功或失败，都重置防抖标志位
+            this.setData({ deleting: false });
           }
         }
+      },
+      fail: () => {
+        // 用户取消删除，重置防抖标志位
+        this.setData({ deleting: false });
       }
     });
   },
@@ -291,32 +331,7 @@ Page({
     }
   },
 
-  // ==================== 教练详情 & 相册管理 ====================
-  onCoachDetail(e) {
-    const index = e.currentTarget.dataset.index;
-    const coach = this.data.coaches[index];
-    // 为相册项生成唯一ID（使用 photoId 或 index 作为备用）
-    const gallery = (coach.gallery || []).map((url, idx) => ({
-      photoId: `photo_${Date.now()}_${idx}`,
-      url: this.fixImageUrl(url),
-      index: idx
-    }));
-    this.setData({
-      showDetailModal: true,
-      detailCoach: {
-        _id: coach._id,
-        name: coach.name,
-        gender: coach.gender,
-        avatar_url: this.fixImageUrl(coach.avatar_url || ''),
-        dance_style_names: coach.dance_style_names || '',
-        gallery: gallery
-      }
-    });
-  },
-
-  onCloseDetailModal() {
-    this.setData({ showDetailModal: false });
-  },
+  // ==================== 教练相册管理（在编辑弹窗中） ====================
 
   // 编辑弹窗中选择头像
   onChooseAvatar() {
@@ -325,13 +340,30 @@ Page({
       count: 1,
       mediaType: ['image'],
       success: async (res) => {
-        const tempFilePath = res.tempFiles[0].tempFilePath;
+        const file = res.tempFiles[0];
+        // 上传前检查文件大小
+        if (file.size > MAX_IMAGE_SIZE) {
+          wx.showToast({ title: '图片过大，最大支持 10MB', icon: 'none' });
+          return;
+        }
+        // 裁剪：正方形1:1，用户可缩放/拖动
+        let filePath = file.tempFilePath;
+        try {
+          if (wx.cropImage) {
+            const cropRes = await new Promise((resolve, reject) => {
+              wx.cropImage({ src: filePath, cropScale: '1:1', success: resolve, fail: reject });
+            });
+            filePath = cropRes.tempFilePath;
+          }
+        } catch (cropErr) {
+          if (cropErr.errMsg && cropErr.errMsg.indexOf('cancel') !== -1) return;
+        }
         wx.showLoading({ title: '上传中...' });
         try {
           const uploadRes = await new Promise((resolve, reject) => {
             wx.uploadFile({
               url: app.globalData.baseUrl + '/upload/image?type=coach_avatar',
-              filePath: tempFilePath,
+              filePath: filePath,
               name: 'image',
               header: { 'Authorization': 'Bearer ' + wx.getStorageSync('admin_token') },
               success: resolve,
@@ -351,7 +383,7 @@ Page({
           }
         } catch (err) {
           wx.hideLoading();
-          wx.showToast({ title: '上传失败', icon: 'none' });
+          wx.showToast({ title: getUploadErrorMessage(err), icon: 'none' });
         }
       },
       fail: (err) => {
@@ -360,178 +392,6 @@ Page({
           wx.showToast({ title: '选择图片失败，请检查隐私权限', icon: 'none' });
         }
       }
-    });
-  },
-
-  // 详情弹窗中更换头像
-  onDetailChooseAvatar() {
-    const that = this;
-    wx.chooseMedia({
-      count: 1,
-      mediaType: ['image'],
-      success: async (res) => {
-        const tempFilePath = res.tempFiles[0].tempFilePath;
-        wx.showLoading({ title: '上传中...' });
-        try {
-          const uploadRes = await new Promise((resolve, reject) => {
-            wx.uploadFile({
-              url: app.globalData.baseUrl + '/upload/image?type=coach_avatar',
-              filePath: tempFilePath,
-              name: 'image',
-              header: { 'Authorization': 'Bearer ' + wx.getStorageSync('admin_token') },
-              success: resolve,
-              fail: reject
-            });
-          });
-          const data = JSON.parse(uploadRes.data);
-          if (data.code === 200) {
-            const relativePath = data.data.path;
-            const fullUrl = this.fixImageUrl(relativePath);
-            await request({
-              url: `/coaches/${that.data.detailCoach._id}/avatar`,
-              method: 'PUT',
-              data: { avatar_url: relativePath }
-            });
-            that.setData({ 'detailCoach.avatar_url': fullUrl });
-            that.loadCoaches();
-            wx.hideLoading();
-            wx.showToast({ title: '头像更新成功', icon: 'success' });
-          }
-        } catch (err) {
-          wx.hideLoading();
-          wx.showToast({ title: '上传失败', icon: 'none' });
-        }
-      },
-      fail: (err) => {
-        console.error('选择图片失败', err);
-        if (err.errMsg && err.errMsg.indexOf('cancel') === -1) {
-          wx.showToast({ title: '选择图片失败，请检查隐私权限', icon: 'none' });
-        }
-      }
-    });
-  },
-
-  // 添加相册照片
-  onAddGalleryPhoto() {
-    const that = this;
-    wx.chooseMedia({
-      count: 9,
-      mediaType: ['image'],
-      success: async (res) => {
-        const files = res.tempFiles;
-        wx.showLoading({ title: '上传中...' });
-        try {
-          for (const file of files) {
-            const uploadRes = await new Promise((resolve, reject) => {
-              wx.uploadFile({
-                url: app.globalData.baseUrl + '/upload/image?type=coach_album',
-                filePath: file.tempFilePath,
-                name: 'image',
-                header: { 'Authorization': 'Bearer ' + wx.getStorageSync('admin_token') },
-                success: resolve,
-                fail: reject
-              });
-            });
-            const data = JSON.parse(uploadRes.data);
-            if (data.code === 200) {
-              const fullUrl = app.globalData.serverBase + data.data.path;
-              await request({
-                url: `/coaches/${that.data.detailCoach._id}/gallery`,
-                method: 'POST',
-                data: { url: fullUrl }
-              });
-            }
-          }
-          // 重新加载详情
-          const coach = that.data.coaches.find(c => c._id === that.data.detailCoach._id);
-          if (coach) {
-            const freshRes = await request({ url: `/coaches/${that.data.detailCoach._id}` });
-            const freshCoach = freshRes.data;
-            // 为新加载的相册项生成唯一ID
-            const freshGallery = (freshCoach.gallery || []).map((url, idx) => ({
-              photoId: `photo_${Date.now()}_${idx}`,
-              url: that.fixImageUrl(url),
-              index: idx
-            }));
-            that.setData({
-              'detailCoach.gallery': freshGallery,
-              'detailCoach.avatar_url': that.fixImageUrl(freshCoach.avatar_url || '')
-            });
-            that.loadCoaches();
-          }
-          wx.hideLoading();
-          wx.showToast({ title: '照片添加成功', icon: 'success' });
-        } catch (err) {
-          wx.hideLoading();
-          wx.showToast({ title: '上传失败', icon: 'none' });
-        }
-      },
-      fail: (err) => {
-        console.error('选择图片失败', err);
-        if (err.errMsg && err.errMsg.indexOf('cancel') === -1) {
-          wx.showToast({ title: '选择图片失败，请检查隐私权限', icon: 'none' });
-        }
-      }
-    });
-  },
-
-  // 删除相册照片
-  onDeleteGalleryPhoto(e) {
-    const photoId = e.currentTarget.dataset.photoid;
-    const index = e.currentTarget.dataset.index;
-    const gallery = this.data.detailCoach.gallery;
-    // 使用 photoId 查找照片，如果找不到则使用 index 作为后备
-    const photoItem = photoId ? gallery.find(item => item.photoId === photoId) : gallery[index];
-    
-    if (!photoItem) {
-      wx.showToast({ title: '照片信息错误', icon: 'none' });
-      return;
-    }
-    
-    wx.showModal({
-      title: '确认删除',
-      content: '确定要删除这张照片吗？',
-      success: async (res) => {
-        if (res.confirm) {
-          try {
-            // 使用照片的 URL 或 photoId 作为标识符发送到后端
-            const photoIdentifier = photoItem.url || photoId;
-            await request({
-              url: `/coaches/${this.data.detailCoach._id}/gallery`,
-              method: 'DELETE',
-              data: { url: photoIdentifier }
-            });
-            // 使用 photoId 过滤删除的照片
-            const updatedGallery = gallery.filter(item => item.photoId !== photoId);
-            this.setData({ 'detailCoach.gallery': updatedGallery });
-            this.loadCoaches();
-            wx.showToast({ title: '已删除', icon: 'success' });
-          } catch (err) {
-            console.error('删除相册照片失败', err);
-            wx.showToast({ title: '删除失败', icon: 'none' });
-          }
-        }
-      }
-    });
-  },
-
-  // 预览相册照片
-  onPreviewGallery(e) {
-    const photoId = e.currentTarget.dataset.photoid;
-    const index = e.currentTarget.dataset.index;
-    const gallery = this.data.detailCoach.gallery;
-    // 使用 photoId 查找当前照片
-    const photoItem = photoId ? gallery.find(item => item.photoId === photoId) : gallery[index];
-    
-    if (!photoItem) {
-      return;
-    }
-    
-    // 收集所有照片 URL 用于预览
-    const urls = gallery.map(item => item.url);
-    wx.previewImage({
-      current: photoItem.url,
-      urls: urls
     });
   },
 
@@ -667,6 +527,12 @@ Page({
   },
 
   async onDeleteDanceStyle(e) {
+    // 防抖处理：如果正在删除中，则直接返回
+    if (this.data.deleting) {
+      wx.showToast({ title: '正在删除中，请稍候', icon: 'none' });
+      return;
+    }
+    
     const index = e.currentTarget.dataset.index;
     const ds = this.data.danceStyles[index];
     wx.showModal({
@@ -675,6 +541,8 @@ Page({
       success: async (res) => {
         if (res.confirm) {
           try {
+            // 设置防抖标志位
+            this.setData({ deleting: true });
             await request({
               url: `/dance-styles/${ds._id}`,
               method: 'DELETE'
@@ -683,8 +551,19 @@ Page({
             this.loadDanceStyles();
           } catch (err) {
             console.error('删除舞种失败', err);
+            wx.showToast({ title: '删除失败', icon: 'none' });
+          } finally {
+            // 无论成功或失败，都重置防抖标志位
+            this.setData({ deleting: false });
           }
+        } else {
+          // 用户取消删除，重置防抖标志位
+          this.setData({ deleting: false });
         }
+      },
+      fail: () => {
+        // 用户取消删除，重置防抖标志位
+        this.setData({ deleting: false });
       }
     });
   }

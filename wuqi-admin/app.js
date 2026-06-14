@@ -23,6 +23,32 @@ App({
       this.getStoreList();
     }
   },
+
+  silenceUnsupportedApi() {
+    const noop = function() {};
+    const unsupportedList = [
+      'reportRealtimeAction',
+      'reportEvent',
+      'reportPerformance',
+      'reportMonitor'
+    ];
+    for (let i = 0; i < unsupportedList.length; i++) {
+      const key = unsupportedList[i];
+      if (typeof wx[key] !== 'function') {
+        try { wx[key] = noop; } catch (e) {}
+      }
+    }
+    try {
+      if (typeof wx.canIUse === 'function') {
+        const orig = wx.canIUse;
+        wx.canIUse = function(name) {
+          if (name === 'reportRealtimeAction' || name === 'reportEvent') return false;
+          return orig.apply(this, arguments);
+        };
+      }
+    } catch (e) {}
+  },
+
   registerPrivacyHandler() {
     if (typeof wx.onNeedPrivacyAuthorization === 'function') {
       wx.onNeedPrivacyAuthorization((resolve, eventInfo) => {
@@ -121,43 +147,28 @@ App({
     return permissions.indexOf(moduleId) >= 0;
   },
 
-  // 生成当前设备的指纹（基于硬件信息，换设备会变化）
+  // 获取稳定的设备标识（首次启动时生成UUID并永久存储，同一微信账号下始终一致）
+  // 注：微信小程序的 storage 天然按微信账号隔离，无需额外做"换设备检测"
   getDeviceFingerprint() {
     try {
-      const deviceInfo = wx.getDeviceInfo();
-      const windowInfo = wx.getWindowInfo();
-      const raw = [deviceInfo.model, deviceInfo.brand, deviceInfo.platform, windowInfo.screenWidth, windowInfo.screenHeight].join('|');
-      // 简单哈希
-      let hash = 0;
-      for (let i = 0; i < raw.length; i++) {
-        const char = raw.charCodeAt(i);
-        hash = ((hash << 5) - hash) + char;
-        hash |= 0;
+      let deviceId = wx.getStorageSync('device_fingerprint');
+      if (!deviceId) {
+        const d = Date.now();
+        const r = Math.floor(Math.random() * 1e9);
+        deviceId = 'dev_' + d.toString(36) + '_' + r.toString(36);
+        wx.setStorageSync('device_fingerprint', deviceId);
       }
-      return 'dev_' + Math.abs(hash).toString(36);
+      return deviceId;
     } catch (e) {
       return '';
     }
   },
 
-  // 初始化设备指纹：首次启动存储，后续启动比对
+  // 初始化设备指纹（稳定不变）
   initDeviceFingerprint() {
     const currentFingerprint = this.getDeviceFingerprint();
-    if (!currentFingerprint) return;
-    this.globalData.deviceFingerprint = currentFingerprint;
-
-    const storedFingerprint = wx.getStorageSync('device_fingerprint');
-    if (!storedFingerprint) {
-      // 首次启动，存储设备指纹
-      wx.setStorageSync('device_fingerprint', currentFingerprint);
-    } else if (storedFingerprint !== currentFingerprint) {
-      // 设备已更换，清除所有登录凭据
-      wx.removeStorageSync('admin_token');
-      wx.removeStorageSync('saved_username');
-      wx.removeStorageSync('saved_password');
-      wx.setStorageSync('device_fingerprint', currentFingerprint);
-      this.globalData.token = '';
-      this.globalData.userInfo = null;
+    if (currentFingerprint) {
+      this.globalData.deviceFingerprint = currentFingerprint;
     }
   }
 });

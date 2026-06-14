@@ -3,7 +3,6 @@
 <wxs src="../../utils/compare.wxs" module="cmp" />
 
 <view class="booking-page">
-  <block wx:if="{{isLoggedIn}}">
     <view class="header-section">
       <view class="store-card" bindtap="onStoreTap">
         <view class="store-card-left">
@@ -51,15 +50,13 @@
       <view class="course-card" wx:for="{{courses}}" wx:key="_id" bindtap="onCourseTap" data-course="{{item}}">
         <view class="course-accent-bar" style="background: {{dc.getBarColor(index)}};"></view>
         <view class="card-left">
-          <image class="coach-avatar" src="{{item.coach_id && item.coach_id.avatar_url}}" mode="aspectFill" wx:if="{{item.coach_id && item.coach_id.avatar_url && !imageErrors['coach_' + item._id]}}" binderror="onCoachImgError" data-id="{{item._id}}" />
-          <view class="coach-avatar coach-avatar-fallback" wx:else>
-            <text class="caf-text">{{item.coach_id && item.coach_id.name ? item.coach_id.name.charAt(0) : '师'}}</text>
-          </view>
+          <image class="coach-avatar" src="{{item.coachAvatar}}" mode="aspectFill" wx:if="{{item.coachAvatar && !imageErrors['coach_' + item._id]}}" binderror="onCoachImgError" data-id="{{item._id}}" />
+          <image class="coach-avatar" src="/images/default-avatar.svg" mode="aspectFill" wx:else />
           <text class="coach-name-below">{{item.coach_id && item.coach_id.name || '待定'}}</text>
         </view>
         <view class="card-right">
           <view class="card-right-actions">
-            <view class="course-book-btn {{cmp.contains(bookedScheduleIds, item._id) ? 'booked' : ''}} {{item.status === 'full' || (isOfficial && !canBookCurrentStore) ? 'disabled' : ''}}" data-course="{{item}}" catchtap="onBookCourse">
+            <view class="course-book-btn {{cmp.contains(bookedScheduleIds, item._id) ? 'booked' : ''}} {{item.status === 'full' || !isLoggedIn || (isOfficial && !canBookCurrentStore) ? 'disabled' : ''}}" data-course="{{item}}" catchtap="onBookCourse">
               <text wx:if="{{cmp.contains(bookedScheduleIds, item._id)}}">已预约</text>
               <text wx:elif="{{item.status === 'full'}}">已满</text>
               <text wx:elif="{{isOfficial && !canBookCurrentStore}}">不可约</text>
@@ -113,20 +110,6 @@
       text="暂无课程安排" 
       hint="试试切换门店或日期">
     </empty-state>
-  </block>
-
-  <block wx:else>
-    <view class="guest-view">
-      <view class="guest-avatar-wrap">
-        <view class="guest-avatar-icon"></view>
-      </view>
-      <text class="guest-title">登录后解锁近期课程浏览</text>
-      <text class="guest-hint">欲解锁全部功能，请与门店工作人员联系。</text>
-      <view class="guest-login-btn" bindtap="onLogin">
-        <text>微信一键登录</text>
-      </view>
-    </view>
-  </block>
 </view>
 
 <view class="modal-mask" wx:if="{{showStoreModal}}" bindtap="onCloseStoreModal">
@@ -228,3 +211,6 @@
     </view>
   </view>
 </view>
+
+<!-- 微信授权登录弹窗 -->
+<login-modal visible="{{showLoginModal}}" bind:close="onLoginModalClose" bind:success="onLoginSuccess"></login-modal>

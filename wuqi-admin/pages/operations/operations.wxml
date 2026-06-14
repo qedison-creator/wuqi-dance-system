@@ -102,7 +102,7 @@
     </view>
 
     <view class="weekday-row">
-      <text wx:for="{{weekdays}}" wx:key="index">{{item}}</text>
+      <text class="weekday-cell" wx:for="{{weekdays}}" wx:key="index">{{item}}</text>
     </view>
 
     <view class="cal-grid">

@@ -24,9 +24,10 @@ Page({
         viewMode: options.view_mode || 'bookings'
       });
       this.loadScheduleInfo();
+      // 始终加载签到数据（预约视图也需要显示已签到Tab）
+      this.loadAttendanceList();
       if (options.view_mode === 'attendance') {
         this.setData({ activeTab: 'all' });
-        this.loadAttendanceList();
       } else {
         this.loadBookingList();
       }

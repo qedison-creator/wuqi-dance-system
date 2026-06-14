@@ -1,7 +1,6 @@
 {
   "pages": [
     "pages/splash/splash",
-    "pages/login/login",
     "pages/index/index",
     "pages/booking/booking",
     "pages/course-detail/course-detail",
@@ -9,7 +8,6 @@
     "pages/records/records",
     "pages/coach-detail/coach-detail",
     "pages/coach-list/coach-list",
-    "pages/video-player/video-player",
     "pages/package-detail/package-detail",
     "pages/member-info/member-info",
     "pages/privacy/privacy",
@@ -49,12 +47,12 @@
   "style": "v2",
   "lazyCodeLoading": "requiredComponents",
   "permission": {
-    "scope.userLocation": {
-      "desc": "用于匹配您附近的门店"
+    "scope.userFuzzyLocation": {
+      "desc": "用于匹配距离您最近的舞栖舞蹈社门店"
     }
   },
   "requiredPrivateInfos": [
-    "getLocation"
+    "getFuzzyLocation"
   ],
   "requiredBackgroundModes": [],
   "plugins": {}

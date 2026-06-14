@@ -31,9 +31,12 @@
       </picker>
     </view>
 
-    <!-- 当日汇总 -->
+    <!-- 当日汇总 + 导出 -->
     <view class="summary-row">
-      <text class="summary-text">当日汇总：总课程<text class="summary-num">{{summary.totalCourses}}</text>节｜总预约<text class="summary-num">{{summary.totalBookings}}</text>单｜已上课<text class="summary-num summary-green">{{summary.checkedIn}}</text>人｜已取消<text class="summary-num summary-red">{{summary.cancelled}}</text>人</text>
+      <text class="summary-text">汇总：总课程<text class="summary-num">{{summary.totalCourses}}</text>节｜总预约<text class="summary-num">{{summary.totalBookings}}</text>单｜已上课<text class="summary-num summary-green">{{summary.checkedIn}}</text>人｜已取消<text class="summary-num summary-red">{{summary.cancelled}}</text>人</text>
+      <view class="export-btn-global" bindtap="onExport">
+        <text>导出Excel</text>
+      </view>
     </view>
   </view>
 
@@ -94,9 +97,6 @@
                           </view>
                         </view>
                         <view class="course-right">
-                          <view class="export-btn" wx:if="{{course.expanded}}" catchtap="onExport" data-schedule-id="{{course.schedule_id}}">
-                            <text>导出</text>
-                          </view>
                           <text class="toggle-icon {{course.expanded ? 'expanded' : ''}}">▾</text>
                         </view>
                       </view>

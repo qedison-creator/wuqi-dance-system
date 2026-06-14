@@ -194,6 +194,31 @@
           <input class="input-field" placeholder="请输入课程名称" value="{{formData.course_name}}" data-field="course_name" bindinput="onFormInput" />
         </view>
 
+        <!-- 课程封面 -->
+        <view class="form-group">
+          <text class="form-label">课程封面</text>
+          <view class="cover-upload-wrap" wx:if="{{!formData.coverUrl}}">
+            <view class="cover-upload-box" bindtap="onChooseCover">
+              <text class="cover-upload-icon">🖼️</text>
+              <text class="cover-upload-text">点击上传封面</text>
+              <text class="cover-upload-hint">建议 16:9 比例，最大 10MB</text>
+            </view>
+          </view>
+          <view class="cover-upload-wrap" wx:else>
+            <view class="cover-preview-box">
+              <image class="cover-preview-image" src="{{formData.coverUrl}}" mode="aspectFill" bindtap="onChooseCover" />
+              <view class="cover-action-row">
+                <view class="cover-action-btn cover-action-change" bindtap="onChooseCover">
+                  <text class="cover-action-text">更换封面</text>
+                </view>
+                <view class="cover-action-btn cover-action-delete" bindtap="onRemoveCover">
+                  <text class="cover-action-text">删除</text>
+                </view>
+              </view>
+            </view>
+          </view>
+        </view>
+
         <!-- 舞种选择（点选） -->
         <view class="form-group">
           <text class="form-label">舞种 *</text>

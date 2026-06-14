@@ -414,6 +414,11 @@
   box-shadow: var(--shadow-fab);
 }
 
+.modal-btn.export {
+  background: #4A8C6F;
+  color: var(--text-inverse);
+}
+
 .form-item {
   margin-bottom: 28rpx;
 }
@@ -575,11 +580,34 @@
 
 .bill-coach-header {
   display: flex;
-  justify-content: space-between;
   align-items: center;
+  gap: 12rpx;
   margin-bottom: 16rpx;
   padding-bottom: 12rpx;
   border-bottom: 1rpx solid var(--border-light);
+}
+
+.bill-coach-check {
+  width: 36rpx;
+  height: 36rpx;
+  border-radius: 50%;
+  border: 3rpx solid #C9C4C0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: all 0.2s;
+}
+
+.bill-coach-check.checked {
+  background: linear-gradient(135deg, #D4786E, #C05D53);
+  border-color: #D4786E;
+}
+
+.check-mark {
+  font-size: 20rpx;
+  color: #FFF;
+  font-weight: bold;
 }
 
 .coach-name {
@@ -662,4 +690,661 @@
   font-size: var(--font-sm);
   color: var(--color-warning);
   line-height: 1.5;
+}
+
+/* ==================== 课时统计 ==================== */
+
+.hours-year-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.hours-year-label {
+  font-size: 30rpx;
+  font-weight: 700;
+  color: var(--text-primary);
+  display: block;
+  padding: 8rpx 0 20rpx 8rpx;
+}
+
+/* 月份横条 */
+.hours-month-group {
+  margin-bottom: 16rpx;
+}
+
+.hours-month-header {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  padding: 24rpx 20rpx;
+  background: var(--bg-card);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-card);
+}
+
+.hours-month-header:active {
+  opacity: 0.8;
+}
+
+.hours-month-toggle {
+  font-size: 24rpx;
+  color: var(--text-tertiary);
+  transition: transform 0.25s ease;
+  display: inline-block;
+}
+
+.hours-month-toggle.expanded {
+  transform: rotate(90deg);
+  color: var(--color-primary);
+}
+
+.hours-month-label {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+/* 教练卡片 */
+.hours-month-coaches {
+  padding: 16rpx 0 0 20rpx;
+  display: flex;
+  flex-direction: column;
+  gap: 16rpx;
+}
+
+.hours-coach-card {
+  background: var(--bg-card);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  box-shadow: 0 2rpx 8rpx rgba(0,0,0,0.04);
+}
+
+.hours-coach-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20rpx 20rpx;
+}
+
+.hours-coach-header:active {
+  background: var(--bg-elevated);
+}
+
+.hours-coach-info {
+  flex: 1;
+}
+
+.hours-coach-name {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: var(--text-primary);
+  display: block;
+}
+
+.hours-coach-total {
+  font-size: 24rpx;
+  color: var(--text-secondary);
+  margin-left: 8rpx;
+}
+
+.hours-coach-toggle {
+  font-size: 24rpx;
+  color: var(--text-tertiary);
+  transition: transform 0.25s ease;
+}
+
+.hours-coach-toggle.expanded {
+  transform: rotate(90deg);
+  color: var(--color-primary);
+}
+
+/* 门店分组（教练展开后） */
+.hours-coach-stores {
+  border-top: 1rpx solid var(--border-light);
+}
+
+.hours-store-group {
+  border-bottom: 1rpx solid var(--border-light);
+}
+
+.hours-store-group:last-child {
+  border-bottom: none;
+}
+
+.hours-store-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16rpx 20rpx;
+  background: rgba(212,120,110,0.03);
+}
+
+.hours-store-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 6rpx 16rpx;
+  border-radius: 10rpx;
+  font-size: 22rpx;
+  color: #FFFFFF;
+  font-weight: 500;
+}
+
+/* 门店标签不同颜色（根据store_name hash映射） */
+.hours-store-tag:nth-of-type(1) { background: rgba(197, 116, 75, 0.85); }
+.hours-store-tag:nth-of-type(2) { background: rgba(75, 140, 197, 0.85); }
+.hours-store-tag:nth-of-type(3) { background: rgba(107, 169, 89, 0.85); }
+.hours-store-tag:nth-of-type(4) { background: rgba(169, 107, 162, 0.85); }
+.hours-store-tag:nth-of-type(5) { background: rgba(197, 167, 75, 0.85); }
+
+.hours-store-summary {
+  font-size: 24rpx;
+  color: var(--text-secondary);
+}
+
+.hours-store-records {
+  padding: 8rpx 20rpx 12rpx;
+}
+
+/* 上课记录行 */
+.hours-record-row {
+  display: flex;
+  align-items: center;
+  padding: 12rpx 0;
+  border-bottom: 1rpx dashed var(--border-light);
+  gap: 6rpx;
+}
+
+.hours-record-row:last-child {
+  border-bottom: none;
+}
+
+.hours-rec-seq {
+  width: 42rpx;
+  text-align: center;
+  font-size: 22rpx;
+  color: var(--text-tertiary);
+  background: var(--bg-root);
+  padding: 4rpx 0;
+  border-radius: 6rpx;
+  flex-shrink: 0;
+}
+
+.hours-rec-date {
+  font-size: 22rpx;
+  color: var(--text-primary);
+  flex-shrink: 0;
+  min-width: 130rpx;
+}
+
+.hours-rec-weekday {
+  font-size: 20rpx;
+  color: var(--text-tertiary);
+  min-width: 48rpx;
+}
+
+.hours-rec-time {
+  font-size: 22rpx;
+  color: var(--text-secondary);
+  flex: 1;
+  text-align: right;
+}
+
+.hours-rec-store {
+  font-size: 20rpx;
+  color: var(--text-tertiary);
+  min-width: 80rpx;
+  text-align: right;
+}
+
+.hours-rec-dur {
+  font-size: 22rpx;
+  color: var(--color-primary);
+  font-weight: 600;
+  min-width: 72rpx;
+  text-align: right;
+}
+
+/* ==================== 薪酬统计月份列表 ==================== */
+
+.salary-year-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.salary-year-label {
+  font-size: 30rpx;
+  font-weight: 700;
+  color: var(--text-primary);
+  display: block;
+  padding: 12rpx 0 20rpx 8rpx;
+}
+
+.salary-month-group {
+  margin-bottom: 16rpx;
+}
+
+.salary-month-header {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  padding: 24rpx 20rpx;
+  background: var(--bg-card);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-card);
+}
+
+.salary-month-header:active {
+  opacity: 0.8;
+}
+
+.salary-month-toggle {
+  font-size: 24rpx;
+  color: var(--text-tertiary);
+  transition: transform 0.25s ease;
+}
+
+.salary-month-toggle.expanded {
+  transform: rotate(90deg);
+  color: var(--color-primary);
+}
+
+.salary-month-label {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: var(--text-primary);
+  flex: 1;
+}
+
+.salary-month-coach-count {
+  font-size: 24rpx;
+  color: var(--text-secondary);
+}
+
+.salary-month-total {
+  font-size: 26rpx;
+  font-weight: 700;
+  color: var(--color-primary);
+  margin-left: 12rpx;
+}
+
+/* 教练薪酬卡片 */
+.salary-month-coaches {
+  padding: 12rpx 0 0 20rpx;
+  display: flex;
+  flex-direction: column;
+  gap: 16rpx;
+}
+
+.salary-coach-card {
+  background: var(--bg-card);
+  border-radius: var(--radius-md);
+  padding: 20rpx;
+  box-shadow: 0 2rpx 10rpx rgba(0,0,0,0.05);
+}
+
+.salary-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 16rpx;
+  border-bottom: 1rpx solid var(--border-light);
+}
+
+.salary-card-name {
+  font-size: 28rpx;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.salary-card-total {
+  font-size: 32rpx;
+  font-weight: 800;
+  color: var(--color-primary);
+}
+
+/* 薪酬行列表 */
+.salary-card-rows {
+  display: flex;
+  flex-direction: column;
+  padding-top: 16rpx;
+}
+
+.salary-card-row {
+  display: flex;
+  align-items: baseline;
+  padding: 14rpx 0;
+}
+
+.salary-card-row + .salary-card-row {
+  border-top: 1rpx dashed var(--border-light);
+}
+
+.salary-row-dur {
+  font-size: 26rpx;
+  font-weight: 600;
+  color: var(--text-primary);
+  min-width: 120rpx;
+}
+
+.salary-row-count {
+  font-size: 24rpx;
+  color: var(--text-secondary);
+  min-width: 56rpx;
+  text-align: right;
+}
+
+.salary-row-mul {
+  font-size: 22rpx;
+  color: var(--text-tertiary);
+  margin: 0 8rpx;
+}
+
+.salary-row-rate {
+  font-size: 24rpx;
+  color: var(--color-primary);
+  font-weight: 500;
+}
+
+.salary-row-eq {
+  font-size: 22rpx;
+  color: var(--text-tertiary);
+  margin: 0 10rpx;
+}
+
+.salary-row-amount {
+  font-size: 26rpx;
+  font-weight: 700;
+  color: #C05D53;
+}
+
+/* ==================== 薪酬统计分区标题 ==================== */
+.salary-section-title {
+  font-size: 28rpx;
+  font-weight: 700;
+  color: var(--text-primary);
+  padding: 12rpx 0 16rpx 8rpx;
+  border-bottom: 3rpx solid var(--color-primary);
+  margin-bottom: 20rpx;
+  display: inline-block;
+  padding-right: 24rpx;
+}
+
+/* ==================== 内嵌账单内容（替代弹窗） ==================== */
+.bill-inline-content {
+  background: var(--bg-card);
+  border-radius: var(--radius-lg);
+  padding: 24rpx;
+  margin-top: 24rpx;
+  box-shadow: var(--shadow-card);
+}
+
+.bill-inline-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 20rpx;
+  border-bottom: 1rpx solid var(--border-light);
+  margin-bottom: 20rpx;
+}
+
+.bill-inline-title {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.bill-inline-close {
+  width: 48rpx;
+  height: 48rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28rpx;
+  color: var(--text-tertiary);
+  border-radius: 50%;
+  background: var(--bg-elevated);
+}
+
+.bill-inline-close:active {
+  background: var(--border);
+}
+
+.bill-inline-actions {
+  display: flex;
+  gap: 16rpx;
+  margin-top: 24rpx;
+}
+
+.bill-generated-tip {
+  flex: 1;
+  font-size: 26rpx;
+  color: var(--color-success);
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+}
+
+/* ==================== 账单管理 ==================== */
+
+/* 预览面板 */
+.bill-form-panel {
+  background: var(--bg-card);
+  border-radius: var(--radius-lg);
+  padding: 20rpx;
+  margin-bottom: 24rpx;
+  box-shadow: var(--shadow-card);
+}
+
+.bill-form-panel .date-range-selector {
+  background: transparent;
+  padding: 0;
+  margin-bottom: 16rpx;
+  box-shadow: none;
+}
+
+.bill-preview-content {
+  border-top: 1rpx solid var(--border-light);
+  padding-top: 20rpx;
+}
+
+.bill-preview-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16rpx;
+}
+
+.bill-preview-title {
+  font-size: 26rpx;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.bill-preview-close {
+  font-size: 28rpx;
+  color: var(--text-tertiary);
+  padding: 8rpx;
+}
+
+/* ==================== 结算单卡片 ==================== */
+
+.bill-list-section {
+  display: flex;
+  flex-direction: column;
+  gap: 20rpx;
+}
+
+.bill-card {
+  padding: 0;
+  overflow: hidden;
+}
+
+/* 卡片头部（始终显示） */
+.bill-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 28rpx;
+}
+
+.bill-card-hd-left {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 10rpx;
+}
+
+.bill-card-title {
+  font-size: 30rpx;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.3;
+}
+
+.bill-card-info {
+  display: flex;
+  gap: 28rpx;
+}
+
+.bill-card-period,
+.bill-card-gen {
+  font-size: 22rpx;
+  color: var(--text-tertiary);
+}
+
+.bill-card-coaches {
+  font-size: 22rpx;
+  color: var(--text-secondary);
+  margin-top: 6rpx;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bill-card-hd-right {
+  display: flex;
+  align-items: center;
+  gap: 10rpx;
+  padding-top: 4rpx;
+}
+
+.bill-card-amount {
+  font-size: 34rpx;
+  font-weight: 800;
+  color: var(--color-primary);
+}
+
+.bill-card-arrow {
+  font-size: 22rpx;
+  color: var(--text-tertiary);
+  transition: transform 0.2s;
+}
+
+.bill-card-arrow.expanded {
+  transform: rotate(180deg);
+}
+
+/* 展开 body */
+.bill-card-body {
+  border-top: 2rpx solid var(--border);
+  background: var(--bg-root);
+  padding: 20rpx 28rpx 24rpx;
+}
+
+/* 教练行 */
+.bill-body-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16rpx 0 10rpx;
+}
+
+.bill-body-coach {
+  font-size: 28rpx;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.bill-body-coach-total {
+  font-size: 28rpx;
+  font-weight: 700;
+  color: var(--color-primary);
+}
+
+/* 课时行 */
+.bill-body-item {
+  display: flex;
+  align-items: center;
+  padding: 8rpx 0 8rpx 16rpx;
+  font-size: 24rpx;
+}
+
+.bill-body-dur {
+  color: var(--text-primary);
+  font-weight: 500;
+  min-width: 108rpx;
+}
+
+.bill-body-calc {
+  color: var(--text-secondary);
+  flex: 1;
+}
+
+.bill-body-amt {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+/* 合计行 */
+.bill-body-total {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 16rpx;
+  padding-top: 20rpx;
+  border-top: 2rpx solid var(--text-primary);
+  font-size: 28rpx;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.bill-total-num {
+  font-size: 36rpx;
+  font-weight: 800;
+  color: var(--color-primary);
+}
+
+/* 操作按钮 */
+.bill-body-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 20rpx;
+  margin-top: 24rpx;
+  padding-top: 16rpx;
+  border-top: 1rpx solid var(--border-light);
+}
+
+.bill-action-btn {
+  padding: 12rpx 36rpx;
+  border-radius: 40rpx;
+  font-size: 24rpx;
+  font-weight: 500;
+  background: var(--color-primary);
+  color: #fff;
+  transition: all 0.15s;
+}
+
+.bill-action-btn:active {
+  opacity: 0.8;
+  transform: scale(0.96);
+}
+
+.bill-action-btn.danger {
+  background: var(--color-danger-bg);
+  color: var(--color-danger);
+}
+
+/* ==================== 弹窗大尺寸 ==================== */
+.modal-large {
+  width: min(94%, 680rpx);
 }

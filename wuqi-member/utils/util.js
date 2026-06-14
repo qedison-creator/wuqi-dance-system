@@ -130,6 +130,33 @@ const throttle = (func, limit) => {
   };
 };
 
+/**
+ * 规范化图片 URL
+ * - 空值：返回空字符串
+ * - 相对路径（/uploads/...）：拼接 SERVER_BASE
+ * - 本服务器域名（api.yuekeme.cn / admin-api.yuekeme.cn / 101.33.203.22）：提取路径拼 SERVER_BASE
+ * - 外部域名（如 unsplash.com）：返回空字符串（在小程序真机会被域名白名单拦截）
+ * @param {string} url - 原始图片 URL
+ * @param {string} serverBase - 服务器基础地址
+ */
+const normalizeImageUrl = (url, serverBase) => {
+  if (!url) return '';
+  if (!serverBase) return url;
+  if (url.startsWith('/')) return serverBase + url;
+  const serverHosts = [
+    'api.yuekeme.cn',
+    'admin-api.yuekeme.cn',
+    '101.33.203.22:3000',
+    'localhost:3000',
+    '127.0.0.1:3000'
+  ];
+  const match = url.match(/^https?:\/\/([^\/]+)(\/.*)/);
+  if (match && serverHosts.indexOf(match[1]) !== -1) {
+    return serverBase + match[2];
+  }
+  return '';
+};
+
 module.exports = {
   getBeijingDate,
   formatDate,
@@ -144,5 +171,6 @@ module.exports = {
   hideLoading,
   showModal,
   debounce,
-  throttle
+  throttle,
+  normalizeImageUrl
 };

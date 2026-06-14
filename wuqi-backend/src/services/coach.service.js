@@ -1,5 +1,4 @@
 const Coach = require('../models/Coach');
-const Video = require('../models/Video');
 const Schedule = require('../models/Schedule');
 const WeekTemplate = require('../models/WeekTemplate');
 
@@ -24,7 +23,7 @@ exports.getCoachList = async (query) => {
 
   const list = await Coach.find(filter)
     .populate('dance_styles', 'name icon_url')
-    .sort({ created_at: -1 })
+    .sort({ sort_order: 1, created_at: -1 })
     .skip((page - 1) * pageSize)
     .limit(Number(pageSize));
 
@@ -40,7 +39,7 @@ exports.getCoachList = async (query) => {
   return { list: transformedList, total, page: Number(page), pageSize: Number(pageSize) };
 };
 
-// 获取教练详情(含关联视频)
+// 获取教练详情
 exports.getCoachById = async (id) => {
   const coach = await Coach.findById(id)
     .populate('dance_styles', 'name icon_url');
@@ -48,15 +47,11 @@ exports.getCoachById = async (id) => {
     throw new Error('教练不存在');
   }
 
-  const videos = await Video.find({ coach_id: id, status: 'active' })
-    .sort({ sort_order: 1, created_at: -1 })
-    .limit(10);
-
   const coachObj = coach.toObject();
   coachObj.dance_style_ids = coach.dance_styles ? coach.dance_styles.map(ds => ds._id) : [];
   coachObj.dance_style_names = coach.dance_styles ? coach.dance_styles.map(ds => ds.name).join('、') : '';
 
-  return { ...coachObj, videos };
+  return coachObj;
 };
 
 // 新增教练
@@ -75,7 +70,7 @@ exports.updateCoach = async (id, data) => {
     throw new Error('教练不存在');
   }
 
-  const allowedFields = ['name', 'avatar_url', 'gender', 'phone', 'introduction', 'dance_styles', 'status'];
+  const allowedFields = ['name', 'avatar_url', 'gender', 'phone', 'introduction', 'dance_styles', 'status', 'sort_order', 'show_on_home'];
   for (const key of Object.keys(data)) {
     if (allowedFields.includes(key)) {
       coach[key] = data[key];
@@ -112,10 +107,6 @@ exports.deleteCoach = async (id) => {
   // 检查关联的排课
   const hasSchedules = await Schedule.countDocuments({ coach_id: id });
   if (hasSchedules > 0) throw new Error('该教练有排课记录，无法删除');
-
-  // 检查关联的视频
-  const hasVideos = await Video.countDocuments({ coach_id: id });
-  if (hasVideos > 0) throw new Error('该教练有视频作品，无法删除');
 
   const templates = await WeekTemplate.find({});
   const affectedStores = [];

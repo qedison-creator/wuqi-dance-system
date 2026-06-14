@@ -18,7 +18,7 @@
         "minified": true,
         "autoAudits": false,
         "newFeature": false,
-        "uglifyFileName": false,
+        "uglifyFileName": true,
         "uploadWithSourceMap": true,
         "enhance": true,
         "showShadowRootInWxmlPanel": true,
@@ -46,5 +46,6 @@
     "projectname": "wuqi-member",
     "condition": {},
     "simulatorPluginLibVersion": {},
-    "editorSetting": {}
+    "editorSetting": {},
+    "testRoot": "minitest/"
 }

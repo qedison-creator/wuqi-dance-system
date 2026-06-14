@@ -22,7 +22,8 @@ Page({
       store_ids: []
     },
     storeCheckboxes: [],
-    storeSelectAll: false
+    storeSelectAll: false,
+    deleting: false // 防抖标志位
   },
 
   onShow() {
@@ -245,22 +246,41 @@ Page({
   },
 
   onDeleteAccount(e) {
+    // 防抖处理：如果正在删除中，则直接返回
+    if (this.data.deleting) {
+      wx.showToast({ title: '正在删除中，请稍候', icon: 'none' });
+      return;
+    }
+    
     const { id } = e.currentTarget.dataset;
     wx.showModal({
       title: '确认删除',
       content: '确认删除此账号？',
       success: (res) => {
         if (res.confirm) {
+          // 设置防抖标志位
+          this.setData({ deleting: true });
           request({
             url: `/accounts/${id}`,
             method: 'DELETE'
           }).then(() => {
             wx.showToast({ title: '已删除', icon: 'success' });
             this.loadAccounts();
+            // 重置防抖标志位
+            this.setData({ deleting: false });
           }).catch(() => {
             wx.showToast({ title: '删除失败', icon: 'none' });
+            // 重置防抖标志位
+            this.setData({ deleting: false });
           });
+        } else {
+          // 用户取消删除，重置防抖标志位
+          this.setData({ deleting: false });
         }
+      },
+      fail: () => {
+        // 用户取消删除，重置防抖标志位
+        this.setData({ deleting: false });
       }
     });
   },

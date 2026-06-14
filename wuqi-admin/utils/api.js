@@ -113,13 +113,12 @@ module.exports = {
     delete: (id) => request({ url: `/banners/${id}`, method: 'DELETE' }),
   },
 
-  // 视频相关
-  videos: {
-    getList: (data) => request({ url: '/videos', data }),
-    getDetail: (id) => request({ url: `/videos/${id}` }),
-    create: (data) => request({ url: '/videos', method: 'POST', data }),
-    update: (id, data) => request({ url: `/videos/${id}`, method: 'PUT', data }),
-    delete: (id) => request({ url: `/videos/${id}`, method: 'DELETE' }),
+  // 图片相册相关
+  images: {
+    getList: (data) => request({ url: '/images', data }),
+    create: (data) => request({ url: '/images', method: 'POST', data }),
+    update: (id, data) => request({ url: `/images/${id}`, method: 'PUT', data }),
+    delete: (id) => request({ url: `/images/${id}`, method: 'DELETE' }),
   },
 
   // 舞种相关
@@ -147,7 +146,7 @@ module.exports = {
         wx.uploadFile({
           url: baseUrl + '/upload/image',
           filePath,
-          name: 'file',
+          name: 'image',
           formData: { type: uploadType },
           header: {
             'Authorization': token ? `Bearer ${token}` : ''

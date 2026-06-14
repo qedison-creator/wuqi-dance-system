@@ -11,7 +11,6 @@ module.exports = {
   home: {
     getBanners: (data) => request({ url: '/home/banners', data }),
     getCoaches: (data) => request({ url: '/home/coaches', data }),
-    getVideos: (data) => request({ url: '/home/videos', data }),
   },
 
   // 门店相关
@@ -56,12 +55,6 @@ module.exports = {
   coaches: {
     getList: (data) => request({ url: '/coaches', data }),
     getDetail: (id) => request({ url: `/coaches/${id}` }),
-  },
-
-  // 视频相关
-  videos: {
-    getList: (data) => request({ url: '/videos', data }),
-    getDetail: (id) => request({ url: `/videos/${id}` }),
   },
 
   // 舞种相关

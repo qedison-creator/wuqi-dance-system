@@ -28,7 +28,19 @@ test-api.js
 test-coach-salary.js
 check-banners.js
 migrate-uploads.js
+member-test.js
+admin-test.js
+cleanup-custom-templates.js
+check-templates.js
+process.exit(0)
 
 # 临时文件
 wuqi-admin/pages/schedule/schedule_full.txt
 wuqi-admin/pages/schedule/schedule_temp.wxss
+
+# 后端上传目录（敏感，不提交）
+wuqi-backend/uploads/
+
+# 微信小程序编译缓存
+wuqi-admin/miniprogram_npm/
+wuqi-member/miniprogram_npm/

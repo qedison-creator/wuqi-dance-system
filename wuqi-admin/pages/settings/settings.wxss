@@ -219,36 +219,52 @@
 
 .btn-row {
   display: flex;
-  gap: 20rpx;
+  gap: 24rpx;
   margin-top: 30rpx;
+  padding: 24rpx;
 }
 
 .btn-secondary,
 .btn-primary {
   flex: 1;
-  padding: 24rpx 0;
-  border-radius: 12rpx;
+  height: 88rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-lg);
   text-align: center;
+  transition: var(--transition-fast);
 }
 
 .btn-secondary {
-  background-color: transparent;
-  border: 2rpx solid var(--color-primary-hover);
+  background-color: var(--bg-card);
+  border: 2rpx solid var(--border);
+}
+
+.btn-secondary:active {
+  background-color: var(--bg-card-hover);
+  border-color: var(--color-primary);
 }
 
 .btn-secondary text {
-  font-size: 28rpx;
-  color: var(--color-primary);
+  font-size: var(--font-md);
+  color: var(--text-primary);
+  font-weight: 500;
 }
 
 .btn-primary {
   background: linear-gradient(135deg, var(--color-primary-hover), var(--color-primary));
-  border-radius: 16rpx;
+  box-shadow: var(--shadow-fab);
+}
+
+.btn-primary:active {
+  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-hover));
+  transform: scale(0.98);
 }
 
 .btn-primary text {
-  font-size: 28rpx;
-  color: var(--text-primary);
+  font-size: var(--font-md);
+  color: var(--text-inverse);
   font-weight: bold;
 }
 

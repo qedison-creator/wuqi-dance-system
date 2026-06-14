@@ -67,6 +67,17 @@ app.use('/uploads', (req, res) => {
   if (!resolvedPath.startsWith(resolvedRoot)) {
     return res.status(403).json({ code: 403, message: 'Forbidden' });
   }
+
+  // 设置缓存头：图片文件缓存 7 天，提升加载速度
+  const ext = path.extname(resolvedPath).toLowerCase();
+  const imageExts = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.svg'];
+  if (imageExts.includes(ext)) {
+    res.setHeader('Cache-Control', 'public, max-age=604800, immutable');
+    res.setHeader('Expires', new Date(Date.now() + 604800000).toUTCString());
+  } else {
+    res.setHeader('Cache-Control', 'public, max-age=86400');
+  }
+
   // 文件存在直接返回
   if (fs.existsSync(resolvedPath)) {
     return res.sendFile(resolvedPath, (err) => {

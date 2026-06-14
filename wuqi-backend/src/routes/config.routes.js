@@ -266,6 +266,7 @@ router.put('/message-templates', auth, checkPermission(['super_admin']), async (
       bookingSuccessTemplateId,
       classReminderTemplateId,
       bookingCancelTemplateId,
+      bookingCancelByUserTemplateId,
       waitlistAvailableTemplateId,
       packageExpiringTemplateId,
       packageActivatedTemplateId,
@@ -282,6 +283,7 @@ router.put('/message-templates', auth, checkPermission(['super_admin']), async (
       bookingSuccessTemplateId,
       classReminderTemplateId,
       bookingCancelTemplateId,
+      bookingCancelByUserTemplateId,
       waitlistAvailableTemplateId,
       packageExpiringTemplateId,
       packageActivatedTemplateId,
@@ -293,7 +295,8 @@ router.put('/message-templates', auth, checkPermission(['super_admin']), async (
     const templateConfigs = [
       { key: 'tpl_bookingSuccessTemplateId', value: bookingSuccessTemplateId || '', description: '预约成功通知模板ID' },
       { key: 'tpl_classReminderTemplateId', value: classReminderTemplateId || '', description: '上课提醒模板ID' },
-      { key: 'tpl_bookingCancelTemplateId', value: bookingCancelTemplateId || '', description: '取消预约通知模板ID' },
+      { key: 'tpl_bookingCancelTemplateId', value: bookingCancelTemplateId || '', description: '课程取消通知模板ID' },
+      { key: 'tpl_bookingCancelByUserTemplateId', value: bookingCancelByUserTemplateId || '', description: '预约取消通知模板ID' },
       { key: 'tpl_waitlistAvailableTemplateId', value: waitlistAvailableTemplateId || '', description: '候补成功通知模板ID' },
       { key: 'tpl_packageExpiringTemplateId', value: packageExpiringTemplateId || '', description: '套餐即将到期模板ID' },
       { key: 'tpl_packageActivatedTemplateId', value: packageActivatedTemplateId || '', description: '套餐已激活模板ID' },
@@ -385,6 +388,7 @@ router.get('/active-templates', async (req, res, next) => {
       'bookingSuccess': 'bookingSuccessTemplateId',
       'classReminder': 'classReminderTemplateId',
       'bookingCancel': 'bookingCancelTemplateId',
+      'bookingCancelByUser': 'bookingCancelByUserTemplateId',
       'waitlistAvailable': 'waitlistAvailableTemplateId',
       'packageExpiring': 'packageExpiringTemplateId',
       'packageActivated': 'packageActivatedTemplateId',
@@ -402,6 +406,25 @@ router.get('/active-templates', async (req, res, next) => {
     
     console.log('[active-templates] 返回模板配置:', templates);
     res.json(success(templates));
+  } catch (err) {
+    next(err);
+  }
+});
+
+// 获取所有模板配置详情（调试用，需要认证）
+router.get('/template-mappings', auth, checkModulePermission('config'), async (req, res, next) => {
+  try {
+    const mappings = await TemplateFieldMapping.find().sort({ template_key: 1 });
+    const result = mappings.map(m => ({
+      template_key: m.template_key,
+      template_title: m.template_title || '',
+      template_name: m.template_name || '',
+      template_id: m.template_id || '(未配置)',
+      has_template_id: !!(m.template_id && m.template_id.trim()),
+      mappings_count: m.mappings ? m.mappings.length : 0,
+      description: m.description || ''
+    }));
+    res.json(success(result));
   } catch (err) {
     next(err);
   }

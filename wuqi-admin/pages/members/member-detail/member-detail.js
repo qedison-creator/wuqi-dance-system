@@ -32,6 +32,14 @@ Page({
     addPackageForm: {},
     addPackageStoreList: [],
     addPackageFormStoreIndex: 0,
+    // 删除会员
+    showDeleteModal: false,
+    deleteConfirmName: '',
+    isAdmin: false,
+    // 删除套餐
+    showDeletePackageModal: false,
+    deletingPackage: null,
+    deletePackageConfirmText: '',
     loading: false
   },
 
@@ -40,13 +48,18 @@ Page({
       this.setData({ memberId: options.id });
       this.loadMemberDetail();
     }
+    // 判断是否是超级管理员
+    const app = getApp();
+    const userInfo = app.globalData.userInfo || {};
+    this.setData({ isAdmin: userInfo.role === 'super_admin' });
   },
 
   loadMemberDetail() {
     this.setData({ loading: true });
     request({
       url: `/members/${this.data.memberId}`,
-      method: 'GET'
+      method: 'GET',
+      timeout: 30000
     }).then(res => {
       const data = res.data || {};
       const member = { ...data };
@@ -267,35 +280,58 @@ Page({
   },
 
   /**
-   * 删除套餐
+   * 删除套餐 - 打开确认弹窗
    */
   onDeletePackage(e) {
     const { id } = e.currentTarget.dataset;
     const pkg = this.data.packages.find(p => p._id === id);
     if (!pkg) return;
 
-    wx.showModal({
-      title: '确认删除',
-      content: `确定要删除该${pkg.package_type === 'time_card' ? '时间卡' : '次卡'}套餐吗？此操作不可恢复。`,
-      confirmColor: '#FF3B30',
-      success: (res) => {
-        if (res.confirm) {
-          this.doDeletePackage(id);
-        }
-      }
+    this.setData({
+      showDeletePackageModal: true,
+      deletingPackage: pkg,
+      deletePackageConfirmText: ''
     });
   },
 
-  async doDeletePackage(packageId) {
+  onCloseDeletePackageModal() {
+    this.setData({
+      showDeletePackageModal: false,
+      deletingPackage: null,
+      deletePackageConfirmText: ''
+    });
+  },
+
+  onDeletePackageConfirmInput(e) {
+    this.setData({ deletePackageConfirmText: e.detail.value });
+  },
+
+  async onConfirmDeletePackage() {
+    const { deletingPackage, deletePackageConfirmText } = this.data;
+    if (!deletingPackage) return;
+
+    const expectedText = '确认删除';
+    if (deletePackageConfirmText !== expectedText) {
+      wx.showToast({ title: '请输入"确认删除"', icon: 'none' });
+      return;
+    }
+
+    wx.showLoading({ title: '删除中...', mask: true });
     try {
       await request({
-        url: `/packages/user/${packageId}`,
+        url: `/packages/user/${deletingPackage._id}`,
         method: 'DELETE'
       });
+      wx.hideLoading();
       wx.showToast({ title: '删除成功', icon: 'success' });
+      this.setData({
+        showDeletePackageModal: false,
+        deletingPackage: null,
+        deletePackageConfirmText: ''
+      });
       this.loadMemberDetail();
     } catch (err) {
-      console.error('删除套餐失败', err);
+      wx.hideLoading();
       wx.showToast({ title: err.data?.message || '删除失败', icon: 'none' });
     }
   },
@@ -760,5 +796,44 @@ Page({
     wx.navigateTo({
       url: `/pages/members/booking-list/booking-list?memberId=${memberId}&memberName=${encodeURIComponent(member.real_name || member.nick_name || '会员')}`
     });
+  },
+
+  // ========== 删除会员 ==========
+  onDeleteMember() {
+    this.setData({ showDeleteModal: true, deleteConfirmName: '' });
+  },
+
+  onCloseDeleteModal() {
+    this.setData({ showDeleteModal: false, deleteConfirmName: '' });
+  },
+
+  onDeleteConfirmInput(e) {
+    this.setData({ deleteConfirmName: e.detail.value });
+  },
+
+  async onConfirmDeleteMember() {
+    const { memberId, deleteConfirmName, member } = this.data;
+    const expectedName = member.real_name || member.nick_name;
+
+    if (deleteConfirmName !== expectedName) {
+      wx.showToast({ title: '输入的姓名不匹配', icon: 'none' });
+      return;
+    }
+
+    wx.showLoading({ title: '删除中...', mask: true });
+    try {
+      await request({
+        url: `/members/${memberId}`,
+        method: 'DELETE'
+      });
+      wx.hideLoading();
+      wx.showToast({ title: '会员已删除', icon: 'success' });
+      setTimeout(() => {
+        wx.navigateBack();
+      }, 1500);
+    } catch (err) {
+      wx.hideLoading();
+      wx.showToast({ title: err.data?.message || '删除失败', icon: 'none' });
+    }
   }
 });

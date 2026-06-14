@@ -19,11 +19,6 @@
       <view class="sk-photo"></view>
     </view>
     <view class="sk-section-title"></view>
-    <view class="sk-video-grid">
-      <view class="sk-video-card"></view>
-      <view class="sk-video-card"></view>
-    </view>
-    <view class="sk-section-title"></view>
     <view class="sk-course-card"></view>
     <view class="sk-course-card"></view>
   </view>
@@ -51,33 +46,15 @@
       <text class="cd-bio">{{coach.introduction}}</text>
     </view>
 
-    <view class="cd-photo-section" wx:if="{{coach.gallery && coach.gallery.length > 0}}">
+    <view class="cd-photo-section" wx:if="{{images.length > 0}}">
       <view class="cd-section-header">
         <view class="cd-section-dot accent"></view>
         <text class="cd-section-title">教练相册</text>
-        <text class="cd-section-hint">{{coach.gallery.length}}张</text>
+        <text class="cd-section-hint">{{images.length}}张</text>
       </view>
       <scroll-view class="cd-photo-scroll" scroll-x show-scrollbar="{{false}}">
-        <image class="cd-photo" wx:for="{{coach.gallery}}" wx:key="index" src="{{imageErrors['gallery_'+index] ? '/images/default-course.svg' : item}}" binderror="onImgError" data-type="gallery" data-id="{{index}}" mode="aspectFill" bindtap="onPhotoTap" data-index="{{index}}" />
+        <image class="cd-photo" wx:for="{{images}}" wx:key="_id" src="{{imageErrors['img_'+index] ? '/images/default-course.svg' : (item.thumbnail_url || item.image_url)}}" binderror="onImgError" data-type="img" data-id="{{index}}" mode="aspectFill" bindtap="onPhotoTap" data-index="{{index}}" />
       </scroll-view>
-    </view>
-
-    <view class="cd-video-section" wx:if="{{videos.length > 0}}">
-      <view class="cd-section-header">
-        <view class="cd-section-dot secondary"></view>
-        <text class="cd-section-title">作品视频</text>
-      </view>
-      <view class="cd-video-grid">
-        <view class="cd-video-card" wx:for="{{videos}}" wx:key="_id" bindtap="onVideoTap" data-id="{{item._id}}">
-          <view class="cd-video-thumb-wrap">
-            <image class="cd-video-thumb" src="{{imageErrors['video_'+item._id] ? '/images/default-course.svg' : (item.display_cover || '/images/default-course.svg')}}" binderror="onImgError" data-type="video" data-id="{{item._id}}" mode="aspectFill" />
-            <view class="cd-play-overlay">
-              <view class="cd-play-icon"></view>
-            </view>
-          </view>
-          <text class="cd-video-title">{{item.title || '视频作品'}}</text>
-        </view>
-      </view>
     </view>
 
     <view class="cd-course-section">

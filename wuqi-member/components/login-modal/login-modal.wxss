@@ -1,0 +1,194 @@
+/* 弹窗动画 */
+@keyframes card-pop-in {
+  0% { opacity: 0; transform: translate(-50%, -55%) scale(0.85); }
+  100% { opacity: 1; transform: translate(-50%, -55%) scale(1); }
+}
+
+@keyframes mask-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* 遮罩：纯半透明黑色（参照首页位置授权弹窗） */
+.modal-mask {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 9000;
+  animation: mask-fade-in 0.35s ease;
+}
+
+/* 居中卡片容器（参照首页位置授权弹窗 lam-card） */
+.card {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -55%);
+  width: 620rpx;
+  background: #FFFFFF;
+  border-radius: 32rpx;
+  padding: 56rpx 40rpx 40rpx;
+  box-shadow: 0 20rpx 60rpx rgba(42,33,34,0.15);
+  text-align: center;
+  animation: card-pop-in 350ms cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+/* 图标区域（参照 lam-icon-wrap / lam-icon） */
+.icon-wrap {
+  width: 120rpx;
+  height: 120rpx;
+  margin: 0 auto 28rpx;
+  background: #FDF2EF;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.icon-dot {
+  width: 56rpx;
+  height: 56rpx;
+  position: relative;
+}
+
+.icon-dot::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 18rpx;
+  height: 18rpx;
+  background: #D4786E;
+  border-radius: 50%;
+}
+
+.icon-dot::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 18rpx;
+  height: 18rpx;
+  border: 4rpx solid rgba(212,120,110,0.3);
+  border-radius: 50%;
+  animation: dot-ripple 2s ease-out infinite;
+}
+
+@keyframes dot-ripple {
+  0% { width: 18rpx; height: 18rpx; opacity: 1; }
+  100% { width: 56rpx; height: 56rpx; opacity: 0; }
+}
+
+/* 标题（参照 lam-title） */
+.title {
+  font-size: 32rpx;
+  color: #2A2122;
+  font-weight: 600;
+  margin-bottom: 32rpx;
+}
+
+/* 隐私政策勾选区 */
+.privacy-check {
+  display: flex;
+  align-items: flex-start;
+  margin-bottom: 36rpx;
+  padding: 0 8rpx;
+}
+
+.checkbox-wrap {
+  flex-shrink: 0;
+  margin-right: 12rpx;
+  margin-top: 4rpx;
+}
+
+.checkbox-icon {
+  width: 36rpx;
+  height: 36rpx;
+  border-radius: 50%;
+  border: 3rpx solid #C9C4C0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.checkbox-icon.checked {
+  background: linear-gradient(135deg, #D4786E, #C05D53);
+  border-color: #D4786E;
+}
+
+.checkbox-icon-check {
+  font-size: 22rpx;
+  color: #FFFFFF;
+  font-weight: bold;
+}
+
+.privacy-text {
+  flex: 1;
+  font-size: 24rpx;
+  color: #8E8582;
+  line-height: 40rpx;
+  white-space: nowrap;
+  display: inline;
+}
+
+.privacy-link {
+  color: #D4786E;
+  text-decoration: underline;
+}
+
+/* 按钮区（参照 lam-btns） */
+.btns {
+  display: flex;
+  gap: 24rpx;
+}
+
+.btn {
+  flex: 1;
+  height: 84rpx;
+  border-radius: 42rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28rpx;
+  font-weight: 600;
+  transition: all 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  border: none;
+  padding: 0;
+  margin: 0;
+  line-height: 84rpx;
+}
+
+.btn::after {
+  border: none;
+}
+
+.btn:active {
+  transform: scale(0.96);
+}
+
+/* 授权按钮（珊瑚红渐变 + 阴影） */
+.btn-confirm {
+  background: linear-gradient(135deg, #D4786E, #C05D53);
+  color: #FFFFFF;
+  box-shadow: 0 8rpx 24rpx rgba(212,120,110,0.3);
+}
+
+/* 授权按钮禁用状态 */
+.btn-confirm.btn-disabled {
+  background: #C9C4C0;
+  color: #F5F3F0;
+  box-shadow: none;
+  pointer-events: none;
+}
+
+/* 暂不按钮（米白背景 + 同色系文字，和授权按钮一样大） */
+.btn-cancel {
+  background: #FDF2EF;
+  color: #D4786E;
+}

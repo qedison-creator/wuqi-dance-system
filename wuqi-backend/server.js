@@ -11,8 +11,8 @@ if (config.isProd && !process.env.JWT_SECRET) {
   process.exit(1);
 }
 
-if (config.isProd && !process.env.WX_APPID) {
-  console.warn('[WARN] 生产环境未设置 WX_APPID，微信订阅消息推送将不可用');
+if (config.isProd && !process.env.WX_APPID && !process.env.WX_MEMBER_APPID) {
+  console.warn('[WARN] 生产环境未设置 WX_APPID 或 WX_MEMBER_APPID，微信订阅消息推送将不可用');
 }
 
 connectDB().then(() => {

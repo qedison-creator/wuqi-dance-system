@@ -2,7 +2,7 @@
   <view class="cc-thumb">
     <image
       class="cc-thumb-img"
-      src="{{imageErrors['course_'+course._id] ? '/images/default-course.svg' : (course.cover_url || '/images/default-course.svg')}}"
+      src="{{imageErrors['course_'+course._id] ? '/images/default-course.svg' : (course.cover || course.cover_url || '/images/default-course.svg')}}"
       binderror="onImgError"
       data-type="course"
       data-id="{{course._id}}"

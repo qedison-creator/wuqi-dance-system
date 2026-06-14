@@ -5,28 +5,20 @@ Page({
     username: '',
     password: '',
     rememberMe: false,
+    agreed: false,
     loading: false
   },
 
   onLoad() {
-    // 加载已保存的账号密码（验证设备指纹）
-    const savedFingerprint = wx.getStorageSync('saved_device_fingerprint');
-    const currentFingerprint = getApp().globalData.deviceFingerprint;
-    if (savedFingerprint && savedFingerprint === currentFingerprint) {
-      const savedUsername = wx.getStorageSync('saved_username');
-      const savedPassword = wx.getStorageSync('saved_password');
-      if (savedUsername) {
-        this.setData({
-          username: savedUsername,
-          password: savedPassword || '',
-          rememberMe: true
-        });
-      }
-    } else {
-      // 设备不匹配，清除可能残留的凭据
-      wx.removeStorageSync('saved_username');
-      wx.removeStorageSync('saved_password');
-      wx.removeStorageSync('saved_device_fingerprint');
+    // 加载已保存的账号密码（设备ID稳定存在于 storage，无需额外比对）
+    const savedUsername = wx.getStorageSync('saved_username');
+    const savedPassword = wx.getStorageSync('saved_password');
+    if (savedUsername) {
+      this.setData({
+        username: savedUsername,
+        password: savedPassword || '',
+        rememberMe: true
+      });
     }
   },
 
@@ -49,8 +41,25 @@ Page({
     this.setData({ rememberMe: !this.data.rememberMe });
   },
 
+  onToggleAgree() {
+    this.setData({ agreed: !this.data.agreed });
+  },
+
+  onOpenPrivacy() {
+    wx.navigateTo({ url: '/pages/privacy/privacy' });
+  },
+
+  onOpenAgreement() {
+    wx.navigateTo({ url: '/pages/agreement/agreement' });
+  },
+
   async onLogin() {
-    const { username, password } = this.data;
+    const { username, password, agreed } = this.data;
+
+    if (!agreed) {
+      wx.showToast({ title: '请先阅读并同意隐私保护指引和用户服务协议', icon: 'none' });
+      return;
+    }
 
     if (!username) {
       wx.showToast({ title: '请输入账号', icon: 'none' });
@@ -73,11 +82,9 @@ Page({
       if (this.data.rememberMe) {
         wx.setStorageSync('saved_username', username);
         wx.setStorageSync('saved_password', password);
-        wx.setStorageSync('saved_device_fingerprint', getApp().globalData.deviceFingerprint);
       } else {
         wx.removeStorageSync('saved_username');
         wx.removeStorageSync('saved_password');
-        wx.removeStorageSync('saved_device_fingerprint');
       }
 
       wx.showToast({ title: '登录成功', icon: 'success' });

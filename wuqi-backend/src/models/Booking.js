@@ -26,6 +26,9 @@ const bookingSchema = new mongoose.Schema({
   // 关联套餐
   user_package_id: { type: mongoose.Schema.Types.ObjectId, ref: 'UserPackage' },
   source: { type: String, enum: ['member', 'onsite', 'admin'], default: 'member' },
+  // 上课提醒发送状态
+  reminder_1h_sent: { type: Boolean, default: false },
+  reminder_30m_sent: { type: Boolean, default: false },
 }, { timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' } });
 
 bookingSchema.index({ user_id: 1, booking_date: 1 });

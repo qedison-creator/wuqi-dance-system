@@ -30,8 +30,10 @@ function getDanceTagColor(styleName) {
 
 const app = getApp();
 const { request } = require('../../utils/request');
-const { formatDate, getWeekDay } = require('../../utils/util');
+const { formatDate, getWeekDay, normalizeImageUrl } = require('../../utils/util');
 const auth = require('../../utils/auth');
+const config = require('../../config/index.js');
+const SERVER_BASE = config.serverBase;
 
 Page({
   data: {
@@ -54,7 +56,9 @@ Page({
     currentWaitlistId: null,
     showLimitModal: false,
     limitModalText: '',
-    imageErrors: {}
+    showLoginModal: false,
+    imageErrors: {},
+    isLoggedIn: !!getApp().globalData.token
   },
 
   async onLoad(options) {
@@ -108,7 +112,22 @@ Page({
       course.danceTagBg = tagColor.bg;
       course.danceTagText = tagColor.text;
       course.creditsCost = course.credits_cost || 1;
+      // 规范化封面图URL
+      course.cover = normalizeImageUrl(course.cover, SERVER_BASE);
       course.storeName = course.store_id && course.store_id.name ? course.store_id.name : '';
+      // 标记课程是否已开始（用于按钮状态）
+      const now = new Date();
+      const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+      let _started = false;
+      if (course.dateStr === todayStr && course.start_time) {
+        const s = String(course.start_time).split(':');
+        if (s.length >= 2) {
+          const startMin = parseInt(s[0], 10) * 60 + parseInt(s[1], 10);
+          const currentMin = now.getHours() * 60 + now.getMinutes();
+          _started = currentMin >= startMin;
+        }
+      }
+      course._started = _started;
       this.setData({ course, loading: false });
     }).catch(() => {
       this.setData({ loading: false });
@@ -215,7 +234,7 @@ Page({
   },
 
   onWaitlistTap() {
-    if (!auth.requireLogin()) return;
+    if (!auth.requireLogin(() => this.setData({ showLoginModal: true }))) return;
     auth.requireMember(() => {
       const { course } = this.data;
       this.setData({
@@ -349,9 +368,26 @@ Page({
   },
 
   onBookTap() {
-    if (!auth.requireLogin()) return;
+    if (!auth.requireLogin(() => this.setData({ showLoginModal: true }))) return;
     auth.requireMember(() => {
-      const { course, userPackages } = this.data;
+      const { course } = this.data;
+      // 客户端兜底校验：课程已开始不再允许预约
+      if (course && course.dateStr && course.start_time) {
+        const now = new Date();
+        const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+        if (course.dateStr === todayStr) {
+          const s = String(course.start_time).split(':');
+          if (s.length >= 2) {
+            const startMin = parseInt(s[0], 10) * 60 + parseInt(s[1], 10);
+            const currentMin = now.getHours() * 60 + now.getMinutes();
+            if (currentMin >= startMin) {
+              wx.showToast({ title: '课程已开始，无法预约', icon: 'none' });
+              return;
+            }
+          }
+        }
+      }
+      const { userPackages } = this.data;
       const hasPendingPackage = userPackages && userPackages.pending && userPackages.pending.length > 0;
       const hasActivePackage = userPackages && userPackages.current;
 
@@ -550,5 +586,14 @@ Page({
 
   onCoverImgError() {
     this.setData({ imageErrors: { cover: true } });
+  },
+
+  onLoginModalClose() {
+    this.setData({ showLoginModal: false });
+  },
+
+  onLoginSuccess() {
+    this.setData({ showLoginModal: false, isLoggedIn: true });
+    this.loadCourseDetail(this.data.courseId);
   }
 });

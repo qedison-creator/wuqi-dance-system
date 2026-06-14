@@ -42,7 +42,11 @@ const request = (options) => {
       },
       fail: (err) => {
         if (!silent) {
-          wx.showToast({ title: '网络连接失败', icon: 'none' });
+          const isTimeout = err.errMsg && err.errMsg.indexOf('timeout') !== -1;
+          wx.showToast({
+            title: isTimeout ? '请求超时，请重试' : '网络连接失败',
+            icon: 'none'
+          });
         }
         reject(err);
       }

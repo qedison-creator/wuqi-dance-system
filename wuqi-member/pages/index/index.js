@@ -49,7 +49,8 @@ Page({
     banners: [],
     hotCoaches: [],
     recentCourses: [],
-    videos: [],
+    images: [],
+    imageUrls: [],
     announces: [],
     hasMultipleAnnounces: false,
     showAnnounceModal: false,
@@ -58,6 +59,7 @@ Page({
     announceNextIndex: 1,
     announceAnimPhase: '',
     showStoreModal: false,
+    showLoginModal: false,
     showLocationAuthModal: false,
     loading: true,
     activeHolidays: [],
@@ -177,10 +179,31 @@ Page({
       request({ url: '/home/banners', data: { store_id: storeId } }),
       request({ url: '/home/coaches', data: { store_id: storeId, limit: 6 } }),
       request({ url: '/schedules', data: { store_id: storeId, limit: 50 } }),
-      request({ url: '/home/videos', data: { limit: 3 } })
-    ]).then(([bannerRes, coachRes, scheduleRes, videoRes]) => {
-      // 处理轮播图
-      const banners = Array.isArray(bannerRes.data) ? bannerRes.data : (bannerRes.data && bannerRes.data.data) || [];
+      request({ url: '/home/images', data: { limit: 6 } })
+    ]).then(([bannerRes, coachRes, scheduleRes, imageRes]) => {
+      // 处理轮播图 / 教练头像 / 课程封面 / 视频封面：统一使用 SERVER_BASE
+      // 注意：服务器返回的 URL 可能是 http 或 完整 https 地址，这里统一规范化为 /uploads/xxx 格式
+      // 当图片加载失败时，binderror 会触发 fallback 到本地默认图
+      const fixImageUrl = (url) => {
+        if (!url) return '';
+        // 如果是相对路径（/uploads/xxx），直接拼接 SERVER_BASE
+        if (url.startsWith('/')) return SERVER_BASE + url;
+        // 如果是本服务器的 URL（http://IP:3000/... 或 https://api.yuekeme.cn/...），提取路径拼 SERVER_BASE
+        const serverHosts = ['101.33.203.22:3000', 'localhost:3000', 'api.yuekeme.cn', 'admin-api.yuekeme.cn'];
+        const match = url.match(/^https?:\/\/([^/]+)(\/.*)/);
+        if (match) {
+          const host = match[1];
+          if (serverHosts.some(h => host === h || host.endsWith('.' + h))) {
+            return SERVER_BASE + match[2];
+          }
+          // 外部域名（如 images.unsplash.com）保留原样
+          return url;
+        }
+        // 其他情况原样返回
+        return url;
+      };
+      const banners = (Array.isArray(bannerRes.data) ? bannerRes.data : (bannerRes.data && bannerRes.data.data) || [])
+        .map(b => ({ ...b, image_url: fixImageUrl(b.image_url) }));
       this.setData({ banners });
 
       // 处理热门教练
@@ -188,13 +211,11 @@ Page({
       const rawCoaches = Array.isArray(coachData) ? coachData : (coachData.data || coachData.list || []);
       const coaches = rawCoaches.map(c => ({
         ...c,
-        avatar_url: c.avatar_url
-          ? (c.avatar_url.startsWith('http') ? c.avatar_url : SERVER_BASE + c.avatar_url)
-          : ''
+        avatar_url: fixImageUrl(c.avatar_url) || ''
       }));
       this.setData({ hotCoaches: coaches });
 
-      // 处理近期课程
+      // 处理近期课程（同时处理 cover 字段）
       const scheduleData = scheduleRes.data || {};
       const courses = Array.isArray(scheduleData) ? scheduleData : (scheduleData.data || scheduleData.list || []);
       const recentCourses = courses
@@ -217,15 +238,37 @@ Page({
             weekday,
             danceStyleName,
             danceTagBg: tagColor.bg,
-            danceTagText: tagColor.text
+            danceTagText: tagColor.text,
+            cover: fixImageUrl(course.cover) || ''
           };
         });
-      this.setData({ recentCourses });
+      this.setData({ recentCourses, loading: false });
 
-      // 处理视频
-      const videoData = videoRes.data || {};
-      const videos = Array.isArray(videoData) ? videoData : (videoData.data || videoData.list || []);
-      this.setData({ videos, loading: false });
+      // 处理图片
+      const rawImages = imageRes.data || [];
+      const imageList = Array.isArray(rawImages) ? rawImages : (rawImages.data || rawImages.list || []);
+      const images = imageList.map(img => {
+        const width = Number(img.width) || 0;
+        const height = Number(img.height) || 0;
+        let orientation = 'square';
+        let ratio = 1;
+        if (width > 0 && height > 0) {
+          ratio = width / height;
+          if (ratio > 1.1) orientation = 'landscape';
+          else if (ratio < 0.9) orientation = 'portrait';
+          else orientation = 'square';
+        }
+        return {
+          ...img,
+          image_url: fixImageUrl(img.image_url),
+          thumbnail_url: fixImageUrl(img.thumbnail_url),
+          orientation,
+          ratio,
+          coachName: img.coach_ids && img.coach_ids.length > 0 ? img.coach_ids[0].name : ''
+        };
+      });
+      const imageUrls = images.map(img => img.image_url);
+      this.setData({ images, imageUrls, loading: false });
 
     }).catch((err) => {
       console.error('加载首页数据失败:', err);
@@ -256,31 +299,39 @@ Page({
   },
 
   onStoreTap() {
-    // 尝试获取位置以显示距离
+    // 尝试获取模糊位置以显示距离
     const that = this;
     wx.getSetting({
       success(settingRes) {
-        if (settingRes.authSetting['scope.userLocation']) {
-          wx.getLocation({
-            type: 'gcj02',
-            altitude: true,
-            highAccuracyExpireTime: 10000,
+        if (settingRes.authSetting['scope.userFuzzyLocation']) {
+          wx.getFuzzyLocation({
             success(locRes) {
-              const { request } = require('../../utils/request');
-              request({
-                url: `/stores/nearest?latitude=${locRes.latitude}&longitude=${locRes.longitude}`
-              }).then(res => {
-                if (res.data && res.data.stores) {
-                  app.globalData.storeList = res.data.stores;
-                  that.setData({
-                    storeList: res.data.stores,
-                    showStoreModal: true
-                  });
-                } else {
-                  that.setData({ showStoreModal: true });
+              const lat = locRes.latitude;
+              const lng = locRes.longitude;
+
+              // 前端本地计算各门店距离
+              const storesWithDist = that.data.storeList.map(store => {
+                let storeLat, storeLng;
+                const loc = store.location;
+                if (loc && loc.latitude !== undefined && loc.longitude !== undefined) {
+                  storeLat = Number(loc.latitude);
+                  storeLng = Number(loc.longitude);
+                } else if (loc && loc.coordinates && loc.coordinates.length >= 2) {
+                  storeLng = Number(loc.coordinates[0]);
+                  storeLat = Number(loc.coordinates[1]);
                 }
-              }).catch(() => {
-                that.setData({ showStoreModal: true });
+
+                let dist = null;
+                if (!isNaN(storeLat) && !isNaN(storeLng)) {
+                  dist = that._haversineDistance(lat, lng, storeLat, storeLng);
+                }
+                return { ...store, distance: dist };
+              });
+
+              app.globalData.storeList = storesWithDist;
+              that.setData({
+                storeList: storesWithDist,
+                showStoreModal: true
               });
             },
             fail() {
@@ -301,6 +352,16 @@ Page({
     this.setData({ showStoreModal: false });
   },
 
+  onLoginModalClose() {
+    this.setData({ showLoginModal: false });
+  },
+
+  onLoginSuccess() {
+    this.setData({ showLoginModal: false });
+    // 登录成功后刷新页面数据
+    this.loadHomeData();
+  },
+
   checkLocationAuth() {
     if (app.globalData.pendingLocationAuth) {
       this.setData({ showLocationAuthModal: true });
@@ -316,7 +377,7 @@ Page({
     this.setData({ showLocationAuthModal: false });
     app.globalData.pendingLocationAuth = false;
     wx.authorize({
-      scope: 'scope.userLocation',
+      scope: 'scope.userFuzzyLocation',
       success: () => {
         app.requestLocationForNearestStore(app.globalData.storeList);
       },
@@ -364,7 +425,7 @@ Page({
   },
 
   onCoachTap(e) {
-    if (!auth.requireLogin()) return;
+    if (!auth.requireLogin(() => this.setData({ showLoginModal: true }))) return;
     const { id } = e.currentTarget.dataset;
     wx.navigateTo({
       url: `/pages/coach-detail/coach-detail?id=${id}`
@@ -372,20 +433,23 @@ Page({
   },
 
   onCourseTap(e) {
-    if (!auth.requireLogin()) return;
-    auth.requireMember(() => {
-      const { id } = e.currentTarget.dataset;
-      wx.navigateTo({
-        url: `/pages/course-detail/course-detail?id=${id}`
-      });
+    const { id } = e.currentTarget.dataset;
+    wx.navigateTo({
+      url: `/pages/course-detail/course-detail?id=${id}`
     });
   },
 
-  onVideoTap(e) {
-    const { id } = e.currentTarget.dataset;
-    wx.navigateTo({
-      url: `/pages/video-player/video-player?id=${id}`
+  onImageTap(e) {
+    const { url, urls } = e.currentTarget.dataset;
+    wx.previewImage({
+      current: url,
+      urls: urls || [url]
     });
+  },
+
+  onImageError(e) {
+    const id = e.currentTarget.dataset.id;
+    console.warn('图片加载失败:', id);
   },
 
   onNavTap() {
@@ -476,7 +540,9 @@ Page({
     }
   },
 
+  // 公告只对舞栖会员开放，游客无权查看
   onAnnounceTap() {
+    if (!auth.checkLogin()) return;
     wx.pageScrollTo({ scrollTop: 0, duration: 0 });
     this.setData({ showAnnounceModal: true, announceSwiperIndex: 0 });
     this.updateStackLayout();
@@ -638,6 +704,19 @@ Page({
       path: '/pages/index/index',
       imageUrl: ''
     };
+  },
+
+  // Haversine 公式计算两点间距离（米）
+  _haversineDistance(lat1, lng1, lat2, lng2) {
+    const R = 6371000;
+    const toRad = v => v * Math.PI / 180;
+    const dLat = toRad(lat2 - lat1);
+    const dLng = toRad(lng2 - lng1);
+    const a = Math.sin(dLat / 2) * Math.sin(dLat / 2)
+      + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2))
+      * Math.sin(dLng / 2) * Math.sin(dLng / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
   },
 
   onShareTimeline() {

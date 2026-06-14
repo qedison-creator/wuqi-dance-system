@@ -364,7 +364,7 @@ exports.createBooking = async (userId, scheduleId) => {
         await wechatMessageService.sendBookingSuccess(bookingUser, schedule);
       }
     } catch (notifyErr) {
-      console.error('[Booking] 发送预约成功通知失败:', notifyErr.message);
+      console.error('[Booking] 发送预约成功通知失败:', notifyErr.message, notifyErr.stack);
     }
 
     const result = {
@@ -562,7 +562,7 @@ exports.cancelBooking = async (userId, bookingId) => {
       await wechatMessageService.sendBookingCancel(cancelUser, schedule, cancelReason);
     }
   } catch (notifyErr) {
-    console.error('[Booking] 发送取消预约通知失败:', notifyErr.message);
+    console.error('[Booking] 发送取消预约通知失败:', notifyErr.message, notifyErr.stack);
   }
 
   return booking;

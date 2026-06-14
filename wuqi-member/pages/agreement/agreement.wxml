@@ -5,12 +5,15 @@
     <view class="privacy-date">生效日期：2026年5月31日</view>
 
     <view class="privacy-text">
-      <text>欢迎使用舞栖舞蹈社（以下简称"我们"）的服务。本协议是您与双瑗文化艺术（深圳）有限公司之间关于使用舞栖舞蹈社会员预约小程序（以下简称"本小程序"）的约定。在使用本小程序之前，请务必仔细阅读并理解本协议的全部内容。</text>
+      <text>欢迎使用舞栖舞蹈社相关服务。本协议是您与服务运营方之间，关于使用舞栖DANCE舞栖舞蹈社会员预约小程序（以下简称"本小程序"）所订立的约定。在使用本小程序前，请您仔细阅读本协议全部内容，您使用本小程序服务，即代表您自愿接受本协议的全部条款约束。</text>
     </view>
 
-    <view class="privacy-heading">商标声明</view>
+    <view class="privacy-heading">商标与经营主体声明</view>
     <view class="privacy-text">
-      <text>“舞栖DANCE”是深圳市双瑗文艺有限公司的注册商标，已授权双瑗文化艺术（深圳）有限公司使用。</text>
+      <text>"舞栖DANCE"为注册商标，商标权利持有人为深圳市双瑗文艺有限公司，该公司已将商标合法授权予双瑗文化艺术（深圳）有限公司使用。</text>
+    </view>
+    <view class="privacy-text">
+      <text>舞栖舞蹈社（福永店）由双瑗文化艺术（深圳）有限公司举办运营；舞栖舞蹈社（固戍店）由深圳市双瑗文艺有限公司举办运营。本小程序为两家门店共用的会员服务工具。</text>
     </view>
 
     <view class="privacy-heading">一、服务内容</view>
@@ -18,61 +21,60 @@
       <text>我们通过本小程序为您提供以下服务：</text>
     </view>
     <view class="privacy-text">
-      <text>• 课程浏览和预约\n</text>
-      <text>• 会员信息管理\n</text>
-      <text>• 套餐使用查询\n</text>
-      <text>• 签到和课程记录\n</text>
-      <text>• 联系门店客服\n</text>
+      <text>・课程浏览和预约\n</text>
+      <text>・会员信息查询\n</text>
+      <text>・套餐使用记录查询\n</text>
+      <text>・签到记录与上课记录查看</text>
     </view>
 
     <view class="privacy-heading">二、账号注册与使用</view>
     <view class="privacy-text">
-      <text>• 您需要使用微信账号登录并授权使用本小程序。\n</text>
-      <text>• 您应确保提交的个人信息真实、准确、完整。\n</text>
-      <text>• 您应对您的账号行为负责，不得转借他人使用。\n</text>
+      <text>・您需使用微信账号完成登录并授权本小程序获取相关微信基础信息。\n</text>
+      <text>・您的姓名、性别、手机号码等会员资料，均由门店工作人员统一手动录入系统，无需您自行填报。\n</text>
+      <text>・您需对本人小程序账号下的所有操作行为承担相应责任，请勿将账号转借他人使用。</text>
     </view>
 
     <view class="privacy-heading">三、会员服务</view>
     <view class="privacy-text">
-      <text>• 会员服务的具体内容以您购买的套餐为准。\n</text>
-      <text>• 您应遵守门店的课程预约、取消、签到规则。\n</text>
-      <text>• 您应遵守门店的其他相关管理规定。\n</text>
+      <text>・会员可享受的服务内容、使用规则，以您线下办理的课程套餐约定为准。\n</text>
+      <text>・您需严格遵守各门店制定的课程预约、取消、线下签到等管理规则。\n</text>
+      <text>・请自觉遵守门店其他各项管理规定，配合工作人员开展日常服务工作。</text>
     </view>
 
     <view class="privacy-heading">四、用户行为规范</view>
     <view class="privacy-text">
-      <text>• 您不得利用本小程序进行任何违法或违规活动。\n</text>
-      <text>• 您不得恶意预约、恶意取消课程，影响正常经营秩序。\n</text>
-      <text>• 您不得攻击或破坏本小程序的正常运行。\n</text>
+      <text>・严禁利用本小程序开展任何违反法律法规、公序良俗的行为。\n</text>
+      <text>・禁止恶意预约、频繁无故取消课程等扰乱门店正常经营秩序的行为。\n</text>
+      <text>・不得尝试攻击、干扰、破坏本小程序系统及服务器的正常运行。</text>
     </view>
 
     <view class="privacy-heading">五、知识产权</view>
     <view class="privacy-text">
-      <text>本小程序的软件著作权、商标权、标识等知识产权归舞栖舞蹈社所有。</text>
+      <text>本小程序相关软件著作权、界面设计、品牌标识等知识产权，归对应运营主体所有。</text>
     </view>
     <view class="privacy-text">
-      <text>小程序内展示的部分内容（如图片、视频等），其知识产权归相应的权利人所有。我们仅在业务范围内合理使用该等内容。</text>
+      <text>小程序内展示的图片、视频等内容，知识产权归原权利人所有，我方仅在合法经营范围内使用。未经书面授权，任何单位及个人不得擅自转载、篡改、商用。</text>
     </view>
 
     <view class="privacy-heading">六、免责声明</view>
     <view class="privacy-text">
-      <text>• 因不可抗力导致服务中断，我们不承担责任，但会尽力恢复服务。\n</text>
-      <text>• 因您违反本协议造成的损失，我们有权要求赔偿。\n</text>
+      <text>・因地震、网络故障、系统维护等不可抗力或不可归责于我方的原因导致服务临时中断的，我方不承担相应责任，并会尽快恢复服务。\n</text>
+      <text>・若因您违反本协议约定、违规操作造成自身或我方损失的，我方有权依法追究相关责任。</text>
     </view>
 
     <view class="privacy-heading">七、协议变更</view>
     <view class="privacy-text">
-      <text>我们可能会适时更新本协议。更新后的协议将在小程序内发布，继续使用即视为同意。</text>
+      <text>我方有权根据业务发展、法律法规要求适时修订本用户服务协议。协议更新后将在小程序内进行公示，您继续使用本小程序服务，即视为认可并接受更新后的协议条款。</text>
     </view>
 
     <view class="privacy-heading">八、争议解决</view>
     <view class="privacy-text">
-      <text>如您与我们发生争议，应友好协商解决。协商不成的，可向门店所在地人民法院提起诉讼。</text>
+      <text>您与我方就本协议及服务产生争议时，双方应首先友好协商解决；协商无法达成一致的，可向对应门店所在地人民法院提起诉讼。</text>
     </view>
 
     <view class="privacy-heading">九、联系我们</view>
     <view class="privacy-text">
-      <text>如有疑问，请通过小程序内的联系电话或直接到门店咨询。</text>
+      <text>若您有任何疑问、意见或需求，可通过小程序内公示的门店联系电话咨询，或直接前往对应门店现场沟通。</text>
     </view>
   </view>
 </view>

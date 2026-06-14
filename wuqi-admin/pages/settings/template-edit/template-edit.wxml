@@ -31,6 +31,11 @@
       </view>
 
       <view class="form-group">
+        <text class="form-label">模板标识 (key)</text>
+        <input class="input-field-mono" placeholder="唯一标识，如 bookingCancelByUser" value="{{item.template_key}}" data-index="{{index}}" catchtap="" bindinput="onKeyInput" />
+      </view>
+
+      <view class="form-group">
         <text class="form-label">模板名称</text>
         <input class="input-field" placeholder="系统内业务名称" value="{{item.template_name}}" data-index="{{index}}" catchtap="" bindinput="onNameInput" />
       </view>

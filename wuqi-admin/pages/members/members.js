@@ -120,6 +120,7 @@ Page({
       this.loadMembers();
     } catch (err) {
       console.error('获取门店列表失败', err);
+      wx.showToast({ title: '加载门店失败', icon: 'none' });
       // 即使获取门店列表失败，也尝试加载会员列表
       this.loadMembers();
     }
@@ -287,7 +288,8 @@ Page({
       const res = await request({
         url: '/members',
         method: 'GET',
-        data
+        data,
+        timeout: 30000
       });
       const result = res.data || {};
       const list = result.list || (Array.isArray(result) ? result : []);
@@ -295,10 +297,14 @@ Page({
       const pending = result.pendingCount || 0;
 
       const newList = list.map(member => {
-        let phone = member.phone;
-        if (phone && phone.length === 11) {
-          phone = phone.replace(/(\d{3})\d{4}(\d{4})/, '$1****$2');
-        }
+        const maskPhone = (p) => {
+          if (p && p.length === 11) {
+            return p.replace(/(\d{3})\d{4}(\d{4})/, '$1****$2');
+          }
+          return p;
+        };
+        const reservePhone = maskPhone(member.reserve_phone || member.phone || '');
+        const wechatPhone = maskPhone(member.wechat_phone || '');
 
         // 构建套餐信息文本
         let packageInfo = '';
@@ -313,8 +319,7 @@ Page({
             if (usablePkg.package_type === 'count_card') {
               const total = usablePkg.total_credits || 0;
               const remaining = usablePkg.remaining_credits || 0;
-              const used = total - remaining;
-              packageInfo = `${statusPrefix}${typeLabel} · ${used}/${total}次`;
+              packageInfo = `${statusPrefix}${typeLabel} · ${remaining}/${total}次`;
               if (dateRange) packageInfo += ' · ' + dateRange;
             } else {
               const duration = usablePkg.duration_value || 0;
@@ -374,10 +379,11 @@ Page({
         } else if (!member.packages || member.packages.length === 0) {
           displayStatus = 'no-package';
         } else {
+          // 按优先级判断套餐状态：active > pending > exhausted > expired
           const activePkg = member.packages.find(p => p.status === 'active' && p.is_activated);
-          const pendingPkg = member.packages.find(p => p.status === 'pending' || !p.is_activated);
-          const expiredPkg = member.packages.find(p => p.status === 'expired');
+          const pendingPkg = member.packages.find(p => p.status === 'pending' && !p.is_activated);
           const exhaustedPkg = member.packages.find(p => p.status === 'exhausted');
+          const expiredPkg = member.packages.find(p => p.status === 'expired');
           
           if (activePkg) {
             displayStatus = 'active';
@@ -385,10 +391,10 @@ Page({
           } else if (pendingPkg) {
             displayStatus = 'unactivated';
             canEditPackage = true;
-          } else if (expiredPkg) {
-            displayStatus = 'expired';
           } else if (exhaustedPkg) {
             displayStatus = 'exhausted';
+          } else if (expiredPkg) {
+            displayStatus = 'expired';
           } else {
             displayStatus = 'no-package';
           }
@@ -398,7 +404,9 @@ Page({
           ...member,
           nickname: member.nick_name,
           avatar: member.avatar_url,
-          phone: phone,
+          phone: reservePhone,
+          reserve_phone: reservePhone,
+          wechat_phone_display: wechatPhone,
           created_at: formatDate(member.created_at),
           reviewed_at: formatReviewDate(member.updated_at || member.created_at),
           status: displayStatus,
@@ -477,6 +485,10 @@ Page({
   onModalTap() {},
 
   async onSubmitReview() {
+    if (!app.hasPermission('member:review')) {
+      wx.showToast({ title: '无权限执行此操作', icon: 'none' });
+      return;
+    }
     const { reviewMember, reviewAction } = this.data;
     try {
       await request({
@@ -629,18 +641,34 @@ Page({
   async onSubmitPackage() {
     const { packageMember, packageForm } = this.data;
 
-    if (packageForm.package_type === 'count_card' && !packageForm.total_credits) {
-      wx.showToast({ title: '请输入次数', icon: 'none' });
+    // 验证门店是否已选择
+    if (!packageForm.store_id) {
+      wx.showToast({ title: '请选择门店', icon: 'none' });
       return;
     }
-    if (packageForm.package_type === 'count_card' && !packageForm.duration_value) {
+
+    if (packageForm.package_type === 'count_card') {
+      if (!packageForm.total_credits) {
+        wx.showToast({ title: '请输入次数', icon: 'none' });
+        return;
+      }
+      const totalCredits = parseInt(packageForm.total_credits);
+      if (isNaN(totalCredits) || totalCredits <= 0) {
+        wx.showToast({ title: '次数必须是正整数', icon: 'none' });
+        return;
+      }
+    }
+
+    if (!packageForm.duration_value) {
       wx.showToast({ title: '请输入服务有效期', icon: 'none' });
       return;
     }
-    if (packageForm.package_type === 'time_card' && !packageForm.duration_value) {
-      wx.showToast({ title: '请输入有效时长', icon: 'none' });
+    const durationValue = parseInt(packageForm.duration_value);
+    if (isNaN(durationValue) || durationValue <= 0) {
+      wx.showToast({ title: '有效期必须是正整数', icon: 'none' });
       return;
     }
+
     if (packageForm.package_type === 'time_card' && !packageForm.limit_type) {
       wx.showToast({ title: '请选择限制方式', icon: 'none' });
       return;
@@ -648,6 +676,13 @@ Page({
     if (packageForm.package_type === 'time_card' && packageForm.limit_type !== 'unlimited' && !packageForm.limit_value) {
       wx.showToast({ title: packageForm.limit_type === 'daily' ? '请输入每日限制' : '请输入每周限制', icon: 'none' });
       return;
+    }
+    if (packageForm.package_type === 'time_card' && packageForm.limit_type !== 'unlimited' && packageForm.limit_value) {
+      const limitValue = parseInt(packageForm.limit_value);
+      if (isNaN(limitValue) || limitValue <= 0) {
+        wx.showToast({ title: '限制次数必须是正整数', icon: 'none' });
+        return;
+      }
     }
 
     try {

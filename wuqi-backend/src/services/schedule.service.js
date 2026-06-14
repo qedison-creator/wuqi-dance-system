@@ -280,7 +280,7 @@ exports.updateSchedule = async (id, data, operatorId) => {
   });
 
   if (bookingCount > 0) {
-    // 已有预约，仅可修改教室、备注和人数设置
+    // 已有预约，仅可修改教室、备注和人数设置，清除其他字段避免误触发冲突检查
     const allowedFields = ['classroom', 'remark', 'note', 'cover', 'max_bookings', 'min_bookings'];
     const filteredData = {};
     for (const key of allowedFields) {
@@ -288,7 +288,8 @@ exports.updateSchedule = async (id, data, operatorId) => {
         filteredData[key] = data[key];
       }
     }
-    Object.assign(data, filteredData);
+    // 用过滤后的数据替换，确保不允许修改的字段不残留
+    data = filteredData;
   } else {
     // 无预约，检查是否已开始(当天已过开始时间)
     const now = dayjs();
@@ -433,7 +434,6 @@ exports.cancelSchedule = async (id, operatorId, reason = '') => {
             await wechatMessageService.sendBookingCancel(bookingUser, schedule, `${cancelReason}，次数已退还`);
           }
         } catch (notifyErr) {
-          console.error('[Schedule] 发送取消通知失败:', notifyErr.message);
         }
       }
     }
@@ -494,7 +494,6 @@ exports.offlineSchedule = async (id, reason, operatorId) => {
             await wechatMessageService.sendBookingCancel(bookingUser, schedule, '管理员下架课程，次数已退还');
           }
         } catch (notifyErr) {
-          console.error('[Schedule] 发送取消通知失败:', notifyErr.message);
         }
       }
     }

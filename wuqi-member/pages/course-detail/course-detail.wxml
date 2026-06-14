@@ -1,4 +1,9 @@
-<view class="page" wx:if="{{course}}">
+<view class="loading-state" wx:if="{{loading}}">
+  <view class="loading-spinner"></view>
+  <text class="loading-text">加载课程详情中...</text>
+</view>
+
+<view class="page" wx:elif="{{course}}">
   <view class="cover-section">
     <image class="cover-img" src="{{course.cover}}" binderror="onCoverImgError" mode="aspectFill" wx:if="{{course.cover && !imageErrors.cover}}" />
     <view class="cover-placeholder" wx:else>
@@ -90,13 +95,13 @@
       <view class="bb-secondary" bindtap="onLeaveWaitlistTap">退出候补</view>
       <view class="bb-primary state-waitlist">候补第{{waitlistPosition}}位</view>
     </view>
-    <view class="bb-primary" wx:elif="{{isOfficial && !course.isFull}}" bindtap="onBookTap">
+    <view class="bb-primary {{!isLoggedIn ? 'disabled' : ''}}" wx:elif="{{isOfficial && !course.isFull}}" bindtap="onBookTap">
       立即预约
     </view>
-    <view class="bb-primary state-waitlist-btn" wx:elif="{{isOfficial && course.isFull}}" bindtap="onWaitlistTap">
+    <view class="bb-primary state-waitlist-btn {{!isLoggedIn ? 'disabled' : ''}}" wx:elif="{{isOfficial && course.isFull}}" bindtap="onWaitlistTap">
       加入候补
     </view>
-    <view class="bb-primary disabled" wx:else bindtap="onBookTap">立即预约</view>
+    <view class="bb-primary {{!isLoggedIn ? 'disabled' : ''}}" wx:else bindtap="onBookTap">立即预约</view>
   </view>
 
   <view class="modal-mask" wx:if="{{showActivationModal}}" bindtap="onCancelActivation">
@@ -169,6 +174,8 @@
   <view class="loading-spinner"></view>
   <text class="loading-text">加载中...</text>
 </view>
+
+<login-modal visible="{{showLoginModal}}" bind:close="onLoginModalClose" bind:success="onLoginSuccess"></login-modal>
 
 <empty-state 
   wx:if="{{!loading && !course}}" 

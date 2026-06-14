@@ -3,6 +3,7 @@ const { request } = require('../../utils/request');
 const { checkLogin } = require('../../utils/auth');
 const auth = require('../../utils/auth');
 const config = require('../../config/index.js');
+const { normalizeImageUrl } = require('../../utils/util');
 
 const WEEKDAYS = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
 
@@ -60,7 +61,6 @@ Page({
     coach: null,
     danceStyleText: '',
     courses: [],
-    videos: [],
     loading: true,
     isOfficial: false,
     showBookingModal: false,
@@ -68,6 +68,7 @@ Page({
     bookingModalCourse: null,
     isLoggedInShowing: false,
     imageErrors: {},
+    images: [],
     bookedScheduleIds: [],
     waitlistedScheduleIds: [],
     showWaitlistModal: false,
@@ -76,7 +77,6 @@ Page({
   },
 
   onLoad(options) {
-    if (!auth.requireLogin()) return;
     const userInfo = app.globalData.userInfo || {};
     this.setData({ isOfficial: userInfo.member_status === 'official' });
     if (options.id) {
@@ -154,25 +154,16 @@ Page({
       const coach = {
         _id: coachData._id || '',
         name: coachData.name || '未知教练',
-        avatar_url: coachData.avatar_url
-          ? (coachData.avatar_url.startsWith('http') ? coachData.avatar_url : SERVER_BASE + coachData.avatar_url)
-          : '/images/default-avatar.svg',
+        avatar_url: normalizeImageUrl(coachData.avatar_url, SERVER_BASE) || '/images/default-avatar.svg',
         dance_styles: coachData.dance_styles || [],
-        introduction: coachData.introduction || '',
-        gallery: coachData.gallery || []
+        introduction: coachData.introduction || ''
       };
       const danceStyleNames = coach.dance_styles
         ? coach.dance_styles.map(ds => ds.name || '未知舞种')
         : [];
       const danceStyleText = danceStyleNames.join(' / ');
 
-      const rawVideos = coachData.videos || [];
-      const processedVideos = rawVideos.map(video => ({
-        ...video,
-        display_cover: video.cover_url || video.thumbnail || '/images/default-course.svg'
-      }));
-
-      this.setData({ coach, danceStyleText, videos: processedVideos });
+      this.setData({ coach, danceStyleText });
 
       wx.setNavigationBarTitle({ title: coach.name });
 
@@ -216,10 +207,9 @@ Page({
     
     this.loadMyBookings();
     this.loadMyWaitlists();
+    this.loadCoachImages(id);
 
-    const videosPromise = Promise.resolve([]);
-
-    return Promise.all([coachPromise, schedulesPromise, videosPromise])
+    return Promise.all([coachPromise, schedulesPromise])
       .then(() => {
         this.setData({ loading: false });
       })
@@ -229,17 +219,25 @@ Page({
       });
   },
 
+  loadCoachImages(coachId) {
+    request({ url: `/images?coach_id=${coachId}&pageSize=100`, silent: true }).then(res => {
+      const data = res.data || {};
+      const list = data.list || (Array.isArray(data) ? data : []);
+      const images = list.map(img => ({
+        ...img,
+        image_url: normalizeImageUrl(img.image_url, SERVER_BASE),
+        thumbnail_url: normalizeImageUrl(img.thumbnail_url, SERVER_BASE)
+      }));
+      this.setData({ images, imageUrls: images.map(i => i.image_url) });
+    }).catch(() => {
+      this.setData({ images: [] });
+    });
+  },
+
   onCourseTap(e) {
     const { id } = e.currentTarget.dataset;
     wx.navigateTo({
       url: `/pages/course-detail/course-detail?id=${id}`
-    });
-  },
-
-  onVideoTap(e) {
-    const { id } = e.currentTarget.dataset;
-    wx.navigateTo({
-      url: `/pages/video-player/video-player?id=${id}`
     });
   },
 
@@ -330,9 +328,11 @@ Page({
 
   onPreviewGallery(e) {
     const index = e.currentTarget.dataset.index;
+    const current = this.data.images[index];
+    if (!current) return;
     wx.previewImage({
-      current: this.data.coach.gallery[index],
-      urls: this.data.coach.gallery
+      current: current.image_url,
+      urls: this.data.imageUrls
     });
   },
 

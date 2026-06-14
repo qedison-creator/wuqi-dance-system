@@ -1,6 +1,6 @@
 .page {
   padding: 0;
-  padding-bottom: 140rpx;
+  padding-bottom: calc(140rpx + env(safe-area-inset-bottom));
   background-color: #F6F3F0;
   min-height: 100vh;
   max-width: 750rpx;
@@ -688,6 +688,24 @@
 .member-phone {
   font-size: 24rpx;
   color: #8B7E6A;
+}
+
+.member-phone-line {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24rpx;
+  align-items: center;
+}
+
+.phone-item {
+  font-size: 24rpx;
+  color: #8B7E6A;
+}
+
+.phone-label {
+  font-size: 22rpx;
+  color: #B5A5A5;
+  margin-right: 8rpx;
 }
 
 .review-date {

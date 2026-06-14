@@ -47,7 +47,7 @@ async function sendLowCountReminder(user, packageInfo) {
 
     await sendByTemplateKey(user.openid, 'countCardLowRemind', {
       packageType: `${packageInfo.total_credits}次卡`,
-      remindType: '次数不足提醒',
+      remindType: '套餐额度',
       remindReason: `剩余次数仅剩${packageInfo.remaining_credits}次`,
       tipMessage: '跳舞次数快用完啦，赶紧囤卡哟'
     }, 'pages/profile/profile');
@@ -72,7 +72,7 @@ async function sendInactiveReminder(user, daysInactive, packageInfo) {
 
     await sendByTemplateKey(user.openid, 'memberInactiveRemind', {
       packageType,
-      remindType: '不活跃提醒',
+      remindType: '久未跳舞',
       remindReason: `您已超过${daysInactive}天未预约课程`,
       tipMessage: '舞蹈社想你啦，快来跳支舞吧'
     }, 'pages/booking/booking');
@@ -119,16 +119,20 @@ async function checkPackageExpireReminders() {
     const daysLeft = dayjs(pkg.end_date).diff(today, 'day');
 
     if (pkg.package_type === 'time_card') {
-      await sendPackageExpireReminder(pkg.user_id, pkg, daysLeft);
-      pkg.last_expire_reminded_at = new Date();
-      await pkg.save();
-      sentCount++;
-    } else if (pkg.package_type === 'count_card') {
-      if (pkg.remaining_credits > 0) {
-        await sendPackageExpireReminder(pkg.user_id, pkg, daysLeft);
+      const sent = await sendPackageExpireReminder(pkg.user_id, pkg, daysLeft);
+      if (sent) {
         pkg.last_expire_reminded_at = new Date();
         await pkg.save();
         sentCount++;
+      }
+    } else if (pkg.package_type === 'count_card') {
+      if (pkg.remaining_credits > 0) {
+        const sent = await sendPackageExpireReminder(pkg.user_id, pkg, daysLeft);
+        if (sent) {
+          pkg.last_expire_reminded_at = new Date();
+          await pkg.save();
+          sentCount++;
+        }
       }
     }
   }
@@ -145,6 +149,8 @@ async function checkCountCardLowReminders() {
   const lowCountRemindInterval = await getConfig('low_count_remind_interval', DEFAULT_LOW_COUNT_REMIND_INTERVAL);
   const today = dayjs().startOf('day');
 
+  console.log(`[Reminder] 次卡低次数检查参数: lowCount=${lowCount}, interval=${lowCountRemindInterval}, today=${today.format('YYYY-MM-DD')}`);
+
   const packages = await UserPackage.find({
     package_type: 'count_card',
     status: 'active',
@@ -152,25 +158,40 @@ async function checkCountCardLowReminders() {
     end_date: { $gte: today.toDate() }
   }).populate('user_id');
 
+  console.log(`[Reminder] 次卡低次数查询结果: ${packages.length}个套餐`);
+
   let sentCount = 0;
   for (const pkg of packages) {
-    if (!pkg.user_id || !pkg.user_id.openid) continue;
+    if (!pkg.user_id || !pkg.user_id.openid) {
+      console.log(`[Reminder] 跳过套餐 ${pkg._id}: 用户无openid, userId=${pkg.user_id?._id}`);
+      continue;
+    }
 
-    if (pkg.user_id.status === 'disabled') continue;
-    if (pkg.is_suspended) continue;
+    if (pkg.user_id.status === 'disabled') {
+      console.log(`[Reminder] 跳过套餐 ${pkg._id}: 用户已禁用`);
+      continue;
+    }
+    if (pkg.is_suspended) {
+      console.log(`[Reminder] 跳过套餐 ${pkg._id}: 套餐已暂停`);
+      continue;
+    }
 
     // 去重：如果间隔时间内已提醒过，跳过
     if (pkg.last_low_count_reminded_at) {
       const lastReminded = dayjs(pkg.last_low_count_reminded_at);
       if (today.diff(lastReminded, 'day') < lowCountRemindInterval) {
+        console.log(`[Reminder] 跳过套餐 ${pkg._id}: ${today.diff(lastReminded, 'day')}天内已提醒过`);
         continue;
       }
     }
 
-    await sendLowCountReminder(pkg.user_id, pkg);
-    pkg.last_low_count_reminded_at = new Date();
-    await pkg.save();
-    sentCount++;
+    console.log(`[Reminder] 准备发送次卡低次数提醒: 套餐=${pkg._id}, 剩余=${pkg.remaining_credits}次, openid=${pkg.user_id.openid?.substring(0,8)}...`);
+    const sent = await sendLowCountReminder(pkg.user_id, pkg);
+    if (sent) {
+      pkg.last_low_count_reminded_at = new Date();
+      await pkg.save();
+      sentCount++;
+    }
   }
 
   console.log(`[Reminder] 次卡低次数提醒检查完成，共发送 ${sentCount} 条提醒`);
@@ -232,10 +253,12 @@ async function checkInactiveMemberReminders() {
     }
 
     if (daysInactive >= inactiveDays) {
-          await sendInactiveReminder(user, daysInactive, activePackage);
-          user.last_inactive_reminded_at = new Date();
-      await user.save();
-      sentCount++;
+      const sent = await sendInactiveReminder(user, daysInactive, activePackage);
+      if (sent) {
+        user.last_inactive_reminded_at = new Date();
+        await user.save();
+        sentCount++;
+      }
     }
   }
 

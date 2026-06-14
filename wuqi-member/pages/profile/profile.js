@@ -22,6 +22,7 @@ Page({
     packages: [],
     allPackages: [],
     currentPackage: null,
+    activePackages: [],
     pendingPackages: [],
     historyPackages: [],
     showPackageHistory: false,
@@ -304,7 +305,7 @@ Page({
             var storePhone = (storeObj && storeObj.phone) || '';
             var profileForm = {
               real_name: userInfo.real_name || '',
-              phone: userInfo.phone || '',
+              phone: userInfo.reserve_phone || userInfo.phone || '',
               gender: userInfo.gender || 0,
               store_id: storeId,
               store_name: storeName
@@ -487,7 +488,16 @@ Page({
   },
 
   onLoginTap() {
-    wx.navigateTo({ url: '/pages/login/login' });
+    this.setData({ showLoginModal: true });
+  },
+
+  onLoginModalClose() {
+    this.setData({ showLoginModal: false });
+  },
+
+  onLoginSuccess() {
+    this.setData({ showLoginModal: false });
+    this.checkLoginStatus();
   },
 
   _fallbackStorePicker() {
@@ -645,7 +655,7 @@ Page({
         var storeName = (storeObj && storeObj.name) || userInfo.store_name || '';
         var profileForm = {
           real_name: userInfo.real_name || '',
-          phone: userInfo.phone || '',
+          phone: userInfo.reserve_phone || userInfo.phone || '',
           gender: userInfo.gender || 0,
           store_id: storeId,
           store_name: storeName
@@ -706,6 +716,7 @@ Page({
     }
 
     var currentPackage = null;
+    var activePackages = [];
     var pendingPackages = [];
     var historyPackages = [];
 
@@ -832,28 +843,27 @@ Page({
       pkg._progressFillClass = 'pkg-progress-fill pkg-progress-fill-' + pkg.status;
       pkg._progressWidthStyle = 'width: ' + (pkg._progressPercent || 0) + '%;';
       
-      // 分类
-      if (pkg.status === 'active') {
-        if (!currentPackage) {
-          currentPackage = pkg;
-        } else if (pkg.is_suspended && !currentPackage.is_suspended) {
-          historyPackages.push(currentPackage);
-          currentPackage = pkg;
-        } else if (!pkg.is_suspended && currentPackage.is_suspended) {
-          currentPackage = pkg;
-        } else {
-          historyPackages.push(pkg);
-        }
+      // 分类：使用中 / 待激活 / 历史
+      // 使用中：status === 'active'，未暂停，且未过期，且次卡还有次数
+      if (pkg.status === 'active' && !pkg.is_suspended) {
+        activePackages.push(pkg);
       } else if (pkg.status === 'pending') {
         pendingPackages.push(pkg);
       } else {
+        // 历史：expired / 用完的active / 暂停的(is_suspended) / exhausted等
         historyPackages.push(pkg);
       }
     });
 
+    // currentPackage取第一个active（兼容旧逻辑）
+    if (activePackages.length > 0) {
+      currentPackage = activePackages[0];
+    }
+
     this.setData({
       allPackages: packages,
       currentPackage: currentPackage,
+      activePackages: activePackages,
       pendingPackages: pendingPackages,
       historyPackages: historyPackages,
       currentPackageType: currentPackage ? (currentPackage.package_type === 'time_card' ? '时间卡' : '次卡') : '',

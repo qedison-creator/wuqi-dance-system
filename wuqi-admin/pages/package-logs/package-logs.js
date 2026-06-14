@@ -11,6 +11,8 @@ Page({
     loading: true,
     page: 1,
     pageSize: 20,
+    hasMore: true, // 是否还有更多数据
+    requestId: 0, // 请求标识，用于解决竞态条件
     // 门店筛选
     storeList: [],
     currentStoreIndex: 0,
@@ -79,7 +81,8 @@ Page({
       currentStoreName: store ? store.name : '全部门店',
       showStoreModal: false,
       loading: true,
-      page: 1
+      page: 1,
+      hasMore: true
     }, () => {
       this.loadList();
     });
@@ -87,7 +90,13 @@ Page({
 
   onTabChange(e) {
     const tab = e.currentTarget.dataset.tab;
-    this.setData({ activeTab: tab, loading: true, page: 1 });
+    // 切换标签时重置分页状态
+    this.setData({ 
+      activeTab: tab, 
+      loading: true, 
+      page: 1,
+      hasMore: true 
+    });
     this.loadList();
   },
 
@@ -104,7 +113,12 @@ Page({
   },
 
   async loadActivationList() {
+    // 竞态条件处理：生成请求标识
+    const currentRequestId = Date.now();
+    this.setData({ requestId: currentRequestId });
+    
     try {
+      this.setData({ loading: true });
       const res = await request({
         url: '/packages/package-activations',
         method: 'GET',
@@ -114,8 +128,15 @@ Page({
           store_id: this.data.currentStore ? this.data.currentStore._id : ''
         }
       });
+      
+      // 竞态条件处理：检查是否是最新的请求
+      if (this.data.requestId !== currentRequestId) {
+        console.log('忽略过期的激活记录请求');
+        return;
+      }
+      
       const data = res.data || {};
-      const activationList = (data.list || []).map(item => {
+      const newList = (data.list || []).map(item => {
         const typeMap = { manual: '手动激活', auto: '自动激活', booking: '预约激活' };
         return {
           ...item,
@@ -125,18 +146,33 @@ Page({
           expire_date_display: item.expire_date ? item.expire_date.split('T')[0] : '-',
         };
       });
+      
+      // 分页处理：第一页替换数据，后续页面追加数据
+      const activationList = this.data.page === 1 ? newList : [...this.data.activationList, ...newList];
+      const hasMore = newList.length >= this.data.pageSize;
+      
       this.setData({ 
         activationList,
+        hasMore,
         loading: false 
       });
     } catch (err) {
       console.error('加载激活记录失败', err);
-      this.setData({ loading: false });
+      // 竞态条件处理：检查是否是最新的请求
+      if (this.data.requestId === currentRequestId) {
+        wx.showToast({ title: '加载失败', icon: 'none' });
+        this.setData({ loading: false });
+      }
     }
   },
 
   async loadExtensionList() {
+    // 竞态条件处理：生成请求标识
+    const currentRequestId = Date.now();
+    this.setData({ requestId: currentRequestId });
+    
     try {
+      this.setData({ loading: true });
       const res = await request({
         url: '/packages/package-extensions',
         method: 'GET',
@@ -146,8 +182,15 @@ Page({
           store_id: this.data.currentStore ? this.data.currentStore._id : ''
         }
       });
+      
+      // 竞态条件处理：检查是否是最新的请求
+      if (this.data.requestId !== currentRequestId) {
+        console.log('忽略过期的延长记录请求');
+        return;
+      }
+      
       const data = res.data || {};
-      const extensionList = (data.list || []).map(item => {
+      const newList = (data.list || []).map(item => {
         const typeMap = { manual: '手动延长', holiday: '放假顺延', system: '系统延长' };
         return {
           ...item,
@@ -157,18 +200,33 @@ Page({
           new_expire_display: item.new_expire ? item.new_expire.split('T')[0] : '-',
         };
       });
+      
+      // 分页处理：第一页替换数据，后续页面追加数据
+      const extensionList = this.data.page === 1 ? newList : [...this.data.extensionList, ...newList];
+      const hasMore = newList.length >= this.data.pageSize;
+      
       this.setData({ 
         extensionList,
+        hasMore,
         loading: false 
       });
     } catch (err) {
       console.error('加载延长记录失败', err);
-      this.setData({ loading: false });
+      // 竞态条件处理：检查是否是最新的请求
+      if (this.data.requestId === currentRequestId) {
+        wx.showToast({ title: '加载失败', icon: 'none' });
+        this.setData({ loading: false });
+      }
     }
   },
 
   async loadEntryList() {
+    // 竞态条件处理：生成请求标识
+    const currentRequestId = Date.now();
+    this.setData({ requestId: currentRequestId });
+    
     try {
+      this.setData({ loading: true });
       const res = await request({
         url: '/packages/entry-records',
         method: 'GET',
@@ -178,8 +236,15 @@ Page({
           store_id: this.data.currentStore ? this.data.currentStore._id : ''
         }
       });
+      
+      // 竞态条件处理：检查是否是最新的请求
+      if (this.data.requestId !== currentRequestId) {
+        console.log('忽略过期的录入记录请求');
+        return;
+      }
+      
       const data = res.data || {};
-      const entryList = (data.list || []).map(item => {
+      const newList = (data.list || []).map(item => {
         const statusMap = { active: '已激活', pending: '待激活', expired: '已过期', exhausted: '已用完' };
         const packageTypeMap = { count_card: '次卡', time_card: '时间卡' };
         let creditsText = '';
@@ -197,14 +262,36 @@ Page({
           created_at_display: item.created_at ? this.formatDateTime(item.created_at) : '-',
         };
       });
+      
+      // 分页处理：第一页替换数据，后续页面追加数据
+      const entryList = this.data.page === 1 ? newList : [...this.data.entryList, ...newList];
+      const hasMore = newList.length >= this.data.pageSize;
+      
       this.setData({ 
         entryList,
+        hasMore,
         loading: false 
       });
     } catch (err) {
       console.error('加载录入记录失败', err);
-      this.setData({ loading: false });
+      // 竞态条件处理：检查是否是最新的请求
+      if (this.data.requestId === currentRequestId) {
+        wx.showToast({ title: '加载失败', icon: 'none' });
+        this.setData({ loading: false });
+      }
     }
+  },
+
+  // 触底加载更多
+  onReachBottom() {
+    if (!this.data.hasMore || this.data.loading) {
+      return;
+    }
+    this.setData({
+      page: this.data.page + 1
+    }, () => {
+      this.loadList();
+    });
   },
 
   formatDateTime(dateStr) {

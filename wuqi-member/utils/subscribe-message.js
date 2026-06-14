@@ -15,6 +15,7 @@ const config = require('../config/index.js');
 const SUBSCRIBE_TEMPLATES = {
   BOOKING_SUCCESS: '',
   BOOKING_CANCEL: '',
+  BOOKING_CANCEL_BY_USER: '',
   CLASS_REMINDER: '',
   WAITLIST_AVAILABLE: '',
   PACKAGE_EXPIRING: '',
@@ -42,9 +43,11 @@ const fetchTemplates = (force = false) => {
       success: (res) => {
         if (res.statusCode === 200 && res.data && res.data.code === 200 && res.data.data) {
           const tpl = res.data.data;
+          
           if (tpl.bookingSuccessTemplateId) SUBSCRIBE_TEMPLATES.BOOKING_SUCCESS = tpl.bookingSuccessTemplateId;
           if (tpl.classReminderTemplateId) SUBSCRIBE_TEMPLATES.CLASS_REMINDER = tpl.classReminderTemplateId;
           if (tpl.bookingCancelTemplateId) SUBSCRIBE_TEMPLATES.BOOKING_CANCEL = tpl.bookingCancelTemplateId;
+          if (tpl.bookingCancelByUserTemplateId) SUBSCRIBE_TEMPLATES.BOOKING_CANCEL_BY_USER = tpl.bookingCancelByUserTemplateId;
           if (tpl.waitlistAvailableTemplateId) SUBSCRIBE_TEMPLATES.WAITLIST_AVAILABLE = tpl.waitlistAvailableTemplateId;
           if (tpl.packageExpiringTemplateId) SUBSCRIBE_TEMPLATES.PACKAGE_EXPIRING = tpl.packageExpiringTemplateId;
           if (tpl.packageActivatedTemplateId) SUBSCRIBE_TEMPLATES.PACKAGE_ACTIVATED = tpl.packageActivatedTemplateId;
@@ -56,8 +59,7 @@ const fetchTemplates = (force = false) => {
         templatesLoading = false;
         resolve();
       },
-      fail: (err) => {
-        console.error('[SubscribeMessage] 加载模板失败:', err);
+      fail: () => {
         templatesLoaded = true;
         templatesLoading = false;
         resolve();
@@ -98,7 +100,7 @@ const setGuideAccepted = (sceneKey) => {
 
 /**
  * 请求订阅消息授权（单次最多3个模板ID，弹1次窗）
- * 先弹引导提示，再调微信授权
+ * 已授权的模板不再重复弹引导窗，直接静默通过
  * @param {string[]} tmplIds - 模板ID列表
  * @param {string} sceneKey - 场景标识，用于去重缓存（如 'booking', 'waitlist', 'package', 'cancel', 'phoneAudit'）
  * @param {boolean} skipGuide - 是否跳过引导弹窗，直接调微信授权
@@ -119,8 +121,7 @@ const requestSubscribeMessage = (tmplIds, sceneKey = '', skipGuide = false) => {
         success: (res) => {
           resolve(res);
         },
-        fail: (err) => {
-          console.error('[SubscribeMessage] 授权失败:', err);
+        fail: () => {
           resolve({});
         }
       });
@@ -130,13 +131,19 @@ const requestSubscribeMessage = (tmplIds, sceneKey = '', skipGuide = false) => {
     // 先弹引导提示，引导用户勾选"总是保持以上选择"
     const doRequestWechat = () => {
       setGuideAccepted(sceneKey);
+      // 注意：wx.requestSubscribeMessage 必须在用户点击事件中直接调用，
+      // 不能使用 setTimeout 延迟，否则会报 "can only be invoked by user TAP gesture" 错误
       wx.requestSubscribeMessage({
         tmplIds: validIds,
         success: (res) => {
+          const acceptedIds = [];
+          validIds.forEach(id => {
+            if (res[id] === 'accept') acceptedIds.push(id);
+          });
+          if (acceptedIds.length > 0) markTemplatesAccepted(acceptedIds);
           resolve(res);
         },
-        fail: (err) => {
-          console.error('[SubscribeMessage] 授权失败:', err);
+        fail: () => {
           resolve({});
         }
       });
@@ -147,25 +154,69 @@ const requestSubscribeMessage = (tmplIds, sceneKey = '', skipGuide = false) => {
       return;
     }
 
-    wx.showModal({
-      title: '开启消息通知',
-      content: '为了及时收到上课提醒、预约结果等通知，请在接下来弹出的窗口中勾选「总是保持以上选择，不再询问」，这样以后就不会再重复弹窗啦～',
-      confirmText: '去授权',
-      cancelText: '暂不开启',
-      showCancel: true,
-      success: (modalRes) => {
-        if (modalRes.confirm) {
+    // 检查用户是否已授权所有需要的模板（已勾选"总是保持"的模板无需再弹引导窗）
+    wx.getSetting({
+      withSubscriptions: true,
+      success: (settingRes) => {
+        const subscriptions = settingRes.subscriptionsSetting || {};
+        const itemSettings = subscriptions.itemSettings || {};
+
+        // 检查是否所有模板都已被接受
+        const allAccepted = validIds.every(id => itemSettings[id] === 'accept');
+
+        if (allAccepted && subscriptions.mainSwitch !== false) {
+          // 全部已授权，跳过引导弹窗，直接调微信接口（不会弹窗）
           doRequestWechat();
         } else {
-          // 用户点"暂不开启"，缓存跳过状态（24小时内不再提示该场景）
-          if (sceneKey) {
-            setGuideSkipped(sceneKey);
-          }
-          resolve({});
+          // 有未授权的模板，显示引导弹窗
+          const unsubscribedCount = validIds.filter(id => itemSettings[id] !== 'accept').length;
+          const guideContent = unsubscribedCount > 1
+            ? '请求授权' + unsubscribedCount + '个消息模板。微信将弹出授权窗口，勾选「总是保持以上选择」后，以后相同场景不再重复弹窗。'
+            : '请求授权消息通知。微信将弹出授权窗口，勾选「总是保持以上选择」后，以后不再重复弹窗。';
+
+          wx.showModal({
+            title: '开启消息通知',
+            content: guideContent,
+            confirmText: '去授权',
+            cancelText: '暂不开启',
+            showCancel: true,
+            success: (modalRes) => {
+              if (modalRes.confirm) {
+                doRequestWechat();
+              } else {
+                if (sceneKey) {
+                  setGuideSkipped(sceneKey);
+                }
+                resolve({});
+              }
+            },
+            fail: () => {
+              resolve({});
+            }
+          });
         }
       },
       fail: () => {
-        resolve({});
+        wx.showModal({
+          title: '开启消息通知',
+          content: '微信将弹出授权窗口，勾选「总是保持以上选择」可避免重复弹窗。',
+          confirmText: '去授权',
+          cancelText: '暂不开启',
+          showCancel: true,
+          success: (modalRes) => {
+            if (modalRes.confirm) {
+              doRequestWechat();
+            } else {
+              if (sceneKey) {
+                setGuideSkipped(sceneKey);
+              }
+              resolve({});
+            }
+          },
+          fail: () => {
+            resolve({});
+          }
+        });
       }
     });
   });
@@ -183,36 +234,24 @@ const requestBookingSubscribe = async () => {
     SUBSCRIBE_TEMPLATES.CLASS_REMINDER,
     SUBSCRIBE_TEMPLATES.BOOKING_CANCEL
   ].filter(id => id);
-  if (ids.length === 0) return Promise.resolve({});
+  if (ids.length === 0) {
+    return Promise.resolve({});
+  }
   return requestSubscribeMessage(ids, 'booking');
 };
 
 /**
- * 取消预约时：取消通知 + 不活跃提醒 + 次卡低次数
+ * 取消预约时：预约取消通知 + 不活跃提醒 + 次卡低次数
  */
 const requestCancelSubscribe = async () => {
   await fetchTemplates(true);
   const ids = [
-    SUBSCRIBE_TEMPLATES.BOOKING_CANCEL,
+    SUBSCRIBE_TEMPLATES.BOOKING_CANCEL_BY_USER,
     SUBSCRIBE_TEMPLATES.MEMBER_INACTIVE_REMIND,
     SUBSCRIBE_TEMPLATES.COUNT_CARD_LOW_REMIND
   ].filter(id => id);
   if (ids.length === 0) return Promise.resolve({});
   return requestSubscribeMessage(ids, 'cancel');
-};
-
-/**
- * 加入候补时：候补成功 + 上课提醒 + 不活跃提醒
- */
-const requestWaitlistSubscribe = async () => {
-  await fetchTemplates(true);
-  const ids = [
-    SUBSCRIBE_TEMPLATES.WAITLIST_AVAILABLE,
-    SUBSCRIBE_TEMPLATES.CLASS_REMINDER,
-    SUBSCRIBE_TEMPLATES.MEMBER_INACTIVE_REMIND
-  ].filter(id => id);
-  if (ids.length === 0) return Promise.resolve({});
-  return requestSubscribeMessage(ids, 'waitlist');
 };
 
 /**
@@ -277,6 +316,38 @@ const getAcceptedTemplates = (subscribeResult) => {
   });
 };
 
+/**
+ * 本地订阅授权记录（storage key: subscribe_accepted_map）
+ * 用于补充 wx.getSetting 的不足：
+ *   - 用户点"允许"但未勾"总是保持"时，itemSettings 读不到 accept
+ *   - 此本地记录只要用户点过"允许"就保持为已订阅状态
+ * 数据结构：{ templateId: true, templateId2: true, ... }
+ */
+const SUBSCRIBE_ACCEPTED_KEY = 'subscribe_accepted_map';
+
+const getLocalAcceptedMap = () => {
+  try {
+    return wx.getStorageSync(SUBSCRIBE_ACCEPTED_KEY) || {};
+  } catch (e) {
+    return {};
+  }
+};
+
+const markTemplatesAccepted = (templateIds) => {
+  if (!templateIds || templateIds.length === 0) return;
+  try {
+    const map = getLocalAcceptedMap();
+    templateIds.forEach(id => { if (id) map[id] = true; });
+    wx.setStorageSync(SUBSCRIBE_ACCEPTED_KEY, map);
+  } catch (e) {}
+};
+
+const isTemplateAcceptedLocally = (templateId) => {
+  if (!templateId) return false;
+  const map = getLocalAcceptedMap();
+  return !!map[templateId];
+};
+
 module.exports = {
   SUBSCRIBE_TEMPLATES,
   fetchTemplates,
@@ -284,8 +355,10 @@ module.exports = {
   requestBookingSubscribe,
   requestCancelSubscribe,
   requestPackageSubscribe,
-  requestWaitlistSubscribe,
   requestWaitlistAndBookingSubscribe,
   requestPhoneAuditSubscribe,
-  getAcceptedTemplates
+  getAcceptedTemplates,
+  markTemplatesAccepted,
+  isTemplateAcceptedLocally,
+  getLocalAcceptedMap
 };

@@ -72,6 +72,9 @@
 
 /* 汇总行 */
 .summary-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   padding: 12rpx 0 8rpx;
   border-top: 1rpx solid #F0EBE4;
 }
@@ -99,6 +102,8 @@
 /* ========== 可滚动内容区 ========== */
 .content {
   flex: 1;
+  width: 100%;
+  box-sizing: border-box;
   padding: 12rpx 28rpx 40rpx;
 }
 
@@ -107,6 +112,8 @@
   display: flex;
   flex-direction: column;
   gap: 24rpx;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .year-group {
@@ -114,6 +121,9 @@
   border-radius: 24rpx;
   padding: 28rpx;
   box-shadow: 0 2rpx 12rpx rgba(44,36,22,0.05);
+  width: 100%;
+  box-sizing: border-box;
+  overflow: hidden;
 }
 
 .year-header {
@@ -122,17 +132,26 @@
   justify-content: space-between;
   padding-bottom: 16rpx;
   border-bottom: 2rpx solid #F0EBE4;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .year-label {
   font-size: 34rpx;
   color: #2C2416;
   font-weight: 700;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .year-count {
   font-size: 24rpx;
   color: #948284;
+  flex-shrink: 0;
+  margin-left: 16rpx;
 }
 
 /* 月份 */
@@ -140,12 +159,16 @@
   display: flex;
   flex-direction: column;
   gap: 8rpx;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .month-group {
   background: #FAF8F5;
   border-radius: 20rpx;
   overflow: hidden;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .month-header {
@@ -153,11 +176,16 @@
   align-items: center;
   justify-content: space-between;
   padding: 24rpx 28rpx;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .month-header-left {
   display: flex;
   align-items: center;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .month-toggle {
@@ -175,15 +203,22 @@
   font-size: 30rpx;
   color: #2C2416;
   font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .month-count {
   font-size: 24rpx;
   color: #948284;
+  flex-shrink: 0;
+  margin-left: 16rpx;
 }
 
 .month-content {
   padding: 0 20rpx 20rpx;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 /* 日期 */
@@ -191,6 +226,8 @@
   display: flex;
   flex-direction: column;
   gap: 16rpx;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .date-group {
@@ -198,6 +235,8 @@
   border-radius: 20rpx;
   padding: 24rpx;
   box-shadow: 0 2rpx 8rpx rgba(44,36,22,0.03);
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .date-header {
@@ -207,18 +246,26 @@
   margin-bottom: 16rpx;
   padding-bottom: 12rpx;
   border-bottom: 1rpx solid #F0EBE4;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .date-header-left {
   display: flex;
   align-items: center;
   gap: 10rpx;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .date-label {
   font-size: 28rpx;
   color: #2C2416;
   font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .date-weekday {
@@ -233,6 +280,8 @@
 .date-count {
   font-size: 22rpx;
   color: #948284;
+  flex-shrink: 0;
+  margin-left: 12rpx;
 }
 
 /* 课程列表 */
@@ -246,12 +295,16 @@
   background: #FAF8F5;
   border-radius: 16rpx;
   overflow: hidden;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .course-main {
   display: flex;
   align-items: center;
   padding: 20rpx;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .course-info {
@@ -335,17 +388,24 @@
 .course-right {
   display: flex;
   align-items: center;
-  gap: 12rpx;
   flex-shrink: 0;
 }
 
-.export-btn {
-  padding: 6rpx 16rpx;
-  border-radius: 10rpx;
-  background: #D4786E;
-  font-size: 20rpx;
+/* 全局导出按钮（顶部汇总栏右侧） */
+.export-btn-global {
+  padding: 8rpx 20rpx;
+  border-radius: 16rpx;
+  background: linear-gradient(135deg, #D4786E, #C05D53);
+  font-size: 22rpx;
   color: #FFFFFF;
   font-weight: 500;
+  box-shadow: 0 4rpx 12rpx rgba(212,120,110,0.3);
+  flex-shrink: 0;
+}
+
+.export-btn-global:active {
+  opacity: 0.85;
+  transform: scale(0.96);
 }
 
 .toggle-icon {

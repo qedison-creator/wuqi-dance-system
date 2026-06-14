@@ -125,6 +125,9 @@ exports.getMemberList = async (query) => {
       .sort({ created_at: -1 });
     const userObj = user.toObject();
     userObj.packages = packages;
+    // 别名：前端统一使用 avatar / nickname
+    userObj.avatar = userObj.avatar_url;
+    userObj.nickname = userObj.nick_name;
     return userObj;
   }));
 
@@ -172,6 +175,9 @@ exports.getMemberById = async (id) => {
       completed_bookings: completedBookings,
       cancelled_bookings: cancelledBookings,
     },
+    // 别名：前端统一使用 avatar / nickname
+    avatar: user.avatar_url,
+    nickname: user.nick_name,
   };
 };
 

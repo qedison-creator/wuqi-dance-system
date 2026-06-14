@@ -264,6 +264,55 @@ router.put('/:id/info-change-audit', auth, checkPermission(['super_admin', 'stor
   }
 });
 
+// DELETE /api/v1/members/:id - 删除会员（仅超级管理员）
+router.delete('/:id', auth, checkPermission(['super_admin']), async (req, res, next) => {
+  try {
+    const User = require('../models/User');
+    const Booking = require('../models/Booking');
+
+    const member = await User.findById(req.params.id);
+    if (!member) {
+      return res.status(404).json({ code: 404, message: '会员不存在', data: null });
+    }
+    if (member.user_type !== 'member') {
+      return res.status(400).json({ code: 400, message: '仅可删除会员类型账号', data: null });
+    }
+
+    // 检查是否有进行中的预约
+    const activeBookings = await Booking.countDocuments({
+      user_id: req.params.id,
+      status: 'booked'
+    });
+    if (activeBookings > 0) {
+      // 自动取消所有未完成预约
+      await Booking.updateMany(
+        { user_id: req.params.id, status: 'booked' },
+        { $set: { status: 'cancelled', cancel_type: 'admin_cancel', cancel_time: new Date() } }
+      );
+      // 释放排课名额
+      const cancelledBookings = await Booking.find({ user_id: req.params.id, cancel_type: 'admin_cancel' });
+      for (const cb of cancelledBookings) {
+        if (cb.schedule_id) {
+          await require('../models/Schedule').updateOne(
+            { _id: cb.schedule_id },
+            { $inc: { current_bookings: -1 } }
+          );
+        }
+      }
+    }
+
+    // 删除会员的预约记录、套餐记录，再删除会员
+    await Booking.deleteMany({ user_id: req.params.id });
+    const UserPackage = require('../models/UserPackage');
+    await UserPackage.deleteMany({ user_id: req.params.id });
+    await User.findByIdAndDelete(req.params.id);
+
+    res.json(success(null, '会员已删除'));
+  } catch (err) {
+    next(err);
+  }
+});
+
 // GET /api/v1/members/:id/checkin-profile - 获取会员签到档案
 router.get('/:id/checkin-profile', auth, checkPermission(['super_admin', 'store_manager', 'staff']), async (req, res, next) => {
   try {

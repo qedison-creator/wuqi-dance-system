@@ -94,8 +94,12 @@ Page({
       mediaType: ['image'],
       sourceType: ['album', 'camera'],
       success: (res) => {
-        const tempFilePath = res.tempFiles[0].tempFilePath;
-        this.uploadHeroImage(index, tempFilePath);
+        const file = res.tempFiles[0];
+        if (file.size > 10 * 1024 * 1024) {
+          wx.showToast({ title: '图片过大，最大支持 10MB', icon: 'none' });
+          return;
+        }
+        this.uploadHeroImage(index, file.tempFilePath);
       }
     });
   },
@@ -109,9 +113,9 @@ Page({
     const baseUrl = app.globalData.baseUrl;
     
     wx.uploadFile({
-      url: `${baseUrl}/upload`,
+      url: `${baseUrl}/upload/image?type=banner`,
       filePath: tempFilePath,
-      name: 'file',
+      name: 'image',
       header: { 'Authorization': `Bearer ${token}` },
       success: (uploadRes) => {
         try {
@@ -124,12 +128,17 @@ Page({
           }
         } catch (e) {
           this.setHeroUploading(index, false);
-          wx.showToast({ title: '上传失败', icon: 'none' });
+          wx.showToast({ title: e.message || '上传失败', icon: 'none' });
         }
       },
-      fail: () => {
+      fail: (err) => {
         this.setHeroUploading(index, false);
-        wx.showToast({ title: '上传失败', icon: 'none' });
+        const errMsg = (err && err.errMsg) ? err.errMsg : '';
+        if (errMsg.includes('timeout')) {
+          wx.showToast({ title: '上传超时，请检查网络', icon: 'none' });
+        } else {
+          wx.showToast({ title: '上传失败，请检查网络', icon: 'none' });
+        }
       }
     });
   },

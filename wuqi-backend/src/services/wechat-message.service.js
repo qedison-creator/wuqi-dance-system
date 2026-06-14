@@ -26,7 +26,6 @@ const loadTemplateFromDB = async (templateKey) => {
     mappingCache[templateKey] = { data, time: now };
     return data;
   } catch (err) {
-    console.error(`[WeChatMessage] 加载模板失败 templateKey=${templateKey}:`, err.message);
     return null;
   }
 };
@@ -40,6 +39,8 @@ const getFieldMaxLength = (wxField) => {
   if (!match) return 20;
   const limits = {
     thing: 20,
+    short_thing: 6,
+    name: 10,
     character_string: 32,
     phrase: 5,
     time: 50,
@@ -78,7 +79,6 @@ const getAccessToken = async (clientType = 'member') => {
   try {
     const wxConfig = config.getWxConfig(clientType);
     if (!wxConfig.appId || !wxConfig.secret) {
-      console.warn(`[WeChatMessage] 未配置${clientType === 'admin' ? '管理端' : '会员端'}小程序 AppID 或 Secret，订阅消息推送将不可用`);
       return null;
     }
     const url = `https://api.weixin.qq.com/cgi-bin/token?grant_type=client_credential&appid=${wxConfig.appId}&secret=${wxConfig.secret}`;
@@ -111,7 +111,6 @@ const sendSubscribeMessage = async (openid, templateId, data, page = '', clientT
     const result = response.data;
     if (result.errcode === 0) return true;
     if (result.errcode === 43101) {
-      console.log(`[WeChatMessage] 用户未订阅: ${openid.substring(0, 8)}...`);
       return false;
     }
     // 可恢复错误：token过期（40001）、系统繁忙（45009）等，尝试重试
@@ -202,6 +201,7 @@ exports.sendClassReminder = async (user, schedule, clientType = 'member') => {
     courseTime: `${schedule.date} ${schedule.start_time}`,
     coachName: schedule.coach_id?.name || schedule.coach_name || '待定',
     tipMessage: '请准时到场，记得带水杯哟',
+    storeName: schedule.store_id?.name || '舞栖舞蹈',
     classroom: schedule.classroom || '请准时到场',
   };
 

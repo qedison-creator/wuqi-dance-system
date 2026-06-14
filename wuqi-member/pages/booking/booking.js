@@ -1,6 +1,9 @@
 const app = getApp();
 const { request } = require('../../utils/request');
 const { getBeijingDate } = require('../../utils/helpers');
+const { normalizeImageUrl } = require('../../utils/util');
+const config = require('../../config/index.js');
+const SERVER_BASE = config.serverBase;
 const auth = require('../../utils/auth');
 
 const WEEK_DAYS = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
@@ -77,7 +80,8 @@ Page({
     countCardModalText: '',
     countCardModalPackages: [],
     countCardScheduleId: '',
-    isHolidayToday: false
+    isHolidayToday: false,
+    showLoginModal: false
   },
 
   onShow() {
@@ -89,7 +93,8 @@ Page({
     this.setData({ storeList, currentStore });
     const { checkLogin } = require('../../utils/auth');
     if (!checkLogin()) {
-      this.setData({ isLoggedIn: false });
+      this.setData({ isLoggedIn: false, isOfficial: false });
+      this.initPage();
       return;
     }
     this.setData({ isLoggedIn: true });
@@ -190,6 +195,15 @@ Page({
   },
 
   initPage() {
+    if (this._initPageTimer) {
+      clearTimeout(this._initPageTimer);
+    }
+    this._initPageTimer = setTimeout(() => {
+      this._doInitPage();
+    }, 300);
+  },
+
+  _doInitPage() {
     const storeList = app.globalData.storeList || [];
     const currentStore = app.globalData.currentStore || (storeList.length > 0 ? storeList[0] : null);
 
@@ -209,8 +223,8 @@ Page({
     }
 
     this.loadDanceStyles();
-    this.loadCourses();
     this.loadHolidays();
+    this.loadCourses();
   },
 
   async loadHolidays() {
@@ -223,7 +237,6 @@ Page({
       const selectedDate = dates[0].date;
       const sectionTitle = dates[0].isToday ? '今日课程' : (this.formatDate(dates[0].date) + ' ' + dates[0].weekDay + ' 课程');
       this.setData({ holidays: activeHolidays, dates, weekDays, selectedDate, weekDaysIndex: 0, sectionTitle });
-      this.loadCourses();
     } catch (err) {
       console.error('加载假期信息失败', err);
       this.generateWeekDaysSym();
@@ -270,7 +283,8 @@ Page({
     const storeId = this.data.currentStore ? this.data.currentStore._id : '';
     const reqData = {
       store_id: storeId,
-      date: this.data.selectedDate
+      date: this.data.selectedDate,
+      status: 'all'
     };
 
     request({ url: '/schedules', data: reqData }).then(res => {
@@ -278,24 +292,66 @@ Page({
         ? res.data.list
         : (Array.isArray(res.data) ? res.data : []);
       
+      // 计算当前分钟数（今日专用）
+      const now = new Date();
+      const currentMin = now.getHours() * 60 + now.getMinutes();
+      const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+      const isToday = this.data.selectedDate === todayStr;
+
       const processedCourses = courses.map(course => {
         const styleName = course.dance_style_id && course.dance_style_id.name ? course.dance_style_id.name : '';
         const styleId = course.dance_style_id && course.dance_style_id._id ? String(course.dance_style_id._id) : (course.dance_style_id || '');
         const tagColor = this._getDanceTagColor(styleName);
+
+        // 解析开始/结束时间（分钟数）
+        let startMin = null;
+        let endMin = null;
+        if (course.start_time) {
+          const s = String(course.start_time).split(':');
+          if (s.length >= 2) startMin = parseInt(s[0], 10) * 60 + parseInt(s[1], 10);
+        }
+        if (course.end_time) {
+          const e = String(course.end_time).split(':');
+          if (e.length >= 2) endMin = parseInt(e[0], 10) * 60 + parseInt(e[1], 10);
+        }
+
+        // 课程状态：是否已经开始 / 是否已超过豁免取消窗口（开始后10分钟）
+        const _started = isToday && startMin !== null && currentMin >= startMin;
+        const _ended = isToday && endMin !== null && currentMin >= endMin;
+        // 豁免取消窗口期 = 10 分钟，过此时间后课程才从列表中移除；已取消课程直接不展示
+        const _cancelled = course.status === 'cancelled';
+        const _hiddenAfterGrace = _cancelled || (isToday && startMin !== null && currentMin >= startMin + 10);
+
+        // 处理教练头像URL
+        const coachAvatar = (course.coach_id && course.coach_id.avatar_url)
+          ? normalizeImageUrl(course.coach_id.avatar_url, SERVER_BASE)
+          : '';
+
         return {
           ...course,
           _id: String(course._id),
           danceStyleName: styleName,
           danceStyleId: styleId,
           danceTagBg: tagColor.bg,
-          danceTagText: tagColor.text
+          danceTagText: tagColor.text,
+          _started,
+          _ended,
+          _cancelled,
+          _hiddenAfterGrace,
+          coachAvatar
         };
       });
-      
-      this.setData({ 
-        courses: processedCourses, 
+
+      // 过滤：已取消的课程，以及今日已超过豁免取消窗口的课程
+      let filteredCourses = processedCourses.filter(course => !course._hiddenAfterGrace);
+      // 判断当天原本有课（无论何种状态）但都不可预约 → 显示「课程已结束」
+      const hasEndedCourses = processedCourses.length > 0 && filteredCourses.length === 0;
+
+      this.setData({
+        courses: filteredCourses,
         loading: false,
-        courseCount: processedCourses.length
+        courseCount: filteredCourses.length,
+        hasEndedCourses
       });
       this.loadMyBookings();
       this.loadMyWaitlists();
@@ -614,15 +670,12 @@ Page({
   },
 
   onCourseTap(e) {
-    if (!auth.requireLogin()) return;
-    auth.requireMember(() => {
-      const course = e.currentTarget.dataset.course;
-      if (course && course._id) {
-        wx.navigateTo({
-          url: `/pages/course-detail/course-detail?id=${course._id}`
-        });
-      }
-    });
+    const course = e.currentTarget.dataset.course;
+    if (course && course._id) {
+      wx.navigateTo({
+        url: `/pages/course-detail/course-detail?id=${course._id}`
+      });
+    }
   },
 
   onPullDownRefresh() {
@@ -631,127 +684,16 @@ Page({
   },
 
   onLogin() {
-    this.onLoginTap();
+    this.setData({ showLoginModal: true });
   },
 
-  onLoginTap() {
-    wx.showLoading({ title: '获取位置信息...' });
-    wx.getLocation({
-      type: 'gcj02',
-      success: (locRes) => {
-        wx.hideLoading();
-        request({
-          url: `/stores/nearest?latitude=${locRes.latitude}&longitude=${locRes.longitude}`
-        }).then(res => {
-          const data = res.data || {};
-          const nearest = data.nearest;
-          const storeList = data.stores || [];
-          if (storeList.length === 0) {
-            wx.showToast({ title: '暂无可选门店', icon: 'none' });
-            return;
-          }
-          let selectedId = '';
-          let selectedName = '';
-          let dist = null;
-          if (nearest && nearest.distance <= 100) {
-            selectedId = nearest._id;
-            selectedName = nearest.name;
-            dist = nearest.distance;
-          } else {
-            const savedStore = app.globalData.currentStore || wx.getStorageSync('currentStore');
-            if (savedStore && savedStore._id) {
-              const found = storeList.find(s => s._id === savedStore._id);
-              if (found) {
-                selectedId = found._id;
-                selectedName = found.name;
-              }
-            }
-          }
-          this.setData({
-            storeList: storeList,
-            showStorePicker: true,
-            storePickerTitle: '确认所在门店',
-            storePickerMode: 'login',
-            selectedStoreId: selectedId,
-            selectedStoreName: selectedName,
-            nearestDistance: dist
-          });
-        }).catch(() => {
-          wx.hideLoading();
-          this._fallbackStorePicker();
-        });
-      },
-      fail: () => {
-        wx.hideLoading();
-        this._fallbackStorePicker();
-      }
-    });
+  onLoginModalClose() {
+    this.setData({ showLoginModal: false });
   },
 
-  _fallbackStorePicker() {
-    request({ url: '/stores' }).then(res => {
-      const storeList = res.data && res.data.list ? res.data.list : (Array.isArray(res.data) ? res.data : []);
-      if (storeList.length === 0) {
-        wx.showToast({ title: '暂无可选门店', icon: 'none' });
-        return;
-      }
-      this.setData({
-        storeList: storeList,
-        showStorePicker: true,
-        storePickerTitle: '选择所在门店',
-        storePickerMode: 'login',
-        selectedStoreId: '',
-        selectedStoreName: '',
-        nearestDistance: null
-      });
-    }).catch(() => {
-      wx.showToast({ title: '获取门店失败', icon: 'none' });
-    });
-  },
-
-  onCloseStorePicker() {
-    this.setData({ showStorePicker: false });
-  },
-
-  onStoreSelect(e) {
-    this.onLoginStoreSelect(e);
-  },
-
-  onStoreConfirm() {
-    this.onLoginStoreConfirm();
-  },
-
-  onLoginStoreSelect(e) {
-    const { id, name } = e.currentTarget.dataset;
-    this.setData({
-      selectedStoreId: id,
-      selectedStoreName: name
-    });
-  },
-
-  onLoginStoreConfirm() {
-    const { selectedStoreId, selectedStoreName, storePickerMode } = this.data;
-    if (!selectedStoreId) return;
-
-    this.setData({ showStorePicker: false });
-
-    if (storePickerMode === 'login') {
-      this.doLogin(selectedStoreId);
-    }
-  },
-
-  doLogin(storeId) {
-    wx.showLoading({ title: '登录中...' });
-    const { wxLogin } = require('../../utils/auth');
-    wxLogin(storeId).then(() => {
-      wx.hideLoading();
-      wx.showToast({ title: '登录成功', icon: 'success' });
-      this.setData({ isLoggedIn: true });
-      this.refreshUserInfo();
-    }).catch(() => {
-      wx.hideLoading();
-      wx.showToast({ title: '登录失败', icon: 'none' });
-    });
+  onLoginSuccess() {
+    this.setData({ showLoginModal: false, isLoggedIn: true });
+    this.refreshUserInfo();
   },
 
   onSelectDate(e) {
@@ -783,7 +725,7 @@ Page({
 
 
   onBookCourse(e) {
-    if (!auth.requireLogin()) return;
+    if (!auth.requireLogin(() => this.setData({ showLoginModal: true }))) return;
     if (this.data.isOfficial && !this.data.canBookCurrentStore) {
       const packageStoreNames = this.data.memberPackageStoreIds.map(id => {
         const s = this.data.storeList.find(store => String(store._id) === id);
@@ -800,6 +742,23 @@ Page({
     }
     const course = e.currentTarget.dataset.course;
     if (!course) return;
+    // 客户端兜底校验：课程已开始不再允许预约
+    const { selectedDate } = this.data;
+    if (selectedDate) {
+      const now2 = new Date();
+      const todayStr2 = `${now2.getFullYear()}-${String(now2.getMonth() + 1).padStart(2, '0')}-${String(now2.getDate()).padStart(2, '0')}`;
+      if (selectedDate === todayStr2 && course.start_time) {
+        const s = String(course.start_time).split(':');
+        if (s.length >= 2) {
+          const startMin = parseInt(s[0], 10) * 60 + parseInt(s[1], 10);
+          const currentMin = now2.getHours() * 60 + now2.getMinutes();
+          if (currentMin >= startMin) {
+            wx.showToast({ title: '课程已开始，无法预约', icon: 'none' });
+            return;
+          }
+        }
+      }
+    }
     const courseId = String(course._id);
     const bookedIds = this.data.bookedScheduleIds || [];
     const waitlistedIds = this.data.waitlistedScheduleIds || [];

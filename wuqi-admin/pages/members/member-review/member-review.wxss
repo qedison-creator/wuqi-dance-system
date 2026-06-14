@@ -78,6 +78,23 @@
   font-size: 22rpx;
 }
 
+.card-phone-line {
+  display: flex;
+  gap: 20rpx;
+  margin-bottom: 4rpx;
+}
+
+.card-phone-line .phone-item {
+  font-size: 24rpx;
+  color: var(--text-secondary);
+}
+
+.card-phone-line .phone-label {
+  font-size: 22rpx;
+  color: var(--text-tertiary);
+  margin-right: 6rpx;
+}
+
 .card-phone {
   font-size: 24rpx;
   color: var(--text-secondary);

@@ -60,16 +60,23 @@ Page({
     todos: [],
     todoList: [],
     loadingSkeleton: true,
-    showDetailModal: false,
-    detailTitle: '',
+    expandedTodo: '',
     detailList: [],
+    scheduleList: [],
+    pendingMembers: [],
+    auditLoading: false,
+    showAuditStoreModal: false,
+    auditApproveMember: null,
+    auditStoreList: [],
+    auditSelectedStoreId: '',
     systemConfigs: {},
     heroBackgroundUrl: ''
   },
 
   onLoad() {
     const theme = getTheme();
-    this.applyHeroBackground(theme);
+    // 不再预先设置前端拼接的URL，等待后端/home/admin返回正确的hero_background_url
+    // 由CSS渐变色背景作为初始兜底
     this.setData({
       currentDate: getCurrentDate(),
       greeting: getGreeting(),
@@ -100,11 +107,12 @@ Page({
       request({ url: '/auth/me', method: 'GET' }).then(res => {
         const data = res.data || {};
         app.globalData.userInfo = data;
-        this.applyUserInfo(data);
+        this.applyUserInfo(data.admin ? data.admin : data);
       }).catch(() => {});
       return;
     }
-    const userInfo = app.globalData.userInfo;
+    const raw = app.globalData.userInfo;
+    const userInfo = raw.admin ? raw.admin : raw;
     this.applyUserInfo(userInfo);
   },
 
@@ -234,21 +242,17 @@ Page({
 
   async loadSystemConfigs() {
     try {
-      // 优先使用默认图，不依赖接口
-      this.applyHeroBackground({});
+      // 不再预先设置前端拼接的URL，等待后端/home/admin返回正确的hero_background_url
+      // 如果后端未部署或返回空，保持heroBackgroundUrl为空，由CSS渐变色背景兜底
       
       // 尝试加载后端配置（如果后端可能还没部署，暂时静默尝试
       try {
         const res = await request({ url: '/system/configs', method: 'GET', silent: true });
         const configs = res.data || {};
         this.setData({ systemConfigs: configs });
-        // 如果成功拿到配置，再应用一次背景
-        if (Object.keys(configs).length > 0) {
-          this.applyHeroBackground(configs);
-        }
       } catch (e) {
         // 接口暂时不可用，不做任何处理
-        console.log('后端系统配置接口还未部署，使用默认背景图');
+        console.log('后端系统配置接口还未部署');
       }
     } catch (err) {
       // 完全静默
@@ -280,6 +284,11 @@ Page({
       bgUrl = config.serverBase + '/uploads/hero/hero-' + theme + '.jpg';
     }
 
+    // 后端通过 Nginx 代理时 req.protocol 可能返回 http，需确保使用 config 中的协议
+    if (bgUrl.startsWith('http://') && config.serverBase.startsWith('https://')) {
+      bgUrl = bgUrl.replace('http://', 'https://');
+    }
+
     this.setData({ heroBackgroundUrl: bgUrl });
   },
 
@@ -290,7 +299,7 @@ Page({
       this.loadSystemConfigs();
 
       const [homeRes, statsRes, bannersRes] = await Promise.allSettled([
-        request({ url: '/home/admin', method: 'GET' }).catch(() => ({ data: {} })),
+        request({ url: '/home/admin', method: 'GET' }).catch(() => ({})),
         request({ url: '/stats/dashboard', method: 'GET', data: { store_id: storeId } }).catch(() => ({ data: {} })),
         request({ url: '/banners', method: 'GET', data: {} }).catch(() => ({ data: [] }))
       ]);
@@ -298,10 +307,26 @@ Page({
       const homeData = homeRes.status === 'fulfilled' ? (homeRes.value.data || {}) : {};
       const statsData = statsRes.status === 'fulfilled' ? (statsRes.value.data || {}) : {};
 
+      // 使用后端返回的hero背景图URL（参照会员端banner方式）
+      if (homeData.hero_background_url) {
+        let heroUrl = homeData.hero_background_url;
+        // 后端通过 Nginx 代理时 req.protocol 可能返回 http，需确保使用 config 中的协议
+        if (heroUrl.startsWith('http://') && config.serverBase.startsWith('https://')) {
+          heroUrl = heroUrl.replace('http://', 'https://');
+        }
+        this.setData({ heroBackgroundUrl: heroUrl });
+      }
+
       this.loadStats(homeData);
 
       const todoList = this.buildTodos(homeData, statsData);
-      this.setData({ todos: todoList, todoList });
+      const countCardAlerts = statsData.count_card_alerts || [];
+      this.setData({
+        todos: todoList,
+        todoList: todoList,
+        countCardAlerts: countCardAlerts,
+        expiringTimeCards: statsData.expiring_time_cards || []
+      });
 
       const expiringCards = statsData.expiring_time_cards || [];
       this.setData({
@@ -326,20 +351,8 @@ Page({
   onRefresh() {
     wx.showLoading({ title: '刷新中...', mask: true });
     this.setData({ loadingSkeleton: true });
-    this.loadAllData().then(() => {
+    this.loadAllData().finally(() => {
       wx.hideLoading();
-      wx.stopPullDownRefresh();
-    }).catch(() => {
-      wx.hideLoading();
-      wx.stopPullDownRefresh();
-    });
-  },
-
-  onPullDownRefresh() {
-    this.setData({ loadingSkeleton: true });
-    this.loadAllData().then(() => {
-      wx.stopPullDownRefresh();
-    }).catch(() => {
       wx.stopPullDownRefresh();
     });
   },
@@ -403,41 +416,509 @@ Page({
     const item = e.currentTarget.dataset.item;
     if (!item) return;
     const todo = this.data.todoList.find(t => t._id === item._id) || item;
+    if (todo.type === 'expiring_packages' || todo.type === 'schedule_extend') {
+      if (this.data.expandedTodo === todo._id) {
+        this.setData({ expandedTodo: '', detailList: [] });
+      } else {
+        if (todo.type === 'expiring_packages') {
+          this.showExpiringPackagesModal(todo._id);
+        } else {
+          this.showScheduleExtendModal(todo._id);
+        }
+      }
+      return;
+    }
+    // 会员审核：向下展开
+    if (todo.type === 'member_audit') {
+      if (this.data.expandedTodo === todo._id) {
+        this.setData({ expandedTodo: '', pendingMembers: [] });
+      } else {
+        this._loadPendingAuditMembers(todo._id);
+      }
+      return;
+    }
+    // 今日课程 / 近期课程：改为向下展开（之前是直接跳转）
+    if (todo.type === 'schedule') {
+      if (this.data.expandedTodo === todo._id) {
+        this.setData({ expandedTodo: '', scheduleList: [] });
+      } else {
+        this._enrichScheduleCards(todo);
+      }
+      return;
+    }
     switch (todo.type) {
-      case 'member_audit':
-        wx.switchTab({ url: '/pages/members/members' });
-        break;
-      case 'schedule':
-        wx.navigateTo({ url: '/pages/schedule/schedule' });
-        break;
-      case 'schedule_extend':
-        this.showScheduleExtendModal();
-        break;
-      case 'expiring_packages':
-        wx.switchTab({ url: '/pages/members/members' });
-        break;
       default:
         break;
     }
   },
 
-  showScheduleExtendModal() {
-    this.setData({
-      showDetailModal: true,
-      detailTitle: '排课到期提醒',
-      detailList: []
+  /**
+   * 从 item 里提取会员 ID（兼容多个字段）
+   */
+  _extractMemberId(item) {
+    if (!item) return null;
+    return item._id || item.id || item.member_id || item.user_id || null;
+  },
+
+  /**
+   * 基于原始数据做一次"快速映射"，保证展开瞬间就有内容可以展示
+   */
+  _quickMapCard(item, type) {
+    if (!item) item = {};
+    const memberId = this._extractMemberId(item);
+    const userName = item.real_name || item.nick_name || item.user_name || item.name || item.member_name || '';
+    const avatarChar = userName && userName.length > 0 ? userName.charAt(0) : '会';
+    const avatarUrl = item.avatar_url || item.avatar || item.head_img || item.headImg || item.headimgurl || '';
+    const phone = item.phone || item.mobile || '';
+    let packageName = item.package_name || item.card_name || item.card_type || item.course_name || item.product_name || '';
+    let remaining = item.remaining;
+    if (remaining === undefined || remaining === null) remaining = item.left_times;
+    if (remaining === undefined || remaining === null) remaining = item.times_left;
+    if (remaining === undefined || remaining === null) remaining = item.remaining_count;
+    if (remaining === undefined || remaining === null) remaining = item.remaining_times;
+    if (remaining === undefined || remaining === null) remaining = 0;
+    let daysLeft = item.days_left;
+    if (daysLeft === undefined || daysLeft === null) daysLeft = item.daysLeft;
+    if (daysLeft === undefined || daysLeft === null) daysLeft = item.remaining_days;
+    if (daysLeft === undefined || daysLeft === null) daysLeft = item.valid_days;
+    if (daysLeft === undefined || daysLeft === null) daysLeft = item.expire_days;
+    if (daysLeft === undefined || daysLeft === null) daysLeft = 0;
+    let storeName = '';
+    if (item.store_name) storeName = item.store_name;
+    else if (item.store_id && item.store_id.name) storeName = item.store_id.name;
+
+    if (type === 'time_card') packageName = packageName || '时间卡';
+    if (type === 'count_card') packageName = packageName || '次卡';
+
+    return {
+      _id: memberId || (Date.now() + Math.random()),
+      member_id: memberId,
+      user_name: userName || '未知会员',
+      avatar_char: avatarChar,
+      avatar_url: avatarUrl,
+      phone: phone,
+      package_name: packageName || '',
+      remaining: remaining,
+      days_left: daysLeft,
+      expiry_date: item.expiry_date || item.expire_date || item.end_date || '',
+      store_name: storeName
+    };
+  },
+
+  /**
+   * 异步补全：并行调用 /members/{id} 拉取真实头像、套餐名、门店名
+   * 然后用 setData 做增量刷新（不影响展开状态）
+   */
+  async _enrichMemberCards(rawList, type) {
+    if (!rawList || rawList.length === 0) return;
+
+    // 先用快速映射把 UI 填充好，避免白屏
+    const initialList = rawList.map((item) => this._quickMapCard(item, type));
+    this.setData({ detailList: initialList });
+
+    const tasks = initialList.map((item) => {
+      const memberId = item.member_id;
+      if (!memberId) return Promise.resolve(item);
+      return request({
+        url: `/members/${memberId}`,
+        method: 'GET',
+        timeout: 15000,
+        silent: true
+      }).then((res) => {
+        const data = res.data || {};
+
+        // 头像：优先用接口返回的头像 URL
+        let avatarUrl = data.avatar || data.avatar_url || data.head_img || data.headImg || data.headimgurl || '';
+        // URL 规范化：相对路径补全
+        if (avatarUrl && !/^https?:\/\//.test(avatarUrl)) {
+          try {
+            const cfg = require('../../config/index.js');
+            if (cfg && cfg.serverBase) avatarUrl = cfg.serverBase + avatarUrl;
+          } catch (_) {}
+        }
+
+        // 姓名
+        let userName = data.real_name || data.nick_name || data.user_name || data.name || '';
+
+        // 手机号
+        let phone = data.phone || data.mobile || '';
+
+        // 门店名：优先取 store_id.name；再从有效套餐里取
+        let storeName = '';
+        if (data.store_name) storeName = data.store_name;
+        else if (data.store_id && typeof data.store_id === 'object' && data.store_id.name) {
+          storeName = data.store_id.name;
+        }
+        if (!storeName && Array.isArray(data.packages)) {
+          for (let i = 0; i < data.packages.length; i++) {
+            const p = data.packages[i];
+            if (p && p.store_id && p.store_id.name) {
+              storeName = p.store_id.name;
+              break;
+            }
+          }
+        }
+
+        // 套餐名：优先匹配当前 type，否则取第一个有效套餐
+        let packageName = '';
+        const packages = Array.isArray(data.packages) ? data.packages : [];
+        if (packages.length > 0) {
+          if (type === 'count_card') {
+            const target = packages.find((p) => p && p.package_type === 'count_card' && p.name);
+            if (target) packageName = target.name;
+          } else if (type === 'time_card') {
+            const target = packages.find((p) => p && p.package_type === 'time_card' && p.name);
+            if (target) packageName = target.name;
+          }
+          if (!packageName) {
+            const active = packages.find((p) => p && p.status === 'active' && p.name);
+            packageName = (active && active.name) || (packages[0] && packages[0].name) || '';
+          }
+        }
+
+        // 剩余次数 / 天数：从详情兜底
+        let remaining = item.remaining;
+        let daysLeft = item.days_left;
+        if ((remaining === undefined || remaining === null || remaining === 0) && packages.length > 0) {
+          const first = packages[0];
+          if (first.remaining_credits !== undefined && first.remaining_credits !== null) {
+            remaining = first.remaining_credits;
+          }
+        }
+
+        const avatarChar = userName && userName.length > 0 ? userName.charAt(0) : '会';
+
+        return {
+          ...item,
+          user_name: userName || item.user_name || '未知会员',
+          avatar_char: avatarChar,
+          avatar_url: avatarUrl || item.avatar_url,
+          phone: phone || item.phone,
+          package_name: packageName || item.package_name,
+          remaining: remaining,
+          days_left: daysLeft,
+          store_name: storeName || item.store_name
+        };
+      }).catch((err) => {
+        console.warn('[dashboard] 补全会员信息失败', err);
+        return item;
+      });
     });
+
+    const enrichedList = await Promise.all(tasks);
+
+    // 如果用户没关掉展开区域，就把补全后的内容刷新上去
+    if (this.data.expandedTodo) {
+      this.setData({ detailList: enrichedList });
+    }
+  },
+
+  showExpiringPackagesModal(todoId) {
+    const list = this.data.countCardAlerts || [];
+    if (list.length === 0) {
+      this.setData({ expandedTodo: todoId, detailList: [] });
+      return;
+    }
+    // 先展开区域（设置 expandedTodo）让用户能立刻看到展开动作
+    // 同时用 _enrichMemberCards 内部第一时间填充 initialList
+    this.setData({ expandedTodo: todoId });
+    this._enrichMemberCards(list, 'count_card');
+  },
+
+  showScheduleExtendModal(todoId) {
+    const list = this.data.expiringTimeCards || [];
+    if (list.length === 0) {
+      this.setData({ expandedTodo: todoId, detailList: [] });
+      return;
+    }
+    this.setData({ expandedTodo: todoId });
+    this._enrichMemberCards(list, 'time_card');
+  },
+
+  onMemberCardTap(e) {
+    var memberId = e.currentTarget.dataset.memberId;
+    if (!memberId) return;
+    wx.navigateTo({
+      url: '/pages/members/member-detail/member-detail?id=' + memberId
+    });
+  },
+
+  // ==== 会员审核操作 ====
+  onAuditDelete(e) {
+    const { id, name } = e.currentTarget.dataset;
+    wx.showModal({
+      title: '确认删除',
+      content: `确认删除 ${name || '该用户'} 的会员申请？`,
+      confirmColor: '#C44B4B',
+      success: async (res) => {
+        if (res.confirm) {
+          try {
+            await request({
+              url: `/members/${id}/review`,
+              method: 'PUT',
+              data: { action: 'reject' }
+            });
+            wx.showToast({ title: '已删除', icon: 'success' });
+            this._loadPendingAuditMembers(this.data.expandedTodo);
+          } catch (err) {
+            wx.showToast({ title: '操作失败', icon: 'none' });
+          }
+        }
+      }
+    });
+  },
+
+  onAuditReject(e) {
+    const { id, name } = e.currentTarget.dataset;
+    wx.showModal({
+      title: '确认拒绝',
+      content: `确认拒绝 ${name || '该用户'} 的会员申请？`,
+      confirmColor: '#C44B4B',
+      success: async (res) => {
+        if (res.confirm) {
+          try {
+            await request({
+              url: `/members/${id}/review`,
+              method: 'PUT',
+              data: { action: 'reject' }
+            });
+            wx.showToast({ title: '已拒绝', icon: 'success' });
+            this._loadPendingAuditMembers(this.data.expandedTodo);
+          } catch (err) {
+            wx.showToast({ title: '操作失败', icon: 'none' });
+          }
+        }
+      }
+    });
+  },
+
+  async onAuditApprove(e) {
+    const { id, name, storeId } = e.currentTarget.dataset;
+    try {
+      const res = await request({ url: '/stores' });
+      const storeList = res.data && Array.isArray(res.data.list) ? res.data.list : (Array.isArray(res.data) ? res.data : []);
+      let autoSelectedStoreId = '';
+      if (storeId) {
+        const targetStore = storeList.find(s => String(s._id) === String(storeId));
+        if (targetStore) autoSelectedStoreId = targetStore._id;
+      }
+      this.setData({
+        auditApproveMember: { id, name },
+        auditStoreList: storeList,
+        auditSelectedStoreId: autoSelectedStoreId,
+        showAuditStoreModal: true
+      });
+    } catch (err) {
+      wx.showToast({ title: '获取门店失败', icon: 'none' });
+    }
+  },
+
+  onAuditStoreSelect(e) {
+    this.setData({ auditSelectedStoreId: e.currentTarget.dataset.id });
+  },
+
+  onAuditCloseModal() {
+    this.setData({ showAuditStoreModal: false, auditApproveMember: null });
+  },
+
+  onAuditModalTap() {},
+
+  async onAuditConfirmApprove() {
+    const { auditApproveMember, auditSelectedStoreId } = this.data;
+    if (!auditSelectedStoreId) {
+      wx.showToast({ title: '请选择门店', icon: 'none' });
+      return;
+    }
+    try {
+      await request({
+        url: `/members/${auditApproveMember.id}/review`,
+        method: 'PUT',
+        data: { action: 'approve', store_id: auditSelectedStoreId }
+      });
+      wx.showToast({ title: '已通过', icon: 'success' });
+      this.setData({ showAuditStoreModal: false, auditApproveMember: null });
+      this._loadPendingAuditMembers(this.data.expandedTodo);
+    } catch (err) {
+      wx.showToast({ title: '操作失败', icon: 'none' });
+    }
+  },
+
+  /**
+   * 会员审核展开：加载待审核用户列表
+   */
+  async _loadPendingAuditMembers(todoId) {
+    this.setData({ auditLoading: true, expandedTodo: todoId, pendingMembers: [] });
+    try {
+      const res = await request({
+        url: '/members',
+        method: 'GET',
+        data: { member_status: 'registered', page: 1, limit: 20 }
+      });
+      const result = res.data || {};
+      const list = result.list || (Array.isArray(result) ? result : []);
+
+      const members = list.map(m => {
+        const wechatPhone = m.wechat_phone || '';
+        const reservePhone = m.reserve_phone || m.phone || '';
+        const d = m.created_at ? new Date(m.created_at) : null;
+        let dateStr = '';
+        if (d && !isNaN(d.getTime())) {
+          const y = d.getFullYear();
+          const mo = String(d.getMonth() + 1).padStart(2, '0');
+          const da = String(d.getDate()).padStart(2, '0');
+          const h = String(d.getHours()).padStart(2, '0');
+          const min = String(d.getMinutes()).padStart(2, '0');
+          dateStr = `${y}-${mo}-${da} ${h}:${min}`;
+        }
+        return {
+          ...m,
+          wechat_phone_display: wechatPhone,
+          reserve_phone_display: reservePhone,
+          created_at_formatted: dateStr,
+          store_name: m.store_id && m.store_id.name ? m.store_id.name : '',
+          store_id_val: m.store_id && m.store_id._id ? m.store_id._id : null
+        };
+      });
+      this.setData({ pendingMembers: members, auditLoading: false });
+    } catch (err) {
+      console.error('加载待审核用户失败', err);
+      this.setData({ auditLoading: false });
+    }
+  },
+
+  /**
+   * 课程卡片展开：调用 /schedules 拉取今日或近期课程
+   * 再逐个调用 /schedules/${id}/bookings 计算真实预约/签到/取消/豁免数
+   * （数据与运营管理页面「今日预约」保持一致）
+   */
+  async _enrichScheduleCards(todo) {
+    if (!todo) return;
     const storeId = this.data.currentStore ? this.data.currentStore._id : '';
-    request({
-      url: '/stats/dashboard',
-      method: 'GET',
-      data: { store_id: storeId }
-    }).then(res => {
-      const data = res.data || {};
-      const list = data.expiring_time_cards || data.count_card_alerts || [];
-      this.setData({ detailList: list });
-    }).catch(err => {
-      console.error('加载排课到期详情失败', err);
+    const today = new Date();
+    const y = today.getFullYear();
+    const m = String(today.getMonth() + 1).padStart(2, '0');
+    const d = String(today.getDate()).padStart(2, '0');
+    const todayStr = `${y}-${m}-${d}`;
+
+    const isToday = todo._id === 'today_schedule';
+
+    let startDate = todayStr;
+    let endDate = todayStr;
+    if (!isToday) {
+      const endD = new Date();
+      endD.setDate(today.getDate() + 13);
+      const ey = endD.getFullYear();
+      const em = String(endD.getMonth() + 1).padStart(2, '0');
+      const ed = String(endD.getDate()).padStart(2, '0');
+      endDate = `${ey}-${em}-${ed}`;
+    }
+
+    this.setData({ expandedTodo: todo._id });
+
+    try {
+      const query = { store_id: storeId };
+      if (isToday) {
+        query.date = todayStr;
+      } else {
+        query.start_date = startDate;
+        query.end_date = endDate;
+      }
+      query.status = 'all';
+
+      const res = await request({
+        url: '/schedules',
+        method: 'GET',
+        data: query,
+        timeout: 15000
+      });
+
+      const rawList = res.data && Array.isArray(res.data.list)
+        ? res.data.list
+        : (Array.isArray(res.data) ? res.data : []);
+
+      // 为每节课调用一次 booking 接口，拿到真实的 booked / checkedIn / cancelled / exempted
+      const statsPromises = rawList.map(s => this._loadScheduleBookingStats(s._id));
+      const statsResults = await Promise.all(statsPromises);
+
+      const now = new Date();
+
+      const processed = rawList.map((s, i) => {
+        const danceStyle = (s.dance_style_id && s.dance_style_id.name) || s.dance_style_name || '';
+        const coachName = (s.coach_id && s.coach_id.name) || s.coach_name || '';
+        const storeName = (s.store_id && s.store_id.name) || s.store_name || this.data.currentStoreName || '';
+
+        // 状态：已过结束时间 → 已完成；否则沿用接口返回
+        let status = s.status || 'available';
+        if (!isToday) {
+          const scheduleDate = s.date || todayStr;
+          if (s.end_time) {
+            const endTime = new Date(`${scheduleDate}T${s.end_time}`);
+            if (now > endTime) status = 'completed';
+          }
+        } else if (s.end_time) {
+          const endTime = new Date(`${todayStr}T${s.end_time}`);
+          if (now > endTime) status = 'completed';
+        }
+
+        const bookingStats = statsResults[i];
+        return {
+          _id: s._id,
+          course_name: s.course_name || (danceStyle ? danceStyle + '课程' : '课程'),
+          dance_style_name: danceStyle,
+          coach_name: coachName,
+          start_time: s.start_time || '',
+          end_time: s.end_time || '',
+          date: s.date || '',
+          bookedCount: bookingStats.booked,
+          capacity: s.max_bookings || 15,
+          checkedInCount: bookingStats.checkedIn,
+          cancelledCount: bookingStats.cancelled,
+          exemptedCount: bookingStats.exempted,
+          status: status,
+          store_name: storeName
+        };
+      });
+
+      processed.sort((a, b) => {
+        const keyA = (a.date || '') + (a.start_time || '');
+        const keyB = (b.date || '') + (b.start_time || '');
+        return keyA.localeCompare(keyB);
+      });
+
+      this.setData({ scheduleList: processed });
+    } catch (err) {
+      console.warn('[dashboard] 拉取课程失败', err);
+      this.setData({ scheduleList: [] });
+    }
+  },
+
+  /**
+   * 调用 /schedules/${id}/bookings，计算 已预约/已签到/已取消/已豁免 真实数量
+   */
+  async _loadScheduleBookingStats(scheduleId) {
+    if (!scheduleId) return { booked: 0, checkedIn: 0, cancelled: 0, exempted: 0 };
+    try {
+      const res = await request({
+        url: `/schedules/${scheduleId}/bookings`,
+        method: 'GET'
+      });
+      const all = res.data || [];
+      return {
+        booked: all.filter(b => b.status === 'booked' || b.booking_status === 'booked').length,
+        checkedIn: all.filter(b => b.checked_in || b.status === 'checked_in').length,
+        cancelled: all.filter(b => b.status === 'cancelled' || b.booking_status === 'cancelled').length,
+        exempted: all.filter(b => b.status === 'exempted' || b.is_exempted).length
+      };
+    } catch (err) {
+      return { booked: 0, checkedIn: 0, cancelled: 0, exempted: 0 };
+    }
+  },
+
+  onScheduleCardTap(e) {
+    const scheduleId = e.currentTarget.dataset.scheduleId;
+    if (!scheduleId) return;
+    wx.navigateTo({
+      url: '/pages/bookings/bookings?schedule_id=' + scheduleId
     });
   },
 
@@ -465,17 +946,12 @@ Page({
     wx.navigateTo({ url: '/pages/check-in/check-in' });
   },
 
-  onGoToVideos() {
-    wx.navigateTo({ url: '/pages/videos/videos' });
+  onGoToImages() {
+    wx.navigateTo({ url: '/pages/images/images' });
   },
 
-  onViewAllTodos() {
+  onGoToBanners() {
     wx.navigateTo({ url: '/pages/todo-list/todo-list' });
   },
 
-  onCloseDetail() {
-    this.setData({ showDetailModal: false });
-  },
-
-  onDetailTap() {}
 });

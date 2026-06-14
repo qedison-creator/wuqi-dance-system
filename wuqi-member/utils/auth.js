@@ -41,7 +41,7 @@ const checkLogin = () => {
 };
 
 // 要求登录，未登录时弹窗引导
-const requireLogin = () => {
+const requireLogin = (onGoLogin) => {
   if (checkLogin()) return true;
   wx.showModal({
     title: '提示',
@@ -52,7 +52,11 @@ const requireLogin = () => {
     confirmColor: '#D4786E',
     success: (res) => {
       if (res.confirm) {
-        wx.switchTab({ url: '/pages/profile/profile' });
+        if (onGoLogin) {
+          onGoLogin();
+        } else {
+          wx.switchTab({ url: '/pages/profile/profile' });
+        }
       }
     }
   });
@@ -60,8 +64,8 @@ const requireLogin = () => {
 };
 
 // 要求正式会员身份（已登录+审核通过），否则提示
-const requireMember = (callback) => {
-  if (!requireLogin()) return false;
+const requireMember = (callback, onGoLogin) => {
+  if (!requireLogin(onGoLogin)) return false;
   const userInfo = app.globalData.userInfo;
   if (!userInfo || userInfo.member_status !== 'official') {
     wx.showModal({

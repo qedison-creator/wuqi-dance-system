@@ -17,7 +17,11 @@
               <text class="tag-text">待审核</text>
             </view>
           </view>
-          <text class="card-phone">{{item.phone || '未绑定手机号'}}</text>
+          <view class="card-phone-line">
+            <text class="phone-item" wx:if="{{item.wechat_phone_display}}"><text class="phone-label">微信</text>{{item.wechat_phone_display}}</text>
+            <text class="phone-item" wx:if="{{item.reserve_phone_display}}"><text class="phone-label">预留</text>{{item.reserve_phone_display}}</text>
+          </view>
+          <text class="card-phone" wx:if="{{!item.wechat_phone_display && !item.reserve_phone_display}}">未绑定手机号</text>
           <text class="card-date">申请时间 {{item.created_at}}</text>
           <text class="card-store" wx:if="{{item.store_name}}">用户选择门店：{{item.store_name}}</text>
         </view>

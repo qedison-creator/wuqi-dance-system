@@ -94,86 +94,74 @@
           </view>
         </view>
 
-        <!-- 当前使用中套餐卡片 -->
-        <view class="pkg-card-new {{currentPackage.status}} {{currentPackage.package_type}}" wx:if="{{currentPackage}}" bindtap="onPackageTap" data-id="{{currentPackage._id}}">
-          <!-- 装饰圆 -->
+        <!-- 使用中套餐卡片（支持多个） -->
+        <block wx:for="{{activePackages}}" wx:key="_id" wx:if="{{activePackages.length > 0}}">
+        <view class="pkg-card-new {{item.status}} {{item.package_type}}" bindtap="onPackageTap" data-id="{{item._id}}">
           <view class="pkg-new-decorate-circle"></view>
-          
-          <!-- 卡片内容区 -->
           <view class="pkg-new-content">
-            <!-- 第一行：门店 + 套餐类型 -->
             <view class="pkg-new-header">
               <view class="pkg-new-header-left">
-                <view class="pkg-tag pkg-tag-store" wx:if="{{currentPackage._storeName}}">
-                  <text class="pkg-tag-text">{{currentPackage._storeName}}</text>
+                <view class="pkg-tag pkg-tag-store" wx:if="{{item._storeName}}">
+                  <text class="pkg-tag-text">{{item._storeName}}</text>
                 </view>
-                <view class="pkg-tag pkg-tag-type-{{currentPackage.package_type}}" wx:if="{{currentPackage._typeLabel}}">
-                  <text class="pkg-tag-text">{{currentPackage._typeLabel}}</text>
+                <view class="pkg-tag pkg-tag-type-{{item.package_type}}" wx:if="{{item._typeLabel}}">
+                  <text class="pkg-tag-text">{{item._typeLabel}}</text>
                 </view>
               </view>
             </view>
-
-            <!-- 第二行：核心数据区 -->
             <view class="pkg-new-main">
-              <!-- 左侧：大数字 + 状态圆点 -->
               <view class="pkg-new-main-left">
                 <view class="pkg-new-main-value-wrap">
-                  <block wx:if="{{currentPackage.package_type === 'count_card'}}">
-                    <text class="pkg-new-main-value">{{currentPackage.remaining_credits || 0}}</text>
+                  <block wx:if="{{item.package_type === 'count_card'}}">
+                    <text class="pkg-new-main-value">{{item.remaining_credits || 0}}</text>
                     <text class="pkg-new-main-unit">次</text>
                   </block>
-                  <block wx:elif="{{currentPackage.package_type === 'time_card'}}">
-                    <text class="pkg-new-main-value">{{currentPackage.remaining_days || 0}}</text>
+                  <block wx:elif="{{item.package_type === 'time_card'}}">
+                    <text class="pkg-new-main-value">{{item.remaining_days || 0}}</text>
                   </block>
                 </view>
                 <text class="pkg-new-main-label">
-                  {{currentPackage.package_type === 'count_card' ? '本周剩余' : '剩余天数'}}
+                  {{item.package_type === 'count_card' ? '本周剩余' : '剩余天数'}}
                 </text>
-                <!-- 状态圆点 -->
-                <view class="pkg-new-status-dot-wrap {{currentPackage.status}} {{currentPackage.is_suspended ? 'suspended' : ''}}">
+                <view class="pkg-new-status-dot-wrap {{item.status}} {{item.is_suspended ? 'suspended' : ''}}">
                   <view class="pkg-new-status-dot"></view>
-                  <text class="pkg-new-status-label">{{currentPackage._statusText}}</text>
+                  <text class="pkg-new-status-label">{{item._statusText}}</text>
                 </view>
               </view>
-
-              <!-- 右侧：信息胶囊 -->
               <view class="pkg-new-main-right">
-                <view class="pkg-new-info-capsule" wx:if="{{currentPackage.package_type === 'time_card'}}">
+                <view class="pkg-new-info-capsule" wx:if="{{item.package_type === 'time_card'}}">
                   <text class="pkg-new-info-capsule-label">服务有效期</text>
-                  <text class="pkg-new-info-capsule-value">{{currentPackage.duration_value || '-'}}{{currentPackage.duration_unit === 'month' ? '个月' : '天'}}</text>
+                  <text class="pkg-new-info-capsule-value">{{item.duration_value || '-'}}{{item.duration_unit === 'month' ? '个月' : '天'}}</text>
                 </view>
-                <view class="pkg-new-info-capsule" wx:if="{{currentPackage.package_type === 'count_card'}}">
+                <view class="pkg-new-info-capsule" wx:if="{{item.package_type === 'count_card'}}">
                   <text class="pkg-new-info-capsule-label">总次数</text>
-                  <text class="pkg-new-info-capsule-value">{{currentPackage.total_credits || 0}} 次</text>
+                  <text class="pkg-new-info-capsule-value">{{item.total_credits || 0}} 次</text>
                 </view>
-                <view class="pkg-new-info-capsule" wx:if="{{currentPackage.package_type === 'time_card' && currentPackage._weekRemaining !== undefined}}">
-                  <text class="pkg-new-info-capsule-label">{{currentPackage._periodLabel || '本周'}}剩余</text>
-                  <text class="pkg-new-info-capsule-value">{{currentPackage._weekRemaining}} 次</text>
+                <view class="pkg-new-info-capsule" wx:if="{{item.package_type === 'time_card' && item._weekRemaining !== undefined}}">
+                  <text class="pkg-new-info-capsule-label">{{item._periodLabel || '本周'}}剩余</text>
+                  <text class="pkg-new-info-capsule-value">{{item._weekRemaining}} 次</text>
                 </view>
-                <view class="pkg-new-info-capsule" wx:if="{{currentPackage.package_type === 'count_card'}}">
+                <view class="pkg-new-info-capsule" wx:if="{{item.package_type === 'count_card'}}">
                   <text class="pkg-new-info-capsule-label">已使用</text>
-                  <text class="pkg-new-info-capsule-value">{{(currentPackage.total_credits || 0) - (currentPackage.remaining_credits || 0)}} 次</text>
+                  <text class="pkg-new-info-capsule-value">{{(item.total_credits || 0) - (item.remaining_credits || 0)}} 次</text>
                 </view>
               </view>
             </view>
-
-            <!-- 第三行：进度条 -->
-            <view class="pkg-new-progress" wx:if="{{currentPackage._hasProgress}}">
+            <view class="pkg-new-progress" wx:if="{{item._hasProgress}}">
               <view class="pkg-new-progress-bar">
-                <view class="pkg-new-progress-fill {{currentPackage._progressFillClass}}" style="{{currentPackage._progressWidthStyle}}"></view>
+                <view class="pkg-new-progress-fill {{item._progressFillClass}}" style="{{item._progressWidthStyle}}"></view>
               </view>
               <view class="pkg-new-progress-info">
-                <text class="pkg-new-progress-label">{{currentPackage._progressLabel}}</text>
-                <text class="pkg-new-progress-pct">{{currentPackage._progressPercent}}%</text>
+                <text class="pkg-new-progress-label">{{item._progressLabel}}</text>
+                <text class="pkg-new-progress-pct">{{item._progressPercent}}%</text>
               </view>
             </view>
-
-            <!-- 第四行：服务有效期 -->
-            <view class="pkg-new-footer" wx:if="{{currentPackage.is_activated && currentPackage.start_date_display}}">
-              <text class="pkg-new-date-text">服务有效期：{{currentPackage.start_date_display}}至{{currentPackage.end_date_display}}</text>
+            <view class="pkg-new-footer" wx:if="{{item.is_activated && item.start_date_display}}">
+              <text class="pkg-new-date-text">服务有效期：{{item.start_date_display}}至{{item.end_date_display}}</text>
             </view>
           </view>
         </view>
+        </block>
 
         <!-- 待激活套餐卡片 -->
         <view class="pkg-card-new pending {{item.package_type}}" wx:for="{{pendingPackages}}" wx:key="_id" wx:if="{{pendingPackages.length > 0}}" bindtap="onPackageTap" data-id="{{item._id}}">
@@ -446,7 +434,7 @@
       </view>
       <view class="guest-login-btn-row">
         <view class="guest-login-btn-small" bindtap="onLogin">
-          <text>微信一键登录</text>
+          <text>一键登录</text>
         </view>
       </view>
     </view>
@@ -516,6 +504,31 @@
             <image class="menu-icon" src="/images/icons/info.svg" mode="aspectFit"></image>
           </view>
           <text class="menu-item-title">关于系统</text>
+          <view class="menu-item-arrow"></view>
+        </view>
+      </view>
+    </view>
+
+    <view class="menu-section menu-section-other">
+      <view class="section-header">
+        <view class="section-header-left">
+          <view class="section-left-bar"></view>
+          <text class="section-title">其他</text>
+        </view>
+      </view>
+      <view class="menu-card">
+        <view class="menu-item" bindtap="onPrivacy">
+          <view class="menu-icon-wrap muted">
+            <image class="menu-icon" src="/images/icons/settings.svg" mode="aspectFit"></image>
+          </view>
+          <text class="menu-item-title">隐私保护指引</text>
+          <view class="menu-item-arrow"></view>
+        </view>
+        <view class="menu-item" bindtap="onAgreement">
+          <view class="menu-icon-wrap muted">
+            <image class="menu-icon" src="/images/icons/document.svg" mode="aspectFit"></image>
+          </view>
+          <text class="menu-item-title">用户服务协议</text>
           <view class="menu-item-arrow"></view>
         </view>
       </view>
@@ -594,8 +607,8 @@
         <input class="form-input" type="text" placeholder="请输入真实姓名" placeholder-class="ph" value="{{profileForm.real_name}}" bindinput="onRealNameInput"></input>
       </view>
       <view class="form-group">
-        <text class="form-label">手机号 *</text>
-        <input class="form-input" type="number" maxlength="11" placeholder="请输入手机号" placeholder-class="ph" value="{{profileForm.phone}}" bindinput="onPhoneInput"></input>
+        <text class="form-label">预留手机号 *</text>
+        <input class="form-input" type="number" maxlength="11" placeholder="请输入预留手机号" placeholder-class="ph" value="{{profileForm.phone}}" bindinput="onPhoneInput"></input>
       </view>
       <view class="form-group">
         <text class="form-label">性别 *</text>
@@ -653,7 +666,7 @@
       <view class="modal-title-text">修改预留手机号</view>
       <view class="form-group">
         <text class="form-label">当前预留手机号</text>
-        <text class="current-phone">{{userInfo.reserve_phone || '未设置'}}</text>
+        <text class="current-phone">{{userInfo.reserve_phone || userInfo.phone || '未设置'}}</text>
       </view>
       <view class="form-group">
         <text class="form-label">新手机号</text>
@@ -681,3 +694,6 @@
       <view class="btn-primary" bindtap="onSubmitTransfer" disabled="{{!transferStoreId}}">提交申请</view>
     </view>
   </view>
+
+  <!-- 微信授权登录弹窗 -->
+  <login-modal visible="{{showLoginModal}}" bind:close="onLoginModalClose" bind:success="onLoginSuccess"></login-modal>

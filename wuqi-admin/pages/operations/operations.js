@@ -102,6 +102,7 @@ Page({
       });
     } catch (err) {
       console.error('加载门店失败', err);
+      wx.showToast({ title: '加载门店失败', icon: 'none' });
     }
   },
 

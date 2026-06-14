@@ -10,7 +10,14 @@
           <text>编辑</text>
         </view>
       </view>
-      <text class="member-phone">{{member.phone || '无手机号'}}</text>
+      <view class="member-phone-row">
+        <text class="member-phone-label">预留：</text>
+        <text class="member-phone">{{member.reserve_phone || member.phone || '未设置'}}</text>
+      </view>
+      <view class="member-phone-row" wx:if="{{member.wechat_phone}}">
+        <text class="member-phone-label secondary">微信：</text>
+        <text class="member-phone secondary">{{member.wechat_phone}}</text>
+      </view>
       <view class="member-tags">
         <text class="gender-tag">{{member.gender_display}}</text>
         <text class="status-badge {{memberStatusClass}}">{{memberStatusText}}</text>
@@ -165,6 +172,95 @@
   <view class="bottom-actions" wx:if="{{hasActivePackage}}">
     <view class="suspend-btn" bindtap="onSuspendCard">
       <text>停卡</text>
+    </view>
+  </view>
+
+  <!-- 危险操作区域（页面底部，与内容有间距） -->
+  <view class="danger-zone" wx:if="{{isAdmin}}">
+    <view class="danger-zone-title">危险操作</view>
+    <view class="danger-zone-desc">删除后该会员的所有数据将无法恢复</view>
+    <view class="delete-member-btn" bindtap="onDeleteMember">
+      <text>删除此会员</text>
+    </view>
+  </view>
+
+  <!-- 删除会员确认弹窗 -->
+  <view class="modal-mask" wx:if="{{showDeleteModal}}" bindtap="onCloseDeleteModal">
+    <view class="delete-modal-content" catchtap="onModalTap">
+      <view class="modal-header">
+        <text class="modal-title delete-modal-title">确认删除会员</text>
+        <text class="modal-close" bindtap="onCloseDeleteModal">✕</text>
+      </view>
+
+      <view class="delete-warning-box">
+        <text class="delete-warning-icon">⚠</text>
+        <text class="delete-warning-text">此操作不可恢复，删除后该会员的以下数据将被永久清除：</text>
+      </view>
+
+      <view class="delete-data-list">
+        <view class="delete-data-item">
+          <text class="delete-data-dot">•</text>
+          <text class="delete-data-text">会员基本信息（姓名、手机号等）</text>
+        </view>
+        <view class="delete-data-item">
+          <text class="delete-data-dot">•</text>
+          <text class="delete-data-text">所有套餐记录（{{packages.length}}个）</text>
+        </view>
+        <view class="delete-data-item">
+          <text class="delete-data-dot">•</text>
+          <text class="delete-data-text">所有预约记录（{{bookings.length}}条）</text>
+        </view>
+      </view>
+
+      <view class="form-group">
+        <text class="form-label">请输入会员姓名确认删除</text>
+        <input class="input-field delete-confirm-input" placeholder="{{member.real_name || member.nick_name || '未知用户'}}" value="{{deleteConfirmName}}" bindinput="onDeleteConfirmInput" />
+      </view>
+
+      <view class="modal-actions">
+        <view class="btn-secondary" bindtap="onCloseDeleteModal"><text>取消</text></view>
+        <view class="btn-primary btn-danger {{deleteConfirmName !== (member.real_name || member.nick_name) ? 'disabled' : ''}}" bindtap="onConfirmDeleteMember"><text>确认删除</text></view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 删除套餐确认弹窗 -->
+  <view class="modal-mask" wx:if="{{showDeletePackageModal}}" bindtap="onCloseDeletePackageModal">
+    <view class="delete-modal-content" catchtap="onModalTap">
+      <view class="modal-header">
+        <text class="modal-title delete-modal-title">确认删除套餐</text>
+        <text class="modal-close" bindtap="onCloseDeletePackageModal">✕</text>
+      </view>
+
+      <view class="delete-warning-box">
+        <text class="delete-warning-icon">⚠</text>
+        <text class="delete-warning-text">删除后该套餐数据将无法恢复：</text>
+      </view>
+
+      <view class="delete-data-list" wx:if="{{deletingPackage}}">
+        <view class="delete-data-item">
+          <text class="delete-data-dot">•</text>
+          <text class="delete-data-text">套餐类型：{{deletingPackage.package_type === 'time_card' ? '时间卡' : '次卡'}}</text>
+        </view>
+        <view class="delete-data-item" wx:if="{{deletingPackage.package_type === 'count_card'}}">
+          <text class="delete-data-dot">•</text>
+          <text class="delete-data-text">剩余次数：{{deletingPackage.remaining_credits || 0}} / {{deletingPackage.total_credits || 0}} 次</text>
+        </view>
+        <view class="delete-data-item" wx:if="{{deletingPackage.is_activated && deletingPackage.end_date}}">
+          <text class="delete-data-dot">•</text>
+          <text class="delete-data-text">有效期至：{{deletingPackage.end_date_display}}</text>
+        </view>
+      </view>
+
+      <view class="form-group">
+        <text class="form-label">请输入"确认删除"以继续</text>
+        <input class="input-field delete-confirm-input" placeholder="确认删除" value="{{deletePackageConfirmText}}" bindinput="onDeletePackageConfirmInput" />
+      </view>
+
+      <view class="modal-actions">
+        <view class="btn-secondary" bindtap="onCloseDeletePackageModal"><text>取消</text></view>
+        <view class="btn-primary btn-danger {{deletePackageConfirmText !== '确认删除' ? 'disabled' : ''}}" bindtap="onConfirmDeletePackage"><text>确认删除</text></view>
+      </view>
     </view>
   </view>
 

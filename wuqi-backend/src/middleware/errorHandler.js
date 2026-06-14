@@ -55,6 +55,29 @@ const errorHandler = (err, req, res, next) => {
     });
   }
 
+  // Multer 文件上传错误
+  if (err.name === 'MulterError') {
+    if (err.code === 'LIMIT_FILE_SIZE') {
+      return res.status(413).json({
+        code: 413,
+        message: '文件过大，图片最大支持 10MB，视频最大支持 500MB',
+        data: null,
+      });
+    }
+    if (err.code === 'LIMIT_UNEXPECTED_FILE') {
+      return res.status(400).json({
+        code: 400,
+        message: '上传字段名错误，请使用正确的字段名',
+        data: null,
+      });
+    }
+    return res.status(400).json({
+      code: 400,
+      message: `文件上传错误: ${err.message}`,
+      data: null,
+    });
+  }
+
   // 业务逻辑错误（BusinessError 或带 statusCode 的错误）
   if (err.name === 'BusinessError' || (err.statusCode >= 400 && err.statusCode < 500)) {
     return res.status(err.statusCode || 400).json({

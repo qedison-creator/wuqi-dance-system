@@ -3,6 +3,25 @@ const { request } = require('../../utils/request');
 const { COURSE_DURATIONS, DEFAULT_DURATION } = require('../../utils/config');
 const { getBeijingDate, getWeekday } = require('../../utils/helpers');
 
+// 最大图片上传大小（与后端 multer limits.fileSize 一致）
+const MAX_IMAGE_SIZE = 10 * 1024 * 1024; // 10MB
+
+// 从上传错误中提取有意义的提示信息
+function getUploadErrorMessage(err) {
+  if (!err) return '上传失败，请重试';
+  const msg = err.message || err.errMsg || String(err);
+  if (msg.includes('文件过大')) return msg;
+  if (msg.includes('不支持的图片类型')) return msg;
+  if (msg.includes('413')) return '图片文件过大，最大支持 10MB';
+  if (msg.includes('timeout') || msg.includes('超时')) return '上传超时，请检查网络后重试';
+  if (msg.includes('fail') || msg.includes('网络')) return '网络异常，请检查网络后重试';
+  try {
+    const data = JSON.parse(msg);
+    if (data && data.message) return data.message;
+  } catch (e) {}
+  return '上传失败，请重试';
+}
+
 Page({
   data: {
     stores: [],
@@ -48,6 +67,7 @@ Page({
     manageConfirmText: '',
     manageConfirmInput: '',
     manageClearDate: '',
+    deleting: false, // 防抖标志位
     manageClearAction: '',
     copyStep: 1,
     copySourceCount: 0,
@@ -88,7 +108,8 @@ Page({
         cancelBookingDeadline: 120,
         customCancelBookingDeadline: '',
         creditsCost: 1,
-        customCreditsCost: ''
+        customCreditsCost: '',
+        coverUrl: ''
       }
   },
 
@@ -208,6 +229,7 @@ Page({
       });
     } catch (err) {
       console.error('加载星期模板失败', err);
+      wx.showToast({ title: '加载模板失败', icon: 'none' });
       // 即使加载失败，也初始化一个空模板
       this.setData({ 
         weekTemplate: {
@@ -759,7 +781,8 @@ Page({
         cancelBookingDeadline: 120,
         customCancelBookingDeadline: '',
         creditsCost: 1,
-        customCreditsCost: ''
+        customCreditsCost: '',
+        coverUrl: ''
       }
     });
   },
@@ -804,7 +827,8 @@ Page({
         cancelBookingDeadline: schedule.cancel_deadline || 120,
         customCancelBookingDeadline: '',
         creditsCost: schedule.credits_cost || 1,
-        customCreditsCost: ''
+        customCreditsCost: '',
+        coverUrl: schedule.cover ? this._fixImageUrl(schedule.cover) : ''
       }
     });
   },
@@ -814,6 +838,123 @@ Page({
   },
 
   onModalTap() {},
+
+  // 补全图片 URL
+  _fixImageUrl(url) {
+    if (!url) return '';
+    if (url.startsWith('https://')) return url;
+    const config = require('../../config/index.js');
+    const serverBase = config.serverBase || '';
+    if (url.startsWith('http://')) {
+      const match = url.match(/^https?:\/\/[^/]+(\/.*)$/);
+      if (match) return serverBase + match[1];
+      return url;
+    }
+    if (url.startsWith('//')) return serverBase.replace(/^https?:/, '') + url;
+    if (url.startsWith('/')) return serverBase + url;
+    return serverBase + '/' + url;
+  },
+
+  // 从完整URL中提取相对路径，用于保存到后端
+  _extractRelativePath(url) {
+    if (!url) return '';
+    if (url.startsWith('http://') || url.startsWith('https://')) {
+      const match = url.match(/^https?:\/\/[^/]+(\/.*)$/);
+      return match ? match[1] : url;
+    }
+    return url;
+  },
+
+  // 选择课程封面
+  onChooseCover() {
+    const that = this;
+    wx.chooseMedia({
+      count: 1,
+      mediaType: ['image'],
+      success: async (res) => {
+        const file = res.tempFiles[0];
+        // 上传前检查文件大小
+        if (file.size > MAX_IMAGE_SIZE) {
+          wx.showToast({ title: '图片过大，最大支持 10MB', icon: 'none' });
+          return;
+        }
+
+        let filePath = file.tempFilePath;
+
+        // 使用微信内置裁剪（固定16:9比例，用户可缩放/拖动）
+        try {
+          if (wx.cropImage) {
+            const cropRes = await new Promise((resolve, reject) => {
+              wx.cropImage({
+                src: filePath,
+                cropScale: '16:9',
+                success: resolve,
+                fail: reject
+              });
+            });
+            filePath = cropRes.tempFilePath;
+          }
+        } catch (cropErr) {
+          // 裁剪失败或用户取消裁剪，使用原图
+          if (cropErr.errMsg && cropErr.errMsg.indexOf('cancel') !== -1) {
+            return;
+          }
+        }
+
+        wx.showLoading({ title: '上传中...' });
+        try {
+          const token = wx.getStorageSync('admin_token') || '';
+          const uploadUrl = app.globalData.baseUrl + '/upload/image?type=course';
+          const uploadRes = await new Promise((resolve, reject) => {
+            wx.uploadFile({
+              url: uploadUrl,
+              filePath: filePath,
+              name: 'image',
+              header: { 'Authorization': 'Bearer ' + token },
+              success: resolve,
+              fail: reject
+            });
+          });
+          const data = JSON.parse(uploadRes.data);
+          if (data.code === 200) {
+            const relativePath = data.data.path;
+            const fullUrl = that._fixImageUrl(relativePath);
+            that.setData({ 'formData.coverUrl': fullUrl });
+            wx.hideLoading();
+            wx.showToast({ title: '封面上传成功', icon: 'success' });
+          } else {
+            wx.hideLoading();
+            wx.showToast({ title: data.message || '上传失败', icon: 'none' });
+          }
+        } catch (err) {
+          wx.hideLoading();
+          wx.showToast({ title: getUploadErrorMessage(err), icon: 'none' });
+        }
+      },
+      fail: (err) => {
+        console.error('选择图片失败', err);
+        if (err.errMsg && err.errMsg.indexOf('cancel') === -1) {
+          wx.showToast({ title: '选择图片失败，请检查隐私权限', icon: 'none' });
+        }
+      }
+    });
+  },
+
+  // 删除课程封面
+  onRemoveCover() {
+    const that = this;
+    wx.showModal({
+      title: '删除封面',
+      content: '确定要删除当前课程封面吗？',
+      confirmText: '删除',
+      confirmColor: '#DC5046',
+      success: (res) => {
+        if (res.confirm) {
+          that.setData({ 'formData.coverUrl': '' });
+        }
+      }
+    });
+  },
 
   onSelectDanceStyle(e) {
     const { id, name } = e.currentTarget.dataset;
@@ -950,7 +1091,11 @@ Page({
 
   // 提交排课
   async onSubmitSchedule() {
-    const { formData, currentStoreId, viewMode, weekTemplate, weekdayList, currentWeekdayIndex } = this.data;
+    if (!app.hasPermission('schedule:edit')) {
+      wx.showToast({ title: '无权限执行此操作', icon: 'none' });
+      return;
+    }
+    const { formData, currentStoreId, viewMode, weekTemplate, weekdayList, currentWeekdayIndex, schedules } = this.data;
     
     if (!formData.danceStyleId) {
       wx.showToast({ title: '请选择舞种', icon: 'none' });
@@ -963,6 +1108,41 @@ Page({
     if (!formData.startTime) {
       wx.showToast({ title: '请输入开课时间', icon: 'none' });
       return;
+    }
+
+    // 时间冲突检测（月视图模式，排除自身）
+    if (viewMode !== 'day' && schedules && schedules.length > 0) {
+      const newStart = formData.startTime;
+      const newEnd = formData.endTime;
+      const editingId = formData._id || (this.data.editPreview ? this.data.editPreview._id : '');
+      const conflictingSchedule = schedules.find(s => {
+        if (s._id === editingId) return false;  // 排除正在编辑的自身
+        if (s.status === 'cancelled') return false;
+        const existingStart = s.start_time;
+        const existingEnd = s.end_time;
+        if (newStart < existingEnd && newEnd > existingStart) {
+          const existingCoachId = s.coach_id?._id || s.coach_id;
+          if (existingCoachId === formData.coachId) {
+            return true;
+          }
+          if (s.classroom && s.classroom === formData.classroom) {
+            return true;
+          }
+        }
+        return false;
+      });
+
+      if (conflictingSchedule) {
+        const conflictCoach = conflictingSchedule.coach_id?.name || '未知教练';
+        const conflictTime = `${conflictingSchedule.start_time}-${conflictingSchedule.end_time}`;
+        wx.showModal({
+          title: '时间冲突',
+          content: `与已有排课冲突：\n教练：${conflictCoach}\n时间：${conflictTime}`,
+          showCancel: false,
+          confirmText: '知道了'
+        });
+        return;
+      }
     }
 
     // 处理预约截止时间和取消预约截止时间
@@ -1023,6 +1203,8 @@ Page({
         booking_deadline: bookingDeadline,
         cancel_deadline: cancelBookingDeadline,
         credits_cost: creditsCost,
+        cover: this._extractRelativePath(formData.coverUrl),
+        coverUrl: formData.coverUrl,
         enabled: true
       };
 
@@ -1065,7 +1247,8 @@ Page({
       min_bookings: formData.min_bookings,
       booking_deadline: bookingDeadline,
       cancel_deadline: cancelBookingDeadline,
-      credits_cost: creditsCost
+      credits_cost: creditsCost,
+      cover: this._extractRelativePath(formData.coverUrl)
     };
 
     try {
@@ -1099,6 +1282,12 @@ Page({
 
   // 取消排课/删除模板
   async onCancelSchedule(e) {
+    // 防抖处理：如果正在删除中，则直接返回
+    if (this.data.deleting) {
+      wx.showToast({ title: '正在处理中，请稍候', icon: 'none' });
+      return;
+    }
+    
     const { viewMode, weekTemplate, weekdayList, currentWeekdayIndex } = this.data;
     const index = e.currentTarget.dataset.index;
     const id = e.currentTarget.dataset.id;
@@ -1111,16 +1300,33 @@ Page({
         content: '确定要删除该模板课程吗？',
         success: async (res) => {
           if (res.confirm) {
-            const currentWeekday = weekdayList[currentWeekdayIndex]?.weekday;
-            const newWeekTemplate = { ...weekTemplate };
-            if (newWeekTemplate[currentWeekday] && newWeekTemplate[currentWeekday][index] !== undefined) {
-              newWeekTemplate[currentWeekday].splice(index, 1);
-              this.setData({ weekTemplate: newWeekTemplate });
-              await this.saveWeekTemplate();
-              this.loadCurrentWeekdaySchedules();
-              wx.showToast({ title: '已删除', icon: 'success' });
+            // 设置防抖标志位
+            this.setData({ deleting: true });
+            try {
+              const currentWeekday = weekdayList[currentWeekdayIndex]?.weekday;
+              const newWeekTemplate = { ...weekTemplate };
+              if (newWeekTemplate[currentWeekday] && newWeekTemplate[currentWeekday][index] !== undefined) {
+                newWeekTemplate[currentWeekday].splice(index, 1);
+                this.setData({ weekTemplate: newWeekTemplate });
+                await this.saveWeekTemplate();
+                this.loadCurrentWeekdaySchedules();
+                wx.showToast({ title: '已删除', icon: 'success' });
+              }
+            } catch (err) {
+              console.error('删除模板失败', err);
+              wx.showToast({ title: '删除失败', icon: 'none' });
+            } finally {
+              // 无论成功或失败，都重置防抖标志位
+              this.setData({ deleting: false });
             }
+          } else {
+            // 用户取消删除，重置防抖标志位
+            this.setData({ deleting: false });
           }
+        },
+        fail: () => {
+          // 用户取消删除，重置防抖标志位
+          this.setData({ deleting: false });
         }
       });
       return;
@@ -1134,6 +1340,7 @@ Page({
         cancelScheduleBookings: bookings,
         cancelSelectedReason: ''
       });
+      // 注意：防抖标志位将在用户选择原因后，在 confirmCancelReason 方法中处理
     } else {
       wx.showModal({
         title: '确认取消排课',
@@ -1141,13 +1348,26 @@ Page({
         success: async (res) => {
           if (res.confirm) {
             try {
+              // 设置防抖标志位
+              this.setData({ deleting: true });
               await request({ url: `/schedules/${id}/cancel`, method: 'PUT' });
               wx.showToast({ title: '已取消', icon: 'success' });
               this.loadSchedules();
             } catch (err) {
               console.error('取消排课失败', err);
+              wx.showToast({ title: '取消失败', icon: 'none' });
+            } finally {
+              // 无论成功或失败，都重置防抖标志位
+              this.setData({ deleting: false });
             }
+          } else {
+            // 用户取消删除，重置防抖标志位
+            this.setData({ deleting: false });
           }
+        },
+        fail: () => {
+          // 用户取消删除，重置防抖标志位
+          this.setData({ deleting: false });
         }
       });
     }
@@ -1847,13 +2067,16 @@ Page({
     };
     
     const datesToProcess = [];
-    const currentDate = getBeijingDate(startDate);
     
     for (let i = 0; i < count; i++) {
       if (mode === 'weeks') {
+        // 计算当前周的起始日期
+        const weekStart = getBeijingDate(startDate);
+        weekStart.setDate(startDate.getDate() + i * 7);
+        
         for (let j = 0; j < 7; j++) {
-          const date = getBeijingDate(currentDate);
-          date.setDate(startDate.getDate() + i * 7 + j);
+          const date = getBeijingDate(weekStart);
+          date.setDate(weekStart.getDate() + j);
           datesToProcess.push(date);
         }
       } else {

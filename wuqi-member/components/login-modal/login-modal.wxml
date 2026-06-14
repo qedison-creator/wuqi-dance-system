@@ -1,0 +1,31 @@
+<!-- 弹窗容器：遮罩 + 底部弹窗卡片 -->
+<view class="modal-mask" catchtap="onClose" wx:if="{{visible}}">
+  <view class="card" catchtap="onModalTap">
+    <view class="icon-wrap">
+      <view class="icon-dot"></view>
+    </view>
+    <view class="title">手机号快捷登录</view>
+    <!-- 隐私政策勾选 -->
+    <view class="privacy-check">
+      <view class="checkbox-wrap" bindtap="onToggleAgree">
+        <view class="checkbox-icon {{agreed ? 'checked' : ''}}">
+          <text class="checkbox-icon-check" wx:if="{{agreed}}">✓</text>
+        </view>
+      </view>
+      <view class="privacy-text">
+        <text>我已阅读并同意</text>
+        <text class="privacy-link" catchtap="onOpenPrivacy">《隐私保护指引》</text>
+        <text>和</text>
+        <text class="privacy-link" catchtap="onOpenAgreement">《用户协议》</text>
+      </view>
+    </view>
+    <view class="btns">
+      <view class="btn btn-cancel" bindtap="onClose">
+        <text>暂不</text>
+      </view>
+      <button class="btn btn-confirm {{agreed ? '' : 'btn-disabled'}}" open-type="getPhoneNumber" bindgetphonenumber="onGetPhoneNumber" disabled="{{!agreed}}">
+        <text>登录</text>
+      </button>
+    </view>
+  </view>
+</view>
