@@ -27,7 +27,7 @@ function getNextDays(count = 7, holidays = []) {
       date: dateStr,
       day: dayNum,
       weekDay,
-      displayDay: i === 0 ? '当日' : weekDay,
+      displayDay: i === 0 ? '今日' : (i === 1 ? '明天' : weekDay),
       isToday: i === 0,
       isHoliday
     });
@@ -55,6 +55,7 @@ Page({
     memberPackageStoreIds: [],
     canBookCurrentStore: false,
     canViewCapacity: false,
+    isPackageSuspended: false,
     showBookingModal: false,
     bookingModalText: '',
     bookingModalCourse: null,
@@ -81,7 +82,8 @@ Page({
     countCardModalPackages: [],
     countCardScheduleId: '',
     isHolidayToday: false,
-    showLoginModal: false
+    showLoginModal: false,
+    bookingWindowDays: 7
   },
 
   onShow() {
@@ -113,8 +115,11 @@ Page({
       }
       this.setData({ isOfficial });
       if (isOfficial && pkgRes && pkgRes.data) {
-        this._updatePackageStoreIds(pkgRes.data);
-        this._updateCanViewCapacity(authRes.data, pkgRes.data);
+        const pkgData = pkgRes.data;
+        const isSuspended = pkgData.hasSuspended && !pkgData.current;
+        this.setData({ isPackageSuspended: isSuspended });
+        this._updatePackageStoreIds(pkgData);
+        this._updateCanViewCapacity(authRes.data, pkgData);
       } else if (!isOfficial) {
         this.setData({ memberPackageStoreIds: [], canBookCurrentStore: false, bookedScheduleIds: [], canViewCapacity: false });
       }
@@ -224,7 +229,25 @@ Page({
 
     this.loadDanceStyles();
     this.loadHolidays();
+    this.loadBookingWindowDays();
     this.loadCourses();
+  },
+
+  loadBookingWindowDays() {
+    request({ url: '/config/public/booking-window', method: 'GET', silent: true }).then(res => {
+      const days = (res.data && res.data.booking_window_days) ? parseInt(res.data.booking_window_days, 10) : 7;
+      this.setData({ bookingWindowDays: days || 7 });
+    }).catch(() => {
+      // 默认 7 天
+    });
+  },
+
+  _isDateInBookingWindow(dateStr) {
+    const today = getBeijingDate();
+    const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    const target = new Date(dateStr);
+    const diffDays = Math.floor((target - today) / (1000 * 60 * 60 * 24));
+    return diffDays >= 0 && diffDays < this.data.bookingWindowDays;
   },
 
   async loadHolidays() {
@@ -277,17 +300,16 @@ Page({
     });
     if (isHoliday) {
       this.setData({ courses: [], loading: false, courseCount: 0, isHolidayToday: true });
-      return;
+      return Promise.resolve();
     }
     this.setData({ loading: true, isHolidayToday: false });
     const storeId = this.data.currentStore ? this.data.currentStore._id : '';
     const reqData = {
       store_id: storeId,
-      date: this.data.selectedDate,
-      status: 'all'
+      date: this.data.selectedDate
     };
 
-    request({ url: '/schedules', data: reqData }).then(res => {
+    return request({ url: '/schedules', data: reqData }).then(res => {
       const courses = res.data && res.data.list
         ? res.data.list
         : (Array.isArray(res.data) ? res.data : []);
@@ -318,8 +340,8 @@ Page({
         // 课程状态：是否已经开始 / 是否已超过豁免取消窗口（开始后10分钟）
         const _started = isToday && startMin !== null && currentMin >= startMin;
         const _ended = isToday && endMin !== null && currentMin >= endMin;
-        // 豁免取消窗口期 = 10 分钟，过此时间后课程才从列表中移除；已取消课程直接不展示
-        const _cancelled = course.status === 'cancelled';
+        // 豁免取消窗口期 = 10 分钟，过此时间后课程才从列表中移除；已取消/下架课程直接不展示
+        const _cancelled = course.status === 'cancelled' || course.status === 'offline' || course.status === 'cancelled_insufficient';
         const _hiddenAfterGrace = _cancelled || (isToday && startMin !== null && currentMin >= startMin + 10);
 
         // 处理教练头像URL
@@ -338,7 +360,8 @@ Page({
           _ended,
           _cancelled,
           _hiddenAfterGrace,
-          coachAvatar
+          coachAvatar,
+          bookingOpen: this._isDateInBookingWindow(course.date)
         };
       });
 
@@ -679,8 +702,9 @@ Page({
   },
 
   onPullDownRefresh() {
-    this.loadCourses();
-    wx.stopPullDownRefresh();
+    this.loadCourses().finally(() => {
+      wx.stopPullDownRefresh();
+    });
   },
 
   onLogin() {
@@ -726,6 +750,19 @@ Page({
 
   onBookCourse(e) {
     if (!auth.requireLogin(() => this.setData({ showLoginModal: true }))) return;
+    
+    // 套餐停卡中，拦截预约
+    if (this.data.isPackageSuspended) {
+      wx.showModal({
+        title: '无法预约',
+        content: '您的套餐暂停使用中，不能进行预约课程操作。',
+        showCancel: false,
+        confirmText: '知道了',
+        confirmColor: '#D4786E'
+      });
+      return;
+    }
+    
     if (this.data.isOfficial && !this.data.canBookCurrentStore) {
       const packageStoreNames = this.data.memberPackageStoreIds.map(id => {
         const s = this.data.storeList.find(store => String(store._id) === id);
@@ -742,6 +779,12 @@ Page({
     }
     const course = e.currentTarget.dataset.course;
     if (!course) return;
+    
+    // 未开放预约，点击无反应
+    if (!course.bookingOpen) {
+      return;
+    }
+    
     // 客户端兜底校验：课程已开始不再允许预约
     const { selectedDate } = this.data;
     if (selectedDate) {

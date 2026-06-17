@@ -149,10 +149,41 @@ Page({
       list.forEach((schedule, i) => {
         let status = schedule.status || 'available';
 
-        if (schedule.end_time) {
-          const endTime = new Date(`${todayDate}T${schedule.end_time}`);
-          if (now > endTime) {
-            status = 'completed';
+        // 后端已经设置了最终状态（取消/停开/人数不足取消），保持不变
+        if (status === 'cancelled' || status === 'offline' || status === 'cancelled_insufficient') {
+          // 保持后端设置的状态
+        } else {
+          // 前端只处理正常状态的课程，遵循业务规则：
+          // 1. 如果预约截止时间已过，且报名人数 < 最低开课人数 → 自动取消
+          // 2. 如果课程已结束（结束时间已过）→ 已结束
+          // 3. 否则保持原状态
+          
+          const bookingDeadline = schedule.booking_deadline || 120;
+          const startTime = new Date(`${todayDate}T${schedule.start_time}`);
+          const bookingDeadlineTime = new Date(startTime.getTime() - (bookingDeadline * 60 * 1000));
+          
+          if (now > bookingDeadlineTime) {
+            const bookingStats = statsResults[i];
+            const minBookings = schedule.min_bookings || 5;
+            if (bookingStats.booked < minBookings) {
+              status = 'cancelled';
+            } else {
+              // 人数足够，检查是否已结束
+              if (schedule.end_time) {
+                const endTime = new Date(`${todayDate}T${schedule.end_time}`);
+                if (now > endTime) {
+                  status = 'completed';
+                }
+              }
+            }
+          } else {
+            // 预约还没截止，检查是否已结束（对于历史数据）
+            if (schedule.end_time) {
+              const endTime = new Date(`${todayDate}T${schedule.end_time}`);
+              if (now > endTime) {
+                status = 'completed';
+              }
+            }
           }
         }
 
@@ -184,9 +215,9 @@ Page({
       });
       const all = res.data || [];
       return {
-        booked: all.filter(b => b.status === 'booked' || b.booking_status === 'booked').length,
+        booked: all.filter(b => b.status === 'booked').length,
         checkedIn: all.filter(b => b.checked_in || b.status === 'checked_in').length,
-        cancelled: all.filter(b => b.status === 'cancelled' || b.booking_status === 'cancelled').length,
+        cancelled: all.filter(b => b.status === 'cancelled').length,
         exempted: all.filter(b => b.status === 'exempted' || b.is_exempted).length
       };
     } catch (err) {
@@ -317,6 +348,26 @@ Page({
     }
   },
 
+  // 返回今日
+  onGoToToday() {
+    const todayDate = this.data.todayDate;
+    const todayMonthKey = todayDate.substring(0, 7);
+    const isHoliday = this.data.holidays.some(h => h.date === todayDate);
+
+    this.setData({
+      currentDate: todayDate,
+      currentMonth: todayMonthKey,
+      isSelectedDateHoliday: isHoliday
+    }, () => {
+      this.generateMonthCalendar(todayMonthKey);
+      if (!isHoliday) {
+        this.loadDateSchedules(todayDate);
+      } else {
+        this.setData({ dateSchedules: [] });
+      }
+    });
+  },
+
   async onSelectMonthDate(e) {
     const date = e.currentTarget.dataset.date;
     if (!date) return;
@@ -367,8 +418,21 @@ Page({
         
         if (isPast) {
           status = 'completed';
-        } else if (status === 'cancelled' || status === 'offline') {
+        } else if (status === 'cancelled' || status === 'offline' || status === 'cancelled_insufficient') {
           status = 'cancelled';
+        } else {
+          // 对未来日期的课程，检查是否已过预约截止时间且人数不足
+          const bookingDeadline = schedule.booking_deadline || 120;
+          const startTime = new Date(`${date}T${schedule.start_time}`);
+          const bookingDeadlineTime = new Date(startTime.getTime() - (bookingDeadline * 60 * 1000));
+          const now = new Date();
+          if (now > bookingDeadlineTime) {
+            const bookingStats = statsResults[i];
+            const minBookings = schedule.min_bookings || 5;
+            if (bookingStats.booked < minBookings) {
+              status = 'cancelled';
+            }
+          }
         }
 
         const bookingStats = statsResults[i];
@@ -437,7 +501,7 @@ Page({
           creditsDeducted: item.credits_deducted || 0,
           checkedIn: item.checked_in || item.status === 'checked_in'
         };
-        const status = item.status || item.booking_status;
+        const status = item.status;
         if (status === 'booked' || status === 'checked_in') {
           bookedList.push(booking);
         } else if (status === 'cancelled') {

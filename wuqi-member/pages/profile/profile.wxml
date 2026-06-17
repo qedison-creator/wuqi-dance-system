@@ -47,6 +47,21 @@
       </view>
     </view>
 
+    <view class="setup-guide-section" wx:if="{{userInfo.member_status === 'official' && !userInfo.info_completed}}">
+      <view class="setup-guide-card" bindtap="onGoSetup">
+        <view class="setup-guide-icon-wrap">
+          <view class="setup-guide-icon"></view>
+        </view>
+        <view class="setup-guide-text">
+          <text class="setup-guide-title">审核已通过，请完善个人资料</text>
+          <text class="setup-guide-desc">完善资料后即可预约课程</text>
+        </view>
+        <view class="setup-guide-arrow">
+          <text>›</text>
+        </view>
+      </view>
+    </view>
+
     <view class="stats-section" wx:if="{{userInfo.member_status === 'official'}}">
       <view class="stats-row">
         <view class="stat-card">
@@ -111,18 +126,29 @@
             </view>
             <view class="pkg-new-main">
               <view class="pkg-new-main-left">
-                <view class="pkg-new-main-value-wrap">
-                  <block wx:if="{{item.package_type === 'count_card'}}">
-                    <text class="pkg-new-main-value">{{item.remaining_credits || 0}}</text>
-                    <text class="pkg-new-main-unit">次</text>
-                  </block>
-                  <block wx:elif="{{item.package_type === 'time_card'}}">
-                    <text class="pkg-new-main-value">{{item.remaining_days || 0}}</text>
-                  </block>
+                <!-- 次卡：双列大数字 -->
+                <view class="pkg-new-main-value-wrap pkg-new-dual-wrap" wx:if="{{item.package_type === 'count_card'}}">
+                  <view class="pkg-new-dual-col">
+                    <view class="pkg-new-dual-value-wrap">
+                      <text class="pkg-new-main-value">{{item.remaining_credits || 0}}</text>
+                      <text class="pkg-new-main-unit">次</text>
+                    </view>
+                    <text class="pkg-new-main-label">剩余次数</text>
+                  </view>
+                  <view class="pkg-new-dual-col">
+                    <view class="pkg-new-dual-value-wrap">
+                      <text class="pkg-new-main-value pkg-new-days-value">{{item.remaining_days || 0}}</text>
+                      <text class="pkg-new-main-unit pkg-new-days-unit">天</text>
+                    </view>
+                    <text class="pkg-new-main-label">剩余天数</text>
+                  </view>
                 </view>
-                <text class="pkg-new-main-label">
-                  {{item.package_type === 'count_card' ? '本周剩余' : '剩余天数'}}
-                </text>
+                <!-- 时间卡：单列大数字 -->
+                <view class="pkg-new-main-value-wrap" wx:elif="{{item.package_type === 'time_card'}}">
+                  <text class="pkg-new-main-value">{{item.remaining_days || 0}}</text>
+                  <text class="pkg-new-main-unit">天</text>
+                </view>
+                <text class="pkg-new-main-label" wx:if="{{item.package_type === 'time_card'}}">剩余天数</text>
                 <view class="pkg-new-status-dot-wrap {{item.status}} {{item.is_suspended ? 'suspended' : ''}}">
                   <view class="pkg-new-status-dot"></view>
                   <text class="pkg-new-status-label">{{item._statusText}}</text>
@@ -140,10 +166,6 @@
                 <view class="pkg-new-info-capsule" wx:if="{{item.package_type === 'time_card' && item._weekRemaining !== undefined}}">
                   <text class="pkg-new-info-capsule-label">{{item._periodLabel || '本周'}}剩余</text>
                   <text class="pkg-new-info-capsule-value">{{item._weekRemaining}} 次</text>
-                </view>
-                <view class="pkg-new-info-capsule" wx:if="{{item.package_type === 'count_card'}}">
-                  <text class="pkg-new-info-capsule-label">已使用</text>
-                  <text class="pkg-new-info-capsule-value">{{(item.total_credits || 0) - (item.remaining_credits || 0)}} 次</text>
                 </view>
               </view>
             </view>
@@ -236,18 +258,29 @@
                 </view>
                 <view class="pkg-new-main">
                   <view class="pkg-new-main-left">
-                    <view class="pkg-new-main-value-wrap">
-                      <block wx:if="{{item.package_type === 'count_card'}}">
-                        <text class="pkg-new-main-value">{{item.remaining_credits || 0}}</text>
-                        <text class="pkg-new-main-unit">次</text>
-                      </block>
-                      <block wx:elif="{{item.package_type === 'time_card'}}">
-                        <text class="pkg-new-main-value">{{item.remaining_days || 0}}</text>
-                      </block>
+                    <!-- 次卡：双列大数字 -->
+                    <view class="pkg-new-main-value-wrap pkg-new-dual-wrap" wx:if="{{item.package_type === 'count_card'}}">
+                      <view class="pkg-new-dual-col">
+                        <view class="pkg-new-dual-value-wrap">
+                          <text class="pkg-new-main-value">{{item.remaining_credits || 0}}</text>
+                          <text class="pkg-new-main-unit">次</text>
+                        </view>
+                        <text class="pkg-new-main-label">剩余次数</text>
+                      </view>
+                      <view class="pkg-new-dual-col">
+                        <view class="pkg-new-dual-value-wrap">
+                          <text class="pkg-new-main-value pkg-new-days-value">{{item.remaining_days || 0}}</text>
+                          <text class="pkg-new-main-unit pkg-new-days-unit">天</text>
+                        </view>
+                        <text class="pkg-new-main-label">剩余天数</text>
+                      </view>
                     </view>
-                    <text class="pkg-new-main-label">
-                      {{item.package_type === 'count_card' ? '本周剩余' : '剩余天数'}}
-                    </text>
+                    <!-- 时间卡：单列大数字 -->
+                    <view class="pkg-new-main-value-wrap" wx:elif="{{item.package_type === 'time_card'}}">
+                      <text class="pkg-new-main-value">{{item.remaining_days || 0}}</text>
+                      <text class="pkg-new-main-unit">天</text>
+                    </view>
+                    <text class="pkg-new-main-label" wx:if="{{item.package_type === 'time_card'}}">剩余天数</text>
                     <view class="pkg-new-status-dot-wrap {{item.status}}">
                       <view class="pkg-new-status-dot"></view>
                       <text class="pkg-new-status-label">{{item._statusText}}</text>
@@ -257,10 +290,6 @@
                     <view class="pkg-new-info-capsule">
                       <text class="pkg-new-info-capsule-label">{{item.package_type === 'count_card' ? '总次数' : '服务有效期'}}</text>
                       <text class="pkg-new-info-capsule-value">{{item.package_type === 'count_card' ? (item.total_credits || 0) + ' 次' : (item.duration_value || '-') + (item.duration_unit === 'month' ? '个月' : '天')}}</text>
-                    </view>
-                    <view class="pkg-new-info-capsule" wx:if="{{item.package_type === 'count_card'}}">
-                      <text class="pkg-new-info-capsule-label">已使用</text>
-                      <text class="pkg-new-info-capsule-value">{{(item.total_credits || 0) - (item.remaining_credits || 0)}} 次</text>
                     </view>
                   </view>
                 </view>
@@ -299,6 +328,13 @@
         </view>
       </view>
       <view class="menu-card">
+        <view class="menu-item" bindtap="onMyBookings">
+          <view class="menu-icon-wrap teal">
+            <image class="menu-icon" src="/images/icons/calendar.svg" mode="aspectFit"></image>
+          </view>
+          <text class="menu-item-title">我的记录</text>
+          <view class="menu-item-arrow"></view>
+        </view>
         <view class="menu-item" bindtap="onSubscribeSettings">
           <view class="menu-icon-wrap muted">
             <image class="menu-icon" src="/images/icons/settings.svg" mode="aspectFit"></image>
@@ -311,13 +347,6 @@
             <image class="menu-icon" src="/images/icons/document.svg" mode="aspectFit"></image>
           </view>
           <text class="menu-item-title">个人信息</text>
-          <view class="menu-item-arrow"></view>
-        </view>
-        <view class="menu-item" bindtap="onMyBookings">
-          <view class="menu-icon-wrap teal">
-            <image class="menu-icon" src="/images/icons/calendar.svg" mode="aspectFit"></image>
-          </view>
-          <text class="menu-item-title">我的记录</text>
           <view class="menu-item-arrow"></view>
         </view>
         <view class="menu-item" bindtap="onTransferCard">
@@ -353,17 +382,17 @@
       </view>
       <view class="menu-card">
         <view class="menu-item" bindtap="handleGuestTap">
-          <view class="menu-icon-wrap rose">
-            <image class="menu-icon" src="/images/icons/document.svg" mode="aspectFit"></image>
-          </view>
-          <text class="menu-item-title">个人信息</text>
-          <view class="menu-item-arrow"></view>
-        </view>
-        <view class="menu-item" bindtap="handleGuestTap">
           <view class="menu-icon-wrap teal">
             <image class="menu-icon" src="/images/icons/calendar.svg" mode="aspectFit"></image>
           </view>
           <text class="menu-item-title">我的记录</text>
+          <view class="menu-item-arrow"></view>
+        </view>
+        <view class="menu-item" bindtap="handleGuestTap">
+          <view class="menu-icon-wrap rose">
+            <image class="menu-icon" src="/images/icons/document.svg" mode="aspectFit"></image>
+          </view>
+          <text class="menu-item-title">个人信息</text>
           <view class="menu-item-arrow"></view>
         </view>
         <view class="menu-item" bindtap="onContactStore">
@@ -479,17 +508,17 @@
       </view>
       <view class="menu-card">
         <view class="menu-item" bindtap="handleGuestTap">
-          <view class="menu-icon-wrap rose">
-            <image class="menu-icon" src="/images/icons/document.svg" mode="aspectFit"></image>
-          </view>
-          <text class="menu-item-title">个人信息</text>
-          <view class="menu-item-arrow"></view>
-        </view>
-        <view class="menu-item" bindtap="handleGuestTap">
           <view class="menu-icon-wrap teal">
             <image class="menu-icon" src="/images/icons/calendar.svg" mode="aspectFit"></image>
           </view>
           <text class="menu-item-title">我的记录</text>
+          <view class="menu-item-arrow"></view>
+        </view>
+        <view class="menu-item" bindtap="handleGuestTap">
+          <view class="menu-icon-wrap rose">
+            <image class="menu-icon" src="/images/icons/document.svg" mode="aspectFit"></image>
+          </view>
+          <text class="menu-item-title">个人信息</text>
           <view class="menu-item-arrow"></view>
         </view>
         <view class="menu-item" bindtap="onContactStore">

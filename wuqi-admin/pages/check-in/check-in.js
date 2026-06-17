@@ -41,13 +41,17 @@ Page({
     }).then(res => {
       let data = res.data;
       if (data && data.list) data = data.list;
-      const schedules = (data || []).map(s => ({
-        ...s,
-        timeStr: `${s.start_time || ''} - ${s.end_time || ''}`,
-        className: s.course_name || '未命名课程',
-        coachName: s.coach_id ? s.coach_id.name : '',
-        danceName: s.dance_style_id ? s.dance_style_id.name : '',
-      }));
+      // 过滤：排除已取消、已结束、已下架、已删除、未开放的课程，只保留可签到的
+      const excludedStatuses = ['cancelled', 'cancelled_insufficient', 'completed', 'offline', 'deleted', 'not_open'];
+      const schedules = (data || [])
+        .filter(s => !excludedStatuses.includes(s.status))
+        .map(s => ({
+          ...s,
+          timeStr: `${s.start_time || ''} - ${s.end_time || ''}`,
+          className: s.course_name || '未命名课程',
+          coachName: s.coach_id ? s.coach_id.name : '',
+          danceName: s.dance_style_id ? s.dance_style_id.name : '',
+        }));
       this.setData({ schedules, loading: false });
       if (schedules.length > 0 && !this.data.selectedSchedule) {
         this.onScheduleSelect({ currentTarget: { dataset: { schedule: schedules[0] } } });

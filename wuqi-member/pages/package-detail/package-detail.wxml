@@ -6,8 +6,8 @@
         <view class="pkg-type-badge">
           <text>{{item.package_type === 'count_card' ? '次卡' : '时间卡'}}</text>
         </view>
-        <view class="pkg-status-badge {{item.status}}">
-          <text>{{item.status === 'pending' ? '待激活' : (item.status === 'active' ? '使用中' : (item.status === 'expired' ? '已过期' : (item.status === 'paused' ? '已暂停' : '已用完')))}}</text>
+        <view class="pkg-status-badge {{item._displayStatus || item.status}}">
+          <text>{{item.is_suspended ? '已暂停' : ((item._displayStatus || item.status) === 'pending' ? '待激活' : ((item._displayStatus || item.status) === 'active' ? '使用中' : ((item._displayStatus || item.status) === 'expired' ? '已过期' : '已用完')))}}</text>
         </view>
       </view>
 

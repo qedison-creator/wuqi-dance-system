@@ -56,10 +56,11 @@
         </view>
         <view class="card-right">
           <view class="card-right-actions">
-            <view class="course-book-btn {{cmp.contains(bookedScheduleIds, item._id) ? 'booked' : ''}} {{item.status === 'full' || !isLoggedIn || (isOfficial && !canBookCurrentStore) ? 'disabled' : ''}}" data-course="{{item}}" catchtap="onBookCourse">
+            <view class="course-book-btn {{cmp.contains(bookedScheduleIds, item._id) ? 'booked' : ''}} {{item.status === 'full' || !isLoggedIn || (isOfficial && !canBookCurrentStore) || isPackageSuspended || !item.bookingOpen ? 'disabled' : ''}}" data-course="{{item}}" catchtap="onBookCourse">
               <text wx:if="{{cmp.contains(bookedScheduleIds, item._id)}}">已预约</text>
               <text wx:elif="{{item.status === 'full'}}">已满</text>
               <text wx:elif="{{isOfficial && !canBookCurrentStore}}">不可约</text>
+              <text wx:elif="{{!item.bookingOpen}}">未开放预约</text>
               <text wx:else>预约</text>
             </view>
             <view class="course-book-btn waitlist-btn {{cmp.contains(waitlistedScheduleIds, item._id) ? 'waitlisted' : ''}}" wx:if="{{item.status === 'full' && !cmp.contains(bookedScheduleIds, item._id)}}" data-course="{{item}}" catchtap="onBookCourse">
@@ -85,7 +86,7 @@
               <text class="capacity-text capacity-locked" wx:else>已约?/?</text>
               <text class="min-capacity-text">最低{{item.min_bookings || 5}}人开课</text>
             </view>
-            <view class="booked-avatars" wx:if="{{item.booked_users && item.booked_users.length > 0}}">
+            <view class="booked-avatars" wx:if="{{canViewCapacity && item.booked_users && item.booked_users.length > 0}}">
               <block wx:for="{{item.booked_users}}" wx:for-index="ui" wx:key="user_id" wx:if="{{ui < 10}}">
                 <image class="booked-avatar" src="{{item.avatar_url}}" mode="aspectFill" style="margin-left: {{ui === 0 ? 0 : -16}}rpx; z-index: {{10 - ui}};" />
               </block>

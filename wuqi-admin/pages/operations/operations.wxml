@@ -27,13 +27,13 @@
           </view>
         </view>
         <view class="card-right">
-          <view class="status-chip {{item.status === 'cancelled' ? 'chip-danger' : item.status === 'available' ? 'chip-success' : item.status === 'full' ? 'chip-warning' : 'chip-info'}}">
-            <text>{{item.status === 'cancelled' ? '已取消' : item.status === 'available' ? '可预约' : item.status === 'full' ? '已满' : '进行中'}}</text>
-          </view>
-          <text class="card-progress-text" wx:if="{{item.status !== 'cancelled'}}">{{item.bookedCount || 0}}/{{item.capacity || 15}} 已预约</text>
+          <view class="status-chip {{item.status === 'cancelled' || item.status === 'offline' || item.status === 'cancelled_insufficient' ? 'chip-danger' : item.status === 'available' ? 'chip-success' : item.status === 'full' ? 'chip-warning' : item.status === 'completed' ? 'chip-muted' : 'chip-info'}}">
+          <text>{{item.status === 'cancelled' || item.status === 'offline' || item.status === 'cancelled_insufficient' ? '已取消' : item.status === 'available' ? '可预约' : item.status === 'full' ? '已满' : item.status === 'completed' ? '已完成' : '进行中'}}</text>
+        </view>
+          <text class="card-progress-text" wx:if="{{item.status !== 'cancelled' && item.status !== 'offline' && item.status !== 'cancelled_insufficient'}}">{{item.bookedCount || 0}}/{{item.capacity || 15}} 已预约</text>
         </view>
       </view>
-      <view class="card-stats" wx:if="{{item.status !== 'cancelled'}}">
+      <view class="card-stats" wx:if="{{item.status !== 'cancelled' && item.status !== 'offline' && item.status !== 'cancelled_insufficient'}}">
         <view class="stat-item">
           <text class="stat-num stat-booked">{{item.bookedCount || 0}}</text>
           <text class="stat-label">已预约</text>
@@ -80,6 +80,9 @@
       <view class="month-arrow" bindtap="onChangeMonth" data-direction="next">
         <text>▶</text>
       </view>
+      <view class="today-btn" bindtap="onGoToToday">
+        <text>今日</text>
+      </view>
     </view>
 
     <view class="legend-row">
@@ -125,8 +128,8 @@
           <text class="card-name">{{item.course_name || item.dance_style_name || '课程'}}</text>
           <text class="card-time">{{item.start_time}} - {{item.end_time}}</text>
         </view>
-        <view class="status-chip {{item.status === 'cancelled' ? 'chip-danger' : item.status === 'available' ? 'chip-success' : item.status === 'full' ? 'chip-warning' : item.status === 'completed' ? 'chip-muted' : 'chip-info'}}">
-          <text>{{item.status === 'cancelled' ? '已取消' : item.status === 'available' ? '可预约' : item.status === 'full' ? '已满' : item.status === 'completed' ? '已结束' : '未开始'}}</text>
+        <view class="status-chip {{item.status === 'cancelled' || item.status === 'offline' ? 'chip-danger' : item.status === 'available' ? 'chip-success' : item.status === 'full' ? 'chip-warning' : item.status === 'completed' ? 'chip-muted' : 'chip-info'}}">
+          <text>{{item.status === 'cancelled' || item.status === 'offline' ? '已取消' : item.status === 'available' ? '可预约' : item.status === 'full' ? '已满' : item.status === 'completed' ? '已结束' : '未开始'}}</text>
         </view>
       </view>
 

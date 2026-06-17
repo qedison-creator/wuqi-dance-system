@@ -36,7 +36,7 @@
 
   <!-- 自定义二次确认弹窗 -->
   <view class="confirm-mask" wx:if="{{showConfirmModal}}" bindtap="onCancelConfirm">
-    <view class="confirm-modal" catchtap="">
+    <view class="confirm-modal" catchtap="onModalTap">
       <view class="confirm-modal-header">
         <text class="confirm-modal-title">⚠️ 二次确认</text>
         <text class="confirm-modal-close" bindtap="onCancelConfirm">×</text>
@@ -44,7 +44,10 @@
       <view class="confirm-modal-body">
         <text class="confirm-modal-desc">请输入确认初始化以执行操作</text>
         <text class="confirm-modal-target">即将清理：{{confirmLabel}}（{{confirmCount}}条）</text>
-        <input class="confirm-modal-input" placeholder="请输入确认初始化" value="{{confirmInput}}" bindinput="onConfirmInput" />
+        <view class="confirm-modal-input-wrap">
+          <input class="confirm-modal-input" placeholder="请输入：确认初始化" value="{{confirmInput}}" bindinput="onConfirmInput" confirm-type="done" placeholder-style="color:#999;font-size:28rpx;" />
+          <text class="confirm-modal-input-hint">⚠️ 输入“确认初始化”后点击下方按钮执行</text>
+        </view>
       </view>
       <view class="confirm-modal-footer">
         <view class="confirm-modal-btn cancel" bindtap="onCancelConfirm">

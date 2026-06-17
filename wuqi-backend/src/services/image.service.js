@@ -25,10 +25,10 @@ async function compressAndSave(filePath, filename) {
   // 获取原图信息
   const metadata = await sharp(filePath).metadata();
 
-  // 压缩为 WebP 格式（原图质量 80%，最大宽度 1920px）
+  // 压缩为 WebP 格式（原图质量 90%，最大宽度 1920px，保持清晰度）
   await sharp(filePath)
     .resize({ width: 1920, withoutEnlargement: true })
-    .webp({ quality: 80 })
+    .webp({ quality: 90 })
     .toFile(imagePath);
 
   // 生成缩略图（400px 宽，质量 75%）

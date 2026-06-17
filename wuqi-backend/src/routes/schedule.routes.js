@@ -9,7 +9,7 @@ const { success, paginate } = require('../utils/response');
 // GET /api/v1/schedules - 获取排课列表(会员可匿名浏览)
 router.get('/', storeFilter(), async (req, res, next) => {
   try {
-    const result = await scheduleService.getScheduleList(req.query);
+    const result = await scheduleService.getScheduleList(req.query, req);
     res.json(success(paginate(result.list, result.total, result.page, result.pageSize)));
   } catch (err) {
     next(err);
@@ -61,7 +61,7 @@ router.post('/batch-cancel', auth, checkPermission(['super_admin', 'store_manage
 // GET /api/v1/schedules/:id - 获取排课详情(游客可浏览)
 router.get('/:id', optionalAuth, async (req, res, next) => {
   try {
-    const schedule = await scheduleService.getScheduleById(req.params.id);
+    const schedule = await scheduleService.getScheduleById(req.params.id, req);
     res.json(success(schedule));
   } catch (err) {
     next(err);

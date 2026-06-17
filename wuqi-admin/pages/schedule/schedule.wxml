@@ -61,6 +61,11 @@
     </view>
   </view>
 
+  <!-- 月视图下方的新增排课按钮 -->
+  <view class="month-add-schedule-btn" wx:if="{{viewMode === 'month'}}" bindtap="onAddSchedule">
+    <text>+ 新增排课</text>
+  </view>
+
   <!-- 历史日期提示 -->
   <view class="history-notice" wx:if="{{isCurrentDatePast}}">
     <text>📅 历史日期：{{currentDate}} 的课程记录</text>
@@ -127,11 +132,20 @@
           <view class="action-btn" data-id="{{item._id}}" bindtap="onViewBookings">
             <text>{{item.isHistory ? '查看预约' : '预约名单'}}</text>
           </view>
-          <view class="action-btn {{item.isHistory ? 'disabled' : ''}}" data-index="{{index}}" bindtap="{{item.isHistory ? '' : 'onEditSchedule'}}">
-            <text>{{item.isHistory ? '已归档' : '编辑'}}</text>
+          <view class="action-btn {{item.isHistory || item.status === 'cancelled' || item.status === 'cancelled_insufficient' || item.status === 'offline' || item.status === 'completed' ? 'disabled' : ''}}" data-index="{{index}}" bindtap="{{item.isHistory || item.status === 'cancelled' || item.status === 'cancelled_insufficient' || item.status === 'offline' || item.status === 'completed' ? '' : 'onEditSchedule'}}">
+            <text>{{item.isHistory ? '已归档' : (item.status === 'cancelled' || item.status === 'cancelled_insufficient' || item.status === 'offline') ? '已取消' : (item.status === 'completed' ? '已完成' : '编辑')}}</text>
           </view>
-          <view class="action-btn {{item.isHistory ? 'history-action' : 'danger'}}" data-id="{{item._id}}" data-bookings="{{item.current_bookings || 0}}" bindtap="{{item.isHistory ? 'onViewAttendance' : 'onCancelSchedule'}}">
-            <text>{{item.isHistory ? '上课记录' : '取消'}}</text>
+          <!-- 已取消/已下架状态显示删除按钮 -->
+          <view class="action-btn danger" wx:if="{{item.status === 'cancelled' || item.status === 'cancelled_insufficient' || item.status === 'offline'}}" data-id="{{item._id}}" data-bookings="{{item.current_bookings || 0}}" bindtap="onDeleteSchedule">
+            <text>删除</text>
+          </view>
+          <!-- 已结束课程：查看上课记录 -->
+          <view class="action-btn history-action" wx:elif="{{item.isHistory || item.status === 'completed'}}" data-id="{{item._id}}" bindtap="onViewAttendance">
+            <text>上课记录</text>
+          </view>
+          <!-- 正常状态显示取消按钮 -->
+          <view class="action-btn danger" wx:else data-id="{{item._id}}" data-bookings="{{item.current_bookings || 0}}" bindtap="onCancelSchedule">
+            <text>取消</text>
           </view>
         </block>
         <!-- 星期视图显示启用开关、编辑、删除 -->
@@ -159,21 +173,11 @@
     <view class="empty-state" wx:if="{{schedules.length === 0}}">
       <text class="empty-text">暂无排课</text>
     </view>
-    <view class="schedule-actions-row">
-      <!-- 星期视图显示两个按钮 -->
-      <block wx:if="{{viewMode === 'day'}}">
-        <view class="copy-schedule-btn" bindtap="onShowCopyModal">
-          <text>📋 复制周排课</text>
-        </view>
-      </block>
-      <!-- 月视图显示新增排课 -->
-      <block wx:if="{{viewMode === 'month'}}">
-        <view class="add-schedule-btn" bindtap="onAddSchedule">
-          <text>+ 新增排课</text>
-        </view>
-      </block>
-      <!-- 星期视图的新增排课 -->
-      <view class="add-schedule-btn" wx:if="{{viewMode === 'day'}}" bindtap="onAddSchedule">
+    <view class="schedule-actions-row" wx:if="{{viewMode === 'day'}}">
+      <view class="copy-schedule-btn" bindtap="onShowCopyModal">
+        <text>📋 复制周排课</text>
+      </view>
+      <view class="add-schedule-btn" bindtap="onAddSchedule">
         <text>+ 新增排课</text>
       </view>
     </view>
@@ -242,7 +246,7 @@
         <!-- 开课时间 -->
         <view class="form-group">
           <text class="form-label">开课时间 *</text>
-          <input class="input-field" placeholder="请输入开课时间（格式：HH:MM）" value="{{formData.startTime}}" data-field="startTime" bindinput="onFormInput" />
+          <input class="input-field" placeholder="请输入开课时间（格式：HH:MM）" value="{{formData.startTime}}" data-field="startTime" bindinput="onFormInput" bindblur="onTimeBlur" />
         </view>
 
         <!-- 课程时长 -->
@@ -656,31 +660,31 @@
     <view class="modal-content cancel-reason-modal" catchtap="onModalTap">
       <view class="modal-header">
         <text class="modal-title">取消排课</text>
-        <text class="modal-close" bindtap="onCloseCancelReasonModal">✕</text>
+        <view class="modal-close" bindtap="onCloseCancelReasonModal">✕</view>
       </view>
-      <view class="modal-body">
-        <view class="cancel-reason-warning">
+      <scroll-view class="modal-body-scroll" scroll-y="true">
+        <view class="warning-box">
           <text class="warning-icon">⚠️</text>
           <text class="warning-text">该课程已有 {{cancelScheduleBookings}} 人预约，取消后将自动退还课时并通知会员。请选择取消原因：</text>
         </view>
-        <view class="cancel-reason-list">
-          <view class="cancel-reason-item {{cancelSelectedReason === '恶劣天气' ? 'active' : ''}}" bindtap="onSelectCancelReason" data-reason="恶劣天气">
+        <view class="reason-list">
+          <view class="reason-item {{cancelSelectedReason === '恶劣天气' ? 'active' : ''}}" bindtap="onSelectCancelReason" data-reason="恶劣天气">
             <view class="reason-radio {{cancelSelectedReason === '恶劣天气' ? 'checked' : ''}}"></view>
-            <text class="reason-text">恶劣天气</text>
+            <text class="reason-label">恶劣天气</text>
           </view>
-          <view class="cancel-reason-item {{cancelSelectedReason === '教练突发状况' ? 'active' : ''}}" bindtap="onSelectCancelReason" data-reason="教练突发状况">
+          <view class="reason-item {{cancelSelectedReason === '教练突发状况' ? 'active' : ''}}" bindtap="onSelectCancelReason" data-reason="教练突发状况">
             <view class="reason-radio {{cancelSelectedReason === '教练突发状况' ? 'checked' : ''}}"></view>
-            <text class="reason-text">教练突发状况</text>
+            <text class="reason-label">教练突发状况</text>
           </view>
-          <view class="cancel-reason-item {{cancelSelectedReason === '其他' ? 'active' : ''}}" bindtap="onSelectCancelReason" data-reason="其他">
+          <view class="reason-item {{cancelSelectedReason === '其他' ? 'active' : ''}}" bindtap="onSelectCancelReason" data-reason="其他">
             <view class="reason-radio {{cancelSelectedReason === '其他' ? 'checked' : ''}}"></view>
-            <text class="reason-text">其他</text>
+            <text class="reason-label">其他</text>
           </view>
         </view>
-      </view>
+      </scroll-view>
       <view class="modal-buttons">
         <view class="btn-secondary" bindtap="onCloseCancelReasonModal"><text>取消</text></view>
-        <view class="btn-danger {{cancelSelectedReason ? '' : 'disabled'}}" bindtap="onConfirmCancelSchedule"><text>确认取消排课</text></view>
+        <view class="btn-danger {{cancelSelectedReason ? '' : 'disabled'}}" bindtap="onConfirmCancelSchedule"><text>确认取消</text></view>
       </view>
     </view>
   </view>

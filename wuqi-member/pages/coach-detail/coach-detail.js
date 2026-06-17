@@ -73,7 +73,10 @@ Page({
     waitlistedScheduleIds: [],
     showWaitlistModal: false,
     waitlistCourse: null,
-    waitlistModalText: ''
+    waitlistModalText: '',
+    canViewCapacity: false,
+    isPackageSuspended: false,
+    bookingWindowDays: 7
   },
 
   onLoad(options) {
@@ -82,6 +85,7 @@ Page({
     if (options.id) {
       this.setData({ coachId: options.id });
       this.loadCoachDetail(options.id);
+      this.loadUserPackages();
     }
   },
 
@@ -89,6 +93,20 @@ Page({
     if (this.data.coach && this.data.coach.name) {
       wx.setNavigationBarTitle({ title: this.data.coach.name });
     }
+  },
+
+  loadUserPackages() {
+    const { checkLogin } = require('../../utils/auth');
+    if (!checkLogin()) return;
+    request({ url: '/packages/my' }).then(res => {
+      const data = res.data || {};
+      const hasActive = data.current;
+      const hasPending = data.pending && data.pending.length > 0;
+      this.setData({ 
+        isPackageSuspended: data.hasSuspended && !hasActive,
+        canViewCapacity: hasActive || hasPending
+      });
+    }).catch(() => {});
   },
 
   onPullDownRefresh() {
@@ -149,6 +167,13 @@ Page({
   loadCoachDetail(id) {
     this.setData({ loading: true });
 
+    // 获取预约开放窗口配置
+    const bookingWindowPromise = request({ url: '/config/public/booking-window', method: 'GET', silent: true }).then(res => {
+      const days = (res.data && res.data.booking_window_days) ? parseInt(res.data.booking_window_days, 10) : 7;
+      this.setData({ bookingWindowDays: days || 7 });
+      return days || 7;
+    }).catch(() => 7);
+
     const coachPromise = request({ url: `/coaches/${id}` }).then(res => {
       const coachData = res.data || {};
       const coach = {
@@ -179,23 +204,27 @@ Page({
     endDate.setDate(endDate.getDate() + 7);
     const endDateStr = formatDate(endDate);
     
-    const schedulesPromise = request({ url: '/schedules', data: { coach_id: id, limit: 50 } }).then(res => {
+    const schedulesPromise = Promise.all([bookingWindowPromise, request({ url: '/schedules', data: { coach_id: id, limit: 50 } })]).then(([bookingWindowDays, res]) => {
       const data = res.data || {};
       const allSchedules = data.list || (Array.isArray(data) ? data : []);
       const courses = allSchedules.filter(s => {
         if (!s.date) return false;
+        if (s.status === 'cancelled' || s.status === 'offline' || s.status === 'cancelled_insufficient') return false;
         return s.date >= today && s.date <= endDateStr;
       }).map(schedule => {
         const danceStyleName = schedule.dance_style_id && schedule.dance_style_id.name ? schedule.dance_style_id.name : '';
         const tagColor = getDanceTagColor(danceStyleName);
         const weekday = getWeekday(schedule.date);
+        const target = new Date(schedule.date);
+        const diffDays = Math.floor((target - new Date(today)) / (1000 * 60 * 60 * 24));
         return {
           ...schedule,
           _id: String(schedule._id),
           danceStyleName,
           danceTagBg: tagColor.bg,
           danceTagText: tagColor.text,
-          weekday
+          weekday,
+          bookingOpen: diffDays >= 0 && diffDays < bookingWindowDays
         };
       });
       this.setData({ courses });
@@ -250,6 +279,23 @@ Page({
     auth.requireMember(() => {
       const course = e.currentTarget.dataset.course;
       if (!course) return;
+      
+      // 套餐停卡中，拦截预约
+      if (this.data.isPackageSuspended) {
+        wx.showModal({
+          title: '无法预约',
+          content: '您的套餐暂停使用中，不能进行预约课程操作。',
+          showCancel: false,
+          confirmText: '知道了',
+          confirmColor: '#D4786E'
+        });
+        return;
+      }
+      
+      // 未开放预约
+      if (course && !course.bookingOpen) {
+        return;
+      }
       
       if (this.cmpContains(this.data.bookedScheduleIds, course._id)) {
         wx.showToast({ title: '您已预约该课程。如需取消，请在课程详情页面中操作', icon: 'none' });
@@ -386,6 +432,7 @@ Page({
       const allSchedules = data.list || (Array.isArray(data) ? data : []);
       const courses = allSchedules.filter(s => {
         if (!s.date) return false;
+        if (s.status === 'cancelled' || s.status === 'offline' || s.status === 'cancelled_insufficient') return false;
         return s.date >= today && s.date <= endDateStr;
       }).map(schedule => {
         const danceStyleName = schedule.dance_style_id && schedule.dance_style_id.name ? schedule.dance_style_id.name : '';

@@ -251,6 +251,20 @@
   border: 1rpx solid var(--border);
 }
 
+.month-add-schedule-btn {
+  margin-top: 24rpx;
+  padding: 20rpx;
+  background-color: var(--color-primary);
+  border-radius: 48rpx;
+  text-align: center;
+}
+
+.month-add-schedule-btn text {
+  font-size: 28rpx;
+  color: var(--text-inverse);
+  font-weight: bold;
+}
+
 .month-header {
   display: flex;
   justify-content: space-between;
@@ -442,6 +456,7 @@
 }
 
 .schedule-status.cancelled,
+.schedule-status.cancelled_insufficient,
 .schedule-status.offline {
   background-color: var(--bg-elevated);
   color: var(--text-tertiary);
@@ -687,9 +702,21 @@
 }
 
 .modal-close {
-  font-size: 36rpx;
+  width: 56rpx;
+  height: 56rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28rpx;
   color: var(--text-tertiary);
-  padding: 8rpx;
+  border-radius: var(--radius-full);
+  background: var(--bg-elevated);
+  transition: all var(--transition-fast);
+}
+
+.modal-close:active {
+  background: var(--border);
+  transform: scale(0.9);
 }
 
 .modal-body-scroll {
@@ -983,19 +1010,30 @@
 
 .btn-danger {
   flex: 1;
-  padding: 24rpx;
-  background-color: var(--color-danger);
-  border-radius: 20rpx;
-  text-align: center;
+  height: 88rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #D95A5A, var(--color-danger));
+  border-radius: var(--radius-lg);
+  box-shadow: 0 4rpx 12rpx rgba(196, 75, 75, 0.18), 0 8rpx 28rpx rgba(44, 36, 22, 0.08);
+  transition: var(--transition-fast);
+}
+
+.btn-danger:active {
+  background: linear-gradient(135deg, var(--color-danger), #A03A3A);
+  transform: scale(0.98);
 }
 
 .btn-danger text {
-  font-size: 26rpx;
+  font-size: var(--font-md);
   color: var(--text-inverse);
+  font-weight: bold;
 }
 
 .btn-danger.disabled {
   opacity: 0.5;
+  box-shadow: none;
 }
 
 .step-bar {
@@ -1305,79 +1343,78 @@
   line-height: 1.8;
 }
 
-/* ========== 取消排课原因选择弹窗 ========== */
+/* 取消排课弹窗 — 遵循设计系统 */
 .cancel-reason-modal {
-  max-height: 60vh;
+  max-height: 75vh;
 }
 
-.cancel-reason-modal .modal-body {
-  flex: 1;
-  overflow-y: auto;
-}
-
-.cancel-reason-warning {
+.warning-box {
   display: flex;
   align-items: flex-start;
-  gap: 12rpx;
-  background-color: #FFF3E0;
-  border-radius: 16rpx;
-  padding: 20rpx 24rpx;
-  margin-bottom: 30rpx;
+  gap: var(--spacing-xs);
+  background-color: var(--color-danger-bg);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-md);
+  margin-bottom: var(--spacing-md);
 }
 
 .warning-icon {
-  font-size: 32rpx;
+  font-size: 28rpx;
   flex-shrink: 0;
-  margin-top: 2rpx;
+  margin-top: 4rpx;
 }
 
 .warning-text {
-  font-size: 26rpx;
-  color: #E65100;
+  font-size: var(--font-sm);
+  color: var(--color-danger);
   line-height: 1.6;
   flex: 1;
 }
 
-.cancel-reason-list {
+.reason-list {
   display: flex;
   flex-direction: column;
-  gap: 16rpx;
+  gap: var(--spacing-sm);
 }
 
-.cancel-reason-item {
+.reason-item {
   display: flex;
   align-items: center;
-  gap: 16rpx;
-  padding: 24rpx 28rpx;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-md) 28rpx;
   background-color: var(--bg-page);
-  border-radius: 16rpx;
-  border: 2rpx solid var(--border-light);
-  transition: all 0.2s;
+  border-radius: var(--radius-md);
+  border: 2rpx solid var(--border);
+  transition: all var(--transition-fast);
 }
 
-.cancel-reason-item.active {
+.reason-item.active {
+  background-color: var(--color-primary-bg);
   border-color: var(--color-primary);
-  background-color: rgba(var(--color-primary-rgb), 0.05);
 }
 
 .reason-radio {
   width: 36rpx;
   height: 36rpx;
-  border-radius: 50%;
-  border: 3rpx solid var(--border-light);
+  border-radius: var(--radius-full);
+  border: 2rpx solid var(--border);
   flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   box-sizing: border-box;
 }
 
 .reason-radio.checked {
   border-color: var(--color-primary);
   background-color: var(--color-primary);
-  border-width: 0;
+  box-shadow: inset 0 0 0 6rpx var(--bg-card);
 }
 
-.reason-text {
-  font-size: 28rpx;
+.reason-label {
+  font-size: var(--font-md);
   color: var(--text-primary);
+  font-weight: 500;
 }
 
 /* 课程封面上传 */

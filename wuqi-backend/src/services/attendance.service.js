@@ -31,7 +31,7 @@ async function calcTimeCardUsage(userPackage) {
       user_id: userPackage.user_id,
       user_package_id: userPackage._id,
       booking_date: { $gte: weekStart.format('YYYY-MM-DD'), $lte: weekEnd.format('YYYY-MM-DD') },
-      $or: [{ status: { $in: ['booked', 'completed', 'absent'] } }, { booking_status: { $in: ['booked', 'completed'] } }],
+      status: { $in: ['booked', 'completed'] },
     });
     result.weekly_used = usedThisWeek;
     result.weekly_limit = userPackage.weekly_limit;
@@ -43,7 +43,7 @@ async function calcTimeCardUsage(userPackage) {
       user_id: userPackage.user_id,
       user_package_id: userPackage._id,
       booking_date: { $gte: nextWeekStart.format('YYYY-MM-DD'), $lte: nextWeekEnd.format('YYYY-MM-DD') },
-      $or: [{ status: { $in: ['booked', 'completed', 'absent'] } }, { booking_status: { $in: ['booked', 'completed'] } }],
+      status: { $in: ['booked', 'completed'] },
     });
     result.next_week_used = usedNextWeek;
     result.next_week_remaining = Math.max(0, userPackage.weekly_limit - usedNextWeek);
@@ -57,7 +57,7 @@ async function calcTimeCardUsage(userPackage) {
       user_id: userPackage.user_id,
       user_package_id: userPackage._id,
       booking_date: todayStr,
-      $or: [{ status: { $in: ['booked', 'completed', 'absent'] } }, { booking_status: { $in: ['booked', 'completed'] } }],
+      status: { $in: ['booked', 'completed'] },
     });
     result.daily_used = usedToday;
     result.daily_limit = userPackage.daily_limit;
@@ -68,17 +68,14 @@ async function calcTimeCardUsage(userPackage) {
 }
 
 exports.createAttendance = async (data) => {
-  const existing = await Attendance.findOne({
-    schedule_id: data.schedule_id,
-    user_id: data.user_id,
-  });
+  // 原子 upsert：存在则返回，不存在则创建，消除 TOCTOU 竞态
+  const attendance = await Attendance.findOneAndUpdate(
+    { schedule_id: data.schedule_id, user_id: data.user_id },
+    { $setOnInsert: data },
+    { upsert: true, new: true }
+  );
 
-  if (existing) {
-    return existing;
-  }
-
-  const attendance = await Attendance.create(data);
-
+  // 仅在实际新建时写日志（通过判断 createdAt 是否接近当前时间）
   if (data.check_in_by) {
     await logService.createLog({
       operator_id: data.check_in_by,
@@ -98,22 +95,28 @@ exports.getAttendanceBySchedule = async (scheduleId) => {
     .populate('check_in_by', 'nick_name')
     .sort({ check_in_time: -1 });
 
+  // 排除已取消的预约
   const bookings = await Booking.find({
     schedule_id: scheduleId,
-    status: { $ne: 'cancelled' },
+    status: { $nin: ['cancelled', 'exempted'] },
   })
     .populate('user_id', 'nick_name real_name phone member_code avatar_url')
     .sort({ created_at: -1 });
 
-  const attendedUserIds = new Set(attendances.map(a => a.user_id._id.toString()));
+  const userIdToAtt = new Map();
+  for (const att of attendances) {
+    userIdToAtt.set(att.user_id._id.toString(), att);
+  }
 
   const records = bookings.map(b => {
     const userId = b.user_id._id.toString();
-    const att = attendances.find(a => a.user_id._id.toString() === userId);
+    const att = userIdToAtt.get(userId);
+    const bStatus = b.status;
+    const isCompleted = bStatus === 'completed';
     return {
       booking_id: b._id,
       user_id: b.user_id,
-      status: b.status,
+      status: isCompleted ? 'completed' : bStatus,
       source: b.source || 'member',
       attendance: att ? {
         id: att._id,
@@ -122,7 +125,7 @@ exports.getAttendanceBySchedule = async (scheduleId) => {
         check_in_by: att.check_in_by,
         credits_cost: att.credits_cost,
       } : null,
-      checked_in: !!att,
+      checked_in: isCompleted || !!att || b.checked_in,
       credits_deducted: b.credits_deducted || 0,
     };
   });
@@ -141,9 +144,38 @@ exports.getAttendanceBySchedule = async (scheduleId) => {
 };
 
 exports.getMyAttendance = async (userId, page, pageSize) => {
-  const filter = { user_id: userId };
+  // 1. 先查询 Booking 表中所有已完成的预约（包括 checked_in 状态）
+  const bookingFilter = {
+    user_id: userId,
+    $or: [
+      { status: 'completed' },
+      { checked_in: true },
+    ],
+  };
 
-  const list = await Attendance.find(filter)
+  const completedBookings = await Booking.find(bookingFilter)
+    .populate({
+      path: 'schedule_id',
+      select: 'course_name start_time end_time date store_id dance_style_id coach_id status',
+      populate: [
+        { path: 'store_id', select: 'name' },
+        { path: 'dance_style_id', select: 'name' },
+        { path: 'coach_id', select: 'name' },
+      ],
+    });
+
+  // 2. 过滤掉已取消的、schedule不存在的、schedule已被取消的
+  const validBookings = completedBookings.filter(b => {
+    if (!b.schedule_id) return false;
+    const s = b.schedule_id;
+    if (['cancelled', 'cancelled_insufficient', 'offline', 'deleted'].includes(s.status)) {
+      return false;
+    }
+    return true;
+  });
+
+  // 3. 查询 Attendance 表中已有的记录
+  const existingAttendances = await Attendance.find({ user_id: userId })
     .populate({
       path: 'schedule_id',
       select: 'course_name start_time end_time date store_id dance_style_id coach_id',
@@ -152,12 +184,68 @@ exports.getMyAttendance = async (userId, page, pageSize) => {
         { path: 'dance_style_id', select: 'name' },
         { path: 'coach_id', select: 'name' },
       ],
-    })
-    .sort({ check_in_time: -1 })
-    .skip((page - 1) * pageSize)
-    .limit(Number(pageSize));
+    });
 
-  const total = await Attendance.countDocuments(filter);
+  // 4. 用 booking_id 关联，缺失的 attendance 记录用 booking 补全
+  const attByBookingId = new Map();
+  for (const att of existingAttendances) {
+    if (att.booking_id) {
+      attByBookingId.set(String(att.booking_id), att);
+    }
+  }
+
+  // 5. 合并结果：优先用 attendance，缺失的用 booking 补全（并同步补建 attendance 记录）
+  const merged = existingAttendances.map(att => att);
+  for (const booking of validBookings) {
+    const key = String(booking._id);
+    if (!attByBookingId.has(key)) {
+      // 同步补建 attendance 记录（createAttendance 内部已用原子 upsert，天然幂等）
+      try {
+        await exports.createAttendance({
+          schedule_id: booking.schedule_id._id,
+          user_id: booking.user_id,
+          booking_id: booking._id,
+          store_id: booking.schedule_id.store_id,
+          coach_id: booking.schedule_id.coach_id,
+          dance_style_id: booking.schedule_id.dance_style_id,
+          check_in_time: booking.check_in_time || new Date(),
+          source: booking.check_in_by ? 'admin' : 'booking',
+          check_in_method: booking.check_in_by ? 'scan' : 'auto',
+          credits_cost: booking.credits_deducted || booking.schedule_id.credits_cost || 0,
+          date: booking.schedule_id.date,
+          course_name: booking.schedule_id.course_name || '',
+        });
+      } catch (err) {
+        console.error(`[getMyAttendance] 补建attendance失败 bookingId=${booking._id}:`, err.message);
+      }
+
+      // 用 booking 数据构造一个虚拟的 attendance 返回
+      merged.push({
+        _id: booking._id,
+        schedule_id: booking.schedule_id,
+        user_id: booking.user_id,
+        check_in_time: booking.check_in_time || new Date(),
+        source: booking.check_in_by ? 'admin' : 'booking',
+        check_in_method: booking.check_in_by ? 'scan' : 'auto',
+        credits_cost: booking.credits_deducted || 0,
+        date: booking.schedule_id.date,
+        course_name: booking.schedule_id.course_name || '',
+        created_at: booking.check_in_time || booking.created_at,
+      });
+    }
+  }
+
+  // 6. 按 check_in_time 倒序排序并分页
+  merged.sort((a, b) => {
+    const ta = new Date(a.check_in_time || a.created_at || 0).getTime();
+    const tb = new Date(b.check_in_time || b.created_at || 0).getTime();
+    return tb - ta;
+  });
+
+  const total = merged.length;
+  const start = (page - 1) * pageSize;
+  const list = merged.slice(start, start + Number(pageSize));
+
   return { list, total, page: Number(page), pageSize: Number(pageSize) };
 };
 

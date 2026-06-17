@@ -67,6 +67,27 @@ const requireLogin = (onGoLogin) => {
 const requireMember = (callback, onGoLogin) => {
   if (!requireLogin(onGoLogin)) return false;
   const userInfo = app.globalData.userInfo;
+  // userInfo 为空时（冷启动 getUserInfo 尚未完成），等待初始化 Promise
+  if (!userInfo) {
+    const initPromise = app.globalData._initPromise;
+    if (initPromise) {
+      return initPromise.then(() => {
+        const refreshed = app.globalData.userInfo;
+        if (refreshed && refreshed.member_status === 'official') {
+          if (callback) callback();
+          return true;
+        }
+        wx.showModal({
+          title: '提示',
+          content: '咨询门店工作人员成为正式会员',
+          cancelText: '知道了',
+          showCancel: true,
+          confirmColor: '#D4786E'
+        });
+        return false;
+      });
+    }
+  }
   if (!userInfo || userInfo.member_status !== 'official') {
     wx.showModal({
       title: '提示',

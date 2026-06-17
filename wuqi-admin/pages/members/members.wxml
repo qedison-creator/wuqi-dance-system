@@ -68,6 +68,11 @@
             <text class="dist-card-val">{{packageDistribution.active}}</text>
             <text class="dist-card-label">使用中</text>
           </view>
+          <view class="dist-card {{activeFilter === 'suspended' ? 'dist-card-active' : ''}}" data-filter="suspended" bindtap="onDashFilterTap">
+            <view class="dist-card-dot dot-danger"></view>
+            <text class="dist-card-val">{{packageDistribution.suspended}}</text>
+            <text class="dist-card-label">已停卡</text>
+          </view>
           <view class="dist-card {{activeFilter === 'unactivated' ? 'dist-card-active' : ''}}" data-filter="unactivated" bindtap="onDashFilterTap">
             <view class="dist-card-dot dot-warning"></view>
             <text class="dist-card-val">{{packageDistribution.pending}}</text>
@@ -98,6 +103,9 @@
     <view class="filter-item {{activeFilter === 'active' ? 'active' : ''}}" data-filter="active" bindtap="onFilterChange">
       <text>使用中</text>
     </view>
+    <view class="filter-item {{activeFilter === 'suspended' ? 'active' : ''}}" data-filter="suspended" bindtap="onFilterChange">
+      <text>已停卡</text>
+    </view>
     <view class="filter-item {{activeFilter === 'unactivated' ? 'active' : ''}}" data-filter="unactivated" bindtap="onFilterChange">
       <text>待激活</text>
     </view>
@@ -122,8 +130,8 @@
                   <text class="store-tag-text">{{store.name}}</text>
                 </view>
                 <!-- 状态标签 -->
-                <view class="member-status {{item.status === 'active' ? 'status-active' : item.status === 'unactivated' ? 'status-warning' : item.status === 'pending' ? 'status-warning' : item.status === 'disabled' ? 'status-danger' : 'status-default'}}">
-                  <text>{{item.status === 'active' ? '已激活' : item.status === 'unactivated' ? '待激活' : item.status === 'pending' ? '待审核' : item.status === 'disabled' ? '已停卡' : item.status === 'no-package' ? '未录套餐' : (item.status === 'expired' ? '已过期' : (item.status === 'exhausted' ? '已用完' : '未激活'))}}</text>
+                <view class="member-status {{item.status === 'active' ? 'status-active' : item.status === 'unactivated' ? 'status-warning' : item.status === 'pending' ? 'status-warning' : item.status === 'disabled' ? 'status-danger' : item.status === 'suspended' ? 'status-danger' : 'status-default'}}">
+                  <text>{{item.status === 'active' ? '已激活' : item.status === 'unactivated' ? '待激活' : item.status === 'pending' ? '待审核' : item.status === 'disabled' ? '已停卡' : item.status === 'suspended' ? '已停卡' : item.status === 'no-package' ? '未录套餐' : (item.status === 'expired' ? '已过期' : (item.status === 'exhausted' ? '已用完' : '未激活'))}}</text>
                 </view>
               </view>
             </view>

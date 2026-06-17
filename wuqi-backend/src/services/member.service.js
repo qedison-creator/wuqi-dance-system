@@ -5,9 +5,9 @@ const ExemptionLog = require('../models/ExemptionLog');
 const logService = require('./log.service');
 const dayjs = require('dayjs');
 
-// 获取会员列表(支持status/keyword/store_id/package_active/package_expired/package_pending/package_exhausted筛选)
+// 获取会员列表(支持status/keyword/store_id/package_active/package_suspended/package_expired/package_pending/package_exhausted筛选)
 exports.getMemberList = async (query) => {
-  const { status, keyword, store_id, member_status, package_active, package_expired, package_pending, package_exhausted, no_package, no_store, page = 1, pageSize = 20 } = query;
+  const { status, keyword, store_id, member_status, package_active, package_suspended, package_expired, package_pending, package_exhausted, no_package, no_store, page = 1, pageSize = 20 } = query;
   const filter = { user_type: 'member' };
 
   if (status) filter.status = status;
@@ -34,6 +34,18 @@ exports.getMemberList = async (query) => {
       is_suspended: { $ne: true },
     }).distinct('user_id');
     const targetIds = activePkgs.map(id => id.toString());
+    if (targetIds.length > 0) {
+      filter._id = { $in: targetIds };
+    } else {
+      return { list: [], total: 0, pendingCount: 0, page: Number(page), pageSize: Number(pageSize) };
+    }
+  } else if (package_suspended === 'true' || package_suspended === true) {
+    // 已停卡：有 active 且 is_suspended 的套餐
+    const suspendedPkgs = await UserPackage.find({
+      status: 'active',
+      is_suspended: true,
+    }).distinct('user_id');
+    const targetIds = suspendedPkgs.map(id => id.toString());
     if (targetIds.length > 0) {
       filter._id = { $in: targetIds };
     } else {
@@ -139,6 +151,10 @@ exports.getMemberById = async (id) => {
   const user = await User.findById(id).select('-password -__v').populate('store_id', 'name');
   if (!user) throw new Error('会员不存在');
 
+  // 先刷新套餐状态（将已过期的 active 标记为 expired）
+  const packageService = require('./package.service');
+  await packageService.refreshPackageStatus(id);
+
   // 获取会员套餐
   const packages = await UserPackage.find({ user_id: id })
     .populate('store_id', 'name')
@@ -155,11 +171,11 @@ exports.getMemberById = async (id) => {
   // 统计数据
   const totalBookings = await Booking.countDocuments({
     user_id: id,
-    $or: [{ status: 'booked' }, { booking_status: 'booked' }],
+    status: 'booked',
   });
   const completedBookings = await Booking.countDocuments({
     user_id: id,
-    $or: [{ status: 'completed' }, { booking_status: 'completed' }],
+    status: 'completed',
   });
   const cancelledBookings = await Booking.countDocuments({
     user_id: id,
@@ -303,32 +319,36 @@ exports.getMemberStats = async (storeId) => {
   return { total, official, registered, active };
 };
 
-// 停卡：暂停预约，冻结服务有效期和剩余时长
+// 停卡：暂停预约，冻结服务有效期和剩余时长（批量停当前会员所有活跃套餐）
 exports.suspendMember = async (userId, suspendDays, operatorId) => {
   const user = await User.findById(userId);
   if (!user) throw new Error('会员不存在');
   
-  // 找到有效套餐
-  const activePackage = await UserPackage.findOne({ user_id: userId, status: 'active', is_suspended: false });
-  if (!activePackage) throw new Error('没有可停卡的有效套餐');
+  // 找到所有有效且未停卡的套餐
+  const activePackages = await UserPackage.find({ user_id: userId, status: 'active', is_suspended: false });
+  if (!activePackages || activePackages.length === 0) throw new Error('没有可停卡的有效套餐');
   
   const now = new Date();
   const suspendEndDate = new Date(now.getTime() + suspendDays * 24 * 60 * 60 * 1000);
+  let suspendedCount = 0;
   
-  // 冻结当前数据
-  activePackage.is_suspended = true;
-  activePackage.suspended_at = now;
-  activePackage.suspend_end_date = suspendEndDate;
-  activePackage.frozen_remaining_credits = activePackage.remaining_credits;
-  activePackage.frozen_end_date = activePackage.end_date;
-  
-  // 延长到期时间（停卡期间不算）
-  if (activePackage.end_date) {
-    const extendedEnd = new Date(activePackage.end_date.getTime() + suspendDays * 24 * 60 * 60 * 1000);
-    activePackage.end_date = extendedEnd;
+  for (const pkg of activePackages) {
+    // 冻结当前数据
+    pkg.is_suspended = true;
+    pkg.suspended_at = now;
+    pkg.suspend_end_date = suspendEndDate;
+    pkg.frozen_remaining_credits = pkg.remaining_credits;
+    pkg.frozen_end_date = pkg.end_date;
+    
+    // 延长到期时间（停卡期间不算）
+    if (pkg.end_date) {
+      const extendedEnd = new Date(pkg.end_date.getTime() + suspendDays * 24 * 60 * 60 * 1000);
+      pkg.end_date = extendedEnd;
+    }
+    
+    await pkg.save();
+    suspendedCount++;
   }
-  
-  await activePackage.save();
   
   // 记录日志
   await logService.createLog({
@@ -336,31 +356,55 @@ exports.suspendMember = async (userId, suspendDays, operatorId) => {
     action: 'suspend',
     module: 'member',
     target_id: userId,
-    detail: `会员(${userId})停卡${suspendDays}天, 预计${suspendEndDate.toISOString().split('T')[0]}自动复卡`,
+    detail: `会员(${userId})停卡${suspendDays}天(${suspendedCount}个套餐), 预计${suspendEndDate.toISOString().split('T')[0]}自动复卡`,
   });
   
   return user;
 };
 
-// 复卡：恢复服务有效期和剩余时长
+// 复卡：恢复服务有效期和剩余时长（批量恢复该会员所有已停套餐）
 exports.unsuspendMember = async (userId, operatorId) => {
-  const activePackage = await UserPackage.findOne({ user_id: userId, status: 'active', is_suspended: true });
-  if (!activePackage) throw new Error('没有停卡中的套餐');
+  const suspendedPackages = await UserPackage.find({ user_id: userId, status: 'active', is_suspended: true });
+  if (!suspendedPackages || suspendedPackages.length === 0) throw new Error('没有停卡中的套餐');
   
-  activePackage.is_suspended = false;
-  activePackage.suspended_at = null;
-  activePackage.suspend_end_date = null;
-  activePackage.frozen_remaining_credits = null;
-  activePackage.frozen_end_date = null;
+  const now = new Date();
+  let unsuspendedCount = 0;
+  let totalDays = 0;
   
-  await activePackage.save();
+  for (const pkg of suspendedPackages) {
+    const suspendedAt = pkg.suspended_at;
+    
+    // 计算实际停卡天数（按自然天计算，向上取整）
+    let actualSuspendDays = 0;
+    if (suspendedAt) {
+      const diffMs = now.getTime() - suspendedAt.getTime();
+      actualSuspendDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+      if (actualSuspendDays < 1) actualSuspendDays = 1; // 至少计1天
+    }
+    
+    // 校准 end_date：frozen_end_date + 实际停卡天数
+    if (pkg.frozen_end_date && actualSuspendDays > 0) {
+      const correctedEndDate = new Date(pkg.frozen_end_date.getTime() + actualSuspendDays * 24 * 60 * 60 * 1000);
+      pkg.end_date = correctedEndDate;
+    }
+    
+    pkg.is_suspended = false;
+    pkg.suspended_at = null;
+    pkg.suspend_end_date = null;
+    pkg.frozen_remaining_credits = null;
+    pkg.frozen_end_date = null;
+    
+    await pkg.save();
+    unsuspendedCount++;
+    totalDays = actualSuspendDays; // 所有套餐停卡天数相同，取最后一个即可
+  }
   
   await logService.createLog({
     operator_id: operatorId,
     action: 'unsuspend',
     module: 'member',
     target_id: userId,
-    detail: `会员(${userId})已复卡`,
+    detail: `会员(${userId})已复卡（实际停卡${totalDays}天，${unsuspendedCount}个套餐恢复）`,
   });
   
   const user = await User.findById(userId);

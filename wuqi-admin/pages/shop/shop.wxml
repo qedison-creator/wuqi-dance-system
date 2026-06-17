@@ -25,6 +25,17 @@
         <image class="menu-arrow" src="/images/icons/chevron-right.svg" mode="aspectFit"></image>
       </view>
 
+      <view class="menu-item" wx:if="{{permSchedule}}" bindtap="onGoToBookingWindow">
+        <view class="menu-icon-wrap" style="background:rgba(107,163,190,0.10)">
+          <image class="menu-icon" src="/images/icons/shop-calendar.svg" mode="aspectFit"></image>
+        </view>
+        <view class="menu-text">
+          <text class="menu-label">预约开放设置</text>
+          <text class="menu-desc">预约时间窗口配置</text>
+        </view>
+        <image class="menu-arrow" src="/images/icons/chevron-right.svg" mode="aspectFit"></image>
+      </view>
+
       <view class="menu-item" wx:if="{{permWaitlist}}" bindtap="onGoToWaitlist">
         <view class="menu-icon-wrap" style="background:rgba(124,142,184,0.10)">
           <image class="menu-icon" src="/images/icons/shop-clipboard.svg" mode="aspectFit"></image>

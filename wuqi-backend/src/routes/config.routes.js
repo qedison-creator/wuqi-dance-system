@@ -33,7 +33,8 @@ const DEFAULT_CONFIGS = [
   { key: 'reminder_send_time', value: '14:00', description: '套餐提醒推送时间' },
   { key: 'expire_remind_interval', value: '2', description: '套餐到期重复提醒间隔天数' },
   { key: 'low_count_remind_interval', value: '3', description: '次卡低次数重复提醒间隔天数' },
-  { key: 'inactive_remind_interval', value: '5', description: '不活跃重复提醒间隔天数' }
+  { key: 'inactive_remind_interval', value: '5', description: '不活跃重复提醒间隔天数' },
+  { key: 'booking_window_days', value: '7', description: '预约开放窗口（天），会员只能预约N天内的课程' }
 ];
 
 // 初始化默认配置
@@ -439,11 +440,27 @@ router.get('/cancel-reasons', async (req, res, next) => {
   }
 });
 
+// GET /api/v1/config/public/booking-window - 公开接口，获取预约开放窗口（天）
+router.get('/public/booking-window', async (req, res, next) => {
+  try {
+    const config = await Config.findOne({ key: 'booking_window_days' });
+    const days = config ? parseInt(config.value, 10) || 7 : 7;
+    res.json(success({ booking_window_days: days }));
+  } catch (err) {
+    next(err);
+  }
+});
+
 // GET /api/v1/config/:key - 获取指定配置（必须在所有静态路由之后）
 router.get('/:key', auth, checkModulePermission('config'), async (req, res, next) => {
   try {
     const config = await Config.findOne({ key: req.params.key });
     if (!config) {
+      // 返回默认值
+      const defaultConfig = DEFAULT_CONFIGS.find(c => c.key === req.params.key);
+      if (defaultConfig) {
+        return res.json(success({ key: defaultConfig.key, value: defaultConfig.value, description: defaultConfig.description }));
+      }
       return res.status(404).json({ code: 404, message: '配置不存在', data: null });
     }
     res.json(success(config));

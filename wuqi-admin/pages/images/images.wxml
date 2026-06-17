@@ -90,6 +90,14 @@
         <image wx:else class="fu-preview" src="{{tempImagePath}}" mode="widthFix" />
       </view>
 
+      <!-- 裁剪模式选择 -->
+      <view class="crop-mode-bar" wx:if="{{tempImagePath && !editingId}}">
+        <text class="crop-mode-label">裁剪比例：</text>
+        <view class="crop-mode-chip {{cropMode === 'portrait' ? 'active' : ''}}" data-mode="portrait" catchtap="onCropModeSelect">竖屏 3:4</view>
+        <view class="crop-mode-chip {{cropMode === 'landscape' ? 'active' : ''}}" data-mode="landscape" catchtap="onCropModeSelect">横屏 16:9</view>
+        <view class="crop-mode-chip {{cropMode === 'free' ? 'active' : ''}}" data-mode="free" catchtap="onCropModeSelect">自由裁剪</view>
+      </view>
+
       <view class="form-item">
         <text class="fi-label">图片名称</text>
         <input class="fi-input" placeholder="请输入图片名称" value="{{formTitle}}" bindinput="onTitleInput" />

@@ -67,7 +67,7 @@
           <view class="package-badges">
             <text class="package-type-badge">{{item.package_type === 'time_card' ? '时间卡' : '次卡'}}</text>
             <text class="package-store-badge" wx:if="{{item.store_id && item.store_id.name}}">{{item.store_id.name}}</text>
-            <text class="package-status-badge {{item.is_suspended ? 'suspended' : (item.is_activated ? item.status : 'pending')}}">{{item.is_suspended ? '已停用' : (item.is_activated ? (item.status === 'active' ? '使用中' : (item.status === 'expired' ? '已过期' : '已用完')) : '待激活')}}</text>
+            <text class="package-status-badge {{item.is_suspended ? 'suspended' : (item.is_activated ? (item._displayStatus || item.status) : 'pending')}}">{{item.is_suspended ? '已停用' : (item.is_activated ? ((item._displayStatus || item.status) === 'active' ? '使用中' : ((item._displayStatus || item.status) === 'expired' ? '已过期' : '已用完')) : '待激活')}}</text>
           </view>
           <view class="package-actions">
             <view class="package-edit-btn" data-id="{{item._id}}" bindtap="onEditPackage">
@@ -169,9 +169,12 @@
   </view>
 
   <!-- 底部操作按钮 -->
-  <view class="bottom-actions" wx:if="{{hasActivePackage}}">
-    <view class="suspend-btn" bindtap="onSuspendCard">
+  <view class="bottom-actions" wx:if="{{hasActivePackage || hasSuspendedPackage}}">
+    <view class="suspend-btn" bindtap="onSuspendCard" wx:if="{{hasActivePackage}}">
       <text>停卡</text>
+    </view>
+    <view class="unsuspend-btn" bindtap="onUnsuspendCard" wx:if="{{hasSuspendedPackage}}">
+      <text>恢复停卡</text>
     </view>
   </view>
 

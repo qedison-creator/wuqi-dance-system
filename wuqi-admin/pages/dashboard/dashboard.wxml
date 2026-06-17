@@ -144,7 +144,7 @@
                   </view>
                   <view class="card-right">
                     <view class="status-chip {{sch.status === 'cancelled' ? 'chip-danger' : sch.status === 'available' ? 'chip-success' : sch.status === 'full' ? 'chip-warning' : sch.status === 'completed' ? 'chip-muted' : 'chip-info'}}">
-                      <text>{{sch.status === 'cancelled' ? '已取消' : sch.status === 'available' ? '可预约' : sch.status === 'full' ? '已满' : sch.status === 'completed' ? '已结束' : '进行中'}}</text>
+                      <text>{{sch.status === 'cancelled' ? '已取消' : sch.status === 'available' ? '可预约' : sch.status === 'full' ? '已满' : sch.status === 'completed' ? '已完成' : '进行中'}}</text>
                     </view>
                     <text class="card-progress-text" wx:if="{{sch.status !== 'cancelled'}}">{{sch.bookedCount}}/{{sch.capacity}} 已预约</text>
                   </view>

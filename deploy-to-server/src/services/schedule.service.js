@@ -510,17 +510,24 @@ exports.offlineSchedule = async (id, reason, operatorId) => {
   return schedule;
 };
 
-// 删除排课(仅未开始且无预约)
+// 删除排课
+// - 已取消/已下架状态（cancelled / cancelled_insufficient / offline）：预约已处理，可直接删除
+// - 正常状态（available / full / not_open）：必须无预约且未开始
 exports.deleteSchedule = async (id, operatorId) => {
   const schedule = await Schedule.findById(id);
   if (!schedule) throw new Error('排课不存在');
 
-  const bookingCount = await Booking.countDocuments({ schedule_id: id });
-  if (bookingCount > 0) throw new Error('已有预约记录的排课不可删除，请使用下架功能');
+  const cancelledStatuses = ['cancelled', 'cancelled_insufficient', 'offline'];
+  const isAlreadyCancelled = cancelledStatuses.includes(schedule.status);
 
-  const now = dayjs();
-  const scheduleStart = dayjs(schedule.date + ' ' + schedule.start_time);
-  if (now.isAfter(scheduleStart)) throw new Error('已开始或已结束的排课不可删除');
+  if (!isAlreadyCancelled) {
+    const bookingCount = await Booking.countDocuments({ schedule_id: id });
+    if (bookingCount > 0) throw new Error('已有预约记录的排课不可删除，请使用下架功能');
+
+    const now = dayjs();
+    const scheduleStart = dayjs(schedule.date + ' ' + schedule.start_time);
+    if (now.isAfter(scheduleStart)) throw new Error('已开始或已结束的排课不可删除');
+  }
 
   // 记录操作日志
   await logService.createLog({

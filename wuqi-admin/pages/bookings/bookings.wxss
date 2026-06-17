@@ -52,6 +52,11 @@
   color: var(--text-tertiary);
 }
 
+.schedule-status.completed {
+  background-color: rgba(77, 184, 160, 0.1);
+  color: #4DB8A0;
+}
+
 .schedule-detail {
   display: flex;
   flex-wrap: wrap;

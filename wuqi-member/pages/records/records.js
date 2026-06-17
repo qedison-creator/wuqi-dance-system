@@ -55,7 +55,10 @@ Page({
 
   onLoad(options) {
     if (!auth.requireLogin()) return;
-    auth.requireMember(() => {
+
+    // 等待 App 初始化完成（getUserInfo 可能尚未返回）
+    const initPromise = app.globalData._initPromise;
+    const doLoad = () => {
       if (options.tab) {
         const tab = options.tab;
         if (tab === 'class') {
@@ -67,13 +70,29 @@ Page({
         }
       }
       this.loadRecords();
-    });
+      this._initialized = true; // 标记已初始化，避免 onShow 重复加载
+    };
+
+    const result = auth.requireMember(doLoad);
+    // requireMember 可能返回 Promise（等待 initPromise）或 boolean
+    if (result && result.then) {
+      result.then(success => {
+        if (!success) this._initialized = true; // 鉴权失败也标记，避免 onShow 重复拦截
+      });
+    }
   },
 
   onShow() {
     if (!checkLogin()) return;
     const userInfo = app.globalData.userInfo || {};
     if (userInfo.member_status !== 'official') return;
+
+    // onLoad 已初始化过则跳过（避免首次进入重复请求）
+    if (this._initialized) {
+      this._initialized = false;
+      return;
+    }
+    // 后续热启动时正常刷新
     this.setData({ page: 1, hasMore: true });
     this.loadRecords();
   },
@@ -119,7 +138,7 @@ Page({
           base.creditsCost = item.credits_cost || 0;
         }
 
-        if (!isClassTab && (String(item.status || '').toLowerCase() === 'cancelled' || String(item.booking_status || '').toLowerCase() === 'cancelled')) {
+        if (!isClassTab && String(item.status || '').toLowerCase() === 'cancelled') {
           base.cancelReason = item.cancel_reason || (item.cancel_type ? CANCEL_TYPE_MAP[item.cancel_type] : '');
           base.status = 'cancelled';
         }

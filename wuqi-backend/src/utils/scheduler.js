@@ -2,11 +2,18 @@ const cron = require('node-cron');
 const fs = require('fs');
 const path = require('path');
 const packageService = require('../services/package.service');
+const wechatMessageService = require('../services/wechat-message.service');
+const scheduleService = require('../services/schedule.service');
+const bookingService = require('../services/booking.service');
 const Booking = require('../models/Booking');
 const Schedule = require('../models/Schedule');
+const Attendance = require('../models/Attendance');
+const attendanceService = require('../services/attendance.service');
+const User = require('../models/User');
 const UserPackage = require('../models/UserPackage');
 const Waitlist = require('../models/Waitlist');
 const Holiday = require('../models/Holiday');
+const PendingTask = require('../models/PendingTask');
 const dayjs = require('dayjs');
 const utc = require('dayjs/plugin/utc');
 const timezone = require('dayjs/plugin/timezone');
@@ -112,227 +119,200 @@ const startScheduler = () => {
     }
   });
 
-  // 任务3: 每天凌晨1点自动完成已结束的课程（标记未签到的为缺勤）
-  cron.schedule('0 1 * * *', async () => {
+  // 任务4: 每分钟处理 PendingTask（上课提醒 / 人数不足取消 / 自动签到 / 课程完成）
+  // 替代旧的任务3（课程完成轮询）、任务4（上课提醒轮询）、任务5（人数不足轮询）、任务11（自动签到轮询）
+  cron.schedule('* * * * *', async () => {
     try {
-      console.log('[Scheduler] 开始执行: 自动完成已结束课程');
-      const today = dayjs().format('YYYY-MM-DD');
-      const schedules = await Schedule.find({
-        date: { $lt: today },
-        status: { $in: ['available', 'full'] },
-      });
+      const now = new Date();
+      let processedCount = 0;
 
-      let completedCount = 0;
-      let absentCount = 0;
+      // 每次最多处理 100 条，避免单次执行过久
+      for (let i = 0; i < 100; i++) {
+        // 原子认领：将 pending 改为 sending，防止多实例并发
+        const task = await PendingTask.findOneAndUpdate(
+          { trigger_at: { $lte: now }, processed: 'pending' },
+          { processed: 'sending', updated_at: new Date() },
+          { new: true }
+        );
 
-      for (const schedule of schedules) {
-        // 将所有已预约但未签到的标记为缺勤
-        const bookedBookings = await Booking.find({
-          schedule_id: schedule._id,
-          status: 'booked',
-        });
+        if (!task) break; // 没有待处理的任务了
 
-        for (const booking of bookedBookings) {
-          if (booking.checked_in) {
-            booking.status = 'completed';
-            booking.booking_status = 'completed';
-          } else {
-            booking.status = 'absent';
-            booking.booking_status = 'completed';
+        try {
+          // 上课提醒
+          if (task.type === 'class_reminder_1h' || task.type === 'class_reminder_30m') {
+            const schedule = await Schedule.findById(task.schedule_id)
+              .populate('coach_id', 'name')
+              .populate('store_id', 'name')
+              .lean();
+
+            if (!schedule || !['available', 'full'].includes(schedule.status)) {
+              task.processed = 'done';
+              await task.save();
+              processedCount++;
+              continue;
+            }
+
+            const user = await User.findById(task.user_id);
+            if (user && user.openid) {
+              const reminderType = task.type === 'class_reminder_1h' ? '1h' : '30m';
+              await wechatMessageService.sendClassReminder(user, schedule, 'member', reminderType);
+            }
+
+            task.processed = 'done';
+            await task.save();
+            processedCount++;
           }
-          await booking.save();
-          completedCount++;
-          if (!booking.checked_in) absentCount++;
-        }
 
-        schedule.status = 'completed';
-        await schedule.save();
-      }
+          // 人数不足自动取消
+          if (task.type === 'min_bookings_check') {
+            const schedule = await Schedule.findById(task.schedule_id);
+            if (!schedule || !['available', 'full'].includes(schedule.status)) {
+              task.processed = 'done';
+              await task.save();
+              processedCount++;
+              continue;
+            }
 
-      console.log(`[Scheduler] 课程自动完成: ${schedules.length}节课, ${completedCount}个预约处理完成, ${absentCount}个缺勤`);
-    } catch (err) {
-      console.error('[Scheduler] 课程自动完成任务执行失败:', err.message);
-    }
-  });
+            const startDateTime = dayjs.tz(schedule.date + ' ' + schedule.start_time, BEIJING_TZ);
+            if (bjNow().isAfter(startDateTime)) {
+              task.processed = 'done';
+              await task.save();
+              processedCount++;
+              continue;
+            }
 
-  // 任务4: 每小时检查并发送上课提醒（提前1小时和30分钟提醒）
-  // 修复：改为时间范围内匹配，避免非整点课程漏提醒
-  cron.schedule('0 * * * *', async () => {
-    try {
-      const wechatMessageService = require('../services/wechat-message.service');
-      let totalReminderCount = 0;
+            const realtimeBookings = await Booking.countDocuments({
+              schedule_id: task.schedule_id,
+              status: 'booked'
+            });
 
-      const now = dayjs();
+            const minBookings = schedule.min_bookings || 5;
+            if (realtimeBookings < minBookings) {
+              await scheduleService.cancelSchedule(
+                task.schedule_id,
+                null,
+                '预约人数不足',
+                'min_bookings_not_met'
+              );
+            }
 
-      // 轮次1: 提前1小时提醒（匹配时间范围内的课程）
-      const oneHourLater = now.add(1, 'hour');
-      const oneHourLaterDate = oneHourLater.format('YYYY-MM-DD');
-      // 匹配 start_time 在 [oneHourLater-5min, oneHourLater+5min] 范围内
-      const schedules1h = await Schedule.find({
-        date: oneHourLaterDate,
-        status: { $in: ['available', 'full'] },
-      }).lean();
-
-      // 在内存中过滤时间匹配的课程（允许±5分钟误差）
-      const matched1h = schedules1h.filter(s => {
-        if (!s.start_time) return false;
-        const [h, m] = s.start_time.split(':').map(Number);
-        const scheduleMinutes = h * 60 + m;
-        const targetMinutes = oneHourLater.hour() * 60 + oneHourLater.minute();
-        return Math.abs(scheduleMinutes - targetMinutes) <= 5;
-      });
-
-      for (const schedule of matched1h) {
-        const bookings = await Booking.find({
-          schedule_id: schedule._id,
-          status: 'booked',
-        }).populate('user_id', 'openid nick_name');
-
-        for (const booking of bookings) {
-          if (booking.user_id && booking.user_id.openid) {
-            await wechatMessageService.sendClassReminder(booking.user_id, schedule);
-            totalReminderCount++;
+            task.processed = 'done';
+            await task.save();
+            processedCount++;
           }
-        }
-      }
 
-      console.log(`[Scheduler] 上课提醒(1小时前): ${matched1h.length}节课, ${totalReminderCount}条提醒`);
+          // 自动签到（开课时间触发）
+          if (task.type === 'auto_check_in') {
+            const schedule = await Schedule.findById(task.schedule_id);
+            if (!schedule || ['cancelled', 'cancelled_insufficient', 'offline', 'deleted', 'completed'].includes(schedule.status)) {
+              task.processed = 'done';
+              await task.save();
+              processedCount++;
+              continue;
+            }
 
-      // 轮次2: 提前30分钟提醒
-      const thirtyMinLater = now.add(30, 'minute');
-      const thirtyMinLaterDate = thirtyMinLater.format('YYYY-MM-DD');
-      const schedules30m = await Schedule.find({
-        date: thirtyMinLaterDate,
-        status: { $in: ['available', 'full'] },
-      }).lean();
+            const result = await bookingService.autoCheckIn(task.schedule_id);
 
-      const matched30m = schedules30m.filter(s => {
-        if (!s.start_time) return false;
-        const [h, m] = s.start_time.split(':').map(Number);
-        const scheduleMinutes = h * 60 + m;
-        const targetMinutes = thirtyMinLater.hour() * 60 + thirtyMinLater.minute();
-        return Math.abs(scheduleMinutes - targetMinutes) <= 5;
-      });
-
-      let count30m = 0;
-      for (const schedule of matched30m) {
-        const bookings = await Booking.find({
-          schedule_id: schedule._id,
-          status: 'booked',
-        }).populate('user_id', 'openid nick_name');
-
-        for (const booking of bookings) {
-          if (booking.user_id && booking.user_id.openid) {
-            await wechatMessageService.sendClassReminder(booking.user_id, schedule);
-            count30m++;
+            task.processed = 'done';
+            await task.save();
+            processedCount++;
+            console.log(`[Scheduler] 自动签到: ${task.schedule_id}, 处理${result.processed}条, 签到${result.checked_in}条`);
           }
-        }
-      }
 
-      totalReminderCount += count30m;
-      console.log(`[Scheduler] 上课提醒(30分钟前): ${matched30m.length}节课, ${count30m}条提醒`);
-      console.log(`[Scheduler] 上课提醒总计: ${totalReminderCount}条`);
-    } catch (err) {
-      console.error('[Scheduler] 上课提醒任务执行失败:', err.message);
-    }
-  });
+          // 课程完成（下课时间触发）
+          if (task.type === 'class_complete') {
+            const schedule = await Schedule.findById(task.schedule_id);
+            // 已是终态（含completed）直接跳过，避免与auto_check_in重复处理
+            if (!schedule || ['cancelled', 'cancelled_insufficient', 'offline', 'deleted', 'completed'].includes(schedule.status)) {
+              task.processed = 'done';
+              await task.save();
+              processedCount++;
+              continue;
+            }
 
-  // 任务5: 每30分钟检查预约截止的课程，不足最低人数自动取消
-  cron.schedule('*/30 * * * *', async () => {
-    try {
-      console.log('[Scheduler] 开始执行: 检查预约截止最低人数');
-      const wechatMessageService = require('../services/wechat-message.service');
-      const User = require('../models/User');
-      const logService = require('../services/log.service');
-
-      const now = dayjs();
-      const today = now.format('YYYY-MM-DD');
-      const currentTime = now.format('HH:mm');
-
-      // 查找今天所有即将开始或已过预约截止时间的课程
-      const schedules = await Schedule.find({
-        date: today,
-        status: { $in: ['available', 'full'] },
-      }).populate('store_id', 'name').populate('coach_id', 'name');
-
-      let cancelledCount = 0;
-      let notifiedCount = 0;
-
-      for (const schedule of schedules) {
-        // 计算预约截止时间（默认课前2小时）
-        const classStartTime = schedule.start_time;
-        const deadlineMinutes = schedule.booking_deadline || 120;
-        const [hours, minutes] = classStartTime.split(':').map(Number);
-        const classDate = dayjs(`${today} ${classStartTime}`);
-        const deadlineTime = classDate.subtract(deadlineMinutes, 'minute');
-        const deadlineTimeStr = deadlineTime.format('HH:mm');
-
-        // 检查是否已过预约截止时间
-        if (now.isAfter(deadlineTime) || now.format('HH:mm') === deadlineTimeStr) {
-          const minBookings = schedule.min_bookings || 0;
-          const currentBookings = schedule.current_bookings || 0;
-
-          // 检查是否不足最低人数
-          if (minBookings > 0 && currentBookings < minBookings) {
-            console.log(`[Scheduler] 课程 ${schedule.course_name} 预约人数不足: ${currentBookings}/${minBookings}，自动取消`);
-
-            // 获取所有预约记录
-            const bookings = await Booking.find({
-              schedule_id: schedule._id,
+            // 查询所有状态为booked的booking
+            const bookedBookings = await Booking.find({
+              schedule_id: task.schedule_id,
               status: 'booked',
-            }).populate('user_id', 'openid nick_name phone');
+            });
 
-            // 取消所有预约并退还课时
-            for (const booking of bookings) {
-              booking.status = 'cancelled';
-              booking.booking_status = 'cancelled';
-              booking.cancel_type = 'normal';
-              booking.cancel_reason = '因预约人数不足，课程已取消';
-              await booking.save();
-
-              // 退还课时（仅次卡用户需要退还）
-              const pkg = booking.user_package_id
-                ? await UserPackage.findById(booking.user_package_id)
-                : await UserPackage.findOne({
-                    user_id: booking.user_id._id,
-                    status: 'active',
-                  });
-              if (pkg && booking.credits_deducted > 0 && pkg.package_type === 'count_card') {
-                pkg.remaining_credits += booking.credits_deducted;
-                await pkg.save();
+            let completedCount = 0;
+            for (const booking of bookedBookings) {
+              booking.status = 'completed';
+              if (!booking.checked_in) {
+                booking.checked_in = true;
+                booking.check_in_time = booking.check_in_time || new Date();
               }
+              await booking.save();
+              completedCount++;
 
-              // 发送取消通知
-              if (booking.user_id && booking.user_id.openid) {
-                try {
-                  await wechatMessageService.sendBookingCancel(
-                    booking.user_id,
-                    schedule,
-                    '因预约人数不足，课程已取消，次数已退还'
-                  );
-                  notifiedCount++;
-                } catch (notifyErr) {
-                  console.error('[Scheduler] 发送取消通知失败:', notifyErr.message);
+              // 为每个用户创建attendance记录（无论是否已签到，都标记为自动签到）
+              try {
+                const existingAtt = await Attendance.findOne({
+                  schedule_id: task.schedule_id,
+                  user_id: booking.user_id,
+                });
+                if (!existingAtt) {
+                  await attendanceService.createAttendance({
+                    schedule_id: task.schedule_id,
+                    user_id: booking.user_id,
+                    booking_id: booking._id,
+                    store_id: schedule.store_id,
+                    coach_id: schedule.coach_id,
+                    dance_style_id: schedule.dance_style_id,
+                    check_in_time: booking.check_in_time || new Date(),
+                    source: 'booking',
+                    check_in_method: booking.check_in_time ? 'auto' : 'auto',
+                    credits_cost: booking.credits_deducted || schedule.credits_cost || 0,
+                    date: schedule.date,
+                    course_name: schedule.course_name || '',
+                  });
                 }
+              } catch (attErr) {
+                console.error(`[Scheduler] class_complete 创建attendance失败: ${booking.user_id}`, attErr.message);
               }
             }
 
-            // 更新课程状态
-            schedule.status = 'cancelled';
-            schedule.cancel_reason = '预约人数不足';
-            schedule.current_bookings = 0;
-            await schedule.save();
+            // 只有当schedule还不是completed时才设置，避免重复操作
+            if (schedule.status !== 'completed') {
+              schedule.status = 'completed';
+              await schedule.save();
+            }
 
-            cancelledCount++;
+            task.processed = 'done';
+            await task.save();
+            processedCount++;
+            console.log(`[Scheduler] 课程完成: ${task.schedule_id}, ${completedCount}个预约`);
           }
+        } catch (taskErr) {
+          console.error(`[Scheduler] PendingTask ${task._id} 处理失败:`, taskErr.message);
+          // 失败回退为 pending，下次重试
+          task.processed = 'pending';
+          await task.save();
         }
       }
 
-      if (cancelledCount > 0) {
-        console.log(`[Scheduler] 最低人数检查完成: 取消${cancelledCount}节课, 通知${notifiedCount}位会员`);
+      if (processedCount > 0) {
+        console.log(`[Scheduler] PendingTask 处理完成: ${processedCount} 条`);
       }
     } catch (err) {
-      console.error('[Scheduler] 最低人数检查任务执行失败:', err.message);
+      console.error('[Scheduler] PendingTask 处理失败:', err.message);
+    }
+  });
+
+  // 任务4b: 每5分钟清理卡在 sending 状态超过 5 分钟的 PendingTask（宕机兜底）
+  cron.schedule('*/5 * * * *', async () => {
+    try {
+      const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+      const result = await PendingTask.updateMany(
+        { processed: 'sending', updated_at: { $lte: fiveMinutesAgo } },
+        { processed: 'pending' }
+      );
+      if (result.modifiedCount > 0) {
+        console.log(`[Scheduler] PendingTask 兜底恢复: ${result.modifiedCount} 条`);
+      }
+    } catch (err) {
+      console.error('[Scheduler] PendingTask 兜底恢复失败:', err.message);
     }
   });
 
@@ -488,36 +468,78 @@ const startScheduler = () => {
     }
   });
 
-  // 任务11: 每分钟检查到达开课时间的课程，自动完成签到
-  cron.schedule('* * * * *', async () => {
+  // 任务12: 每天凌晨2:40检查到期的停卡套餐，自动复卡
+  cron.schedule('40 2 * * *', async () => {
     try {
-      const now = dayjs();
-      const today = now.format('YYYY-MM-DD');
-      const currentTime = now.format('HH:mm');
-
-      const startingSchedules = await Schedule.find({
-        date: today,
-        start_time: currentTime,
-        status: { $in: ['available', 'full'] },
+      console.log('[Scheduler] 开始执行: 检查到期停卡自动复卡');
+      const now = new Date();
+      const expiredSuspends = await UserPackage.find({
+        status: 'active',
+        is_suspended: true,
+        suspend_end_date: { $lte: now, $ne: null },
       });
 
-      if (startingSchedules.length === 0) return;
-
-      const bookingService = require('../services/booking.service');
-      let totalProcessed = 0;
-      let totalCheckedIn = 0;
-
-      for (const schedule of startingSchedules) {
-        const result = await bookingService.autoCheckIn(schedule._id);
-        totalProcessed += result.processed;
-        totalCheckedIn += result.checked_in;
+      if (expiredSuspends.length === 0) {
+        return;
       }
 
-      if (totalProcessed > 0) {
-        console.log(`[Scheduler] 自动签到完成: ${startingSchedules.length}节课, 处理${totalProcessed}个预约, ${totalCheckedIn}个已自动签到`);
+      const logService = require('../services/log.service');
+      let restoredCount = 0;
+
+      for (const pkg of expiredSuspends) {
+        const suspendedAt = pkg.suspended_at;
+
+        // 计算实际停卡天数
+        let actualSuspendDays = 0;
+        if (suspendedAt) {
+          const diffMs = (pkg.suspend_end_date || now).getTime() - suspendedAt.getTime();
+          actualSuspendDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+          if (actualSuspendDays < 1) actualSuspendDays = 1;
+        }
+
+        // 校准 end_date
+        if (pkg.frozen_end_date && actualSuspendDays > 0) {
+          const correctedEndDate = new Date(pkg.frozen_end_date.getTime() + actualSuspendDays * 24 * 60 * 60 * 1000);
+          pkg.end_date = correctedEndDate;
+        }
+
+        pkg.is_suspended = false;
+        pkg.suspended_at = null;
+        pkg.suspend_end_date = null;
+        pkg.frozen_remaining_credits = null;
+        pkg.frozen_end_date = null;
+        await pkg.save();
+
+        await logService.createLog({
+          operator_id: null,
+          action: 'auto_unsuspend',
+          module: 'member',
+          target_id: pkg.user_id,
+          detail: `会员(${pkg.user_id})停卡到期（停卡${actualSuspendDays}天），系统自动复卡`,
+        });
+
+        restoredCount++;
+      }
+
+      console.log(`[Scheduler] 自动复卡完成: ${restoredCount}个套餐已恢复`);
+    } catch (err) {
+      console.error('[Scheduler] 自动复卡任务执行失败:', err.message);
+    }
+  });
+
+  // 任务13: 每天凌晨4:30清理7天前已处理的 PendingTask
+  cron.schedule('30 4 * * *', async () => {
+    try {
+      const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+      const result = await PendingTask.deleteMany({
+        processed: 'done',
+        created_at: { $lte: sevenDaysAgo }
+      });
+      if (result.deletedCount > 0) {
+        console.log(`[Scheduler] PendingTask 清理: ${result.deletedCount} 条`);
       }
     } catch (err) {
-      console.error('[Scheduler] 自动签到任务执行失败:', err.message);
+      console.error('[Scheduler] PendingTask 清理失败:', err.message);
     }
   });
 

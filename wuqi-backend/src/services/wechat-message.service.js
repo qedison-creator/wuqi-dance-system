@@ -34,6 +34,39 @@ const clearMappingCache = () => {
   mappingCache = {};
 };
 
+// ========== 启动自动初始化所有模板映射 ==========
+const ensureTemplateMappings = async () => {
+  const msgConfig = require('../config/messageConfig');
+  const defaults = {
+    bookingSuccess:    { name:'预约成功通知', id: msgConfig.getMessageTemplates?.()?.bookingSuccessTemplateId    || msgConfig.bookingSuccessTemplateId    || '', mappings:[{wx:'thing1',biz:'courseName'},{wx:'name2',biz:'coachName'},{wx:'thing4',biz:'storeName'},{wx:'time5',biz:'courseTime'},{wx:'time3',biz:'bookingTime'}] },
+    bookingCancel:     { name:'课程取消通知', id: msgConfig.getMessageTemplates?.()?.bookingCancelTemplateId     || msgConfig.bookingCancelTemplateId     || '', mappings:[{wx:'thing1',biz:'courseName'},{wx:'date4',biz:'courseTime'},{wx:'name5',biz:'coachName'},{wx:'thing2',biz:'cancelReason'},{wx:'thing7',biz:'storeName'}] },
+    bookingCancelByUser:{ name:'预约取消通知', id: msgConfig.getMessageTemplates?.()?.bookingCancelByUserTemplateId|| msgConfig.bookingCancelByUserTemplateId|| '', mappings:[{wx:'thing1',biz:'courseName'},{wx:'date4',biz:'courseTime'},{wx:'name5',biz:'coachName'},{wx:'thing2',biz:'cancelReason'},{wx:'thing7',biz:'storeName'}] },
+    classReminder:      { name:'上课提醒',     id: msgConfig.getMessageTemplates?.()?.classReminderTemplateId      || msgConfig.classReminderTemplateId      || '', mappings:[{wx:'thing1',biz:'courseName'},{wx:'time2',biz:'courseTime'},{wx:'name3',biz:'coachName'},{wx:'thing5',biz:'tipMessage'},{wx:'thing4',biz:'storeName'}] },
+    waitlistAvailable:  { name:'候补成功通知', id: msgConfig.getMessageTemplates?.()?.waitlistAvailableTemplateId  || msgConfig.waitlistAvailableTemplateId  || '', mappings:[{wx:'thing1',biz:'courseName'},{wx:'time2',biz:'courseTime'},{wx:'thing3',biz:'storeName'}] },
+    packageExpiring:    { name:'套餐到期提醒', id: msgConfig.getMessageTemplates?.()?.packageExpiringTemplateId    || msgConfig.packageExpiringTemplateId    || '', mappings:[{wx:'thing1',biz:'remindType'},{wx:'date2',biz:'expireDate'},{wx:'thing5',biz:'packageName'},{wx:'thing4',biz:'remindReason'}] },
+    packageActivated:   { name:'套餐激活通知', id: msgConfig.getMessageTemplates?.()?.packageActivatedTemplateId   || msgConfig.packageActivatedTemplateId   || '', mappings:[{wx:'thing1',biz:'packageName'},{wx:'time2',biz:'expireDate'},{wx:'thing3',biz:'storeName'}] },
+    countCardLowRemind: { name:'次卡次数提醒', id: msgConfig.getMessageTemplates?.()?.countCardLowRemindTemplateId || msgConfig.countCardLowRemindTemplateId || '', mappings:[{wx:'thing1',biz:'remindType'},{wx:'number2',biz:'remainCount'},{wx:'thing3',biz:'packageName'}] },
+    memberInactiveRemind:{name:'不活跃提醒',   id: msgConfig.getMessageTemplates?.()?.memberInactiveRemindTemplateId|| msgConfig.memberInactiveRemindTemplateId|| '', mappings:[{wx:'thing1',biz:'remindType'},{wx:'name2',biz:'memberNickname'},{wx:'number3',biz:'inactiveDays'}] },
+    phoneAuditResult:   { name:'手机号审核结果',id:msgConfig.getMessageTemplates?.()?.phoneAuditResultTemplateId   || msgConfig.phoneAuditResultTemplateId   || '', mappings:[{wx:'thing1',biz:'auditItem'},{wx:'phrase2',biz:'auditResult'},{wx:'thing3',biz:'remark'}] },
+  };
+
+  let created = 0;
+  for (const [key, cfg] of Object.entries(defaults)) {
+    const exists = await TemplateFieldMapping.findOne({ template_key: key });
+    if (!exists) {
+      await TemplateFieldMapping.create({
+        template_key: key, template_name: cfg.name, template_id: cfg.id,
+        mappings: cfg.mappings.map(m => ({ wx_field: m.wx, biz_field: m.biz })),
+      });
+      created++;
+      console.log(`[WeChat] 自动创建模板映射: ${key}`);
+    }
+  }
+  if (created > 0) console.log(`[WeChat] 自动初始化完成: 创建${created}个模板映射`);
+};
+
+exports.ensureTemplateMappings = ensureTemplateMappings;
+
 const getFieldMaxLength = (wxField) => {
   const match = wxField.match(/^([a-z_]+)\d*$/);
   if (!match) return 20;
@@ -172,11 +205,12 @@ exports.sendBookingSuccess = async (user, schedule, clientType = 'member') => {
     bookingTime: bookingTime,
   };
 
-  await sendByTemplateKey(user.openid, 'bookingSuccess', bizData, 'pages/booking/booking', clientType);
+  await sendByTemplateKey(user.openid, 'bookingSuccess', bizData, 'pages/records/records', clientType);
 };
 
-// 取消预约通知
-exports.sendBookingCancel = async (user, schedule, reason, clientType = 'member') => {
+// 取消通知（兼容两种场景：用户自行取消 / 课程被取消）
+// templateKey: 'bookingCancel'=课程被取消, 'bookingCancelByUser'=用户自行取消预约
+exports.sendBookingCancel = async (user, schedule, reason, clientType = 'member', templateKey = 'bookingCancel') => {
   if (!user.openid) return;
   const now = new Date();
   const cancelTime = `${now.getFullYear()}年${String(now.getMonth() + 1).padStart(2, '0')}月${String(now.getDate()).padStart(2, '0')}日 ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
@@ -187,25 +221,28 @@ exports.sendBookingCancel = async (user, schedule, reason, clientType = 'member'
     cancelReason: reason || '已取消',
     storeName: schedule.store_id?.name || '舞栖舞蹈',
     cancelTime: cancelTime,
+    courseTime: `${schedule.date} ${schedule.start_time}~${schedule.end_time}`,
   };
 
-  await sendByTemplateKey(user.openid, 'bookingCancel', bizData, 'pages/booking/booking', clientType);
+  await sendByTemplateKey(user.openid, templateKey, bizData, 'pages/records/records', clientType);
 };
 
 // 上课提醒
-exports.sendClassReminder = async (user, schedule, clientType = 'member') => {
+exports.sendClassReminder = async (user, schedule, clientType = 'member', reminderType = '1h') => {
   if (!user.openid) return;
 
   const bizData = {
     courseName: schedule.course_name || '舞蹈课程',
     courseTime: `${schedule.date} ${schedule.start_time}`,
     coachName: schedule.coach_id?.name || schedule.coach_name || '待定',
-    tipMessage: '请准时到场，记得带水杯哟',
+    tipMessage: reminderType === '1h'
+      ? '一小时后，美好的舞蹈时光马上就要来啦'
+      : '距离开课还有半小时，尽早出发别迟到哦',
     storeName: schedule.store_id?.name || '舞栖舞蹈',
     classroom: schedule.classroom || '请准时到场',
   };
 
-  await sendByTemplateKey(user.openid, 'classReminder', bizData, 'pages/booking/booking', clientType);
+  await sendByTemplateKey(user.openid, 'classReminder', bizData, 'pages/records/records', clientType);
 };
 
 // 候补成功通知
@@ -219,7 +256,7 @@ exports.sendWaitlistAvailable = async (user, schedule, clientType = 'member') =>
     tipMessage: '候补成功！记得准时去上课哦',
   };
 
-  await sendByTemplateKey(user.openid, 'waitlistAvailable', bizData, 'pages/booking/booking', clientType);
+  await sendByTemplateKey(user.openid, 'waitlistAvailable', bizData, 'pages/records/records', clientType);
 };
 
 // 套餐即将到期通知

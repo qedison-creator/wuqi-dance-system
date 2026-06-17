@@ -51,7 +51,8 @@
           <view class="ic-icon people"></view>
           <text class="ic-label">已预约</text>
         </view>
-        <view class="ic-value-highlight">{{course.bookedCount || 0}} / {{course.maxCount || 20}}<text class="ic-val-unit">人</text></view>
+        <view class="ic-value-highlight" wx:if="{{canViewCapacity}}">{{course.bookedCount || 0}} / {{course.maxCount || 20}}<text class="ic-val-unit">人</text></view>
+        <view class="ic-value-highlight" wx:else>? / ?<text class="ic-val-unit">人</text></view>
       </view>
       <view class="ic-row" wx:if="{{course.minBookings}}">
         <view class="ic-left">
@@ -95,13 +96,18 @@
       <view class="bb-secondary" bindtap="onLeaveWaitlistTap">退出候补</view>
       <view class="bb-primary state-waitlist">候补第{{waitlistPosition}}位</view>
     </view>
-    <view class="bb-primary {{!isLoggedIn ? 'disabled' : ''}}" wx:elif="{{isOfficial && !course.isFull}}" bindtap="onBookTap">
-      立即预约
+    <view class="bb-primary {{!isLoggedIn || isPackageSuspended || !bookingWindowOpen ? 'disabled' : ''}}" wx:elif="{{isOfficial && !course.isFull}}" bindtap="onBookTap">
+      <text wx:if="{{!bookingWindowOpen}}">未开放预约</text>
+      <text wx:else>立即预约</text>
     </view>
-    <view class="bb-primary state-waitlist-btn {{!isLoggedIn ? 'disabled' : ''}}" wx:elif="{{isOfficial && course.isFull}}" bindtap="onWaitlistTap">
-      加入候补
+    <view class="bb-primary state-waitlist-btn {{!isLoggedIn || isPackageSuspended || !bookingWindowOpen ? 'disabled' : ''}}" wx:elif="{{isOfficial && course.isFull}}" bindtap="onWaitlistTap">
+      <text wx:if="{{!bookingWindowOpen}}">未开放预约</text>
+      <text wx:else>加入候补</text>
     </view>
-    <view class="bb-primary {{!isLoggedIn ? 'disabled' : ''}}" wx:else bindtap="onBookTap">立即预约</view>
+    <view class="bb-primary {{!isLoggedIn || !bookingWindowOpen ? 'disabled' : ''}}" wx:else bindtap="onBookTap">
+      <text wx:if="{{!bookingWindowOpen}}">未开放预约</text>
+      <text wx:else>立即预约</text>
+    </view>
   </view>
 
   <view class="modal-mask" wx:if="{{showActivationModal}}" bindtap="onCancelActivation">

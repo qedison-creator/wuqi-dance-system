@@ -50,17 +50,13 @@
 }
 
 .coach-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
   padding: 24rpx;
   margin-bottom: 20rpx;
 }
 
 .coach-main {
   display: flex;
-  align-items: center;
-  flex: 1;
+  align-items: flex-start;
 }
 
 .coach-avatar {
@@ -70,30 +66,47 @@
   background-color: var(--bg-input);
   margin-right: 20rpx;
   flex-shrink: 0;
+  margin-top: 4rpx;
+}
+
+.coach-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.coach-row-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 8rpx;
 }
 
 .coach-info {
   display: flex;
   flex-direction: column;
   flex: 1;
+  min-width: 0;
 }
 
 .coach-name-row {
   display: flex;
   align-items: center;
   margin-bottom: 10rpx;
+  flex-wrap: wrap;
 }
 
 .coach-name {
   font-size: 30rpx;
   color: var(--text-primary);
   font-weight: bold;
+  flex-shrink: 0;
 }
 
 .coach-gender {
   font-size: 24rpx;
   color: var(--text-secondary);
   margin-left: 16rpx;
+  flex-shrink: 0;
 }
 
 .coach-sort {
@@ -103,23 +116,26 @@
   background: var(--bg-input);
   padding: 2rpx 10rpx;
   border-radius: 8rpx;
+  flex-shrink: 0;
 }
 
 .coach-home-tag {
-  font-size: 20rpx;
-  padding: 2rpx 10rpx;
+  font-size: 22rpx;
+  padding: 4rpx 14rpx;
   border-radius: 8rpx;
-  display: inline-block;
-  margin-top: 6rpx;
+  display: inline-flex;
+  align-items: center;
+  line-height: 1.4;
+  align-self: flex-start;
 }
 
 .tag-home-show {
-  background: #E8F5E9;
+  background-color: #E8F5E9;
   color: #2E7D32;
 }
 
 .tag-home-hide {
-  background: #F5F5F5;
+  background-color: #F5F5F5;
   color: #9E9E9E;
 }
 
@@ -127,7 +143,10 @@
   font-size: 26rpx;
   color: var(--color-primary);
   display: block;
-  margin-bottom: 8rpx;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  width: 100%;
 }
 
 .coach-phone {
@@ -139,21 +158,23 @@
 .coach-actions {
   display: flex;
   align-items: center;
-  justify-content: flex-end;
-  padding-top: 16rpx;
-  border-top: 1rpx solid var(--border);
+  flex-shrink: 0;
+  margin-left: 16rpx;
+  gap: 8rpx;
 }
 
 .action-btn-small {
   padding: 10rpx 20rpx;
   background-color: var(--color-primary-bg);
   border-radius: var(--radius-md);
-  margin-right: 16rpx;
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 
 .action-btn-small text {
   font-size: 24rpx;
   color: var(--color-primary);
+  white-space: nowrap;
 }
 
 .action-btn-small.danger {

@@ -11,6 +11,7 @@ Page({
     memberStatusText: '',
     memberStatusClass: '',
     hasActivePackage: false,
+    hasSuspendedPackage: false,
     // 门店修改弹窗
     showStoreModal: false,
     storeList: [],
@@ -120,6 +121,10 @@ Page({
           const end = getBeijingDate(pkg.end_date);
           const diff = Math.ceil((end - now) / (1000 * 60 * 60 * 24));
           pkg.remaining_days = diff;
+          // 动态修正状态：已激活但有效期已过的，标记为已过期
+          if (diff < 0 && (pkg.status === 'active' || pkg.status !== 'expired')) {
+            pkg._displayStatus = 'expired';
+          }
         } else {
           pkg.remaining_days = null;
         }
@@ -144,7 +149,7 @@ Page({
       });
 
       // 计算综合会员状态
-      const { statusText, statusClass, hasActive } = this.calcMemberStatus(member, packages);
+      const { statusText, statusClass, hasActive, hasSuspended } = this.calcMemberStatus(member, packages);
 
       this.setData({
         member: member,
@@ -154,6 +159,7 @@ Page({
         memberStatusText: statusText,
         memberStatusClass: statusClass,
         hasActivePackage: hasActive,
+        hasSuspendedPackage: hasSuspended,
         loading: false
       });
     }).catch(err => {
@@ -167,56 +173,60 @@ Page({
    * 优先级：已停卡 > 有使用中 > 待激活 > 已到期 > 次卡已用完 > 时间卡周期次数已用完 > 套餐已失效
    */
   calcMemberStatus(member, packages) {
+    const pkgList = packages || [];
+    const suspendedPackages = pkgList.filter(p => p.is_suspended);
+    const hasSuspended = suspendedPackages.length > 0;
+
     // 账户已停用
     if (member.status === 'disabled') {
-      return { statusText: '已停卡', statusClass: 'suspended', hasActive: false };
+      return { statusText: '已停卡', statusClass: 'suspended', hasActive: false, hasSuspended };
     }
 
     // 没有套餐
-    if (!packages || packages.length === 0) {
-      return { statusText: '无套餐', statusClass: 'no-package', hasActive: false };
+    if (pkgList.length === 0) {
+      return { statusText: '无套餐', statusClass: 'no-package', hasActive: false, hasSuspended: false };
     }
 
-    // 检查是否有使用中的套餐（已激活且未过期）
-    const activePackages = packages.filter(p => p.status === 'active' && p.is_activated && !p.is_suspended);
+    // 检查是否有使用中的套餐（已激活、未停卡、未过期）
+    const activePackages = pkgList.filter(p => p.status === 'active' && !p._displayStatus && p.is_activated && !p.is_suspended);
     if (activePackages.length > 0) {
-      return { statusText: '已激活', statusClass: 'activated', hasActive: true };
+      // 有活跃套餐，同时可能也有已停卡套餐（混合状态：仍算已激活，可操作停卡/复卡）
+      return { statusText: '已激活', statusClass: 'activated', hasActive: true, hasSuspended };
+    }
+
+    // 所有活跃套餐都停卡了
+    if (hasSuspended) {
+      return { statusText: '已停卡', statusClass: 'suspended', hasActive: false, hasSuspended: true };
     }
 
     // 检查是否有待激活的套餐
-    const pendingPackages = packages.filter(p => p.status === 'pending' || !p.is_activated);
+    const pendingPackages = pkgList.filter(p => p.status === 'pending' || !p.is_activated);
     if (pendingPackages.length > 0) {
-      return { statusText: '待激活', statusClass: 'pending', hasActive: false };
+      return { statusText: '待激活', statusClass: 'pending', hasActive: false, hasSuspended: false };
     }
 
-    // 检查是否有已停卡的套餐
-    const suspendedPackages = packages.filter(p => p.is_suspended);
-    if (suspendedPackages.length > 0) {
-      return { statusText: '已停卡', statusClass: 'suspended', hasActive: false };
-    }
-
-    // 检查是否全部过期
-    const allExpired = packages.every(p => p.status === 'expired');
+    // 检查是否全部过期（考虑动态修正的显示状态）
+    const allExpired = pkgList.every(p => p.status === 'expired' || p._displayStatus === 'expired');
     if (allExpired) {
-      return { statusText: '已到期', statusClass: 'expired', hasActive: false };
+      return { statusText: '已到期', statusClass: 'expired', hasActive: false, hasSuspended: false };
     }
 
     // 检查是否全部用完
-    const allExhausted = packages.every(p => p.status === 'exhausted');
+    const allExhausted = pkgList.every(p => p.status === 'exhausted');
     if (allExhausted) {
-      const hasCountCard = packages.some(p => p.package_type === 'count_card');
-      const hasTimeCard = packages.some(p => p.package_type === 'time_card');
+      const hasCountCard = pkgList.some(p => p.package_type === 'count_card');
+      const hasTimeCard = pkgList.some(p => p.package_type === 'time_card');
       if (hasCountCard && hasTimeCard) {
-        return { statusText: '套餐已用完', statusClass: 'exhausted', hasActive: false };
+        return { statusText: '套餐已用完', statusClass: 'exhausted', hasActive: false, hasSuspended: false };
       } else if (hasCountCard) {
-        return { statusText: '次卡已用完', statusClass: 'exhausted', hasActive: false };
+        return { statusText: '次卡已用完', statusClass: 'exhausted', hasActive: false, hasSuspended: false };
       } else {
-        return { statusText: '时间卡周期次数已用完', statusClass: 'exhausted', hasActive: false };
+        return { statusText: '时间卡周期次数已用完', statusClass: 'exhausted', hasActive: false, hasSuspended: false };
       }
     }
 
     // 混合状态（部分过期、部分用完等）
-    return { statusText: '套餐已失效', statusClass: 'expired', hasActive: false };
+    return { statusText: '套餐已失效', statusClass: 'expired', hasActive: false, hasSuspended: false };
   },
 
   /**
@@ -690,9 +700,9 @@ Page({
     try {
       await request({
         url: `/members/${memberId}/suspend`,
-        method: 'POST',
+        method: 'PUT',
         data: {
-          days: suspendDays,
+          suspend_days: suspendDays,
           reason: suspendReason
         }
       });
@@ -705,6 +715,34 @@ Page({
       wx.hideLoading();
       wx.showToast({ title: err.data?.message || '停卡失败', icon: 'none' });
     }
+  },
+
+  // 恢复停卡
+  onUnsuspendCard() {
+    const { memberId } = this.data;
+    wx.showModal({
+      title: '确认恢复停卡',
+      content: '确定要恢复该会员的使用吗？所有停卡中的套餐将恢复正常。',
+      confirmText: '确认恢复',
+      confirmColor: '#C5744B',
+      success: async (res) => {
+        if (res.confirm) {
+          wx.showLoading({ title: '处理中...', mask: true });
+          try {
+            await request({
+              url: `/members/${memberId}/unsuspend`,
+              method: 'PUT'
+            });
+            wx.hideLoading();
+            wx.showToast({ title: '已恢复使用', icon: 'success' });
+            this.loadMemberDetail();
+          } catch (err) {
+            wx.hideLoading();
+            wx.showToast({ title: err.data?.message || '恢复失败', icon: 'none' });
+          }
+        }
+      }
+    });
   },
 
   // ========== 门店修改 ==========

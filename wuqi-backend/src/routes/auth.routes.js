@@ -89,6 +89,8 @@ router.put('/profile', auth, checkPermission(['member']), async (req, res, next)
 // POST /api/v1/auth/avatar - 上传头像
 const multer = require('multer');
 const path = require('path');
+const fs = require('fs');
+const sharp = require('sharp');
 const avatarUpload = multer({
   storage: multer.diskStorage({
     destination: path.join(__dirname, '../../uploads/avatars'),
@@ -108,9 +110,33 @@ router.post('/avatar', auth, checkPermission(['member']), avatarUpload.single('a
   try {
     if (!req.file) return res.status(400).json({ code: 400, message: '请上传头像文件', data: null });
 
-    const avatarUrl = `/uploads/avatars/${req.file.filename}`;
+    const originalPath = req.file.path;
+    const originalFilename = req.file.filename;
+    const parsed = path.parse(originalFilename);
+    const webpFilename = parsed.name + '.webp';
+    const webpPath = path.join(path.dirname(originalPath), webpFilename);
 
-    // 同时更新数据库
+    // 使用 sharp 压缩：缩放至 200x200，webp 格式，质量 80%
+    try {
+      await sharp(originalPath)
+        .resize(200, 200, { fit: 'cover', position: 'center' })
+        .webp({ quality: 80 })
+        .toFile(webpPath);
+
+      // 删除原始文件，仅保留 webp 版本
+      fs.unlinkSync(originalPath);
+    } catch (sharpErr) {
+      // sharp 压缩失败，降级使用原图
+      console.error('[Avatar] sharp 压缩失败，使用原图:', sharpErr.message);
+      if (fs.existsSync(webpPath)) {
+        fs.unlinkSync(webpPath);
+      }
+    }
+
+    const finalFilename = fs.existsSync(webpPath) ? webpFilename : originalFilename;
+    const avatarUrl = `/uploads/avatars/${finalFilename}`;
+
+    // 更新数据库
     await User.findByIdAndUpdate(req.user.id, { avatar_url: avatarUrl });
 
     res.json(success({ url: avatarUrl }, '头像上传成功'));

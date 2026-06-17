@@ -480,7 +480,13 @@ exports.getDashboardData = async (storeId) => {
     { $match: packageStatusFilter },
     {
       $group: {
-        _id: '$status',
+        _id: {
+          $cond: {
+            if: { $and: [{ $eq: ['$status', 'active'] }, { $eq: ['$is_suspended', true] }] },
+            then: 'suspended',
+            else: '$status'
+          }
+        },
         count: { $sum: 1 },
       },
     },

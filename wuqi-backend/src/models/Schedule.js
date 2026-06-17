@@ -10,7 +10,7 @@ const scheduleSchema = new mongoose.Schema({
   max_bookings: { type: Number, default: 20 },
   min_bookings: { type: Number, default: 5 },
   current_bookings: { type: Number, default: 0 },
-  status: { type: String, enum: ['available', 'full', 'cancelled', 'offline', 'not_open', 'completed'], required: true, default: 'available' },
+  status: { type: String, enum: ['available', 'full', 'cancelled', 'cancelled_insufficient', 'offline', 'not_open', 'completed', 'deleted'], required: true, default: 'available' },
   cancel_reason: { type: String },
   cancel_type: { type: String },
   note: { type: String },

@@ -58,7 +58,10 @@ Page({
     limitModalText: '',
     showLoginModal: false,
     imageErrors: {},
-    isLoggedIn: !!getApp().globalData.token
+    isLoggedIn: !!getApp().globalData.token,
+    isPackageSuspended: false,
+    canViewCapacity: false,
+    bookingWindowOpen: true
   },
 
   async onLoad(options) {
@@ -129,8 +132,22 @@ Page({
       }
       course._started = _started;
       this.setData({ course, loading: false });
+      this._checkBookingWindow(course.dateStr);
     }).catch(() => {
       this.setData({ loading: false });
+    });
+  },
+
+  _checkBookingWindow(dateStr) {
+    request({ url: '/config/public/booking-window', method: 'GET', silent: true }).then(res => {
+      const days = (res.data && res.data.booking_window_days) ? parseInt(res.data.booking_window_days, 10) : 7;
+      const today = new Date();
+      const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+      const target = new Date(dateStr);
+      const diffDays = Math.floor((target - new Date(todayStr)) / (1000 * 60 * 60 * 24));
+      this.setData({ bookingWindowOpen: diffDays >= 0 && diffDays < days });
+    }).catch(() => {
+      this.setData({ bookingWindowOpen: true });
     });
   },
 
@@ -140,7 +157,14 @@ Page({
       return;
     }
     request({ url: '/packages/my' }).then(res => {
-      this.setData({ userPackages: res.data });
+      const data = res.data || {};
+      const hasActive = data.current;
+      const hasPending = data.pending && data.pending.length > 0;
+      this.setData({ 
+        userPackages: data,
+        isPackageSuspended: data.hasSuspended && !hasActive,
+        canViewCapacity: hasActive || hasPending
+      });
     }).catch((err) => {
       console.error('加载套餐信息失败:', err);
     });
@@ -178,8 +202,7 @@ Page({
     const { courseId, userBookings } = this.data;
     const activeBookings = userBookings.filter(b => {
       const status = (b.status || '').toLowerCase();
-      const bs = (b.booking_status || '').toLowerCase();
-      return status !== 'cancelled' && bs !== 'cancelled';
+      return status !== 'cancelled';
     });
     const isBooked = activeBookings.some(booking => {
       if (!booking.schedule_id) return false;
@@ -236,7 +259,23 @@ Page({
   onWaitlistTap() {
     if (!auth.requireLogin(() => this.setData({ showLoginModal: true }))) return;
     auth.requireMember(() => {
-      const { course } = this.data;
+      const { course, isPackageSuspended } = this.data;
+      if (isPackageSuspended) {
+        wx.showModal({
+          title: '无法加入候补',
+          content: '您的套餐暂停使用中，不能进行预约课程操作。',
+          showCancel: false,
+          confirmText: '知道了',
+          confirmColor: '#D4786E'
+        });
+        return;
+      }
+
+      // 未开放预约
+      if (!this.data.bookingWindowOpen) {
+        return;
+      }
+
       this.setData({
         showWaitlistModal: true,
         bookingModalText: `课程已满员，是否加入候补排队？\n课程：${course.course_name}\n时间：${course.dateStr} ${course.weekDayStr} ${course.start_time}-${course.end_time}\n\n有人取消预约时，将按排队顺序通知您`
@@ -370,7 +409,25 @@ Page({
   onBookTap() {
     if (!auth.requireLogin(() => this.setData({ showLoginModal: true }))) return;
     auth.requireMember(() => {
-      const { course } = this.data;
+      const { course, isPackageSuspended } = this.data;
+      
+      // 套餐停卡中，拦截预约
+      if (isPackageSuspended) {
+        wx.showModal({
+          title: '无法预约',
+          content: '您的套餐暂停使用中，不能进行预约课程操作。',
+          showCancel: false,
+          confirmText: '知道了',
+          confirmColor: '#D4786E'
+        });
+        return;
+      }
+
+      // 未开放预约
+      if (!this.data.bookingWindowOpen) {
+        return;
+      }
+
       // 客户端兜底校验：课程已开始不再允许预约
       if (course && course.dateStr && course.start_time) {
         const now = new Date();

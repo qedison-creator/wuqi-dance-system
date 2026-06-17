@@ -29,7 +29,7 @@ router.get('/member', async (req, res, next) => {
       .sort({ sort_order: 1, created_at: -1 });
 
     // 热门课程(今日及以后的排课)
-    const hotCourses = await Schedule.find({
+    const hotCourseDocs = await Schedule.find({
       date: { $gte: today },
       status: { $in: ['available', 'full'] },
     })
@@ -38,6 +38,16 @@ router.get('/member', async (req, res, next) => {
       .populate('dance_style_id', 'name icon_url')
       .sort({ date: 1, start_time: 1 })
       .limit(10);
+
+    // 转为普通对象并处理封面图片URL
+    const host = `${req.protocol}://${req.get('host')}`;
+    const hotCourses = hotCourseDocs.map(course => {
+      const obj = course.toObject ? course.toObject() : course;
+      if (obj.cover && !obj.cover.startsWith('http')) {
+        obj.cover = `${host}${obj.cover}`;
+      }
+      return obj;
+    });
 
     // 舞种列表
     const danceStyles = await DanceStyle.find({ status: 'active' })
@@ -66,7 +76,7 @@ router.get('/admin', auth, async (req, res, next) => {
     const todaySchedules = await Schedule.countDocuments({ date: today, status: { $in: ['available', 'full'] } });
     const todayBookings = await Booking.countDocuments({
       booking_date: today,
-      $or: [{ status: 'booked' }, { booking_status: 'booked' }],
+      status: 'booked',
     });
 
     // 本月预约统计
@@ -75,7 +85,7 @@ router.get('/admin', auth, async (req, res, next) => {
     });
     const monthCompleted = await Booking.countDocuments({
       booking_date: { $gte: thisMonthStart },
-      $or: [{ status: 'completed' }, { booking_status: 'completed' }],
+      status: 'completed',
     });
     const monthCancelled = await Booking.countDocuments({
       booking_date: { $gte: thisMonthStart },
@@ -223,6 +233,38 @@ router.get('/images', async (req, res, next) => {
       .sort({ sort_order: -1, created_at: -1 })
       .limit(Number(limit));
     res.json(success(images));
+  } catch (err) {
+    next(err);
+  }
+});
+
+// GET /api/v1/home/courses - 获取课程列表（会员端课程列表页）
+router.get('/courses', async (req, res, next) => {
+  try {
+    const { store_id } = req.query;
+    const today = dayjs().format('YYYY-MM-DD');
+    const filter = {
+      date: { $gte: today },
+      status: { $in: ['available', 'full'] },
+    };
+    if (store_id) filter.store_id = store_id;
+
+    const courseDocs = await Schedule.find(filter)
+      .populate('store_id', 'name')
+      .populate('coach_id', 'name avatar_url')
+      .populate('dance_style_id', 'name icon_url')
+      .sort({ date: 1, start_time: 1 });
+
+    const host = `${req.protocol}://${req.get('host')}`;
+    const courses = courseDocs.map(course => {
+      const obj = course.toObject ? course.toObject() : course;
+      if (obj.cover && !obj.cover.startsWith('http')) {
+        obj.cover = `${host}${obj.cover}`;
+      }
+      return obj;
+    });
+
+    res.json(success(courses));
   } catch (err) {
     next(err);
   }

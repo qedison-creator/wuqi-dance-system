@@ -76,13 +76,31 @@ Page({
     const avatarUrl = e.detail.avatarUrl;
     if (!avatarUrl) return;
 
-    wx.showLoading({ title: '上传中...' });
+    // 先裁剪为 1:1 正方形，再上传
+    wx.showLoading({ title: '裁剪中...' });
+    wx.cropImage({
+      src: avatarUrl,
+      cropScale: '1:1',
+      success: (cropRes) => {
+        wx.hideLoading();
+        this.uploadAvatar(cropRes.tempFilePath);
+      },
+      fail: (err) => {
+        wx.hideLoading();
+        // 裁剪失败（低版本基础库不支持），降级直接上传原图
+        console.warn('[member-info] cropImage 失败，使用原图上传:', err);
+        this.uploadAvatar(avatarUrl);
+      }
+    });
+  },
 
+  uploadAvatar(filePath) {
+    wx.showLoading({ title: '上传中...' });
     const baseUrl = (app && app.globalData && app.globalData.baseUrl) || config.baseUrl;
     const serverBase = config.serverBase;
     wx.uploadFile({
       url: baseUrl + '/auth/avatar',
-      filePath: avatarUrl,
+      filePath: filePath,
       name: 'avatar',
       header: {
         'Authorization': 'Bearer ' + (app.globalData.token || wx.getStorageSync('token'))

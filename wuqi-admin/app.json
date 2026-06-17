@@ -8,6 +8,7 @@
     "pages/members/members",
     "pages/shop/shop",
     "pages/shop/store-maintenance/store-maintenance",
+    "pages/shop/booking-window/booking-window",
     "pages/todo-list/todo-list",
     "pages/members/member-detail/member-detail",
     "pages/members/booking-list/booking-list",

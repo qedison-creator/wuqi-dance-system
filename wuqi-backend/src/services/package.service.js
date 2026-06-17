@@ -16,12 +16,16 @@ dayjs.extend(isoWeek);
 const BEIJING_TZ = 'Asia/Shanghai';
 
 exports.getMyPackage = async (userId) => {
+  // 先刷新套餐状态（将已过期的 active 标记为 expired）
+  await exports.refreshPackageStatus(userId);
+
   const packages = await UserPackage.find({ user_id: userId })
     .populate('store_id', 'name')
     .sort({ created_at: 1 });
 
   const activePackage = packages.find(p => p.status === 'active' && !p.is_suspended);
   const pendingPackages = packages.filter(p => p.status === 'pending');
+  const suspendedPackages = packages.filter(p => p.status === 'active' && p.is_suspended);
 
   let timeCardUsage = null;
   if (activePackage && activePackage.package_type === 'time_card') {
@@ -31,6 +35,8 @@ exports.getMyPackage = async (userId) => {
   return {
     current: activePackage || null,
     pending: pendingPackages,
+    suspended: suspendedPackages.length > 0 ? suspendedPackages : null,
+    hasSuspended: suspendedPackages.length > 0,
     history: packages,
     timeCardUsage,
   };
@@ -52,7 +58,7 @@ async function calcTimeCardUsage(userPackage) {
       user_id: userPackage.user_id,
       user_package_id: userPackage._id,
       booking_date: { $gte: weekStart.format('YYYY-MM-DD'), $lte: weekEnd.format('YYYY-MM-DD') },
-      $or: [{ status: { $in: ['booked', 'completed', 'absent'] } }, { booking_status: { $in: ['booked', 'completed'] } }],
+      status: { $in: ['booked', 'completed'] },
     });
     result.weekly_used = usedThisWeek;
     result.weekly_limit = userPackage.weekly_limit;
@@ -64,7 +70,7 @@ async function calcTimeCardUsage(userPackage) {
       user_id: userPackage.user_id,
       user_package_id: userPackage._id,
       booking_date: { $gte: nextWeekStart.format('YYYY-MM-DD'), $lte: nextWeekEnd.format('YYYY-MM-DD') },
-      $or: [{ status: { $in: ['booked', 'completed', 'absent'] } }, { booking_status: { $in: ['booked', 'completed'] } }],
+      status: { $in: ['booked', 'completed'] },
     });
     result.next_week_used = usedNextWeek;
     result.next_week_remaining = Math.max(0, userPackage.weekly_limit - usedNextWeek);
@@ -78,7 +84,7 @@ async function calcTimeCardUsage(userPackage) {
       user_id: userPackage.user_id,
       user_package_id: userPackage._id,
       booking_date: todayStr,
-      $or: [{ status: { $in: ['booked', 'completed', 'absent'] } }, { booking_status: { $in: ['booked', 'completed'] } }],
+      status: { $in: ['booked', 'completed'] },
     });
     result.daily_used = usedToday;
     result.daily_limit = userPackage.daily_limit;

@@ -847,17 +847,20 @@ Page({
         const coachName = (s.coach_id && s.coach_id.name) || s.coach_name || '';
         const storeName = (s.store_id && s.store_id.name) || s.store_name || this.data.currentStoreName || '';
 
-        // 状态：已过结束时间 → 已完成；否则沿用接口返回
+        // 状态：已过结束时间 → 已完成；但已取消/下架的课程保持原状态
         let status = s.status || 'available';
-        if (!isToday) {
-          const scheduleDate = s.date || todayStr;
-          if (s.end_time) {
-            const endTime = new Date(`${scheduleDate}T${s.end_time}`);
+        const isCancelled = ['cancelled', 'cancelled_insufficient', 'offline', 'deleted'].includes(status);
+        if (!isCancelled) {
+          if (!isToday) {
+            const scheduleDate = s.date || todayStr;
+            if (s.end_time) {
+              const endTime = new Date(`${scheduleDate}T${s.end_time}`);
+              if (now > endTime) status = 'completed';
+            }
+          } else if (s.end_time) {
+            const endTime = new Date(`${todayStr}T${s.end_time}`);
             if (now > endTime) status = 'completed';
           }
-        } else if (s.end_time) {
-          const endTime = new Date(`${todayStr}T${s.end_time}`);
-          if (now > endTime) status = 'completed';
         }
 
         const bookingStats = statsResults[i];
@@ -886,6 +889,15 @@ Page({
       });
 
       this.setData({ scheduleList: processed });
+
+      // 同步更新角标数量，使其与实际展开列表一致
+      const todoList = this.data.todoList.map(t => {
+        if (t._id === todo._id) {
+          return { ...t, count: processed.length };
+        }
+        return t;
+      });
+      this.setData({ todoList, todos: todoList });
     } catch (err) {
       console.warn('[dashboard] 拉取课程失败', err);
       this.setData({ scheduleList: [] });
@@ -904,9 +916,9 @@ Page({
       });
       const all = res.data || [];
       return {
-        booked: all.filter(b => b.status === 'booked' || b.booking_status === 'booked').length,
-        checkedIn: all.filter(b => b.checked_in || b.status === 'checked_in').length,
-        cancelled: all.filter(b => b.status === 'cancelled' || b.booking_status === 'cancelled').length,
+        booked: all.filter(b => b.status === 'booked').length,
+        checkedIn: all.filter(b => b.checked_in || b.status === 'completed' || b.status === 'checked_in').length,
+        cancelled: all.filter(b => b.status === 'cancelled').length,
         exempted: all.filter(b => b.status === 'exempted' || b.is_exempted).length
       };
     } catch (err) {
@@ -924,6 +936,10 @@ Page({
 
   onViewSchedule() {
     wx.navigateTo({ url: '/pages/schedule/schedule' });
+  },
+
+  onViewAllTodos() {
+    wx.navigateTo({ url: '/pages/todo-list/todo-list' });
   },
 
   onGoToSchedule() {

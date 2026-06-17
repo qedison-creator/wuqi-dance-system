@@ -124,6 +124,10 @@
   background: linear-gradient(180deg, #D5CFCA, #E5E0DC);
 }
 
+.rc-left-line.absent {
+  background: linear-gradient(180deg, #D4786E, #EBA89F);
+}
+
 .rc-left-line.waitlist {
   background: linear-gradient(180deg, #E8985E, #E0C9A8);
 }

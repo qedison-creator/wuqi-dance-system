@@ -32,7 +32,7 @@ Page({
     confirmInput: '',
     isResetAll: false,
     resetItems: [
-      { key: 'schedules', label: '课程数据', desc: '清理所有排课记录及关联预约/候补', icon: '📅' },
+      { key: 'schedules', label: '课程数据', desc: '清理所有排课记录（不删除预约记录）', icon: '📅' },
       { key: 'bookings', label: '预约记录', desc: '清理所有预约记录，排课人数归零', icon: '📋' },
       { key: 'attendance', label: '上课记录', desc: '重置所有签到状态为"已预约"', icon: '✅' },
       { key: 'coaches', label: '教练数据', desc: '清理所有教练及薪资记录', icon: '👨‍🏫' },
@@ -100,6 +100,10 @@ Page({
         }
       }
     });
+  },
+
+  onModalTap() {
+    // 阻止事件冒泡，防止点击弹窗内部关闭弹窗
   },
 
   onConfirmInput(e) {

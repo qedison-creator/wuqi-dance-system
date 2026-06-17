@@ -4,6 +4,7 @@ const connectDB = require('./src/config/database');
 const config = require('./src/config');
 const { startScheduler } = require('./src/utils/scheduler');
 const { syncServerTime } = require('./src/utils/time');
+const { ensureTemplateMappings } = require('./src/services/wechat-message.service');
 const PORT = process.env.PORT || 3000;
 
 if (config.isProd && !process.env.JWT_SECRET) {
@@ -15,9 +16,12 @@ if (config.isProd && !process.env.WX_APPID && !process.env.WX_MEMBER_APPID) {
   console.warn('[WARN] 生产环境未设置 WX_APPID 或 WX_MEMBER_APPID，微信订阅消息推送将不可用');
 }
 
-connectDB().then(() => {
-  // 注意：initDefaultConfigs() 仅在首次部署时手动执行，不应在每次启动时自动调用
-  // 如需初始化默认数据，请运行: node scripts/init-defaults.js
+connectDB().then(async () => {
+  try {
+    await ensureTemplateMappings();
+  } catch (err) {
+    console.error('[Server] 初始化模板映射失败（不影响服务启动）:', err.message);
+  }
   startScheduler();
   syncServerTime();
   app.listen(PORT, () => {

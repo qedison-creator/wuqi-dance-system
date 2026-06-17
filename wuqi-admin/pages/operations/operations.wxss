@@ -272,6 +272,19 @@
   font-weight: 600;
 }
 
+.today-btn {
+  padding: 12rpx 24rpx;
+  background-color: #FAEEE4;
+  border-radius: 40rpx;
+  border: 1rpx solid #E8E2D8;
+  margin-left: 16rpx;
+}
+
+.today-btn text {
+  font-size: 24rpx;
+  color: #C5744B;
+}
+
 .legend-row {
   display: flex;
   justify-content: center;

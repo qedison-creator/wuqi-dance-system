@@ -174,7 +174,7 @@
 | store_id | ObjectId | 门店ID |
 | booking_date | String | 预约日期 |
 | booking_time | String | 预约时间 |
-| status | enum | booked / cancelled / completed / absent |
+| status | enum | booked / cancelled / completed |
 | cancel_reason | String | 取消原因 |
 | cancel_type | enum | normal / timeout / exempt / admin_cancel / min_bookings_not_met / holiday |
 | credits_deducted | Number | 扣减次数 |

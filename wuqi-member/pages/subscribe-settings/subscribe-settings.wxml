@@ -9,7 +9,8 @@
 
   <view class="subscribe-all-card" bindtap="onSubscribeAll">
     <text class="sa-text">一键订阅全部通知</text>
-    <text class="sa-sub">未授权的模板将自动完成授权</text>
+    <text class="sa-sub" wx:if="{{unsubscribedCount > 0}}">还有 {{unsubscribedCount}} 个未授权，点击后分批完成</text>
+    <text class="sa-sub" wx:else>全部已授权 ✓</text>
   </view>
 
   <view class="settings-section">
@@ -23,6 +24,7 @@
           </view>
           <view class="setting-action">
             <text class="setting-status subscribed" wx:if="{{item.subscribed}}">✓ 已订阅</text>
+            <text class="setting-status rejected" wx:elif="{{item.rejected}}">已拒绝</text>
             <text class="setting-status" wx:else>去订阅</text>
           </view>
         </view>

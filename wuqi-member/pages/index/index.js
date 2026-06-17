@@ -215,12 +215,13 @@ Page({
       }));
       this.setData({ hotCoaches: coaches });
 
-      // 处理近期课程（同时处理 cover 字段）
+      // 处理近期课程（同时处理 cover 字段）- 已取消/下架的不展示
       const scheduleData = scheduleRes.data || {};
       const courses = Array.isArray(scheduleData) ? scheduleData : (scheduleData.data || scheduleData.list || []);
       const recentCourses = courses
         .filter(course => {
           if (!course.date) return false;
+          if (course.status === 'cancelled' || course.status === 'offline' || course.status === 'cancelled_insufficient') return false;
           const d = typeof course.date === 'string' ? course.date.substring(0, 10) : course.date;
           return d >= todayStr && d <= endStr;
         })

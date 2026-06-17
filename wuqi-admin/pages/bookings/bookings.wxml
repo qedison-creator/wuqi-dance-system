@@ -3,7 +3,7 @@
   <view class="schedule-header card" wx:if="{{scheduleInfo}}">
     <view class="schedule-title">
       <text class="course-name">{{scheduleInfo.course_name || (scheduleInfo.dance_style_id && scheduleInfo.dance_style_id.name ? scheduleInfo.dance_style_id.name + '课程' : '课程')}}</text>
-      <text class="schedule-status {{scheduleInfo.status}}">{{scheduleInfo.status === 'available' ? '可预约' : scheduleInfo.status === 'full' ? '已满' : scheduleInfo.status === 'cancelled' ? '已取消' : scheduleInfo.status === 'offline' ? '已下架' : '未开课'}}</text>
+      <text class="schedule-status {{scheduleInfo.status}}">{{scheduleInfo.status === 'available' ? '可预约' : scheduleInfo.status === 'full' ? '已满' : scheduleInfo.status === 'cancelled' ? '已取消' : scheduleInfo.status === 'completed' ? '已完成' : scheduleInfo.status === 'offline' ? '已下架' : '未开课'}}</text>
     </view>
     <view class="schedule-detail">
       <text class="detail-item">{{scheduleInfo.date}} {{scheduleInfo.start_time}}-{{scheduleInfo.end_time}}</text>
@@ -14,6 +14,10 @@
       <view class="stat-item">
         <text class="stat-num">{{bookedList.length}}</text>
         <text class="stat-label">已预约</text>
+      </view>
+      <view class="stat-item">
+        <text class="stat-num">{{completedList.length}}</text>
+        <text class="stat-label">已签到</text>
       </view>
       <view class="stat-item">
         <text class="stat-num">{{cancelledList.length}}</text>
@@ -37,8 +41,8 @@
     <view class="tab-item {{activeTab === 'booked' ? 'active' : ''}}" data-tab="booked" bindtap="onTabChange">
       <text>已预约({{bookedList.length}})</text>
     </view>
-    <view class="tab-item {{activeTab === 'checkedIn' ? 'active' : ''}}" data-tab="checkedIn" bindtap="onTabChange">
-      <text>已签到({{attendanceList.length}})</text>
+    <view class="tab-item {{activeTab === 'completed' ? 'active' : ''}}" data-tab="completed" bindtap="onTabChange">
+      <text>已签到({{completedList.length}})</text>
     </view>
     <view class="tab-item {{activeTab === 'cancelled' ? 'active' : ''}}" data-tab="cancelled" bindtap="onTabChange">
       <text>已取消({{cancelledList.length}})</text>
@@ -69,6 +73,27 @@
     </view>
     <view class="empty-state" wx:if="{{bookedList.length === 0}}">
       <text class="empty-text">暂无已预约会员</text>
+    </view>
+  </view>
+
+  <!-- 已签到名单 -->
+  <view class="booking-list" wx:if="{{viewMode !== 'attendance' && activeTab === 'completed'}}">
+    <view class="booking-item card" wx:for="{{completedList}}" wx:key="_id">
+      <view class="user-info">
+        <image class="user-avatar" src="{{item.userAvatar || '/images/default-avatar.svg'}}" mode="aspectFill"></image>
+        <view class="user-detail">
+          <text class="user-name">{{item.userName}}</text>
+          <text class="user-nick-name" wx:if="{{item.userNickName}}">{{item.userNickName}}</text>
+          <text class="user-phone" wx:if="{{item.userPhone}}">{{item.userPhone}}</text>
+          <text class="booking-time" wx:if="{{item.checkInTime}}">签到时间: {{item.checkInTime}}</text>
+        </view>
+      </view>
+      <view class="booking-meta">
+        <text class="credits">扣课: {{item.creditsDeducted}}次</text>
+      </view>
+    </view>
+    <view class="empty-state" wx:if="{{completedList.length === 0}}">
+      <text class="empty-text">暂无已签到会员</text>
     </view>
   </view>
 
@@ -119,8 +144,8 @@
     </view>
   </view>
 
-  <!-- 已签到名单（仅在预约视图的checkedIn Tab或attendance视图） -->
-  <view class="booking-list" wx:if="{{viewMode === 'attendance' || activeTab === 'checkedIn'}}">
+  <!-- 上课记录（attendance视图） -->
+  <view class="booking-list" wx:if="{{viewMode === 'attendance'}}">
     <view class="booking-item card" wx:for="{{attendanceList}}" wx:key="_id">
       <view class="user-info">
         <image class="user-avatar" src="{{item.userAvatar || '/images/default-avatar.svg'}}" mode="aspectFill"></image>
@@ -130,11 +155,11 @@
             <text class="user-nick" wx:if="{{item.userNickName}}">（{{item.userNickName}}）</text>
           </view>
           <text class="user-phone" wx:if="{{item.userPhone}}">{{item.userPhone}}</text>
-          <text class="booking-time">签到时间: {{item.checkInTime}}</text>
+          <text class="booking-time" wx:if="{{item.checkInTime}}">签到时间: {{item.checkInTime}}</text>
         </view>
       </view>
       <view class="booking-meta">
-        <view class="check-in-method method-{{item.checkInMethod}}">
+        <view class="check-in-method method-{{item.checkInMethod}}" wx:if="{{item.checkedIn}}">
           <text>{{item.checkInMethodText}}</text>
         </view>
         <text class="credits">扣课: {{item.creditsCost}}次</text>

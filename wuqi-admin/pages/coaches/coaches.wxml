@@ -26,24 +26,28 @@
       <view class="coach-item card" wx:for="{{coaches}}" wx:key="_id">
         <view class="coach-main">
           <image class="coach-avatar" src="{{item.avatar_url || '/images/default-avatar.svg'}}" mode="aspectFill"></image>
-          <view class="coach-info">
-            <view class="coach-name-row">
-              <text class="coach-name">{{item.name}}</text>
-              <text class="coach-gender">{{item.gender === 1 ? '男' : (item.gender === 2 ? '女' : '未知')}}</text>
-              <text class="coach-sort">排序: {{item.sort_order || 0}}</text>
+          <view class="coach-body">
+            <view class="coach-row-top">
+              <view class="coach-info">
+                <view class="coach-name-row">
+                  <text class="coach-name">{{item.name}}</text>
+                  <text class="coach-gender">{{item.gender === 1 ? '男' : (item.gender === 2 ? '女' : '未知')}}</text>
+                  <text class="coach-sort">排序: {{item.sort_order || 0}}</text>
+                </view>
+                <text class="coach-home-tag {{item.show_on_home !== false ? 'tag-home-show' : 'tag-home-hide'}}">{{item.show_on_home !== false ? '首页展示' : '不展示'}}</text>
+              </view>
+              <view class="coach-actions">
+                <view class="action-btn-small" data-index="{{index}}" bindtap="onEditCoach">
+                  <text>编辑</text>
+                </view>
+                <view class="action-btn-small danger" data-index="{{index}}" bindtap="onDeleteCoach">
+                  <text>删除</text>
+                </view>
+                <switch checked="{{item.status === 'active'}}" data-id="{{item._id}}" data-index="{{index}}" bindchange="onToggleCoach" color="#FFCC00"></switch>
+              </view>
             </view>
             <text class="coach-dance">擅长: {{item.dance_style_names || '未设置'}}</text>
-            <text class="coach-home-tag {{item.show_on_home !== false ? 'tag-home-show' : 'tag-home-hide'}}">{{item.show_on_home !== false ? '首页展示' : '不展示'}}</text>
           </view>
-        </view>
-        <view class="coach-actions">
-          <view class="action-btn-small" data-index="{{index}}" bindtap="onEditCoach">
-            <text>编辑</text>
-          </view>
-          <view class="action-btn-small danger" data-index="{{index}}" bindtap="onDeleteCoach">
-            <text>删除</text>
-          </view>
-          <switch checked="{{item.status === 'active'}}" data-id="{{item._id}}" data-index="{{index}}" bindchange="onToggleCoach" color="#FFCC00"></switch>
         </view>
       </view>
     </view>

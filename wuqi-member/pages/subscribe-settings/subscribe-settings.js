@@ -10,7 +10,8 @@ const {
 Page({
   data: {
     templatesWithStatus: [],
-    loading: true
+    loading: true,
+    unsubscribedCount: 0
   },
 
   onLoad() {
@@ -45,65 +46,116 @@ Page({
         success: (res) => {
           const subscriptions = res.subscriptionsSetting || {};
           const itemSettings = subscriptions.itemSettings || {};
-          const templatesWithStatus = allIds.map(item => ({
-            ...item,
-            subscribed: itemSettings[item.id] === 'accept' || !!localAccepted[item.id]
-          }));
-          this.setData({ templatesWithStatus, loading: false });
+          // wxStatus: 'accept'=已授权, 'reject'=已拒绝(无法再弹出), 'ban'=被禁用, undefined=未处理
+          const templatesWithStatus = allIds.map(item => {
+            const wxStatus = itemSettings[item.id];
+            const isSubscribed = wxStatus === 'accept' || (!wxStatus && !!localAccepted[item.id]);
+            const isRejected = wxStatus === 'reject' || wxStatus === 'ban';
+            return {
+              ...item,
+              subscribed: isSubscribed,
+              rejected: isRejected,
+              canSubscribe: !isSubscribed && !isRejected  // 只有未处理的才能再次弹出
+            };
+          });
+          const unsubscribedCount = templatesWithStatus.filter(t => t.canSubscribe).length;
+          this.setData({ templatesWithStatus, loading: false, unsubscribedCount });
         },
         fail: () => {
           const templatesWithStatus = allIds.map(item => ({
             ...item,
-            subscribed: !!localAccepted[item.id]
+            subscribed: !!localAccepted[item.id],
+            rejected: false,
+            canSubscribe: !localAccepted[item.id]
           }));
-          this.setData({ templatesWithStatus, loading: false });
+          const unsubscribedCount = templatesWithStatus.filter(t => t.canSubscribe).length;
+          this.setData({ templatesWithStatus, loading: false, unsubscribedCount });
         }
       });
     });
   },
 
-  async onSubscribeAll() {
-    await fetchTemplates();
-    const unsubscribed = this.data.templatesWithStatus.filter(item => !item.subscribed);
+  // "一键订阅"：微信限制每次用户操作只能弹一次授权窗口，每次最多3个模板
+  // 策略：每次点击处理最多3个可重新订阅的模板（排除已永久拒绝的）
+  onSubscribeAll() {
+    const canSubscribe = this.data.templatesWithStatus.filter(item => item.canSubscribe);
 
-    if (unsubscribed.length === 0) {
-      wx.showToast({ title: '全部已订阅', icon: 'success' });
+    if (canSubscribe.length === 0) {
+      // 检查是否全部是已拒绝的
+      const rejected = this.data.templatesWithStatus.filter(item => item.rejected && !item.subscribed);
+      if (rejected.length > 0) {
+        wx.showModal({
+          title: '无法订阅',
+          content: `有 ${rejected.length} 个通知模板已被永久拒绝，无法再次弹出授权。请在微信「设置→订阅消息」中手动开启。`,
+          showCancel: false,
+          confirmText: '知道了'
+        });
+      } else {
+        wx.showToast({ title: '全部已订阅', icon: 'success' });
+      }
       return;
     }
 
-    const batchSize = 3;
-    const newlyAccepted = [];
+    // 只取前3个可订阅的
+    const batch = canSubscribe.slice(0, 3);
+    const batchIds = batch.map(item => item.id);
 
-    for (let i = 0; i < unsubscribed.length; i += batchSize) {
-      const batch = unsubscribed.slice(i, i + batchSize);
-      const batchIds = batch.map(item => item.id);
-      const result = await requestSubscribeMessage(batchIds, 'settings');
+    wx.showLoading({ title: '请求授权...', mask: true });
 
-      if (result && typeof result === 'object') {
+    wx.requestSubscribeMessage({
+      tmplIds: batchIds,
+      success: (res) => {
+        wx.hideLoading();
+        
         const acceptedIds = [];
+        const rejectedIds = [];
         batch.forEach(item => {
-          if (result[item.id] === 'accept') {
+          if (res[item.id] === 'accept') {
             acceptedIds.push(item.id);
+          } else {
+            rejectedIds.push(item.id);
           }
         });
+
         if (acceptedIds.length > 0) {
-          newlyAccepted.push(...acceptedIds);
           markTemplatesAccepted(acceptedIds);
         }
+
+        // 计算剩余可订阅数量
+        const updatedList = this.data.templatesWithStatus.map(item => ({
+          ...item,
+          subscribed: item.subscribed || acceptedIds.includes(item.id),
+          canSubscribe: item.canSubscribe && !acceptedIds.includes(item.id)
+        }));
+        const remainingAfter = updatedList.filter(t => t.canSubscribe).length;
+        
+        this.setData({ templatesWithStatus: updatedList, unsubscribedCount: remainingAfter });
+
+        // 显示结果弹窗（避免toast字数限制）
+        if (acceptedIds.length > 0 && remainingAfter > 0) {
+          wx.showModal({
+            title: '部分订阅成功',
+            content: `已订阅 ${acceptedIds.length} 个通知，还有 ${remainingAfter} 个未订阅。点击「继续订阅」处理剩余通知。`,
+            confirmText: '继续订阅',
+            cancelText: '知道了',
+            confirmColor: '#C5744B',
+            success: (modalRes) => {
+              if (modalRes.confirm) {
+                this.onSubscribeAll();
+              }
+            }
+          });
+        } else if (acceptedIds.length > 0 && remainingAfter === 0) {
+          wx.showToast({ title: '全部订阅完成', icon: 'success' });
+        } else {
+          wx.showToast({ title: '未授权，可重试', icon: 'none' });
+        }
+      },
+      fail: () => {
+        wx.hideLoading();
+        wx.showToast({ title: '授权失败，请重试', icon: 'none' });
       }
-    }
-
-    if (newlyAccepted.length > 0) {
-      // 立即刷新 UI
-      const templatesWithStatus = this.data.templatesWithStatus.map(item => ({
-        ...item,
-        subscribed: item.subscribed || newlyAccepted.includes(item.id)
-      }));
-      this.setData({ templatesWithStatus });
-    }
-
-    wx.showToast({ title: newlyAccepted.length > 0 ? '订阅成功' : '已处理', icon: newlyAccepted.length > 0 ? 'success' : 'none' });
-    setTimeout(() => this.loadSubscribedStatus(), 500);
+    });
   },
 
   async onSubscribeItem(e) {

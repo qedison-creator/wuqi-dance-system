@@ -9,6 +9,8 @@ Page({
     activeTab: 'booked',
     // 已预约名单
     bookedList: [],
+    // 已签到名单
+    completedList: [],
     // 已取消名单
     cancelledList: [],
     // 已豁免名单（如有）
@@ -66,6 +68,7 @@ Page({
       
       // 分类处理
       const bookedList = [];
+      const completedList = [];
       const cancelledList = [];
       const exemptedList = [];
       
@@ -82,13 +85,17 @@ Page({
           userAvatar: item.user_id?.avatar_url || '',
           bookingTime: item.created_at,
           creditsDeducted: item.credits_deducted || 0,
-          remark: item.remark || ''
+          remark: item.remark || '',
+          checkInTime: item.check_in_time,
+          checkedIn: item.checked_in || false
         };
         
-        // 根据状态分类
-        const status = item.status || item.booking_status;
+        // 根据状态分类（没有缺勤业务，所有未签到的都自动签到）
+        const status = item.status;
         if (status === 'booked') {
           bookedList.push(booking);
+        } else if (status === 'completed') {
+          completedList.push(booking);
         } else if (status === 'cancelled') {
           cancelledList.push({
             ...booking,
@@ -103,6 +110,7 @@ Page({
       
       this.setData({
         bookedList,
+        completedList,
         cancelledList,
         exemptedList
       });
@@ -119,24 +127,36 @@ Page({
         method: 'GET'
       });
       
-      const list = res.data && Array.isArray(res.data) ? res.data : [];
+      // 后端返回 { total, checkedIn, booked, cancelled, records: [...] }
+      const records = (res.data && res.data.records) || [];
       
-      const processedList = list.map(item => {
+      const processedList = records.map(item => {
         const realName = item.user_id?.real_name;
         const nickName = item.user_id?.nick_name;
         const displayName = realName || nickName || '未知用户';
         const nickNameDisplay = realName && nickName && nickName !== realName ? nickName : '';
+        const att = item.attendance;
+        let method = 'scan';
+        if (att) {
+          if (att.source === 'booking') method = 'auto';
+          else if (att.check_in_method) method = att.check_in_method;
+          else method = 'scan';
+        } else if (item.check_in_method) {
+          method = item.check_in_method;
+        }
         return {
-          _id: item._id,
+          _id: item.booking_id || item._id,
           userName: displayName,
           userNickName: nickNameDisplay,
           userPhone: item.user_id?.phone || '',
           userAvatar: item.user_id?.avatar_url || '',
-          checkInTime: item.check_in_time,
-          checkInMethod: item.check_in_method || 'scan',
-          checkInMethodText: this.getCheckInMethodText(item.check_in_method),
+          checkInTime: att ? att.check_in_time : (item.check_in_time || ''),
+          checkInMethod: method,
+          checkInMethodText: this.getCheckInMethodText(method),
           source: item.source,
-          creditsCost: item.credits_cost || 0
+          creditsCost: att ? att.credits_cost : (item.credits_deducted || 0),
+          status: item.status,
+          checkedIn: item.checked_in
         };
       });
       

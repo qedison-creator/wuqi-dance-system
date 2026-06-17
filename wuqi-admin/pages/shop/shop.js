@@ -64,6 +64,10 @@ Page({
     wx.navigateTo({ url: '/pages/schedule/schedule' });
   },
 
+  onGoToBookingWindow() {
+    wx.navigateTo({ url: '/pages/shop/booking-window/booking-window' });
+  },
+
   onGoToWaitlist() {
     wx.navigateTo({ url: '/pages/waitlist/waitlist' });
   },

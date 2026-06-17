@@ -77,13 +77,18 @@
               <text>{{item.classroom}}</text>
             </view>
             <view class="card-meta-row">
-              <view class="cd-course-count" wx:if="{{isOfficial}}">
+              <view class="cd-course-count" wx:if="{{isOfficial && canViewCapacity}}">
                 <text class="cdc-label">已预约</text>
                 <text class="cdc-num">{{item.current_bookings || 0}}</text>
                 <text class="cdc-total">/{{item.max_bookings || 20}}人</text>
               </view>
+              <view class="cd-course-count" wx:elif="{{isOfficial && !canViewCapacity}}">
+                <text class="cdc-label">已预约</text>
+                <text class="cdc-num">?</text>
+                <text class="cdc-total">/?人</text>
+              </view>
               <text class="cdc-min-capacity" wx:if="{{item.min_bookings}}">最低{{item.min_bookings}}人开课</text>
-              <view class="booked-avatars" wx:if="{{item.booked_users && item.booked_users.length > 0}}">
+              <view class="booked-avatars" wx:if="{{canViewCapacity && item.booked_users && item.booked_users.length > 0}}">
                 <block wx:for="{{item.booked_users}}" wx:for-index="ui" wx:key="user_id" wx:if="{{ui < 10}}">
                   <image class="booked-avatar" src="{{item.avatar_url}}" mode="aspectFill" style="margin-left: {{ui === 0 ? 0 : -16}}rpx; z-index: {{10 - ui}};" />
                 </block>
@@ -94,9 +99,10 @@
             </view>
           </view>
           <view class="cd-course-action">
-            <view class="cd-book-btn {{cmpContains(bookedScheduleIds, item._id) ? 'booked' : ''}} {{item.status === 'full' || !isOfficial ? 'disabled' : ''}}" data-course="{{item}}" catchtap="onBookTap">
+            <view class="cd-book-btn {{cmpContains(bookedScheduleIds, item._id) ? 'booked' : ''}} {{item.status === 'full' || !isOfficial || isPackageSuspended || !item.bookingOpen ? 'disabled' : ''}}" data-course="{{item}}" catchtap="onBookTap">
               <text wx:if="{{cmpContains(bookedScheduleIds, item._id)}}">已预约</text>
               <text wx:elif="{{item.status === 'full'}}">已满</text>
+              <text wx:elif="{{!item.bookingOpen}}">未开放预约</text>
               <text wx:elif="{{!isOfficial}}">预约</text>
               <text wx:else>预约</text>
             </view>

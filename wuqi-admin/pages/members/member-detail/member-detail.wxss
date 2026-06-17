@@ -548,6 +548,27 @@
   background: var(--color-danger-bg);
 }
 
+.unsuspend-btn {
+  width: 100%;
+  height: 88rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-primary);
+  border-radius: var(--radius-lg);
+  color: #fff;
+  font-size: 30rpx;
+  font-weight: 500;
+}
+
+.unsuspend-btn:active {
+  opacity: 0.85;
+}
+
+.bottom-actions {
+  gap: 20rpx;
+}
+
 .info-row-tap {
   padding-right: 20rpx;
 }

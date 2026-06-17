@@ -192,9 +192,7 @@ Page({
             // 计算北京时区的自然日差值
     const getBeijingDateStr = (date) => {
       const d = new Date(date);
-      const offset = 8 * 60;
-      const localOffset = d.getTimezoneOffset();
-      const beijingTime = d.getTime() + (offset + localOffset) * 60 * 1000;
+      const beijingTime = d.getTime() + 8 * 60 * 60 * 1000;
       const beijingDate = new Date(beijingTime);
       return beijingDate.toISOString().split('T')[0];
     };
@@ -213,7 +211,8 @@ Page({
       }
       if (pkg.end_date) {
         pkg.end_date_display = getBeijingDateStr(pkg.end_date);
-        if (pkg.is_activated && pkg.status === 'active' && !pkg.is_suspended) {
+        // 已激活的套餐计算剩余天数（包括已过期的，用于显示"已超X天"）
+        if (pkg.is_activated && !pkg.is_suspended) {
           var now = new Date();
           var end = new Date(pkg.end_date);
           var diff = diffBeijingDays(now, end) + 1;
@@ -368,9 +367,7 @@ Page({
         // 计算北京时区的自然日差值
         const getBeijingDateStr = (date) => {
           const d = new Date(date);
-          const offset = 8 * 60;
-          const localOffset = d.getTimezoneOffset();
-          const beijingTime = d.getTime() + (offset + localOffset) * 60 * 1000;
+          const beijingTime = d.getTime() + 8 * 60 * 60 * 1000;
           const beijingDate = new Date(beijingTime);
           return beijingDate.toISOString().split('T')[0];
         };
@@ -723,9 +720,7 @@ Page({
     // 计算北京时区的自然日差值（忽略时分秒）
     const getBeijingDateStr = (date) => {
       const d = new Date(date);
-      const offset = 8 * 60; // 北京时区 UTC+8
-      const localOffset = d.getTimezoneOffset();
-      const beijingTime = d.getTime() + (offset + localOffset) * 60 * 1000;
+      const beijingTime = d.getTime() + 8 * 60 * 60 * 1000;
       const beijingDate = new Date(beijingTime);
       return beijingDate.toISOString().split('T')[0]; // YYYY-MM-DD
     };
@@ -746,14 +741,16 @@ Page({
       pkg._typeLabel = pkg.package_type === 'time_card' ? '时间卡' : '次卡';
       
       // 状态文案（情绪价值表达，无emoji）
+      // 动态修正：已激活但有效期已过的，标记为已过期
+      var isExpired = pkg.is_activated && pkg.end_date && new Date() > new Date(pkg.end_date);
       if (pkg.is_suspended) {
         pkg._statusText = '暂停中';
+      } else if (isExpired || pkg.status === 'expired') {
+        pkg._statusText = '已过期';
       } else if (pkg.status === 'active') {
         pkg._statusText = '畅享中';
       } else if (pkg.status === 'pending') {
         pkg._statusText = '静待开启';
-      } else if (pkg.status === 'expired') {
-        pkg._statusText = '已落幕';
       } else {
         pkg._statusText = '已满载';
       }
@@ -845,12 +842,13 @@ Page({
       
       // 分类：使用中 / 待激活 / 历史
       // 使用中：status === 'active'，未暂停，且未过期，且次卡还有次数
-      if (pkg.status === 'active' && !pkg.is_suspended) {
+      // 过期的套餐（即使 status 仍为 active）归入历史
+      if (pkg.status === 'active' && !pkg.is_suspended && !isExpired) {
         activePackages.push(pkg);
       } else if (pkg.status === 'pending') {
         pendingPackages.push(pkg);
       } else {
-        // 历史：expired / 用完的active / 暂停的(is_suspended) / exhausted等
+        // 历史：expired / 过期的active / 用完的active / 暂停的(is_suspended) / exhausted等
         historyPackages.push(pkg);
       }
     });
@@ -932,6 +930,12 @@ Page({
   },
 
   onMemberInfo() {
+    if (!requireLogin()) return;
+    wx.navigateTo({ url: '/pages/member-info/member-info' });
+  },
+
+  // 审核通过后引导完善资料
+  onGoSetup() {
     if (!requireLogin()) return;
     wx.navigateTo({ url: '/pages/member-info/member-info' });
   },

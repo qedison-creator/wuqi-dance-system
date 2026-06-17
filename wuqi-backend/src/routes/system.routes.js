@@ -36,13 +36,11 @@ router.post('/reset/schedules', auth, checkPermission(['super_admin']), async (r
   try {
     const count = await Schedule.countDocuments();
     await Schedule.deleteMany({});
-    await Booking.deleteMany({});
-    await Waitlist.deleteMany({});
     await OperationLog.create({
       operator_id: req.user.id,
       action: 'reset',
       module: 'system',
-      detail: `初始化课程数据，删除${count}条排课记录及关联预约/候补`,
+      detail: `初始化课程数据，删除${count}条排课记录`,
     });
     res.json(success({ deleted: count }, '课程数据已初始化'));
   } catch (err) {
@@ -70,17 +68,28 @@ router.post('/reset/bookings', auth, checkPermission(['super_admin']), async (re
 
 router.post('/reset/attendance', auth, checkPermission(['super_admin']), async (req, res, next) => {
   try {
+    // 同步重置所有签到相关字段（status/checked_in/check_in_time/checked_in_by）
     const result = await Booking.updateMany(
-      { booking_status: { $in: ['checked_in', 'completed', 'absent'] } },
-      { $set: { booking_status: 'booked', check_in_time: null } }
+      { $or: [{ status: 'completed' }, { checked_in: true }] },
+      {
+        $set: {
+          status: 'booked',
+          checked_in: false,
+          check_in_time: null,
+          checked_in_by: null,
+        },
+      }
     );
+    // 同步清空 Attendance 集合
+    const Attendance = require('../models/Attendance');
+    const attResult = await Attendance.deleteMany({});
     await OperationLog.create({
       operator_id: req.user.id,
       action: 'reset',
       module: 'system',
-      detail: `初始化上课记录，重置${result.modifiedCount}条签到状态`,
+      detail: `初始化上课记录，重置${result.modifiedCount}条签到状态，删除${attResult.deletedCount}条签到记录`,
     });
-    res.json(success({ modified: result.modifiedCount }, '上课记录已初始化'));
+    res.json(success({ modified: result.modifiedCount, attendance_deleted: attResult.deletedCount }, '上课记录已初始化'));
   } catch (err) {
     next(err);
   }

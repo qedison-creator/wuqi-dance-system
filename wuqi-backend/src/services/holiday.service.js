@@ -172,15 +172,14 @@ const cancelHolidayBookings = async (startDate, endDate, storeId, holidayId, ope
   
   const bookingFilter = {
     schedule_id: { $in: scheduleIds },
-    $or: [{ status: 'booked' }, { booking_status: 'booked' }]
+    status: 'booked'
   };
-  
+
   const bookings = await Booking.find(bookingFilter);
   const cancelledBookings = [];
-  
+
   for (const booking of bookings) {
     booking.status = 'cancelled';
-    booking.booking_status = 'cancelled';
     booking.cancel_type = 'holiday';
     booking.cancel_time = new Date();
     booking.cancel_reason = '放假调课';

@@ -18,6 +18,7 @@ Page({
     formCoachChecked: {},    // 教练选中状态 { coachId: true }
     formShowHome: true,
     showCoachPicker: false,  // 教练选择面板
+    cropMode: '',            // 裁剪模式：portrait / landscape / free
     loading: false,
     // 多选
     selectMode: false,
@@ -94,7 +95,8 @@ Page({
       tempImagePath: '',
       formTitle: '',
       formShowHome: true,
-      showCoachPicker: false
+      showCoachPicker: false,
+      cropMode: ''
     });
     this._initCoachChecked([]);
   },
@@ -123,14 +125,44 @@ Page({
 
   // 选择图片
   onChooseImage() {
+    const that = this;
     wx.chooseImage({
       count: 1,
-      sizeType: ['compressed'],
+      sizeType: ['original'],
       sourceType: ['album', 'camera'],
       success: (res) => {
-        this.setData({ tempImagePath: res.tempFilePaths[0] });
+        const filePath = res.tempFilePaths[0];
+        that.setData({ tempImagePath: filePath, cropMode: '' });
       }
     });
+  },
+
+  // 选择裁剪模式并裁剪
+  onCropModeSelect(e) {
+    const mode = e.currentTarget.dataset.mode;
+    if (!this.data.tempImagePath) return;
+
+    const cropScaleMap = {
+      'portrait': '3:4',
+      'landscape': '16:9',
+      'free': ''
+    };
+    const cropScale = cropScaleMap[mode];
+    const cropOptions = {
+      src: this.data.tempImagePath,
+      success: (cropRes) => {
+        this.setData({ tempImagePath: cropRes.tempFilePath, cropMode: mode });
+      },
+      fail: (err) => {
+        if (err.errMsg && err.errMsg.indexOf('cancel') === -1) {
+          console.error('裁剪失败:', err);
+        }
+      }
+    };
+    if (cropScale) {
+      cropOptions.cropScale = cropScale;
+    }
+    wx.cropImage(cropOptions);
   },
 
   // 标题输入

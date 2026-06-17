@@ -370,9 +370,11 @@ Page({
 
       // 处理状态文本（历史课程状态）
       const historyStatusMap = {
-        'available': '已结束',
-        'full': '已结束',
+        'available': '已完成',
+        'full': '已完成',
+        'completed': '已完成',
         'cancelled': '已取消',
+        'cancelled_insufficient': '已取消',
         'offline': '已下架',
         'not_open': '未开课'
       };
@@ -380,7 +382,7 @@ Page({
       const processedList = list.map(item => {
         return {
           ...item,
-          statusText: historyStatusMap[item.status] || '已结束',
+          statusText: historyStatusMap[item.status] || '已完成',
           isHistory: true,
           danceStyleName: item.dance_style_id?.name || '未知舞种',
           coachName: item.coach_id?.name || '未知教练'

@@ -59,11 +59,16 @@ Page({
         }
         if (pkg.end_date) {
           pkg.end_date_display = this.formatDateFn(pkg.end_date);
-          if (pkg.is_activated && pkg.status === 'active' && !pkg.is_suspended) {
+          // 已激活的套餐计算剩余天数（包括已过期的，用于显示"已超X天"）
+          if (pkg.is_activated && !pkg.is_suspended) {
             const now = new Date();
             const end = new Date(pkg.end_date);
             const diff = Math.ceil((end - now) / (1000 * 60 * 60 * 24));
             pkg.remaining_days = diff;
+            // 动态修正：已激活但有效期已过的，标记为已过期
+            if (diff < 0 && pkg.status === 'active') {
+              pkg._displayStatus = 'expired';
+            }
           }
         }
       });

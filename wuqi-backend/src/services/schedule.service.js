@@ -1,16 +1,44 @@
 const Schedule = require('../models/Schedule');
 const Booking = require('../models/Booking');
+const Attendance = require('../models/Attendance');
 const Holiday = require('../models/Holiday');
 const Coach = require('../models/Coach');
 const Store = require('../models/Store');
 const DanceStyle = require('../models/DanceStyle');
 const Waitlist = require('../models/Waitlist');
+const PendingTask = require('../models/PendingTask');
 const logService = require('./log.service');
+const attendanceService = require('./attendance.service');
 const dayjs = require('dayjs');
+const utc = require('dayjs/plugin/utc');
+const timezone = require('dayjs/plugin/timezone');
+dayjs.extend(utc);
+dayjs.extend(timezone);
+const BEIJING_TZ = 'Asia/Shanghai';
 
 function timeToMinutes(timeStr) {
   const [h, m] = timeStr.split(':').map(Number);
   return h * 60 + m;
+}
+
+// 判断排课是否因人数不足而实质失效（预约截止已过 + 当前人数 < 最低要求）
+// 用于冲突检测时排除此类"僵尸"排课，避免阻挡新排课
+async function isEffectivelyCancelled(schedule) {
+  if (!schedule) return false;
+  // 已明确取消/下架的直接排除
+  if (schedule.status === 'cancelled' || schedule.status === 'offline' || schedule.status === 'deleted') return true;
+  // 仅对 available/full 状态做动态检查
+  if (schedule.status !== 'available' && schedule.status !== 'full') return false;
+  if (!schedule.date || !schedule.start_time) return false;
+  const bookingDeadline = schedule.booking_deadline || 120;
+  const startDateTime = dayjs(schedule.date + ' ' + schedule.start_time);
+  if (!startDateTime.isValid()) return false;
+  const bookingDeadlineTime = startDateTime.subtract(bookingDeadline, 'minute');
+  if (!dayjs().isAfter(bookingDeadlineTime)) return false;
+  const minBookings = schedule.min_bookings || 5;
+  // 始终实时计数，不信任文档中的 current_bookings（可能因部分持久化失败而陈旧）
+  const currentBookings = await Booking.countDocuments({ schedule_id: schedule._id, status: 'booked' });
+  return currentBookings < minBookings;
 }
 
 function minutesToTime(minutes) {
@@ -19,8 +47,69 @@ function minutesToTime(minutes) {
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 }
 
+// 懒修复：确保课程已结束时schedule和booking的最终状态正确
+// 触发时机：PendingTask cron可能因服务器重启/延迟导致未执行，当用户访问课程详情/列表时触发补偿执行
+async function ensureFinalState(scheduleId) {
+  try {
+    const schedule = await Schedule.findById(scheduleId);
+    if (!schedule) return;
+    // 已是终态（含completed）直接返回，避免重复扫描bookings
+    if (['cancelled', 'cancelled_insufficient', 'offline', 'deleted', 'completed'].includes(schedule.status)) return;
+
+    // 1. 更新schedule.status为completed
+    if (schedule.status !== 'completed') {
+      schedule.status = 'completed';
+      await schedule.save();
+    }
+
+    // 2. 同步更新所有booking的最终状态（所有用户都自动签到）
+    const pendingBookings = await Booking.find({
+      schedule_id: scheduleId,
+      status: 'booked',
+    });
+
+    for (const booking of pendingBookings) {
+      // 更新booking状态为completed，所有用户都自动签到
+      booking.status = 'completed';
+      if (!booking.checked_in) {
+        booking.checked_in = true;
+        booking.check_in_time = booking.check_in_time || new Date();
+      }
+      await booking.save();
+
+      // 创建attendance记录（如不存在）
+      const existingAtt = await Attendance.findOne({
+        schedule_id: scheduleId,
+        user_id: booking.user_id,
+      });
+      if (!existingAtt) {
+        try {
+          await attendanceService.createAttendance({
+            schedule_id: scheduleId,
+            user_id: booking.user_id,
+            booking_id: booking._id,
+            store_id: schedule.store_id,
+            coach_id: schedule.coach_id,
+            dance_style_id: schedule.dance_style_id,
+            check_in_time: booking.check_in_time || new Date(),
+            source: 'booking',
+            check_in_method: 'auto',
+            credits_cost: booking.credits_deducted || schedule.credits_cost || 0,
+            date: schedule.date,
+            course_name: schedule.course_name || '',
+          });
+        } catch (attErr) {
+          console.error(`[ensureFinalState] 创建attendance失败 userId=${booking.user_id}:`, attErr.message);
+        }
+      }
+    }
+  } catch (err) {
+    console.error(`[ensureFinalState] 执行失败 scheduleId=${scheduleId}:`, err.message);
+  }
+}
+
 // 获取排课列表(会员端/管理端)
-exports.getScheduleList = async (query) => {
+exports.getScheduleList = async (query, req = null) => {
   const { store_id, date, start_date, end_date, dance_style_id, coach_id, status, page = 1, pageSize = 20, limit } = query;
   const filter = {};
 
@@ -37,7 +126,10 @@ exports.getScheduleList = async (query) => {
 
   if (status && status !== 'all') {
     filter.status = status;
-  } else if (!status) {
+  } else if (status === 'all') {
+    // 管理端查询所有状态时排除软删除记录
+    filter.status = { $ne: 'deleted' };
+  } else {
     filter.status = { $in: ['available', 'full'] };
     if (!date && !start_date) {
       const today = dayjs().format('YYYY-MM-DD');
@@ -48,7 +140,7 @@ exports.getScheduleList = async (query) => {
 
   const effectiveLimit = limit ? Number(limit) : Number(pageSize);
 
-  const list = await Schedule.find(filter)
+  const docs = await Schedule.find(filter)
     .populate('store_id', 'name address')
     .populate('coach_id', 'name avatar_url')
     .populate('dance_style_id', 'name icon_url')
@@ -58,11 +150,21 @@ exports.getScheduleList = async (query) => {
 
   const total = await Schedule.countDocuments(filter);
 
+  // 转为普通对象数组，避免 Mongoose Document 修改问题
+  const list = docs.map(d => {
+    const obj = d.toObject ? d.toObject() : d;
+    // 确保 cover 字段始终存在（即使是空字符串）
+    if (!obj.hasOwnProperty('cover')) {
+      obj.cover = '';
+    }
+    return obj;
+  });
+
   if (list.length > 0) {
     const scheduleIds = list.map(s => s._id);
     const bookings = await Booking.find({
       schedule_id: { $in: scheduleIds },
-      $or: [{ status: 'booked' }, { booking_status: 'booked' }]
+      status: 'booked'
     }).populate('user_id', 'avatar_url').lean();
 
     const bookingsBySchedule = {};
@@ -80,11 +182,103 @@ exports.getScheduleList = async (query) => {
       }
     }
 
+    const host = req ? `${req.protocol}://${req.get('host')}` : '';
+    const now = dayjs().tz(BEIJING_TZ);
+
     for (const schedule of list) {
       const sid = String(schedule._id);
-      schedule._doc = schedule._doc || schedule;
-      schedule._doc.booked_users = bookingsBySchedule[sid] || [];
-      schedule._doc.current_bookings = bookingCountBySchedule[sid] || 0;
+      const currentBookings = bookingCountBySchedule[sid] || 0;
+      schedule.booked_users = bookingsBySchedule[sid] || [];
+      schedule.current_bookings = currentBookings;
+      
+      // 动态计算课程状态（覆盖数据库静态状态）
+      // 优先级：
+      // 1. 如果课程已被手动取消/停开 → 保持原状态（cancelled/offline）
+      // 2. 如果预约截止时间已过，且报名人数 < 最低开课人数 → cancelled_insufficient（自动取消）
+      // 3. 如果课程已结束（结束时间已过）→ completed（已结束）
+      // 4. 否则保持原状态（available/full）
+      
+      // 首先检查是否手动取消/停开（最高优先级）
+      if (schedule.status === 'cancelled' || schedule.status === 'offline') {
+        // 手动取消或停开的课程，保持已取消状态
+      } else if (!schedule.date || !schedule.start_time || !schedule.end_time) {
+        // 数据不全，跳过动态状态计算
+      } else {
+        try {
+          // 懒修复机制：动态检测状态不一致，自动修正数据库状态
+          const bookingDeadline = schedule.booking_deadline || 120;
+          const startDateTime = dayjs.tz(schedule.date + ' ' + schedule.start_time, BEIJING_TZ);
+          if (!startDateTime.isValid()) continue;
+          const bookingDeadlineTime = startDateTime.subtract(bookingDeadline, 'minute');
+
+          if (now.isAfter(bookingDeadlineTime)) {
+            const minBookings = schedule.min_bookings || 5;
+            if (currentBookings < minBookings && now.isBefore(startDateTime)) {
+              schedule.status = 'cancelled_insufficient';
+              // 持久化到数据库：人数不足取消
+              try {
+                await Schedule.findByIdAndUpdate(schedule._id, {
+                  status: 'cancelled_insufficient',
+                  cancel_type: 'min_bookings_not_met',
+                  cancel_reason: '预约人数不足'
+                });
+                // 同步取消所有已预约的booking
+                const Booking = require('../models/Booking');
+                const UserPackage = require('../models/UserPackage');
+                const bookedBookings = await Booking.find({
+                  schedule_id: schedule._id,
+                  status: 'booked',
+                });
+                for (const booking of bookedBookings) {
+                  booking.status = 'cancelled';
+                  booking.cancel_type = 'min_bookings_not_met';
+                  booking.cancel_time = new Date();
+                  booking.cancel_reason = '因预约人数不足，课程已取消';
+                  booking.credits_refunded = booking.credits_deducted;
+                  await booking.save();
+                  // 退还课时
+                  if (booking.user_package_id) {
+                    const pkg = await UserPackage.findById(booking.user_package_id);
+                    if (pkg && pkg.package_type === 'count_card') {
+                      pkg.remaining_credits += booking.credits_deducted;
+                      if (pkg.status === 'exhausted' && pkg.remaining_credits > 0) {
+                        pkg.status = 'active';
+                      }
+                      await pkg.save();
+                    }
+                  }
+                }
+              } catch (persistErr) {
+                console.error(`[getScheduleList] 持久化 cancelled_insufficient 失败 schedule=${schedule._id}:`, persistErr.message);
+              }
+            } else {
+              const endDateTime = dayjs.tz(schedule.date + ' ' + schedule.end_time, BEIJING_TZ);
+              if (endDateTime.isValid() && now.isAfter(endDateTime)) {
+                schedule.status = 'completed';
+                // 懒修复：课程已结束但数据库schedule.status != completed，触发状态同步
+                await ensureFinalState(schedule._id);
+              }
+            }
+          } else {
+            const endDateTime = dayjs.tz(schedule.date + ' ' + schedule.end_time, BEIJING_TZ);
+            if (endDateTime.isValid() && now.isAfter(endDateTime)) {
+              schedule.status = 'completed';
+              await ensureFinalState(schedule._id);
+            }
+          }
+        } catch (e) {
+          console.warn(`[getScheduleList] 日期解析失败 schedule=${schedule._id} date=${schedule.date} start=${schedule.start_time}:`, e.message);
+        }
+      }
+      
+      // 处理封面图片URL：将相对路径转为完整URL
+      if (schedule.cover && !schedule.cover.startsWith('http')) {
+        if (host) {
+          // 有 host 信息，构造完整 URL
+          schedule.cover = `${host}${schedule.cover}`;
+        }
+        // 如果没有 host（req 为 null），保持相对路径，前端会处理
+      }
     }
   }
 
@@ -92,7 +286,7 @@ exports.getScheduleList = async (query) => {
 };
 
 // 获取排课详情
-exports.getScheduleById = async (id) => {
+exports.getScheduleById = async (id, req = null) => {
   const schedule = await Schedule.findById(id)
     .populate('store_id', 'name address')
     .populate('coach_id', 'name avatar_url dance_styles')
@@ -100,7 +294,31 @@ exports.getScheduleById = async (id) => {
   if (!schedule) {
     throw new Error('排课不存在');
   }
-  return schedule;
+
+  // 统一转换为普通对象并处理封面图片URL
+  const scheduleObj = schedule.toObject ? schedule.toObject() : schedule;
+
+  // 动态计算课程状态（与getScheduleList保持一致）
+  if (!['cancelled', 'offline', 'deleted'].includes(scheduleObj.status) && scheduleObj.date && scheduleObj.end_time) {
+    try {
+      const now = dayjs().tz(BEIJING_TZ);
+      const endDateTime = dayjs.tz(scheduleObj.date + ' ' + scheduleObj.end_time, BEIJING_TZ);
+      if (endDateTime.isValid() && now.isAfter(endDateTime)) {
+        scheduleObj.status = 'completed';
+        // 懒修复：课程已结束但数据库状态不一致，触发最终状态同步
+        await ensureFinalState(id);
+      }
+    } catch (e) {
+      console.warn(`[getScheduleById] 日期解析失败 schedule=${id}:`, e.message);
+    }
+  }
+
+  if (req && scheduleObj.cover && !scheduleObj.cover.startsWith('http')) {
+    const host = `${req.protocol}://${req.get('host')}`;
+    scheduleObj.cover = `${host}${scheduleObj.cover}`;
+  }
+
+  return scheduleObj;
 };
 
 // 新增排课 - 核心业务逻辑
@@ -108,7 +326,7 @@ exports.createSchedule = async (data, operatorId) => {
   const {
     store_id, schedule_type, course_name, dance_style_id, coach_id,
     date, start_time, end_time, duration, classroom, max_bookings, min_bookings,
-    booking_deadline, cancel_deadline, credits_cost, remark, cycle_config, from_template,
+    booking_deadline, cancel_deadline, credits_cost, remark, cycle_config, from_template, cover,
   } = data;
 
   // 1. 参数校验
@@ -151,7 +369,7 @@ exports.createSchedule = async (data, operatorId) => {
     start_time: { $lt: finalEndTime },
     end_time: { $gt: start_time },
   }).populate('store_id', 'name');
-  if (sameStoreConflict) {
+  if (sameStoreConflict && !(await isEffectivelyCancelled(sameStoreConflict))) {
     throw new Error('该教练在此时间段已有排课，请选择其他时间');
   }
 
@@ -168,6 +386,9 @@ exports.createSchedule = async (data, operatorId) => {
   }).populate('store_id', 'name');
 
   for (const existing of crossStoreSchedules) {
+    // 跳过实质已取消的排课
+    if (await isEffectivelyCancelled(existing)) continue;
+
     const existingStartMinutes = timeToMinutes(existing.start_time);
     const existingEndMinutes = timeToMinutes(existing.end_time);
 
@@ -204,7 +425,7 @@ exports.createSchedule = async (data, operatorId) => {
         { start_time: { $lt: finalEndTime }, end_time: { $gt: start_time } },
       ],
     });
-    if (classroomConflict) {
+    if (classroomConflict && !(await isEffectivelyCancelled(classroomConflict))) {
       throw new Error(`教室"${classroom}"在此时间段已被占用`);
     }
   }
@@ -252,6 +473,7 @@ exports.createSchedule = async (data, operatorId) => {
     from_template: from_template === true,
     remark: remark || '',
     cycle_config: cycle_config || null,
+    cover: cover || '',
     status: 'available',
     created_by: operatorId,
   });
@@ -265,6 +487,18 @@ exports.createSchedule = async (data, operatorId) => {
     detail: `新增排课: ${course_name || ''} ${date} ${start_time}-${finalEndTime}`,
   });
 
+  // 写 PendingTask：三个精准定时任务
+  const deadlineMins = schedule.booking_deadline || 120;
+  const checkTriggerAt = dayjs.tz(date + ' ' + start_time, BEIJING_TZ).subtract(deadlineMins, 'minute').toDate();
+  const startTriggerAt = dayjs.tz(date + ' ' + start_time, BEIJING_TZ).toDate();
+  const endTriggerAt = dayjs.tz(date + ' ' + finalEndTime, BEIJING_TZ).toDate();
+
+  await PendingTask.insertMany([
+    { schedule_id: schedule._id, trigger_at: checkTriggerAt, type: 'min_bookings_check' },
+    { schedule_id: schedule._id, trigger_at: startTriggerAt,   type: 'auto_check_in' },
+    { schedule_id: schedule._id, trigger_at: endTriggerAt,     type: 'class_complete' },
+  ]);
+
   return schedule;
 };
 
@@ -276,7 +510,7 @@ exports.updateSchedule = async (id, data, operatorId) => {
   // 检查是否已有预约
   const bookingCount = await Booking.countDocuments({
     schedule_id: id,
-    $or: [{ status: 'booked' }, { booking_status: 'booked' }],
+    status: 'booked',
   });
 
   if (bookingCount > 0) {
@@ -292,8 +526,8 @@ exports.updateSchedule = async (id, data, operatorId) => {
     data = filteredData;
   } else {
     // 无预约，检查是否已开始(当天已过开始时间)
-    const now = dayjs();
-    const scheduleStart = dayjs(schedule.date + ' ' + schedule.start_time);
+    const now = dayjs().tz(BEIJING_TZ);
+    const scheduleStart = dayjs.tz(schedule.date + ' ' + schedule.start_time, BEIJING_TZ);
     if (now.isAfter(scheduleStart)) {
       throw new Error('已开始的排课不可编辑');
     }
@@ -324,7 +558,7 @@ exports.updateSchedule = async (id, data, operatorId) => {
         start_time: { $lt: effectiveEnd },
         end_time: { $gt: effectiveStart },
       }).populate('store_id', 'name');
-      if (sameStoreConflict) {
+      if (sameStoreConflict && !(await isEffectivelyCancelled(sameStoreConflict))) {
         throw new Error('该教练在此时间段已有排课，请选择其他时间');
       }
 
@@ -342,6 +576,7 @@ exports.updateSchedule = async (id, data, operatorId) => {
       }).populate('store_id', 'name');
 
       for (const existing of crossStoreSchedules) {
+        if (await isEffectivelyCancelled(existing)) continue;
         const exStartM = timeToMinutes(existing.start_time);
         const exEndM = timeToMinutes(existing.end_time);
         if (newEndM + CROSS_STORE_BUFFER_MINUTES > exStartM && newEndM <= exEndM) {
@@ -366,7 +601,7 @@ exports.updateSchedule = async (id, data, operatorId) => {
           start_time: { $lt: effectiveEnd },
           end_time: { $gt: effectiveStart },
         });
-        if (classroomConflict) {
+        if (classroomConflict && !(await isEffectivelyCancelled(classroomConflict))) {
           throw new Error(`教室"${effectiveClassroom}"在此时间段已被占用`);
         }
       }
@@ -385,33 +620,52 @@ exports.updateSchedule = async (id, data, operatorId) => {
     detail: `编辑排课: ${schedule.course_name || ''} ${schedule.date} ${schedule.start_time}-${schedule.end_time}`,
   });
 
+  // 更新 PendingTask（时间或截止时间可能已变）
+  const updatedDeadline = schedule.booking_deadline || 120;
+  const updatedCheckAt = dayjs.tz(schedule.date + ' ' + schedule.start_time, BEIJING_TZ).subtract(updatedDeadline, 'minute').toDate();
+  const updatedStartAt = dayjs.tz(schedule.date + ' ' + schedule.start_time, BEIJING_TZ).toDate();
+  const updatedEndAt = dayjs.tz(schedule.date + ' ' + schedule.end_time, BEIJING_TZ).toDate();
+
+  await PendingTask.updateOne(
+    { schedule_id: schedule._id, type: 'min_bookings_check', processed: 'pending' },
+    { trigger_at: updatedCheckAt }
+  );
+  await PendingTask.updateOne(
+    { schedule_id: schedule._id, type: 'auto_check_in', processed: 'pending' },
+    { trigger_at: updatedStartAt }
+  );
+  await PendingTask.updateOne(
+    { schedule_id: schedule._id, type: 'class_complete', processed: 'pending' },
+    { trigger_at: updatedEndAt }
+  );
+
   return schedule;
 };
 
 // 取消排课（将状态改为 cancelled，退还已预约会员课时）
-exports.cancelSchedule = async (id, operatorId, reason = '') => {
+exports.cancelSchedule = async (id, operatorId, reason = '', cancelType = 'admin_cancel') => {
   const schedule = await Schedule.findById(id);
   if (!schedule) throw new Error('排课不存在');
-  if (schedule.status === 'cancelled') throw new Error('该排课已取消');
+  if (schedule.status === 'cancelled' || schedule.status === 'cancelled_insufficient') throw new Error('该排课已取消');
 
-  const cancelReason = reason || '管理员取消排课';
+  const cancelReason = reason || (cancelType === 'min_bookings_not_met' ? '预约人数不足' : '管理员取消排课');
 
-  schedule.status = 'cancelled';
-  schedule.cancel_type = 'admin_cancel';
+  // 人数不足取消使用 cancelled_insufficient 状态，其他取消使用 cancelled
+  schedule.status = cancelType === 'min_bookings_not_met' ? 'cancelled_insufficient' : 'cancelled';
+  schedule.cancel_type = cancelType;
   schedule.cancel_reason = cancelReason;
   await schedule.save();
 
   // 自动退还所有已预约会员的课时
   const bookings = await Booking.find({
     schedule_id: id,
-    $or: [{ status: 'booked' }, { booking_status: 'booked' }],
+    status: 'booked',
   });
 
   const UserPackage = require('../models/UserPackage');
   for (const booking of bookings) {
     booking.status = 'cancelled';
-    booking.booking_status = 'cancelled';
-    booking.cancel_type = 'admin_cancel';
+    booking.cancel_type = cancelType;
     booking.cancel_time = new Date();
     booking.cancel_reason = cancelReason;
     booking.credits_refunded = booking.credits_deducted;
@@ -448,6 +702,9 @@ exports.cancelSchedule = async (id, operatorId, reason = '') => {
     detail: `取消排课: ${schedule.course_name || ''} ${schedule.date} ${schedule.start_time}, 影响预约: ${bookings.length}人`,
   });
 
+  // 清理该课程的所有 PendingTask
+  await PendingTask.deleteMany({ schedule_id: id });
+
   return schedule.toObject();
 };
 
@@ -464,13 +721,12 @@ exports.offlineSchedule = async (id, reason, operatorId) => {
   // 自动退还所有已预约会员的课时
   const bookings = await Booking.find({
     schedule_id: id,
-    $or: [{ status: 'booked' }, { booking_status: 'booked' }],
+    status: 'booked',
   });
 
   const UserPackage = require('../models/UserPackage');
   for (const booking of bookings) {
     booking.status = 'cancelled';
-    booking.booking_status = 'cancelled';
     booking.cancel_type = 'admin_cancel';
     booking.cancel_time = new Date();
     booking.cancel_reason = reason || '管理员下架课程';
@@ -508,20 +764,42 @@ exports.offlineSchedule = async (id, reason, operatorId) => {
     detail: `下架排课: ${schedule.course_name || ''} ${schedule.date} ${schedule.start_time}, 原因: ${reason || '管理员下架课程'}, 影响预约: ${bookings.length}人`,
   });
 
+  // 清理该课程的所有 PendingTask
+  await PendingTask.deleteMany({ schedule_id: id });
+
   return schedule;
 };
 
-// 删除排课(仅未开始且无预约)
+// 删除排课（软删除，仅对已取消/已下架状态生效）
+// - 软删除改为 status = 'deleted'，不物理删除记录，保证 bookings 的 schedule_id 引用始终有效
+// - 已取消 (cancelled)、人数不足取消 (cancelled_insufficient)、已下架 (offline) 均可删除
 exports.deleteSchedule = async (id, operatorId) => {
   const schedule = await Schedule.findById(id);
   if (!schedule) throw new Error('排课不存在');
 
-  const bookingCount = await Booking.countDocuments({ schedule_id: id });
-  if (bookingCount > 0) throw new Error('已有预约记录的排课不可删除，请使用下架功能');
+  const deletableStatuses = ['cancelled', 'offline'];
+  let isDeletable = deletableStatuses.includes(schedule.status);
 
-  const now = dayjs();
-  const scheduleStart = dayjs(schedule.date + ' ' + schedule.start_time);
-  if (now.isAfter(scheduleStart)) throw new Error('已开始或已结束的排课不可删除');
+  // 兼容：前端展示为 cancelled_insufficient 但 DB 状态仍是 available/full 的排课
+  if (!isDeletable) {
+    const bookingDeadline = schedule.booking_deadline || 120;
+    const startDateTime = dayjs(schedule.date + ' ' + schedule.start_time);
+    const deadlineTime = startDateTime.subtract(bookingDeadline, 'minute');
+    if (dayjs().isAfter(deadlineTime)) {
+      const realtimeBookings = await Booking.countDocuments({
+        schedule_id: id,
+        status: 'booked'
+      });
+      const minBookings = schedule.min_bookings || 5;
+      if (realtimeBookings < minBookings) {
+        isDeletable = true;
+      }
+    }
+  }
+
+  if (!isDeletable) {
+    throw new Error('只能删除已取消、人数不足取消或已下架的排课');
+  }
 
   // 记录操作日志
   await logService.createLog({
@@ -532,7 +810,12 @@ exports.deleteSchedule = async (id, operatorId) => {
     detail: `删除排课: ${schedule.course_name || ''} ${schedule.date} ${schedule.start_time}-${schedule.end_time}`,
   });
 
-  await Schedule.findByIdAndDelete(id);
+  // 软删除：仅标记 status = 'deleted'，保留记录以维持 bookings 引用
+  await Schedule.findByIdAndUpdate(id, { status: 'deleted' });
+
+  // 清理该课程的所有 PendingTask
+  await PendingTask.deleteMany({ schedule_id: id });
+
   return { success: true };
 };
 
@@ -561,7 +844,7 @@ exports.batchDeleteSchedules = async (data, operatorId) => {
   for (const schedule of schedulesToDelete) {
     const bookingCount = await Booking.countDocuments({
       schedule_id: schedule._id,
-      $or: [{ status: 'booked' }, { booking_status: 'booked' }],
+      status: 'booked',
     });
 
     if (bookingCount > 0) {
@@ -570,18 +853,17 @@ exports.batchDeleteSchedules = async (data, operatorId) => {
 
       const bookings = await Booking.find({
         schedule_id: schedule._id,
-        $or: [{ status: 'booked' }, { booking_status: 'booked' }],
+        status: 'booked',
       });
 
       for (const booking of bookings) {
-        if (booking.booking_status === 'booked' || booking.status === 'booked') {
+        if (booking.status === 'booked') {
           const UserPackage = require('../models/UserPackage');
           const userPackage = await UserPackage.findById(booking.user_package_id);
           if (userPackage) {
             userPackage.remaining_credits += schedule.credits_cost || 1;
             await userPackage.save();
           }
-          booking.booking_status = 'cancelled';
           booking.status = 'cancelled';
           booking.cancel_reason = '排课被批量删除';
           await booking.save();
@@ -590,13 +872,19 @@ exports.batchDeleteSchedules = async (data, operatorId) => {
 
       skippedCount++;
     } else {
-      await Schedule.findByIdAndDelete(schedule._id);
+      // 无有效预约 → 软删除，保留记录维持引用完整性
+      await Schedule.findByIdAndUpdate(schedule._id, { status: 'deleted' });
       deletedCount++;
     }
   }
 
   await Waitlist.deleteMany({
     schedule_id: { $in: schedulesToDelete.map(s => s._id) },
+  });
+
+  // 清理所有受影响课程的 PendingTask
+  await PendingTask.deleteMany({
+    schedule_id: { $in: schedulesToDelete.map(s => s._id) }
   });
 
   await logService.createLog({
@@ -634,15 +922,25 @@ exports.batchCancelSchedules = async (data, operatorId) => {
 
   const schedulesToCancel = await Schedule.find(filter);
   let cancelledCount = 0;
+  let failedCount = 0;
 
   for (const schedule of schedulesToCancel) {
-    // 调用单个取消的逻辑
-    await exports.cancelSchedule(schedule._id, operatorId);
-    cancelledCount++;
+    try {
+      await exports.cancelSchedule(schedule._id, operatorId);
+      cancelledCount++;
+    } catch (err) {
+      console.warn(`取消排课 ${schedule._id} 失败: ${err.message}`);
+      failedCount++;
+    }
   }
 
   await Waitlist.deleteMany({
     schedule_id: { $in: schedulesToCancel.map(s => s._id) },
+  });
+
+  // 清理所有受影响课程的 PendingTask
+  await PendingTask.deleteMany({
+    schedule_id: { $in: schedulesToCancel.map(s => s._id) }
   });
 
   await logService.createLog({
@@ -660,34 +958,95 @@ exports.batchCancelSchedules = async (data, operatorId) => {
 
 // 获取预约名单
 exports.getScheduleBookings = async (scheduleId) => {
+  const schedule = await Schedule.findById(scheduleId);
+  if (!schedule) return [];
+
   const bookings = await Booking.find({
     schedule_id: scheduleId,
   })
     .populate('user_id', 'real_name nick_name avatar_url phone')
     .sort({ created_at: 1 });
+
+  if (schedule.status === 'completed') {
+    const attendanceService = require('./attendance.service');
+    for (const booking of bookings) {
+      if (booking.status === 'booked') {
+        booking.status = 'completed';
+        booking.checked_in = true;
+        booking.check_in_time = booking.check_in_time || new Date();
+        await booking.save();
+
+        // 同步补建 Attendance 记录（修复漏建导致教练薪资统计偏低）
+        try {
+          await attendanceService.createAttendance({
+            schedule_id: scheduleId,
+            user_id: booking.user_id,
+            booking_id: booking._id,
+            store_id: schedule.store_id,
+            coach_id: schedule.coach_id,
+            dance_style_id: schedule.dance_style_id,
+            check_in_time: booking.check_in_time || new Date(),
+            source: 'booking',
+            check_in_method: 'auto',
+            credits_cost: booking.credits_deducted || schedule.credits_cost || 0,
+            date: schedule.date,
+            course_name: schedule.course_name || '',
+          });
+        } catch (attErr) {
+          console.error(`[getScheduleBookings] 补建attendance失败 userId=${booking.user_id}:`, attErr.message);
+        }
+      }
+    }
+  }
+
   return bookings;
 };
 
 // 标记上课(签到)
 exports.markAttendance = async (scheduleId, userIds, operatorId) => {
+  const schedule = await Schedule.findById(scheduleId);
   const updates = [];
+  const attendanceService = require('./attendance.service');
   for (const userId of userIds) {
     const booking = await Booking.findOneAndUpdate(
       {
         schedule_id: scheduleId,
         user_id: userId,
-        $or: [{ status: 'booked' }, { booking_status: 'booked' }],
+        status: 'booked',
       },
       {
         status: 'completed',
-        booking_status: 'completed',
         checked_in: true,
         check_in_time: new Date(),
         checked_in_by: operatorId,
       },
       { new: true }
     );
-    if (booking) updates.push(booking);
+    if (booking) {
+      updates.push(booking);
+      // 同步创建 Attendance 记录（修复漏建导致教练薪资统计偏低）
+      if (schedule) {
+        try {
+          await attendanceService.createAttendance({
+            schedule_id: scheduleId,
+            user_id: userId,
+            booking_id: booking._id,
+            store_id: schedule.store_id,
+            coach_id: schedule.coach_id,
+            dance_style_id: schedule.dance_style_id,
+            check_in_time: booking.check_in_time || new Date(),
+            check_in_by: operatorId,
+            source: 'admin',
+            check_in_method: 'scan',
+            credits_cost: booking.credits_deducted || schedule.credits_cost || 0,
+            date: schedule.date,
+            course_name: schedule.course_name || '',
+          });
+        } catch (attErr) {
+          console.error(`[markAttendance] 创建attendance失败 userId=${userId}:`, attErr.message);
+        }
+      }
+    }
   }
   return updates;
 };
@@ -857,7 +1216,7 @@ exports.copyScheduleWeeks = async (data, operatorId) => {
       }
 
       try {
-        await Schedule.create({
+        const newSchedule = await Schedule.create({
           store_id,
           schedule_type: source.schedule_type,
           course_name: source.course_name,
@@ -874,10 +1233,23 @@ exports.copyScheduleWeeks = async (data, operatorId) => {
           cancel_deadline: source.cancel_deadline,
           credits_cost: source.credits_cost,
           from_template: source.from_template === true,
+          cover: source.cover || '',
           remark: source.remark ? `${source.remark} (复制)` : '复制排课',
           status: 'available',
           created_by: operatorId,
         });
+
+        // 写 PendingTask：三个精准定时任务
+        const copyDeadline = source.booking_deadline || 120;
+        const copyCheckAt = dayjs.tz(newDate + ' ' + source.start_time, BEIJING_TZ).subtract(copyDeadline, 'minute').toDate();
+        const copyStartAt = dayjs.tz(newDate + ' ' + source.start_time, BEIJING_TZ).toDate();
+        const copyEndAt = dayjs.tz(newDate + ' ' + source.end_time, BEIJING_TZ).toDate();
+        await PendingTask.insertMany([
+          { schedule_id: newSchedule._id, trigger_at: copyCheckAt, type: 'min_bookings_check' },
+          { schedule_id: newSchedule._id, trigger_at: copyStartAt,  type: 'auto_check_in' },
+          { schedule_id: newSchedule._id, trigger_at: copyEndAt,    type: 'class_complete' },
+        ]);
+
         createdCount++;
       } catch (err) {
         errors.push(`${newDate} ${source.start_time}: ${err.message}`);

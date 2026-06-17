@@ -21,9 +21,23 @@ App({
     const token = wx.getStorageSync('token');
     if (token) {
       this.globalData.token = token;
-      this.getUserInfo();
+      // 记录初始化 Promise，供页面等待 getUserInfo 完成
+      this.globalData._initPromise = this.getUserInfo();
+    } else {
+      this.globalData._initPromise = Promise.resolve();
     }
     this.getStoreList();
+  },
+
+  onShow(options) {
+    // 热启动时检查是否需要刷新用户信息（5分钟缓存控制）
+    if (this.globalData.token) {
+      const now = Date.now();
+      if (!this.globalData.userInfo ||
+          (now - this.globalData.userInfoLastFetch > 5 * 60 * 1000)) {
+        this.getUserInfo();
+      }
+    }
   },
 
   silenceUnsupportedApi() {

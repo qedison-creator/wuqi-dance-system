@@ -64,6 +64,7 @@ Page({
     // 套餐状态分布数据看板
     packageDistribution: {
       active: 0,
+      suspended: 0,
       pending: 0,
       expired: 0,
       exhausted: 0
@@ -158,11 +159,12 @@ Page({
       });
       const dist = (res.data && res.data.package_status_distribution) || {
         active: 0,
+        suspended: 0,
         pending: 0,
         expired: 0,
         exhausted: 0
       };
-      const total = dist.active + dist.pending + dist.expired + dist.exhausted;
+      const total = (dist.active || 0) + (dist.suspended || 0) + (dist.pending || 0) + (dist.expired || 0) + (dist.exhausted || 0);
       this.setData({
         packageDistribution: dist,
         packageTotal: total
@@ -181,6 +183,7 @@ Page({
     const filterLabelMap = {
       'all': '全部会员',
       'active': '使用中',
+      'suspended': '已停卡',
       'unactivated': '待激活',
       'exhausted': '已用完',
       'expired': '已过期',
@@ -230,6 +233,7 @@ Page({
     const filterLabelMap = {
       'all': '全部会员',
       'active': '使用中',
+      'suspended': '已停卡',
       'unactivated': '待激活',
       'exhausted': '已用完',
       'expired': '已过期',
@@ -276,6 +280,8 @@ Page({
       // 套餐状态筛选
       if (this.data.activeFilter === 'active') {
         data.package_active = true;
+      } else if (this.data.activeFilter === 'suspended') {
+        data.package_suspended = true;
       } else if (this.data.activeFilter === 'unactivated') {
         data.package_pending = true;
       } else if (this.data.activeFilter === 'exhausted') {
@@ -379,8 +385,9 @@ Page({
         } else if (!member.packages || member.packages.length === 0) {
           displayStatus = 'no-package';
         } else {
-          // 按优先级判断套餐状态：active > pending > exhausted > expired
-          const activePkg = member.packages.find(p => p.status === 'active' && p.is_activated);
+          // 按优先级判断套餐状态：active > suspended > pending > exhausted > expired
+          const activePkg = member.packages.find(p => p.status === 'active' && p.is_activated && !p.is_suspended);
+          const suspendedPkg = member.packages.find(p => p.status === 'active' && p.is_activated && p.is_suspended);
           const pendingPkg = member.packages.find(p => p.status === 'pending' && !p.is_activated);
           const exhaustedPkg = member.packages.find(p => p.status === 'exhausted');
           const expiredPkg = member.packages.find(p => p.status === 'expired');
@@ -388,6 +395,8 @@ Page({
           if (activePkg) {
             displayStatus = 'active';
             canEditPackage = true;
+          } else if (suspendedPkg) {
+            displayStatus = 'suspended';
           } else if (pendingPkg) {
             displayStatus = 'unactivated';
             canEditPackage = true;

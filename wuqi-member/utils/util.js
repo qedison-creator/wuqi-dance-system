@@ -151,10 +151,14 @@ const normalizeImageUrl = (url, serverBase) => {
     '127.0.0.1:3000'
   ];
   const match = url.match(/^https?:\/\/([^\/]+)(\/.*)/);
-  if (match && serverHosts.indexOf(match[1]) !== -1) {
-    return serverBase + match[2];
+  if (match) {
+    if (serverHosts.indexOf(match[1]) !== -1) {
+      return serverBase + match[2];
+    }
+    // 外部域名（如 CDN、unsplash 等）保留原样
+    return url;
   }
-  return '';
+  return url;
 };
 
 module.exports = {
