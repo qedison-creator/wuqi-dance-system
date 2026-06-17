@@ -315,3 +315,36 @@ schedule.service.js: exports.cancelSchedule(id, operatorId, reason)
    - 管理端模板配置页面: `wuqi-admin/pages/settings/template-edit/`
    - 管理端模板保存 API: `wuqi-backend/src/routes/template-mapping.routes.js`
    - 数据库模型: `wuqi-backend/src/models/TemplateFieldMapping.js`
+
+---
+
+## 八、后续修复（同日追加）
+
+### 8.1 会员端订阅设置页状态展示修复
+
+**问题**: `subscribe-settings.js` 中用本地记录 `localAccepted`（"曾经点过允许"）判断"已订阅"，对一次性订阅消息不准确——用户看到"✓ 已订阅"但实际额度已用完。
+
+**修改文件**:
+- `wuqi-member/pages/subscribe-settings/subscribe-settings.js`（第 49-65 行，69-77 行）
+- `wuqi-member/pages/subscribe-settings/subscribe-settings.wxml`（第 25-30 行，37-38 行）
+- `wuqi-member/pages/subscribe-settings/subscribe-settings.wxss`（第 124-134 行）
+
+**修改内容**:
+- `isSubscribed` 只以 `itemSettings[id] === 'accept'`（勾了"总是保持"）为准
+- 新增 `wasAcceptedOnce` 状态（橙色"⚠ 请重新授权"），提示用户重新订阅
+- 新增 `.setting-status.warn` 和 `.setting-status.rejected` 样式
+
+### 8.2 管理端图片上传修复
+
+**问题**: `images.js` 中 `wx.uploadFile` 的 URL 路径重复（`${baseUrl}/api/v1/images`，但 baseUrl 已含 `/api/v1`），且缺少 Authorization header，导致后端返回 401 HTML 页面，`JSON.parse` 崩溃。
+
+**修改文件**: `wuqi-admin/pages/images/images.js`（第 218-246 行）
+
+**修改内容**:
+- URL 从 `${baseUrl}/api/v1/images` 改为 `${baseUrl}/images`
+- 新增 `header: { 'Authorization': 'Bearer ' + token }`
+- `JSON.parse` 加 try-catch 错误防护
+
+### 8.3 文档更新
+
+- `docs/V1.1.0.1c/BUSINESS_LOGIC.md` 新增"第八节：会员端订阅状态展示"

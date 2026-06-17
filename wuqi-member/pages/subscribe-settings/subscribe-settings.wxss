@@ -125,6 +125,14 @@
   color: #52C41A;
 }
 
+.setting-status.warn {
+  color: #FA8C16;
+}
+
+.setting-status.rejected {
+  color: #999;
+}
+
 .setting-arrow {
   width: 16rpx;
   height: 16rpx;

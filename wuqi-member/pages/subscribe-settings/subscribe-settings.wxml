@@ -25,6 +25,7 @@
           <view class="setting-action">
             <text class="setting-status subscribed" wx:if="{{item.subscribed}}">✓ 已订阅</text>
             <text class="setting-status rejected" wx:elif="{{item.rejected}}">已拒绝</text>
+            <text class="setting-status warn" wx:elif="{{item.wasAcceptedOnce}}">⚠ 请重新授权</text>
             <text class="setting-status" wx:else>去订阅</text>
           </view>
         </view>
@@ -34,6 +35,6 @@
   </view>
 
   <view class="tips-section">
-    <text class="tips-text">💡 微信订阅消息为一次性消费，每次手动授权后可接收一次通知。已订阅的模板无需重复授权。</text>
+    <text class="tips-text">💡 微信订阅消息为一次性消费授权，勾选"总是保持以上选择"后无需重复授权。显示"⚠ 请重新授权"的模板需重新订阅。</text>
   </view>
 </view>

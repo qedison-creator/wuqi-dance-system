@@ -217,22 +217,28 @@ Page({
         }
         wx.showLoading({ title: '上传中...' });
         const baseUrl = (app.globalData && app.globalData.baseUrl) || config.baseUrl;
+        const token = wx.getStorageSync('token');
         await new Promise((resolve, reject) => {
           wx.uploadFile({
-            url: `${baseUrl}/api/v1/images`,
+            url: `${baseUrl}/images`,
             filePath: tempImagePath,
             name: 'image',
+            header: { 'Authorization': `Bearer ${token}` },
             formData: {
               title: formTitle.trim(),
               coach_ids: formCoachIds.join(','),
               show_on_home: String(formShowHome)
             },
             success: (res) => {
-              const data = JSON.parse(res.data);
-              if (data.code === 0 || data.code === 200) {
-                resolve(data);
-              } else {
-                reject(new Error(data.message || '上传失败'));
+              try {
+                const data = JSON.parse(res.data);
+                if (data.code === 0 || data.code === 200) {
+                  resolve(data);
+                } else {
+                  reject(new Error(data.message || '上传失败'));
+                }
+              } catch (e) {
+                reject(new Error('服务器返回异常，可能未登录或网络错误'));
               }
             },
             fail: reject

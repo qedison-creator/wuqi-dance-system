@@ -201,6 +201,73 @@ const booking = await Booking.findById(bookingId).populate({
 
 ---
 
+## 八、会员端订阅状态展示（subscribe-settings 页面）
+
+### 8.1 页面状态设计（V1.1.0.1c 更新）
+
+**文件位置**：
+- `wuqi-member/pages/subscribe-settings/subscribe-settings.js`
+- `wuqi-member/pages/subscribe-settings/subscribe-settings.wxml`
+- `wuqi-member/pages/subscribe-settings/subscribe-settings.wxss`
+
+**核心逻辑**：调用 `wx.getSetting({ withSubscriptions: true })` 获取用户的订阅状态，与本地 `subscribe_accepted_map`（用户历史操作记录）结合展示。
+
+### 8.2 四种状态定义
+
+| 状态 | 判断条件 | 页面展示 | 用户动作 |
+|------|---------|---------|---------|
+| **已订阅（subscribed）** | `itemSettings[id] === 'accept'` | ✓ 已订阅（绿色） | 无需操作，用户勾了"总是保持" |
+| **已拒绝（rejected）** | `itemSettings[id] === 'reject' or 'ban'` | 已拒绝（灰色） | 用户曾点了"拒绝并永不再询问"，需去微信设置手动开启 |
+| **⚠ 请重新授权（wasAcceptedOnce）** | `itemSettings[id]` 为空，且 `localAccepted[id] === true` | ⚠ 请重新授权（橙色） | 用户曾经点过"允许"但没勾"总是保持"，一次性额度已用完 |
+| **去订阅** | `itemSettings[id]` 为空，且 `localAccepted[id]` 为空 | 去订阅（默认色） | 用户从未处理过此模板 |
+
+### 8.3 V1.1.0.1c 的关键修正
+
+**修改前（问题）**：
+```javascript
+const isSubscribed = wxStatus === 'accept' || (!wxStatus && !!localAccepted[item.id]);
+```
+- 用本地历史记录误判"已订阅"，对一次性订阅消息不准确
+- 用户看到"✓ 已订阅"但实际可能消息发不出
+
+**修改后（正确）**：
+```javascript
+const isSubscribed = wxStatus === 'accept';                     // 只有勾了"总是保持"才算已订阅
+const wasAcceptedOnce = !wxStatus && !!localAccepted[item.id];   // 曾经授权过，额度可能已用完
+```
+- `isSubscribed` 只以微信系统级记录 `itemSettings[id] === 'accept'` 为准
+- `wasAcceptedOnce` 作为参考状态提示用户重新订阅
+- `canSubscribe = !isSubscribed && !isRejected`：随时可重新订阅
+
+### 8.4 订阅授权机制（会员端业务流程验证）
+
+所有业务场景均已调用 `requestSubscribeMessage` 相关函数，授权机制健全：
+
+| 业务操作 | 触发函数 | 文件 | 行号 |
+|---------|---------|------|------|
+| 预约课程 | `requestBookingSubscribe()` | booking.js | ~第 501-503 行 |
+| 取消预约 | `requestCancelSubscribe()` | course-detail.js | ~第 504-506 行 |
+| 候补加入 | `requestWaitlistAndBookingSubscribe()` | course-detail.js | ~第 341-344 行 |
+| 预约课程（教练详情页） | `requestBookingSubscribe()` | coach-detail.js | ~第 389-391 行 |
+| 激活套餐（预约页） | `requestPackageSubscribe()` | booking.js | ~第 613-615 行 |
+| 激活套餐（套餐详情页） | `requestPackageSubscribe()` | package-detail.js | ~第 103-104 行 |
+| 手机号审核提交 | `requestPhoneAuditSubscribe()` | profile.js | ~第 1257-1258 行 |
+
+**授权流程**（简化）：
+```
+用户触发业务操作 → 先请求订阅授权 → wx.requestSubscribeMessage 弹窗 → 用户点"允许"
+                                                    └─ 若勾了"总是保持"→ 以后静默授权
+                                                    └─ 若没勾 → 每次操作都需弹窗
+→ 继续执行实际业务（预约/取消等）
+→ 后端调用 sendSubscribeMessage 发送微信消息
+```
+
+**授权不会漏掉**：所有需要消息通知的业务场景均在操作前请求授权，用户有机会选择"允许"。
+
+
+
+---
+
 ## 四、管理端模板配置页面（wuqi-admin）
 
 ### 4.1 页面结构

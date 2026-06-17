@@ -46,27 +46,34 @@ Page({
         success: (res) => {
           const subscriptions = res.subscriptionsSetting || {};
           const itemSettings = subscriptions.itemSettings || {};
-          // wxStatus: 'accept'=已授权, 'reject'=已拒绝(无法再弹出), 'ban'=被禁用, undefined=未处理
+          // wxStatus: 'accept'=已授权(勾了"总是保持"), 'reject'=已拒绝(无法再弹出), 'ban'=被禁用, undefined=未处理
+          // 注意：对于一次性订阅消息，用户曾经点过"允许"但没勾"总是保持"，也需要重新授权
+          // isSubscribed: 仅当 itemSettings[id] === 'accept'（勾了"总是保持"并点了允许）时才算已订阅
+          // wasAcceptedOnce: 本地记录曾经点过"允许"，但微信未记录（可能未勾总是保持），需重新订阅
           const templatesWithStatus = allIds.map(item => {
             const wxStatus = itemSettings[item.id];
-            const isSubscribed = wxStatus === 'accept' || (!wxStatus && !!localAccepted[item.id]);
+            const isSubscribed = wxStatus === 'accept';
+            const wasAcceptedOnce = !wxStatus && !!localAccepted[item.id];
             const isRejected = wxStatus === 'reject' || wxStatus === 'ban';
             return {
               ...item,
               subscribed: isSubscribed,
+              wasAcceptedOnce: wasAcceptedOnce,
               rejected: isRejected,
-              canSubscribe: !isSubscribed && !isRejected  // 只有未处理的才能再次弹出
+              canSubscribe: !isSubscribed && !isRejected  // 只要不是永久订阅且未拒绝，都可重新订阅
             };
           });
           const unsubscribedCount = templatesWithStatus.filter(t => t.canSubscribe).length;
           this.setData({ templatesWithStatus, loading: false, unsubscribedCount });
         },
         fail: () => {
+          // wx.getSetting 失败时，仅以本地记录做参考（标记为 wasAcceptedOnce，不标记为 subscribed）
           const templatesWithStatus = allIds.map(item => ({
             ...item,
-            subscribed: !!localAccepted[item.id],
+            subscribed: false,
+            wasAcceptedOnce: !!localAccepted[item.id],
             rejected: false,
-            canSubscribe: !localAccepted[item.id]
+            canSubscribe: true
           }));
           const unsubscribedCount = templatesWithStatus.filter(t => t.canSubscribe).length;
           this.setData({ templatesWithStatus, loading: false, unsubscribedCount });
