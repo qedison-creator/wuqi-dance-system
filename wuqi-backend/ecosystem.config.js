@@ -1,7 +1,7 @@
 module.exports = {
   apps: [
     {
-      name: 'wuqi-api',              // 进程名称，pm2 list 中显示
+      name: 'wuqi',                  // 进程名称，pm2 list 中显示
       script: './server.js',           // 入口文件
       cwd: '/home/ubuntu/wuqi-dance-system/backend',
       instances: 1,                   // 单实例（Express 不适合 cluster，有内存状态）

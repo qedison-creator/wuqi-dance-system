@@ -40,7 +40,7 @@ const ensureTemplateMappings = async () => {
   const defaults = {
     bookingSuccess:    { name:'预约成功通知', id: msgConfig.getMessageTemplates?.()?.bookingSuccessTemplateId    || msgConfig.bookingSuccessTemplateId    || '', mappings:[{wx:'thing1',biz:'courseName'},{wx:'name2',biz:'coachName'},{wx:'thing4',biz:'storeName'},{wx:'time5',biz:'courseTime'},{wx:'time3',biz:'bookingTime'}] },
     bookingCancel:     { name:'课程取消通知', id: msgConfig.getMessageTemplates?.()?.bookingCancelTemplateId     || msgConfig.bookingCancelTemplateId     || '', mappings:[{wx:'thing1',biz:'courseName'},{wx:'date4',biz:'courseTime'},{wx:'name5',biz:'coachName'},{wx:'thing2',biz:'cancelReason'},{wx:'thing7',biz:'storeName'}] },
-    bookingCancelByUser:{ name:'预约取消通知', id: msgConfig.getMessageTemplates?.()?.bookingCancelByUserTemplateId|| msgConfig.bookingCancelByUserTemplateId|| '', mappings:[{wx:'thing1',biz:'courseName'},{wx:'date4',biz:'courseTime'},{wx:'name5',biz:'coachName'},{wx:'thing2',biz:'cancelReason'},{wx:'thing7',biz:'storeName'}] },
+    bookingCancelByUser:{ name:'预约取消通知', id: msgConfig.getMessageTemplates?.()?.bookingCancelByUserTemplateId|| msgConfig.bookingCancelByUserTemplateId|| '', mappings:[{wx:'thing10',biz:'courseName'},{wx:'name4',biz:'coachName'},{wx:'time13',biz:'courseTime'},{wx:'thing7',biz:'cancelReason'},{wx:'thing12',biz:'storeName'}] },
     classReminder:      { name:'上课提醒',     id: msgConfig.getMessageTemplates?.()?.classReminderTemplateId      || msgConfig.classReminderTemplateId      || '', mappings:[{wx:'thing1',biz:'courseName'},{wx:'time2',biz:'courseTime'},{wx:'name3',biz:'coachName'},{wx:'thing5',biz:'tipMessage'},{wx:'thing4',biz:'storeName'}] },
     waitlistAvailable:  { name:'候补成功通知', id: msgConfig.getMessageTemplates?.()?.waitlistAvailableTemplateId  || msgConfig.waitlistAvailableTemplateId  || '', mappings:[{wx:'thing1',biz:'courseName'},{wx:'time2',biz:'courseTime'},{wx:'thing3',biz:'storeName'}] },
     packageExpiring:    { name:'套餐到期提醒', id: msgConfig.getMessageTemplates?.()?.packageExpiringTemplateId    || msgConfig.packageExpiringTemplateId    || '', mappings:[{wx:'thing1',biz:'remindType'},{wx:'date2',biz:'expireDate'},{wx:'thing5',biz:'packageName'},{wx:'thing4',biz:'remindReason'}] },
@@ -50,7 +50,7 @@ const ensureTemplateMappings = async () => {
     phoneAuditResult:   { name:'手机号审核结果',id:msgConfig.getMessageTemplates?.()?.phoneAuditResultTemplateId   || msgConfig.phoneAuditResultTemplateId   || '', mappings:[{wx:'thing1',biz:'auditItem'},{wx:'phrase2',biz:'auditResult'},{wx:'thing3',biz:'remark'}] },
   };
 
-  let created = 0;
+  let created = 0, updated = 0;
   for (const [key, cfg] of Object.entries(defaults)) {
     const exists = await TemplateFieldMapping.findOne({ template_key: key });
     if (!exists) {
@@ -60,9 +60,16 @@ const ensureTemplateMappings = async () => {
       });
       created++;
       console.log(`[WeChat] 自动创建模板映射: ${key}`);
+    } else if (!exists.template_id && cfg.id) {
+      await TemplateFieldMapping.updateOne(
+        { template_key: key },
+        { template_id: cfg.id, mappings: cfg.mappings.map(m => ({ wx_field: m.wx, biz_field: m.biz })) }
+      );
+      updated++;
+      console.log(`[WeChat] 自动补全模板映射: ${key}`);
     }
   }
-  if (created > 0) console.log(`[WeChat] 自动初始化完成: 创建${created}个模板映射`);
+  if (created > 0 || updated > 0) console.log(`[WeChat] 自动初始化完成: 创建${created}个，更新${updated}个模板映射`);
 };
 
 exports.ensureTemplateMappings = ensureTemplateMappings;
@@ -88,12 +95,60 @@ const getFieldMaxLength = (wxField) => {
   return limits[match[1]] || 20;
 };
 
+// 中文业务字段到英文 bizData key 的映射（管理端配置中文biz_field，代码用英文key构建bizData）
+const bizFieldAliases = {
+  '课程名称': 'courseName',
+  '课程名': 'courseName',
+  '教练': 'coachName',
+  '课程时间': 'courseTime',
+  '上课时间': 'courseTime',
+  '取消原因': 'cancelReason',
+  '提示信息': 'cancelReason',
+  '温馨提示': 'cancelReason',
+  'tipMessage': 'cancelReason',
+  '门店': 'storeName',
+  '门店名称': 'storeName',
+  '门店地址': 'storeName',
+  '上课地址': 'storeName',
+  '预约时间': 'bookingTime',
+  '取消时间': 'cancelTime',
+  '套餐名称': 'packageName',
+  '到期日期': 'expireDate',
+  '套餐类型': 'packageType',
+  '套餐': 'packageName',
+  '提醒类型': 'remindType',
+  '提醒原因': 'remindReason',
+  '剩余次数': 'remainCount',
+  '会员昵称': 'memberNickname',
+  '审核项目': 'auditItem',
+  '审核结果': 'auditResult',
+  '备注': 'remark',
+};
+
 const buildWxData = (mappings, bizData) => {
   const wxData = {};
   for (const m of mappings) {
-    const value = String(bizData[m.biz_field] || '');
+    // 1. 先尝试直接用 biz_field 取值（支持英文 key）
+    let value = bizData[m.biz_field];
+    // 2. 如果为空，尝试中文 biz_field 的别名映射（中文→英文）
+    if (value === undefined || value === null || value === '') {
+      const aliasKey = bizFieldAliases[m.biz_field];
+      if (aliasKey) {
+        value = bizData[aliasKey];
+      }
+    }
+    // 3. 如果还是空，反向尝试用 biz_field 作为 key 在别名表中查找中文映射
+    if (value === undefined || value === null || value === '') {
+      for (const [zhKey, enKey] of Object.entries(bizFieldAliases)) {
+        if (enKey === m.biz_field) {
+          value = bizData[zhKey];
+          break;
+        }
+      }
+    }
+    const strValue = String(value || '');
     const maxLen = getFieldMaxLength(m.wx_field);
-    wxData[m.wx_field] = { value: value.substring(0, maxLen) };
+    wxData[m.wx_field] = { value: strValue.substring(0, maxLen) };
   }
   return wxData;
 };

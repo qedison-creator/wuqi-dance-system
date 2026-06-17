@@ -1152,8 +1152,8 @@ Page({
       const editingId = formData._id || (this.data.editPreview ? this.data.editPreview._id : '');
       const conflictingSchedule = schedules.find(s => {
         if (s._id === editingId) return false;  // 排除正在编辑的自身
-        // 排除所有非活跃状态的排课（已取消、已下架、已删除、已完成、未开放）
-        if (['cancelled', 'offline', 'deleted', 'completed', 'not_open'].includes(s.status)) return false;
+        // 排除所有非活跃状态的排课（已取消、人数不足取消、已下架、已删除、已完成、未开放）
+        if (['cancelled', 'cancelled_insufficient', 'offline', 'deleted', 'completed', 'not_open'].includes(s.status)) return false;
         const existingStart = s.start_time;
         const existingEnd = s.end_time;
         if (newStart < existingEnd && newEnd > existingStart) {
@@ -1939,7 +1939,7 @@ Page({
     });
     
     const list = res.data && Array.isArray(res.data.list) ? res.data.list : (Array.isArray(res.data) ? res.data : []);
-    const activeList = list.filter(item => item.status !== 'cancelled' && item.status !== 'offline');
+    const activeList = list.filter(item => item.status !== 'cancelled' && item.status !== 'cancelled_insufficient' && item.status !== 'offline');
     
     let cancelledCount = 0;
     for (const item of activeList) {

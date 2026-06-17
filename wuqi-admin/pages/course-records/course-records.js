@@ -251,7 +251,7 @@ Page({
     let hasCancelled = false;
 
     daySchedules.forEach(schedule => {
-      if (schedule.status === 'cancelled' || schedule.status === 'offline') {
+      if (schedule.status === 'cancelled' || schedule.status === 'cancelled_insufficient' || schedule.status === 'offline') {
         hasCancelled = true;
       } else {
         hasNormal = true;

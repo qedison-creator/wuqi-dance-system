@@ -84,7 +84,7 @@ router.put('/:templateKey', auth, async (req, res, next) => {
         template_key,
         template_title: template_title || '',
         template_name: template_name || req.params.templateKey,
-        template_id: template_id || '',
+        template_id: (template_id || '').trim(),
         description: description || '',
         mappings: mappings.map(m => ({
           field_name: m.field_name || '',

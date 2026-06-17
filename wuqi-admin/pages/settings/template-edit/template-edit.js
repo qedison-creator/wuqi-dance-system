@@ -139,7 +139,14 @@ Page({
 
   onIdInput(e) {
     const idx = e.currentTarget.dataset.index;
-    this.setData({ [`templates[${idx}].template_id`]: e.detail.value });
+    const val = (e.detail.value || '').trim();
+    this.setData({ [`templates[${idx}].template_id`]: val });
+  },
+
+  onIdBlur(e) {
+    const idx = e.currentTarget.dataset.index;
+    const val = (e.detail.value || '').trim();
+    this.setData({ [`templates[${idx}].template_id`]: val });
   },
 
   onWxFieldInput(e) {
@@ -208,7 +215,7 @@ Page({
           template_key: template.template_key,
           template_title: template.template_title,
           template_name: template.template_name,
-          template_id: template.template_id,
+          template_id: (template.template_id || '').trim(),
           description: template.description,
           mappings: template.mappings.map(m => ({
             field_name: m.field_name || '',

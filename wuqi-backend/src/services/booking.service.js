@@ -1259,7 +1259,7 @@ exports.adminRemoveWaitlist = async (waitlistId, operatorId) => {
 // 自动将候补用户转正（当有人取消预约有名额空出时调用）
 // 复用套餐选择逻辑，与 createBooking 保持一致
 exports.notifyWaitlistUsers = async (scheduleId) => {
-  const schedule = await Schedule.findById(scheduleId);
+  const schedule = await Schedule.findById(scheduleId).populate('coach_id', 'name').populate('store_id', 'name');
   if (!schedule) return;
 
   const availableSlots = schedule.max_bookings - schedule.current_bookings;
@@ -1572,9 +1572,9 @@ exports.confirmWaitlistBooking = async (userId, waitlistId) => {
 
 // 检查并取消低人数课程
 exports.checkAndCancelLowAttendance = async (scheduleId, operatorId = null) => {
-  const schedule = await Schedule.findById(scheduleId).populate('coach_id', 'name');
+  const schedule = await Schedule.findById(scheduleId).populate('coach_id', 'name').populate('store_id', 'name');
   if (!schedule) throw new Error('课程不存在');
-  
+
   if (schedule.status === 'cancelled' || schedule.status === 'offline') {
     throw new Error('课程已取消或离线');
   }

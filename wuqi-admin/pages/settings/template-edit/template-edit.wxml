@@ -52,7 +52,7 @@
 
       <view class="form-group">
         <text class="form-label">模板ID</text>
-        <input class="input-field-mono" placeholder="请粘贴微信后台模板ID" value="{{item.template_id}}" data-index="{{index}}" catchtap="" bindinput="onIdInput" />
+        <input class="input-field-mono" maxlength="200" placeholder="请粘贴微信后台模板ID" value="{{item.template_id}}" data-index="{{index}}" catchtap="" bindinput="onIdInput" bindblur="onIdBlur" />
       </view>
 
       <view class="mapping-section">

@@ -326,7 +326,7 @@ Page({
 
     let hasNormal = false, hasCancelled = false;
     daySchedules.forEach(s => {
-      if (s.status === 'cancelled' || s.status === 'offline') hasCancelled = true;
+      if (s.status === 'cancelled' || s.status === 'cancelled_insufficient' || s.status === 'offline') hasCancelled = true;
       else hasNormal = true;
     });
     if (hasNormal && hasCancelled) return 'mixed';

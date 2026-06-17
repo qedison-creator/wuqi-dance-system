@@ -201,7 +201,7 @@ const cancelHolidayBookings = async (startDate, endDate, storeId, holidayId, ope
     // 发送取消通知
     try {
       const user = await User.findById(booking.user_id);
-      const schedule = await Schedule.findById(booking.schedule_id);
+      const schedule = await Schedule.findById(booking.schedule_id).populate('coach_id', 'name').populate('store_id', 'name');
       if (user && user.openid && schedule) {
         await wechatMessageService.sendBookingCancel(user, schedule, '因放假课程已取消');
       }
@@ -660,7 +660,7 @@ exports.cancelHoliday = async (id, operatorId, operatorName) => {
         if (booking.user_id && booking.user_id.openid && !notifiedUsers.has(booking.user_id._id.toString())) {
           notifiedUsers.add(booking.user_id._id.toString());
           try {
-            const schedule = await Schedule.findById(booking.schedule_id);
+            const schedule = await Schedule.findById(booking.schedule_id).populate('coach_id', 'name').populate('store_id', 'name');
             if (schedule) {
               await wechatMessageService.sendBookingCancel(booking.user_id, schedule, '放假已撤销，课程已恢复，可重新预约');
             }

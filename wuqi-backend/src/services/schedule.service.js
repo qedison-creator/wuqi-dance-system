@@ -25,8 +25,8 @@ function timeToMinutes(timeStr) {
 // 用于冲突检测时排除此类"僵尸"排课，避免阻挡新排课
 async function isEffectivelyCancelled(schedule) {
   if (!schedule) return false;
-  // 已明确取消/下架的直接排除
-  if (schedule.status === 'cancelled' || schedule.status === 'offline' || schedule.status === 'deleted') return true;
+  // 已明确取消/下架/人数不足取消的直接排除
+  if (['cancelled', 'cancelled_insufficient', 'offline', 'deleted'].includes(schedule.status)) return true;
   // 仅对 available/full 状态做动态检查
   if (schedule.status !== 'available' && schedule.status !== 'full') return false;
   if (!schedule.date || !schedule.start_time) return false;
@@ -644,7 +644,7 @@ exports.updateSchedule = async (id, data, operatorId) => {
 
 // 取消排课（将状态改为 cancelled，退还已预约会员课时）
 exports.cancelSchedule = async (id, operatorId, reason = '', cancelType = 'admin_cancel') => {
-  const schedule = await Schedule.findById(id);
+  const schedule = await Schedule.findById(id).populate('coach_id', 'name').populate('store_id', 'name');
   if (!schedule) throw new Error('排课不存在');
   if (schedule.status === 'cancelled' || schedule.status === 'cancelled_insufficient') throw new Error('该排课已取消');
 
@@ -710,7 +710,7 @@ exports.cancelSchedule = async (id, operatorId, reason = '', cancelType = 'admin
 
 // 下架排课
 exports.offlineSchedule = async (id, reason, operatorId) => {
-  const schedule = await Schedule.findById(id);
+  const schedule = await Schedule.findById(id).populate('coach_id', 'name').populate('store_id', 'name');
   if (!schedule) throw new Error('排课不存在');
 
   schedule.status = 'offline';
