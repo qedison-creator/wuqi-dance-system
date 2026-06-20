@@ -163,126 +163,30 @@ const startScheduler = () => {
             processedCount++;
           }
 
-          // 人数不足自动取消
+          // 人数不足自动取消 - 调用统一事件函数
           if (task.type === 'min_bookings_check') {
-            const schedule = await Schedule.findById(task.schedule_id);
-            if (!schedule || !['available', 'full'].includes(schedule.status)) {
-              task.processed = 'done';
-              await task.save();
-              processedCount++;
-              continue;
-            }
-
-            const startDateTime = dayjs.tz(schedule.date + ' ' + schedule.start_time, BEIJING_TZ);
-            if (bjNow().isAfter(startDateTime)) {
-              task.processed = 'done';
-              await task.save();
-              processedCount++;
-              continue;
-            }
-
-            const realtimeBookings = await Booking.countDocuments({
-              schedule_id: task.schedule_id,
-              status: 'booked'
-            });
-
-            const minBookings = schedule.min_bookings || 5;
-            if (realtimeBookings < minBookings) {
-              await scheduleService.cancelSchedule(
-                task.schedule_id,
-                null,
-                '预约人数不足',
-                'min_bookings_not_met'
-              );
-            }
-
+            await scheduleService.checkAndCancelIfInsufficient(task.schedule_id);
             task.processed = 'done';
             await task.save();
             processedCount++;
           }
 
-          // 自动签到（开课时间触发）
+          // 自动签到（开课时间触发）- 调用统一事件函数
           if (task.type === 'auto_check_in') {
-            const schedule = await Schedule.findById(task.schedule_id);
-            if (!schedule || ['cancelled', 'cancelled_insufficient', 'offline', 'deleted', 'completed'].includes(schedule.status)) {
-              task.processed = 'done';
-              await task.save();
-              processedCount++;
-              continue;
-            }
-
-            const result = await bookingService.autoCheckIn(task.schedule_id);
-
+            await scheduleService.autoCheckInAtStart(task.schedule_id);
             task.processed = 'done';
             await task.save();
             processedCount++;
-            console.log(`[Scheduler] 自动签到: ${task.schedule_id}, 处理${result.processed}条, 签到${result.checked_in}条`);
+            console.log(`[Scheduler] 自动签到: ${task.schedule_id}`);
           }
 
-          // 课程完成（下课时间触发）
+          // 课程完成（下课时间触发）- 调用统一事件函数
           if (task.type === 'class_complete') {
-            const schedule = await Schedule.findById(task.schedule_id);
-            // 已是终态（含completed）直接跳过，避免与auto_check_in重复处理
-            if (!schedule || ['cancelled', 'cancelled_insufficient', 'offline', 'deleted', 'completed'].includes(schedule.status)) {
-              task.processed = 'done';
-              await task.save();
-              processedCount++;
-              continue;
-            }
-
-            // 查询所有状态为booked的booking
-            const bookedBookings = await Booking.find({
-              schedule_id: task.schedule_id,
-              status: 'booked',
-            });
-
-            let completedCount = 0;
-            for (const booking of bookedBookings) {
-              booking.status = 'completed';
-              if (!booking.checked_in) {
-                booking.checked_in = true;
-                booking.check_in_time = booking.check_in_time || new Date();
-              }
-              await booking.save();
-              completedCount++;
-
-              // 为每个用户创建attendance记录（无论是否已签到，都标记为自动签到）
-              try {
-                const existingAtt = await Attendance.findOne({
-                  schedule_id: task.schedule_id,
-                  user_id: booking.user_id,
-                });
-                if (!existingAtt) {
-                  await attendanceService.createAttendance({
-                    schedule_id: task.schedule_id,
-                    user_id: booking.user_id,
-                    booking_id: booking._id,
-                    store_id: schedule.store_id,
-                    coach_id: schedule.coach_id,
-                    dance_style_id: schedule.dance_style_id,
-                    check_in_time: booking.check_in_time || new Date(),
-                    source: 'booking',
-                    check_in_method: booking.check_in_time ? 'auto' : 'auto',
-                    credits_cost: booking.credits_deducted || schedule.credits_cost || 0,
-                    date: schedule.date,
-                    course_name: schedule.course_name || '',
-                  });
-                }
-              } catch (attErr) {
-                console.error(`[Scheduler] class_complete 创建attendance失败: ${booking.user_id}`, attErr.message);
-              }
-            }
-
-            // 只有当schedule还不是completed时才设置，避免重复操作
-            if (schedule.status !== 'completed') {
-              schedule.status = 'completed';
-              await schedule.save();
-            }
-
+            await scheduleService.finalizeSchedule(task.schedule_id);
             task.processed = 'done';
             await task.save();
             processedCount++;
-            console.log(`[Scheduler] 课程完成: ${task.schedule_id}, ${completedCount}个预约`);
+            console.log(`[Scheduler] 课程完成: ${task.schedule_id}`);
           }
         } catch (taskErr) {
           console.error(`[Scheduler] PendingTask ${task._id} 处理失败:`, taskErr.message);

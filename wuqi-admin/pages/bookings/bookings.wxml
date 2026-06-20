@@ -3,7 +3,7 @@
   <view class="schedule-header card" wx:if="{{scheduleInfo}}">
     <view class="schedule-title">
       <text class="course-name">{{scheduleInfo.course_name || (scheduleInfo.dance_style_id && scheduleInfo.dance_style_id.name ? scheduleInfo.dance_style_id.name + '课程' : '课程')}}</text>
-      <text class="schedule-status {{scheduleInfo.status}}">{{scheduleInfo.status === 'available' ? '可预约' : scheduleInfo.status === 'full' ? '已满' : scheduleInfo.status === 'cancelled' ? '已取消' : scheduleInfo.status === 'completed' ? '已完成' : scheduleInfo.status === 'offline' ? '已下架' : '未开课'}}</text>
+      <text class="schedule-status {{scheduleInfo.status}}">{{scheduleInfo.statusText}}</text>
     </view>
     <view class="schedule-detail">
       <text class="detail-item">{{scheduleInfo.date}} {{scheduleInfo.start_time}}-{{scheduleInfo.end_time}}</text>

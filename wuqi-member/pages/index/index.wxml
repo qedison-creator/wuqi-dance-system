@@ -61,9 +61,6 @@
           <image class="banner-img" src="{{imageErrors['banner_'+item._id] ? '/images/default-course.svg' : item.image_url}}" binderror="onImgError" data-type="banner" data-id="{{item._id}}" mode="aspectFill" />
         </swiper-item>
       </swiper>
-      <view class="banner-dots" wx:if="{{banners.length > 1}}">
-        <view class="bdot {{bannerCurrent === idx ? 'active' : ''}}" wx:for="{{banners}}" wx:key="_id" wx:for-index="idx"></view>
-      </view>
       <view class="banner-gradient"></view>
     </view>
 

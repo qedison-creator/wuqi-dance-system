@@ -278,6 +278,20 @@ router.get('/check-in-status/:user_id', async (req, res, next) => {
   }
 });
 
+// POST /api/v1/bookings/onsite-check-in - 线下现场签到（无预约也可补签，即时扣课时）
+router.post('/onsite-check-in', auth, checkPermission(['super_admin', 'store_manager', 'staff']), async (req, res, next) => {
+  try {
+    const { schedule_id, user_id, user_package_id } = req.body;
+    if (!schedule_id || !user_id) {
+      return res.status(400).json({ code: 400, message: '缺少 schedule_id 或 user_id 参数', data: null });
+    }
+    const result = await bookingService.onsiteCheckIn(schedule_id, user_id, req.user.id, user_package_id);
+    res.json(success(result, '现场签到成功'));
+  } catch (err) {
+    next(err);
+  }
+});
+
 // ========== 参数化路由（必须放在最后，避免拦截具体命名路由） ==========
 
 // GET /api/v1/bookings/:schedule_id/waitlist - 管理端获取指定排课的候补名单

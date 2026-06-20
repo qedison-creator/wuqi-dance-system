@@ -1,3 +1,4 @@
+<page-meta page-style="{{showDeleteModal || showDeletePackageModal || showStoreModal || showAddPackageModal || showPackageEditModal || showEditNameModal || showSuspendModal ? 'overflow: hidden;' : ''}}"/>
 <view class="member-detail-page">
   <!-- 会员头部卡片 -->
   <view class="member-header card">
@@ -153,7 +154,7 @@
           </view>
         </view>
         <view class="booking-status {{item.status}}">
-          <text>{{item.status === 'booked' ? '已预约' : (item.status === 'completed' ? '已完成' : '已取消')}}</text>
+          <text>{{item.statusText}}</text>
         </view>
       </view>
       
@@ -388,8 +389,8 @@
         <text class="modal-close" bindtap="onClosePackageEditModal">✕</text>
       </view>
 
-      <!-- 套餐类型选择（仅未激活可修改）-->
-      <view class="form-group" wx:if="{{!editingPackage.is_activated}}">
+      <!-- 套餐类型选择 -->
+      <view class="form-group">
         <text class="form-label">套餐类型 *</text>
         <view class="package-type-selector">
           <view class="type-option {{editPackageForm.package_type === 'count_card' ? 'active' : ''}}" data-type="count_card" bindtap="onEditPackageTypeChange">
@@ -413,8 +414,8 @@
         <input class="input-field" type="number" placeholder="请输入剩余次数" value="{{editPackageForm.remaining_credits}}" data-field="remaining_credits" bindinput="onEditPackageInput" />
       </view>
 
-      <!-- 有效时长（仅未激活可修改）-->
-      <view class="form-group" wx:if="{{!editingPackage.is_activated}}">
+      <!-- 有效时长 -->
+      <view class="form-group">
         <text class="form-label">有效时长 *</text>
         <view class="duration-input-row">
           <input class="input-field duration-input" type="number" placeholder="请输入时长" value="{{editPackageForm.duration_value}}" data-field="duration_value" bindinput="onEditPackageInput" />

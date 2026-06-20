@@ -13,34 +13,19 @@ const SOURCE_LABEL_MAP = {
 
 const CHECK_IN_METHOD_LABEL_MAP = {
   scan: '扫码签到',
-  auto: '自动签到',
-  exempt_cancel: '未上课（豁免取消）'
+  auto: '自动签到'
 };
-
-const BOOKING_FILTERS = [
-  { label: '全部', value: 'all', active: true },
-  { label: '待上课', value: 'upcoming', active: false },
-  { label: '已完成', value: 'completed', active: false },
-  { label: '已取消', value: 'cancelled', active: false }
-];
-
-const ATTENDANCE_FILTERS = [
-  { label: '全部', value: 'all', active: true },
-  { label: '扫码签到', value: 'scan', active: false },
-  { label: '自动签到', value: 'auto', active: false },
-  { label: '未上课', value: 'exempt_cancel', active: false },
-  { label: '现场签到', value: 'onsite', active: false },
-  { label: '后台签到', value: 'admin', active: false }
-];
 
 const CANCEL_TYPE_MAP = {
-  normal: '用户自行取消',
-  timeout: '超时未确认',
-  exempt: '免扣课时取消',
+  normal: '正常取消',
+  exempt: '豁免取消',
   admin_cancel: '管理员取消',
-  min_bookings_not_met: '预约人数不足',
-  holiday: '节假日取消'
+  min_bookings_not_met: '人数不足取消',
+  holiday: '放假取消'
 };
+
+// 预约记录页默认展开显示的条数
+const DEFAULT_VISIBLE_COUNT = 5;
 
 Page({
   data: {
@@ -49,8 +34,12 @@ Page({
     loading: true,
     page: 1,
     hasMore: true,
-    filters: BOOKING_FILTERS,
-    currentFilter: 'all'
+    // 预约记录页：默认展开显示最新5条，其余收起
+    bookingExpanded: false,
+    bookingVisibleCount: DEFAULT_VISIBLE_COUNT,
+    // 上课记录页：同样默认展开5条
+    attendanceExpanded: false,
+    attendanceVisibleCount: DEFAULT_VISIBLE_COUNT
   },
 
   onLoad(options) {
@@ -61,12 +50,12 @@ Page({
     const doLoad = () => {
       if (options.tab) {
         const tab = options.tab;
-        if (tab === 'class') {
-          this.setData({ activeTab: 'class', filters: ATTENDANCE_FILTERS, currentFilter: 'all' });
+        if (tab === 'attendance' || tab === 'class') {
+          this.setData({ activeTab: 'attendance' });
         } else if (tab === 'waitlist') {
           this.setData({ activeTab: 'waitlist' });
         } else {
-          this.setData({ activeTab: 'booking', filters: BOOKING_FILTERS, currentFilter: 'all' });
+          this.setData({ activeTab: 'booking' });
         }
       }
       this.loadRecords();
@@ -106,13 +95,15 @@ Page({
       return;
     }
 
-    const isClassTab = tab === 'class';
-    const url = isClassTab ? '/attendance/my' : '/bookings/my';
-    const params = { page: this.data.page, pageSize: 10 };
+    const isAttendanceTab = tab === 'attendance';
+    const url = isAttendanceTab ? '/attendance/my' : '/bookings/my';
+    const params = { page: this.data.page, pageSize: 50 };
 
-    if (!isClassTab) {
-      const filterType = this.data.currentFilter !== 'all' ? this.data.currentFilter : undefined;
-      params.type = filterType === 'upcoming' ? 'booked' : filterType;
+    if (tab === 'booking') {
+      // 预约记录：同时展示已预约 + 已取消的记录（合并显示）
+      // 不传 type 参数，让后端返回所有 booked + cancelled 记录
+      // 后端 /bookings/my 不传 type 时返回所有记录，前端按时间倒序混合展示
+      params.type = 'all';
     }
 
     request({ url, data: params }).then(res => {
@@ -131,38 +122,38 @@ Page({
           storeName: schedule && schedule.store_id ? schedule.store_id.name : (item.store_id && item.store_id.name ? item.store_id.name : '')
         };
 
-        if (isClassTab) {
+        if (isAttendanceTab) {
           base.checkInMethod = item.check_in_method || 'scan';
           base.sourceLabel = CHECK_IN_METHOD_LABEL_MAP[base.checkInMethod] || SOURCE_LABEL_MAP[item.source] || '签到';
           base.checkInTime = item.check_in_time ? formatDate(item.check_in_time, 'HH:mm') : '';
           base.creditsCost = item.credits_cost || 0;
         }
 
-        if (!isClassTab && String(item.status || '').toLowerCase() === 'cancelled') {
-          base.cancelReason = item.cancel_reason || (item.cancel_type ? CANCEL_TYPE_MAP[item.cancel_type] : '');
-          base.status = 'cancelled';
+        if (tab === 'booking') {
+          // 预约记录页：已取消的记录显示取消类型文案
+          if (item.status === 'cancelled') {
+            base.cancelTypeLabel = item.cancel_type ? (CANCEL_TYPE_MAP[item.cancel_type] || '已取消') : '已取消';
+            base.cancelTime = item.cancelled_at ? formatDate(item.cancelled_at, 'YYYY-MM-DD HH:mm') : (item.updated_at ? formatDate(item.updated_at, 'YYYY-MM-DD HH:mm') : '');
+          }
         }
+
+        // 用于排序的时间戳（兼容 iOS：new Date 只接受特定格式，这里转为标准格式）
+        base._sortTime = this._getSortTime(item, base.cancelTime);
 
         return base;
       });
 
-      let filteredRecords = newRecords;
-      if (isClassTab && this.data.currentFilter !== 'all') {
-        const filterVal = this.data.currentFilter;
-        if (filterVal === 'scan' || filterVal === 'auto' || filterVal === 'exempt_cancel') {
-          filteredRecords = newRecords.filter(r => r.checkInMethod === filterVal);
-        } else if (filterVal === 'onsite') {
-          filteredRecords = newRecords.filter(r => r.source === 'onsite');
-        } else if (filterVal === 'admin') {
-          filteredRecords = newRecords.filter(r => r.source === 'admin');
-        }
+      // 预约记录页：按时间倒序混合排序（已预约 + 已取消一起显示）
+      let sortedRecords = newRecords;
+      if (tab === 'booking') {
+        sortedRecords = newRecords.sort((a, b) => (b._sortTime || 0) - (a._sortTime || 0));
       }
 
-      const records = this.data.page === 1 ? filteredRecords : this.data.records.concat(filteredRecords);
+      const records = this.data.page === 1 ? sortedRecords : this.data.records.concat(sortedRecords);
       this.setData({
         records,
         loading: false,
-        hasMore: newRecords.length >= 10
+        hasMore: sortedRecords.length >= 50
       });
     }).catch((err) => {
       console.error('加载记录失败:', err);
@@ -218,24 +209,40 @@ Page({
     });
   },
 
-  onFilterChange(e) {
-    const value = e.currentTarget.dataset.value;
-    const filters = this.data.filters.map(f => ({ ...f, active: f.value === value }));
-    this.setData({ filters, currentFilter: value, page: 1 });
-    this.loadRecords();
+  // 获取用于排序的时间戳，兼容 iOS 不支持 new Date('yyyy-MM-dd HH:mm') 的问题
+  _getSortTime(item, cancelTimeStr) {
+    if (cancelTimeStr) {
+      return new Date(cancelTimeStr.replace(' ', 'T')).getTime();
+    }
+    if (item.created_at) {
+      return new Date(item.created_at.replace(' ', 'T')).getTime();
+    }
+    if (item.updated_at) {
+      return new Date(item.updated_at.replace(' ', 'T')).getTime();
+    }
+    return 0;
   },
 
   onTabChange(e) {
     const { tab } = e.currentTarget.dataset;
-    if (tab === 'waitlist') {
-      this.setData({ activeTab: 'waitlist', filters: [], currentFilter: '' });
-    } else {
-      const filters = tab === 'class' ? ATTENDANCE_FILTERS : BOOKING_FILTERS;
-      filters.forEach(f => f.active = f.value === 'all');
-      this.setData({ activeTab: tab, filters, currentFilter: 'all' });
-    }
-    this.setData({ page: 1, hasMore: true });
+    this.setData({ activeTab: tab, page: 1, hasMore: true });
     this.loadRecords();
+  },
+
+  // 展开/收起预约记录
+  onToggleBookingExpand() {
+    this.setData({
+      bookingExpanded: !this.data.bookingExpanded,
+      bookingVisibleCount: !this.data.bookingExpanded ? 9999 : DEFAULT_VISIBLE_COUNT
+    });
+  },
+
+  // 展开/收起上课记录
+  onToggleAttendanceExpand() {
+    this.setData({
+      attendanceExpanded: !this.data.attendanceExpanded,
+      attendanceVisibleCount: !this.data.attendanceExpanded ? 9999 : DEFAULT_VISIBLE_COUNT
+    });
   },
 
   onReachBottom() {

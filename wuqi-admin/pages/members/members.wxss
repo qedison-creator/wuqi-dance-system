@@ -262,6 +262,11 @@
   background: #FAEEE4;
 }
 
+.stats-chip-info {
+  border-color: rgba(82, 125, 170, 0.2);
+  background: rgba(82, 125, 170, 0.08);
+}
+
 .stats-chip-val {
   font-size: 40rpx;
   font-weight: 700;
@@ -272,6 +277,10 @@
 
 .stats-chip-warning .stats-chip-val {
   color: #C4663E;
+}
+
+.stats-chip-info .stats-chip-val {
+  color: #527DAA;
 }
 
 .stats-chip-label {

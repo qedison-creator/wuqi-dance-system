@@ -1,5 +1,6 @@
 const app = getApp();
 const { request } = require('../../utils/request');
+const { getScheduleStatusText } = require('../../utils/util');
 
 Page({
   data: {
@@ -140,57 +141,17 @@ Page({
       });
       const list = res.data && Array.isArray(res.data.list) ? res.data.list : (Array.isArray(res.data) ? res.data : []);
 
-      const enrichedList = [];
-      const now = new Date();
-
       const statsPromises = list.map(schedule => this.loadScheduleBookingStats(schedule._id));
       const statsResults = await Promise.all(statsPromises);
 
-      list.forEach((schedule, i) => {
-        let status = schedule.status || 'available';
-
-        // 后端已经设置了最终状态（取消/停开/人数不足取消），保持不变
-        if (status === 'cancelled' || status === 'offline' || status === 'cancelled_insufficient') {
-          // 保持后端设置的状态
-        } else {
-          // 前端只处理正常状态的课程，遵循业务规则：
-          // 1. 如果预约截止时间已过，且报名人数 < 最低开课人数 → 自动取消
-          // 2. 如果课程已结束（结束时间已过）→ 已结束
-          // 3. 否则保持原状态
-          
-          const bookingDeadline = schedule.booking_deadline || 120;
-          const startTime = new Date(`${todayDate}T${schedule.start_time}`);
-          const bookingDeadlineTime = new Date(startTime.getTime() - (bookingDeadline * 60 * 1000));
-          
-          if (now > bookingDeadlineTime) {
-            const bookingStats = statsResults[i];
-            const minBookings = schedule.min_bookings || 5;
-            if (bookingStats.booked < minBookings) {
-              status = 'cancelled';
-            } else {
-              // 人数足够，检查是否已结束
-              if (schedule.end_time) {
-                const endTime = new Date(`${todayDate}T${schedule.end_time}`);
-                if (now > endTime) {
-                  status = 'completed';
-                }
-              }
-            }
-          } else {
-            // 预约还没截止，检查是否已结束（对于历史数据）
-            if (schedule.end_time) {
-              const endTime = new Date(`${todayDate}T${schedule.end_time}`);
-              if (now > endTime) {
-                status = 'completed';
-              }
-            }
-          }
-        }
-
+      // 直接信任后端返回的 status 字段，前端不再根据时间/人数推导状态
+      const enrichedList = list.map((schedule, i) => {
         const bookingStats = statsResults[i];
-        enrichedList.push({
+        const status = schedule.status || 'available';
+        return {
           ...schedule,
           status,
+          statusText: getScheduleStatusText(status),
           course_name: schedule.course_name || (schedule.dance_style_name || '课程'),
           dance_style_name: schedule.dance_style_name || (schedule.dance_style_id && schedule.dance_style_id.name || ''),
           coach_name: schedule.coach_name || (schedule.coach_id && schedule.coach_id.name || ''),
@@ -198,7 +159,7 @@ Page({
           checkedInCount: bookingStats.checkedIn,
           cancelledCount: bookingStats.cancelled,
           exemptedCount: bookingStats.exempted
-        });
+        };
       });
 
       this.setData({ todaySchedules: enrichedList });
@@ -324,9 +285,10 @@ Page({
     const daySchedules = monthSchedules[dateStr];
     if (!daySchedules || daySchedules.length === 0) return 'none';
 
+    // 直接信任后端 status 字段判断当日状态
     let hasNormal = false, hasCancelled = false;
     daySchedules.forEach(s => {
-      if (s.status === 'cancelled' || s.status === 'cancelled_insufficient' || s.status === 'offline') hasCancelled = true;
+      if (s.status === 'cancelled' || s.status === 'offline') hasCancelled = true;
       else hasNormal = true;
     });
     if (hasNormal && hasCancelled) return 'mixed';
@@ -409,36 +371,17 @@ Page({
       });
       const list = res.data && Array.isArray(res.data.list) ? res.data.list : (Array.isArray(res.data) ? res.data : []);
 
-      const enrichedList = [];
       const statsPromises = list.map(schedule => this.loadScheduleBookingStats(schedule._id));
       const statsResults = await Promise.all(statsPromises);
 
-      list.forEach((schedule, i) => {
-        let status = schedule.status || 'available';
-        
-        if (isPast) {
-          status = 'completed';
-        } else if (status === 'cancelled' || status === 'offline' || status === 'cancelled_insufficient') {
-          status = 'cancelled';
-        } else {
-          // 对未来日期的课程，检查是否已过预约截止时间且人数不足
-          const bookingDeadline = schedule.booking_deadline || 120;
-          const startTime = new Date(`${date}T${schedule.start_time}`);
-          const bookingDeadlineTime = new Date(startTime.getTime() - (bookingDeadline * 60 * 1000));
-          const now = new Date();
-          if (now > bookingDeadlineTime) {
-            const bookingStats = statsResults[i];
-            const minBookings = schedule.min_bookings || 5;
-            if (bookingStats.booked < minBookings) {
-              status = 'cancelled';
-            }
-          }
-        }
-
+      // 直接信任后端返回的 status 字段，前端不再根据时间/人数推导状态
+      const enrichedList = list.map((schedule, i) => {
         const bookingStats = statsResults[i];
-        enrichedList.push({
+        const status = schedule.status || 'available';
+        return {
           ...schedule,
           status,
+          statusText: getScheduleStatusText(status),
           course_name: schedule.course_name || (schedule.dance_style_name || '课程'),
           dance_style_name: schedule.dance_style_name || '',
           coach_name: schedule.coach_name || (schedule.coach_id && schedule.coach_id.name || ''),
@@ -446,7 +389,7 @@ Page({
           checkedInCount: bookingStats.checkedIn,
           cancelledCount: bookingStats.cancelled,
           exemptedCount: bookingStats.exempted
-        });
+        };
       });
 
       this.setData({ dateSchedules: enrichedList });
@@ -485,6 +428,7 @@ Page({
       const res = await request({ url: `/schedules/${scheduleId}/bookings`, method: 'GET' });
       const all = res.data || [];
       const bookedList = [], cancelledList = [], exemptedList = [];
+      let checkedInCount = 0;
 
       all.forEach(item => {
         const realName = item.user_id?.real_name;
@@ -502,6 +446,9 @@ Page({
           checkedIn: item.checked_in || item.status === 'checked_in'
         };
         const status = item.status;
+        if (item.checked_in || status === 'checked_in') {
+          checkedInCount++;
+        }
         if (status === 'booked' || status === 'checked_in') {
           bookedList.push(booking);
         } else if (status === 'cancelled') {
@@ -511,7 +458,7 @@ Page({
         }
       });
 
-      this.setData({ bookedList, cancelledList, exemptedList });
+      this.setData({ bookedList, cancelledList, exemptedList, checkedInCount });
     } catch (err) {
       console.error('加载预约名单失败', err);
     }

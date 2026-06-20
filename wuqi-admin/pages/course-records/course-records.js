@@ -1,5 +1,6 @@
 const app = getApp();
 const { request } = require('../../utils/request');
+const { getScheduleStatusText } = require('../../utils/util');
 
 Page({
   data: {
@@ -251,7 +252,7 @@ Page({
     let hasCancelled = false;
 
     daySchedules.forEach(schedule => {
-      if (schedule.status === 'cancelled' || schedule.status === 'cancelled_insufficient' || schedule.status === 'offline') {
+      if (schedule.status === 'cancelled' || schedule.status === 'offline') {
         hasCancelled = true;
       } else {
         hasNormal = true;
@@ -368,21 +369,13 @@ Page({
       });
       let list = res.data && Array.isArray(res.data.list) ? res.data.list : (Array.isArray(res.data) ? res.data : []);
 
-      // 处理状态文本（历史课程状态）
-      const historyStatusMap = {
-        'available': '已完成',
-        'full': '已完成',
-        'completed': '已完成',
-        'cancelled': '已取消',
-        'cancelled_insufficient': '已取消',
-        'offline': '已下架',
-        'not_open': '未开课'
-      };
-
+      // 直接信任后端返回的 status 字段，前端不再推导历史课程状态
       const processedList = list.map(item => {
+        const status = item.status || 'available';
         return {
           ...item,
-          statusText: historyStatusMap[item.status] || '已完成',
+          status,
+          statusText: getScheduleStatusText(status),
           isHistory: true,
           danceStyleName: item.dance_style_id?.name || '未知舞种',
           coachName: item.coach_id?.name || '未知教练'

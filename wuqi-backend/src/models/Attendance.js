@@ -66,6 +66,27 @@ const AttendanceSchema = new mongoose.Schema({
     type: String,
     default: '',
   },
+  // === 课程快照字段（课程删除后仍可独立溯源）===
+  start_time: {
+    type: String,
+    default: '',
+  },
+  end_time: {
+    type: String,
+    default: '',
+  },
+  duration: {
+    type: Number,
+    default: 0,
+  },
+  coach_name: {
+    type: String,
+    default: '',
+  },
+  store_name: {
+    type: String,
+    default: '',
+  },
 }, {
   timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' },
 });

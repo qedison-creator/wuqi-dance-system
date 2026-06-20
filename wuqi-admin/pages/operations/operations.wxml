@@ -1,3 +1,4 @@
+<page-meta page-style="{{showBookingPanel ? 'overflow: hidden;' : ''}}"/>
 <view class="ops-page">
   <view class="store-tabs">
     <scroll-view class="store-scroll" scroll-x enhanced show-scrollbar="{{false}}">
@@ -27,13 +28,13 @@
           </view>
         </view>
         <view class="card-right">
-          <view class="status-chip {{item.status === 'cancelled' || item.status === 'offline' || item.status === 'cancelled_insufficient' ? 'chip-danger' : item.status === 'available' ? 'chip-success' : item.status === 'full' ? 'chip-warning' : item.status === 'completed' ? 'chip-muted' : 'chip-info'}}">
-          <text>{{item.status === 'cancelled' || item.status === 'offline' || item.status === 'cancelled_insufficient' ? '已取消' : item.status === 'available' ? '可预约' : item.status === 'full' ? '已满' : item.status === 'completed' ? '已完成' : '进行中'}}</text>
+          <view class="schedule-status {{item.status}}">
+          <text>{{item.statusText}}</text>
         </view>
-          <text class="card-progress-text" wx:if="{{item.status !== 'cancelled' && item.status !== 'offline' && item.status !== 'cancelled_insufficient'}}">{{item.bookedCount || 0}}/{{item.capacity || 15}} 已预约</text>
+          <text class="card-progress-text" wx:if="{{item.status !== 'cancelled' && item.status !== 'offline'}}">{{item.bookedCount || 0}}/{{item.capacity || 15}} 已预约</text>
         </view>
       </view>
-      <view class="card-stats" wx:if="{{item.status !== 'cancelled' && item.status !== 'offline' && item.status !== 'cancelled_insufficient'}}">
+      <view class="card-stats" wx:if="{{item.status !== 'cancelled' && item.status !== 'offline'}}">
         <view class="stat-item">
           <text class="stat-num stat-booked">{{item.bookedCount || 0}}</text>
           <text class="stat-label">已预约</text>
@@ -81,7 +82,7 @@
         <text>▶</text>
       </view>
       <view class="today-btn" bindtap="onGoToToday">
-        <text>今日</text>
+        <text class="today-btn-text">今日</text>
       </view>
     </view>
 
@@ -128,8 +129,8 @@
           <text class="card-name">{{item.course_name || item.dance_style_name || '课程'}}</text>
           <text class="card-time">{{item.start_time}} - {{item.end_time}}</text>
         </view>
-        <view class="status-chip {{item.status === 'cancelled' || item.status === 'offline' ? 'chip-danger' : item.status === 'available' ? 'chip-success' : item.status === 'full' ? 'chip-warning' : item.status === 'completed' ? 'chip-muted' : 'chip-info'}}">
-          <text>{{item.status === 'cancelled' || item.status === 'offline' ? '已取消' : item.status === 'available' ? '可预约' : item.status === 'full' ? '已满' : item.status === 'completed' ? '已结束' : '未开始'}}</text>
+        <view class="schedule-status {{item.status}}">
+          <text>{{item.statusText}}</text>
         </view>
       </view>
 
@@ -170,7 +171,7 @@
       <view class="sheet-handle"></view>
 
       <view class="sheet-head">
-        <text class="sheet-title">预约详情</text>
+        <text class="sheet-title">课程日志</text>
         <view class="sheet-close" bindtap="onCloseBookingPanel">
           <text>✕</text>
         </view>
@@ -185,17 +186,21 @@
         </view>
         <view class="sheet-stats">
           <view class="sheet-stat">
-            <text class="sheet-stat-num">{{bookedList.length}}</text>
-            <text class="sheet-stat-label">已预约</text>
-          </view>
-          <view class="sheet-stat">
-            <text class="sheet-stat-num">{{cancelledList.length}}</text>
-            <text class="sheet-stat-label">已取消</text>
-          </view>
-          <view class="sheet-stat">
-            <text class="sheet-stat-num">{{exemptedList.length}}</text>
-            <text class="sheet-stat-label">已豁免</text>
-          </view>
+          <text class="sheet-stat-num">{{bookedList.length}}</text>
+          <text class="sheet-stat-label">已预约</text>
+        </view>
+        <view class="sheet-stat">
+          <text class="sheet-stat-num">{{checkedInCount || 0}}</text>
+          <text class="sheet-stat-label">已签到</text>
+        </view>
+        <view class="sheet-stat">
+          <text class="sheet-stat-num">{{cancelledList.length}}</text>
+          <text class="sheet-stat-label">已取消</text>
+        </view>
+        <view class="sheet-stat">
+          <text class="sheet-stat-num">{{exemptedList.length}}</text>
+          <text class="sheet-stat-label">已豁免</text>
+        </view>
         </view>
       </view>
 

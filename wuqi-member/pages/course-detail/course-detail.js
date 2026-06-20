@@ -61,7 +61,10 @@ Page({
     isLoggedIn: !!getApp().globalData.token,
     isPackageSuspended: false,
     canViewCapacity: false,
-    bookingWindowOpen: true
+    bookingWindowOpen: true,
+    canCancel: true,
+    cancelPhase: '',
+    exemptionCount: 0
   },
 
   async onLoad(options) {
@@ -142,9 +145,11 @@ Page({
     request({ url: '/config/public/booking-window', method: 'GET', silent: true }).then(res => {
       const days = (res.data && res.data.booking_window_days) ? parseInt(res.data.booking_window_days, 10) : 7;
       const today = new Date();
-      const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-      const target = new Date(dateStr);
-      const diffDays = Math.floor((target - new Date(todayStr)) / (1000 * 60 * 60 * 24));
+      // 使用年月日构造日期对象，消除时分秒对天数差计算的干扰
+      const todayDate = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+      const parts = dateStr.split('-');
+      const target = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+      const diffDays = Math.floor((target - todayDate) / (1000 * 60 * 60 * 24));
       this.setData({ bookingWindowOpen: diffDays >= 0 && diffDays < days });
     }).catch(() => {
       this.setData({ bookingWindowOpen: true });
@@ -218,9 +223,18 @@ Page({
         : (booking.schedule_id._id || booking.schedule_id);
       return String(sid) === String(courseId);
     });
+    // 同步后端返回的取消相关字段：can_cancel / cancel_phase / exemption_count
+    const canCancel = currentBooking ? (currentBooking.can_cancel !== false) : true;
+    const cancelPhase = currentBooking && currentBooking.cancel_phase ? currentBooking.cancel_phase : '';
+    const exemptionCount = currentBooking && typeof currentBooking.exemption_count === 'number'
+      ? currentBooking.exemption_count
+      : 0;
     this.setData({ 
       isBooked, 
-      currentBookingId: currentBooking ? currentBooking._id : null 
+      currentBookingId: currentBooking ? currentBooking._id : null,
+      canCancel,
+      cancelPhase,
+      exemptionCount
     });
   },
 
@@ -476,10 +490,21 @@ Page({
   },
 
   onCancelTap() {
-    const { course } = this.data;
+    const { course, canCancel, cancelPhase, exemptionCount } = this.data;
+    // 后端判定不可取消，直接提示，不弹出确认框
+    if (canCancel === false) {
+      wx.showToast({ title: '已超过预约截止时间，不能取消', icon: 'none' });
+      return;
+    }
+    let phaseTip = '';
+    if (cancelPhase === 'exempt') {
+      phaseTip = `\n\n当前处于豁免取消窗口期，取消将消耗 1 次豁免次数（剩余 ${exemptionCount} 次）`;
+    } else if (cancelPhase === 'normal') {
+      phaseTip = '\n\n取消预约将退还课时';
+    }
     this.setData({
       showCancelModal: true,
-      bookingModalText: `确认取消预约「${course.course_name}」？\n时间：${course.dateStr} ${course.weekDayStr} ${course.start_time}-${course.end_time}`
+      bookingModalText: `确认取消预约「${course.course_name}」？\n时间：${course.dateStr} ${course.weekDayStr} ${course.start_time}-${course.end_time}${phaseTip}`
     });
   },
 

@@ -2,6 +2,7 @@ const app = getApp();
 const { request } = require('../../utils/request');
 const { COURSE_DURATIONS, DEFAULT_DURATION } = require('../../utils/config');
 const { getBeijingDate, getWeekday } = require('../../utils/helpers');
+const { getScheduleStatusText, getCancelReasonText } = require('../../utils/util');
 
 // 最大图片上传大小（与后端 multer limits.fileSize 一致）
 const MAX_IMAGE_SIZE = 10 * 1024 * 1024; // 10MB
@@ -122,10 +123,30 @@ Page({
     if (this.data.viewMode === 'month') {
       this.generateMonthCalendar(this.data.currentMonth);
     }
+    this._startAutoRefresh();
+  },
+
+  onHide() {
+    this._stopAutoRefresh();
   },
 
   onUnload() {
     this._isDestroyed = true;
+    this._stopAutoRefresh();
+  },
+
+  _startAutoRefresh() {
+    this._stopAutoRefresh();
+    this._autoRefreshTimer = setInterval(() => {
+      this.loadStores();
+    }, 30000);
+  },
+
+  _stopAutoRefresh() {
+    if (this._autoRefreshTimer) {
+      clearInterval(this._autoRefreshTimer);
+      this._autoRefreshTimer = null;
+    }
   },
 
   // 初始化日期列表（历史1年 + 未来3个月）
@@ -565,13 +586,11 @@ Page({
       this.setData({
         stores: list,
         currentStoreId: newStoreId
-      }, () => {
+      }, async () => {
         // 设置完门店ID后，先加载星期模板，再加载排课
-
-        
         // 只有当门店ID变化时才重新加载模板
         if (originalStoreId !== this.data.currentStoreId) {
-          this.loadWeekTemplate();
+          await this.loadWeekTemplate();
         }
         this.loadSchedules();
       });
@@ -644,43 +663,21 @@ Page({
         }
       }
       
-      // 判断课程是否是历史课程
+      // 判断课程是否是历史课程（仅用于 UI 展示，不推导状态）
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       const current = new Date(currentDate);
       current.setHours(0, 0, 0, 0);
       const isCurrentPast = current < today;
 
-      // 处理状态文本
-      const statusMap = {
-        'available': '可预约',
-        'full': '已满员',
-        'cancelled': '已取消',
-        'cancelled_insufficient': '已取消',
-        'offline': '已下架',
-        'not_open': '未开课',
-        'completed': '已完成'
-      };
-
+      // 直接信任后端返回的 status 字段，前端不再根据时间推导状态
       const processedList = list.map(item => {
-        let statusText = statusMap[item.status] || item.status;
-        // 过去日期的课程统一显示"已完成"
-        if (isCurrentPast) {
-          statusText = '已完成';
-        }
-        // 今天的课程：如果已过结束时间且状态仍为可预约/已满员，显示"已完成"
-        if (!isCurrentPast && current.getTime() === today.getTime()) {
-          const now = new Date();
-          const [endH, endM] = (item.end_time || '00:00').split(':').map(Number);
-          const endDate = new Date();
-          endDate.setHours(endH, endM, 0, 0);
-          if (now > endDate && ['available', 'full'].includes(item.status)) {
-            statusText = '已完成';
-          }
-        }
+        const status = item.status || 'available';
         return {
           ...item,
-          statusText,
+          status,
+          statusText: getScheduleStatusText(status),
+          cancelReasonText: item.cancel_reason ? getCancelReasonText(item.cancel_reason) : '',
           isHistory: isCurrentPast,
           from_template: item.from_template === true,
           danceStyleName: item.dance_style_id?.name || '未知舞种',
@@ -759,10 +756,17 @@ Page({
   },
 
   onSwitchStore(e) {
-    this.setData({ currentStoreId: e.currentTarget.dataset.id }, () => {
-      // 切换门店后，需要重新加载对应门店的星期模板
-      this.loadWeekTemplate();
-      this.loadSchedules();
+    const newStoreId = e.currentTarget.dataset.id;
+    // 切换门店时先清空 weekTemplate，避免 loadSchedules 使用旧门店模板显示预览
+    this.setData({
+      currentStoreId: newStoreId,
+      weekTemplate: { 0: [], 1: [], 2: [], 3: [], 4: [], 5: [], 6: [] },
+      schedules: []
+    }, () => {
+      // 必须先加载新门店的模板，再加载排课数据，避免模板预览串门店
+      this.loadWeekTemplate().then(() => {
+        this.loadSchedules();
+      });
     });
   },
 
@@ -860,6 +864,8 @@ Page({
   },
 
   onModalTap() {},
+
+  preventTouchMove() {},
 
   // 补全图片 URL
   _fixImageUrl(url) {
@@ -1152,8 +1158,8 @@ Page({
       const editingId = formData._id || (this.data.editPreview ? this.data.editPreview._id : '');
       const conflictingSchedule = schedules.find(s => {
         if (s._id === editingId) return false;  // 排除正在编辑的自身
-        // 排除所有非活跃状态的排课（已取消、人数不足取消、已下架、已删除、已完成、未开放）
-        if (['cancelled', 'cancelled_insufficient', 'offline', 'deleted', 'completed', 'not_open'].includes(s.status)) return false;
+        // 排除所有非活跃状态的排课（已取消、已下架、已删除、已完成、未开放）
+        if (['cancelled', 'offline', 'deleted', 'completed', 'not_open'].includes(s.status)) return false;
         const existingStart = s.start_time;
         const existingEnd = s.end_time;
         if (newStart < existingEnd && newEnd > existingStart) {
@@ -1443,6 +1449,50 @@ Page({
       console.error('取消排课失败', err);
       wx.showToast({ title: '取消失败', icon: 'none' });
     }
+  },
+
+  // 下线排课（管理员手动下线，自动退还已预约会员课时）
+  async onOfflineSchedule(e) {
+    if (this.data.deleting) {
+      wx.showToast({ title: '正在处理中，请稍候', icon: 'none' });
+      return;
+    }
+    const id = e.currentTarget.dataset.id;
+    const bookings = parseInt(e.currentTarget.dataset.bookings) || 0;
+    if (!id) {
+      wx.showToast({ title: '排课ID不存在', icon: 'none' });
+      return;
+    }
+
+    const content = bookings > 0
+      ? `确定要下线该排课吗？当前有 ${bookings} 人预约，下线后将自动退还他们的课时。`
+      : '确定要下线该排课吗？当前无会员预约。';
+
+    wx.showModal({
+      title: '确认下线排课',
+      content,
+      editable: true,
+      placeholderText: '请输入下线原因（可选）',
+      success: async (res) => {
+        if (res.confirm) {
+          this.setData({ deleting: true });
+          try {
+            const reason = res.content || '';
+            await request({ url: `/schedules/${id}/offline`, method: 'PUT', data: { reason } });
+            wx.showToast({ title: '已下线', icon: 'success' });
+            this.loadSchedules();
+          } catch (err) {
+            console.error('下线排课失败', err);
+            wx.showToast({ title: err.message || '下线失败', icon: 'none' });
+          } finally {
+            this.setData({ deleting: false });
+          }
+        }
+      },
+      fail: () => {
+        this.setData({ deleting: false });
+      }
+    });
   },
 
   // 删除排课（仅限已取消/已下架状态的排课）
@@ -1939,7 +1989,7 @@ Page({
     });
     
     const list = res.data && Array.isArray(res.data.list) ? res.data.list : (Array.isArray(res.data) ? res.data : []);
-    const activeList = list.filter(item => item.status !== 'cancelled' && item.status !== 'cancelled_insufficient' && item.status !== 'offline');
+    const activeList = list.filter(item => item.status !== 'cancelled' && item.status !== 'offline');
     
     let cancelledCount = 0;
     for (const item of activeList) {
@@ -2146,7 +2196,7 @@ Page({
         }
       });
     } catch (err) {
-      console.error('复制排课失败:', err);
+      console.error('复制排课失败', err);
       const errorMsg = err.message || err.data?.message || '复制失败，请检查网络或联系管理员';
       wx.showModal({
         title: '复制失败',

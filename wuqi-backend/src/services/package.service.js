@@ -15,6 +15,25 @@ dayjs.extend(isoWeek);
 
 const BEIJING_TZ = 'Asia/Shanghai';
 
+/**
+ * 统一计算套餐起止时间：
+ * - start 取开始日期当天的 00:00（北京时间）
+ * - end = start + duration - 1 天，并取最后一天的 23:59:59.999（北京时间）
+ * 这样无论激活/录入时间几点，服务有效期都按自然日显示，且最后一天全天有效。
+ */
+function calculateValidityDates(startMoment, durationValue, durationUnit) {
+  const start = startMoment.tz(BEIJING_TZ).startOf('day');
+  let end;
+  if (durationUnit === 'month') {
+    end = start.add(durationValue, 'month').subtract(1, 'day').endOf('day');
+  } else if (durationUnit === 'year') {
+    end = start.add(durationValue, 'year').subtract(1, 'day').endOf('day');
+  } else {
+    end = start.add(durationValue, 'day').subtract(1, 'day').endOf('day');
+  }
+  return { start_date: start.toDate(), end_date: end.toDate() };
+}
+
 exports.getMyPackage = async (userId) => {
   // 先刷新套餐状态（将已过期的 active 标记为 expired）
   await exports.refreshPackageStatus(userId);
@@ -153,25 +172,19 @@ exports.activatePackageById = async (packageId, userId, options = {}) => {
     const now = new Date();
     pkg.is_activated = true;
     pkg.activated_at = now;
-    pkg.start_date = now;
     pkg.status = 'active';
 
-    // 根据时长计算到期时间
+    // 统一按北京时间自然日计算起止时间
+    const startMoment = dayjs(now).tz(BEIJING_TZ);
+    pkg.start_date = startMoment.startOf('day').toDate();
     if (pkg.duration_value) {
-      const startDate = dayjs(now);
-      let endDate;
-      if (pkg.duration_unit === 'month') {
-        endDate = startDate.add(pkg.duration_value, 'month').subtract(1, 'day');
-      } else if (pkg.duration_unit === 'year') {
-        endDate = startDate.add(pkg.duration_value, 'year').subtract(1, 'day');
-      } else {
-        endDate = startDate.add(pkg.duration_value, 'day').subtract(1, 'day');
-      }
-      pkg.end_date = endDate.toDate();
-      pkg.original_end_date = new Date(pkg.end_date);
+      const { end_date } = calculateValidityDates(startMoment, pkg.duration_value, pkg.duration_unit);
+      pkg.end_date = end_date;
+      pkg.original_end_date = new Date(end_date);
     } else {
-      pkg.end_date = dayjs(now).add(1, 'year').subtract(1, 'day').toDate();
-      pkg.original_end_date = new Date(pkg.end_date);
+      const { end_date } = calculateValidityDates(startMoment, 1, 'year');
+      pkg.end_date = end_date;
+      pkg.original_end_date = new Date(end_date);
     }
 
     await pkg.save();
@@ -257,24 +270,19 @@ exports.checkAutoActivation = async () => {
 
     pkg.is_activated = true;
     pkg.activated_at = now;
-    pkg.start_date = now;
     pkg.status = 'active';
 
+    // 统一按北京时间自然日计算起止时间
+    const startMoment = dayjs(now).tz(BEIJING_TZ);
+    pkg.start_date = startMoment.startOf('day').toDate();
     if (pkg.duration_value) {
-      const startDate = dayjs(now);
-      let endDate;
-      if (pkg.duration_unit === 'month') {
-        endDate = startDate.add(pkg.duration_value, 'month').subtract(1, 'day');
-      } else if (pkg.duration_unit === 'year') {
-        endDate = startDate.add(pkg.duration_value, 'year').subtract(1, 'day');
-      } else {
-        endDate = startDate.add(pkg.duration_value, 'day').subtract(1, 'day');
-      }
-      pkg.end_date = endDate.toDate();
-      pkg.original_end_date = new Date(pkg.end_date);
+      const { end_date } = calculateValidityDates(startMoment, pkg.duration_value, pkg.duration_unit);
+      pkg.end_date = end_date;
+      pkg.original_end_date = new Date(end_date);
     } else {
-      pkg.end_date = dayjs(now).add(1, 'year').subtract(1, 'day').toDate();
-      pkg.original_end_date = new Date(pkg.end_date);
+      const { end_date } = calculateValidityDates(startMoment, 1, 'year');
+      pkg.end_date = end_date;
+      pkg.original_end_date = new Date(end_date);
     }
 
     await pkg.save();
@@ -350,17 +358,11 @@ exports.updatePackage = async (id, data) => {
   if (!isActivated && data.duration_value && data.duration_unit) {
     // pending 套餐不计算 end_date，激活时计算
   } else if (isActivated && data.duration_value && data.duration_unit) {
-    const startDate = dayjs(userPackage.start_date || new Date());
-    let endDate;
-    if (data.duration_unit === 'month') {
-      endDate = startDate.add(data.duration_value, 'month').subtract(1, 'day');
-    } else if (data.duration_unit === 'year') {
-      endDate = startDate.add(data.duration_value, 'year').subtract(1, 'day');
-    } else {
-      endDate = startDate.add(data.duration_value, 'day').subtract(1, 'day');
-    }
-    userPackage.end_date = endDate.toDate();
-    userPackage.original_end_date = new Date(userPackage.end_date);
+    const startMoment = dayjs(userPackage.start_date || new Date()).tz(BEIJING_TZ);
+    const { start_date, end_date } = calculateValidityDates(startMoment, data.duration_value, data.duration_unit);
+    userPackage.start_date = start_date;
+    userPackage.end_date = end_date;
+    userPackage.original_end_date = new Date(end_date);
   }
 
   await userPackage.save();

@@ -209,14 +209,18 @@ Page({
       const allSchedules = data.list || (Array.isArray(data) ? data : []);
       const courses = allSchedules.filter(s => {
         if (!s.date) return false;
-        if (s.status === 'cancelled' || s.status === 'offline' || s.status === 'cancelled_insufficient') return false;
+        if (s.status === 'cancelled' || s.status === 'offline') return false;
         return s.date >= today && s.date <= endDateStr;
       }).map(schedule => {
         const danceStyleName = schedule.dance_style_id && schedule.dance_style_id.name ? schedule.dance_style_id.name : '';
         const tagColor = getDanceTagColor(danceStyleName);
         const weekday = getWeekday(schedule.date);
-        const target = new Date(schedule.date);
-        const diffDays = Math.floor((target - new Date(today)) / (1000 * 60 * 60 * 24));
+        // 使用年月日构造日期对象，消除时分秒对天数差计算的干扰
+        const scheduleParts = schedule.date.split('-');
+        const target = new Date(parseInt(scheduleParts[0]), parseInt(scheduleParts[1]) - 1, parseInt(scheduleParts[2]));
+        const todayParts = today.split('-');
+        const todayDate = new Date(parseInt(todayParts[0]), parseInt(todayParts[1]) - 1, parseInt(todayParts[2]));
+        const diffDays = Math.floor((target - todayDate) / (1000 * 60 * 60 * 24));
         return {
           ...schedule,
           _id: String(schedule._id),
@@ -432,7 +436,7 @@ Page({
       const allSchedules = data.list || (Array.isArray(data) ? data : []);
       const courses = allSchedules.filter(s => {
         if (!s.date) return false;
-        if (s.status === 'cancelled' || s.status === 'offline' || s.status === 'cancelled_insufficient') return false;
+        if (s.status === 'cancelled' || s.status === 'offline') return false;
         return s.date >= today && s.date <= endDateStr;
       }).map(schedule => {
         const danceStyleName = schedule.dance_style_id && schedule.dance_style_id.name ? schedule.dance_style_id.name : '';

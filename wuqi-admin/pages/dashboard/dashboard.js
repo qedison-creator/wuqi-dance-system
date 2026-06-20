@@ -1,6 +1,7 @@
 const app = getApp();
 const { request } = require('../../utils/request');
 const config = require('../../config/index.js');
+const { getScheduleStatusText } = require('../../utils/util');
 
 function getCurrentDate() {
   const now = new Date();
@@ -100,6 +101,25 @@ Page({
     this.setData({ greeting: getGreeting(), theme: getTheme() });
     this.loadUserInfo();
     this.loadAllData();
+    this._startAutoRefresh();
+  },
+
+  onHide() {
+    this._stopAutoRefresh();
+  },
+
+  _startAutoRefresh() {
+    this._stopAutoRefresh();
+    this._autoRefreshTimer = setInterval(() => {
+      this.loadAllData();
+    }, 30000);
+  },
+
+  _stopAutoRefresh() {
+    if (this._autoRefreshTimer) {
+      clearInterval(this._autoRefreshTimer);
+      this._autoRefreshTimer = null;
+    }
   },
 
   loadUserInfo() {
@@ -299,7 +319,7 @@ Page({
       this.loadSystemConfigs();
 
       const [homeRes, statsRes, bannersRes] = await Promise.allSettled([
-        request({ url: '/home/admin', method: 'GET' }).catch(() => ({})),
+        request({ url: '/home/admin', method: 'GET', data: storeId ? { store_id: storeId } : {} }).catch(() => ({})),
         request({ url: '/stats/dashboard', method: 'GET', data: { store_id: storeId } }).catch(() => ({ data: {} })),
         request({ url: '/banners', method: 'GET', data: {} }).catch(() => ({ data: [] }))
       ]);
@@ -805,6 +825,14 @@ Page({
     let startDate = todayStr;
     let endDate = todayStr;
     if (!isToday) {
+      // 近期课程：从明天开始，到 13 天后（排除当天，当天属于"今日课程"）
+      const startD = new Date();
+      startD.setDate(today.getDate() + 1);
+      const sy = startD.getFullYear();
+      const sm = String(startD.getMonth() + 1).padStart(2, '0');
+      const sd = String(startD.getDate()).padStart(2, '0');
+      startDate = `${sy}-${sm}-${sd}`;
+
       const endD = new Date();
       endD.setDate(today.getDate() + 13);
       const ey = endD.getFullYear();
@@ -840,30 +868,29 @@ Page({
       const statsPromises = rawList.map(s => this._loadScheduleBookingStats(s._id));
       const statsResults = await Promise.all(statsPromises);
 
-      const now = new Date();
-
       const processed = rawList.map((s, i) => {
         const danceStyle = (s.dance_style_id && s.dance_style_id.name) || s.dance_style_name || '';
         const coachName = (s.coach_id && s.coach_id.name) || s.coach_name || '';
         const storeName = (s.store_id && s.store_id.name) || s.store_name || this.data.currentStoreName || '';
 
-        // 状态：已过结束时间 → 已完成；但已取消/下架的课程保持原状态
-        let status = s.status || 'available';
-        const isCancelled = ['cancelled', 'cancelled_insufficient', 'offline', 'deleted'].includes(status);
-        if (!isCancelled) {
-          if (!isToday) {
-            const scheduleDate = s.date || todayStr;
-            if (s.end_time) {
-              const endTime = new Date(`${scheduleDate}T${s.end_time}`);
-              if (now > endTime) status = 'completed';
-            }
-          } else if (s.end_time) {
-            const endTime = new Date(`${todayStr}T${s.end_time}`);
-            if (now > endTime) status = 'completed';
+        // 直接信任后端返回的 status 字段，前端不再根据时间推导状态
+        const status = s.status || 'available';
+
+        const bookingStats = statsResults[i];
+
+        // 日期 + 星期显示（近期课程用，今日课程留空）
+        let dateDisplay = '';
+        let weekdayDisplay = '';
+        if (!isToday && s.date) {
+          const parts = s.date.split('-');
+          if (parts.length === 3) {
+            dateDisplay = `${parts[1]}/${parts[2]}`;
+            const dateObj = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+            const weekdays = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+            weekdayDisplay = weekdays[dateObj.getDay()];
           }
         }
 
-        const bookingStats = statsResults[i];
         return {
           _id: s._id,
           course_name: s.course_name || (danceStyle ? danceStyle + '课程' : '课程'),
@@ -872,12 +899,15 @@ Page({
           start_time: s.start_time || '',
           end_time: s.end_time || '',
           date: s.date || '',
+          date_display: dateDisplay,
+          weekday_display: weekdayDisplay,
           bookedCount: bookingStats.booked,
           capacity: s.max_bookings || 15,
           checkedInCount: bookingStats.checkedIn,
           cancelledCount: bookingStats.cancelled,
           exemptedCount: bookingStats.exempted,
           status: status,
+          statusText: getScheduleStatusText(status),
           store_name: storeName
         };
       });

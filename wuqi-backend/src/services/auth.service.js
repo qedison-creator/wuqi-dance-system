@@ -79,13 +79,25 @@ exports.wxLogin = async (code, storeId, clientType = 'member', profileData = {})
   // 3. 查找或创建用户
   let user = await User.findOne({ openid });
   if (!user) {
+    // 读取配置的默认豁免次数（默认2次）
+    let defaultExemptionCount = 2;
+    try {
+      const Config = require('../models/Config');
+      const configDoc = await Config.findOne({ key: 'default_exemption_count' });
+      if (configDoc && configDoc.value) {
+        defaultExemptionCount = parseInt(configDoc.value) || 2;
+      }
+    } catch (configErr) {
+      console.error('[微信登录] 读取豁免次数配置失败，使用默认值2:', configErr.message);
+    }
+
     const userData = {
       openid,
       unionid,
       user_type: 'member',
       member_status: 'registered',
       nick_name: nick_name || '微信用户',
-      exemption_count: 3,
+      exemption_count: defaultExemptionCount,
     };
     if (avatar_url) userData.avatar_url = avatar_url;
     if (phoneNumber) userData.wechat_phone = phoneNumber;

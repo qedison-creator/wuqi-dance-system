@@ -46,14 +46,12 @@
   "sitemapLocation": "sitemap.json",
   "style": "v2",
   "lazyCodeLoading": "requiredComponents",
+  "requiredPrivateInfos": ["getFuzzyLocation"],
   "permission": {
     "scope.userFuzzyLocation": {
-      "desc": "用于匹配距离您最近的舞栖舞蹈社门店"
+      "desc": "用于为您匹配最近的门店，提供更精准的服务"
     }
   },
-  "requiredPrivateInfos": [
-    "getFuzzyLocation"
-  ],
   "requiredBackgroundModes": [],
   "plugins": {}
 }

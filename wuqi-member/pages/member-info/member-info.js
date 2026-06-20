@@ -15,7 +15,8 @@ Page({
       avatar: ''
     },
     changeRequestStatus: 'none',
-    submitting: false
+    submitting: false,
+    showAvatarSheet: false
   },
 
   onLoad() {
@@ -72,9 +73,66 @@ Page({
     });
   },
 
+  onAvatarTap() {
+    this.setData({ showAvatarSheet: true });
+  },
+
+  onCloseAvatarSheet() {
+    this.setData({ showAvatarSheet: false });
+  },
+
+  onSheetTap() {},
+
+  onChooseFromCamera() {
+    this.setData({ showAvatarSheet: false });
+    wx.chooseMedia({
+      count: 1,
+      mediaType: ['image'],
+      sourceType: ['camera'],
+      sizeType: ['compressed'],
+      success: (res) => {
+        if (res.tempFiles && res.tempFiles[0]) {
+          this._processAndUpload(res.tempFiles[0].tempFilePath);
+        }
+      }
+    });
+  },
+
+  onChooseFromAlbum() {
+    this.setData({ showAvatarSheet: false });
+    wx.chooseMedia({
+      count: 1,
+      mediaType: ['image'],
+      sourceType: ['album'],
+      sizeType: ['compressed'],
+      success: (res) => {
+        if (res.tempFiles && res.tempFiles[0]) {
+          this._processAndUpload(res.tempFiles[0].tempFilePath);
+        }
+      }
+    });
+  },
+
+  _processAndUpload(filePath) {
+    wx.showLoading({ title: '裁剪中...' });
+    wx.cropImage({
+      src: filePath,
+      cropScale: '1:1',
+      success: (cropRes) => {
+        wx.hideLoading();
+        this.uploadAvatar(cropRes.tempFilePath);
+      },
+      fail: () => {
+        wx.hideLoading();
+        this.uploadAvatar(filePath);
+      }
+    });
+  },
+
   onChooseAvatar(e) {
     const avatarUrl = e.detail.avatarUrl;
     if (!avatarUrl) return;
+    this.setData({ showAvatarSheet: false });
 
     // 先裁剪为 1:1 正方形，再上传
     wx.showLoading({ title: '裁剪中...' });

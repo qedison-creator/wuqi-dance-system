@@ -168,7 +168,7 @@ exports.getMyAttendance = async (userId, page, pageSize) => {
   const validBookings = completedBookings.filter(b => {
     if (!b.schedule_id) return false;
     const s = b.schedule_id;
-    if (['cancelled', 'cancelled_insufficient', 'offline', 'deleted'].includes(s.status)) {
+    if (['cancelled', 'offline', 'deleted'].includes(s.status)) {
       return false;
     }
     return true;
@@ -200,20 +200,27 @@ exports.getMyAttendance = async (userId, page, pageSize) => {
     const key = String(booking._id);
     if (!attByBookingId.has(key)) {
       // 同步补建 attendance 记录（createAttendance 内部已用原子 upsert，天然幂等）
+      // 增加快照字段，确保课程删除后仍可独立溯源
+      const sch = booking.schedule_id;
       try {
         await exports.createAttendance({
-          schedule_id: booking.schedule_id._id,
+          schedule_id: sch._id,
           user_id: booking.user_id,
           booking_id: booking._id,
-          store_id: booking.schedule_id.store_id,
-          coach_id: booking.schedule_id.coach_id,
-          dance_style_id: booking.schedule_id.dance_style_id,
+          store_id: sch.store_id,
+          coach_id: sch.coach_id,
+          dance_style_id: sch.dance_style_id,
           check_in_time: booking.check_in_time || new Date(),
           source: booking.check_in_by ? 'admin' : 'booking',
           check_in_method: booking.check_in_by ? 'scan' : 'auto',
-          credits_cost: booking.credits_deducted || booking.schedule_id.credits_cost || 0,
-          date: booking.schedule_id.date,
-          course_name: booking.schedule_id.course_name || '',
+          credits_cost: booking.credits_deducted || sch.credits_cost || 0,
+          date: sch.date,
+          course_name: sch.course_name || '',
+          start_time: sch.start_time || '',
+          end_time: sch.end_time || '',
+          duration: sch.duration || 0,
+          coach_name: sch.coach_id?.name || '',
+          store_name: sch.store_id?.name || '',
         });
       } catch (err) {
         console.error(`[getMyAttendance] 补建attendance失败 bookingId=${booking._id}:`, err.message);

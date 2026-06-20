@@ -1,6 +1,18 @@
 const { request } = require('../../../utils/request');
 const { getBeijingDate } = require('../../../utils/helpers');
 
+// 预约状态文案映射（booking 专属状态，与课程状态不同）
+const BOOKING_STATUS_TEXT_MAP = {
+  'booked': '已预约',
+  'completed': '已完成',
+  'cancelled': '已取消',
+  'exempted': '已豁免'
+};
+
+const getBookingStatusText = (status) => {
+  return BOOKING_STATUS_TEXT_MAP[status] || '已取消';
+};
+
 Page({
   data: {
     memberId: '',
@@ -145,6 +157,8 @@ Page({
         if (date) {
           booking._weekday = this.getWeekDay(date);
         }
+        // 统一预约状态文案
+        booking.statusText = getBookingStatusText(booking.status);
         return booking;
       });
 
@@ -403,18 +417,15 @@ Page({
    */
   async onSubmitPackageEdit() {
     const { editingPackage, editPackageForm } = this.data;
-    const isActivated = editingPackage.is_activated;
 
     // 验证必填字段
-    if (!isActivated) {
-      if (editPackageForm.package_type === 'count_card' && !editPackageForm.total_credits) {
-        wx.showToast({ title: '请输入次数', icon: 'none' });
-        return;
-      }
-      if (!editPackageForm.duration_value) {
-        wx.showToast({ title: '请输入有效时长', icon: 'none' });
-        return;
-      }
+    if (editPackageForm.package_type === 'count_card' && !editPackageForm.total_credits) {
+      wx.showToast({ title: '请输入次数', icon: 'none' });
+      return;
+    }
+    if (!editPackageForm.duration_value) {
+      wx.showToast({ title: '请输入有效时长', icon: 'none' });
+      return;
     }
 
     if (editPackageForm.package_type === 'time_card') {
@@ -430,22 +441,14 @@ Page({
 
     try {
       const postData = {
-        remark: editPackageForm.remark
+        remark: editPackageForm.remark,
+        package_type: editPackageForm.package_type,
+        duration_value: parseInt(editPackageForm.duration_value),
+        duration_unit: editPackageForm.duration_unit
       };
 
-      if (!isActivated) {
-        // 未激活套餐可以修改更多字段
-        postData.package_type = editPackageForm.package_type;
-        postData.duration_value = parseInt(editPackageForm.duration_value);
-        postData.duration_unit = editPackageForm.duration_unit;
-        if (editPackageForm.package_type === 'count_card') {
-          postData.total_credits = parseInt(editPackageForm.total_credits);
-          postData.remaining_credits = parseInt(editPackageForm.total_credits);
-        }
-      }
-
-      // 次卡可以修改剩余课时
       if (editPackageForm.package_type === 'count_card') {
+        postData.total_credits = parseInt(editPackageForm.total_credits);
         postData.remaining_credits = parseInt(editPackageForm.remaining_credits);
       }
 

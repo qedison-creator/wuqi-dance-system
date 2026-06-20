@@ -104,6 +104,11 @@ Page({
     let endDate = todayStr;
 
     switch (filter) {
+      case 'all':
+        // 所有日期：不传日期参数，加载全部记录
+        this.setData({ dateFilter: 'all', startDate: '', endDate: '', yearGroups: [] });
+        this.loadBookings();
+        return;
       case 'today':
         startDate = todayStr;
         endDate = todayStr;
@@ -211,7 +216,6 @@ Page({
     if (!cancelType) return '已取消';
     const map = {
       'normal': '会员主动取消',
-      'timeout': '超时取消',
       'exempt': '豁免取消',
       'admin_cancel': '管理员取消',
       'min_bookings_not_met': '系统取消-人数不足',

@@ -9,6 +9,13 @@ const waitlistSchema = new mongoose.Schema({
   notified_at: { type: Date },
   expire_at: { type: Date },
   remark: { type: String },
+  // === 课程快照字段（课程删除后仍可独立溯源）===
+  course_name:   { type: String, default: '' },
+  schedule_date: { type: String, default: '' },
+  start_time:    { type: String, default: '' },
+  end_time:      { type: String, default: '' },
+  coach_name:    { type: String, default: '' },
+  store_name:    { type: String, default: '' },
 }, { timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' } });
 
 waitlistSchema.index({ user_id: 1, schedule_id: 1 }, { unique: true });

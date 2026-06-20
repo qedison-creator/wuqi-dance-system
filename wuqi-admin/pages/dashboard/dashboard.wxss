@@ -850,7 +850,8 @@
   box-shadow: 0 2rpx 8rpx rgba(44,36,22,0.06);
 }
 
-.course-card.cancelled {
+.course-card.cancelled,
+.course-card.offline {
   opacity: 0.45;
 }
 
@@ -881,20 +882,35 @@
 
 .card-meta {
   display: flex;
+  flex-direction: column;
+  gap: 6rpx;
+}
+
+.card-meta-line {
+  display: flex;
   align-items: center;
-  gap: 16rpx;
+  gap: 12rpx;
 }
 
 .card-time {
-  font-size: 30rpx;
+  font-size: 26rpx;
   color: #2C2416;
-  font-weight: 700;
+  font-weight: 600;
+}
+
+.card-date {
+  font-size: 24rpx;
+  color: #C4663E;
+  font-weight: 600;
+  padding: 2rpx 10rpx;
+  background: #FAEEE4;
+  border-radius: 6rpx;
 }
 
 .card-coach {
-  font-size: 30rpx;
-  color: #2C2416;
-  font-weight: 700;
+  font-size: 24rpx;
+  color: #8B7E6A;
+  font-weight: 400;
 }
 
 .card-right {
@@ -905,11 +921,10 @@
   gap: 8rpx;
 }
 
-.status-chip {
-  padding: 6rpx 16rpx;
-  border-radius: 8rpx;
-  font-size: 22rpx;
-  font-weight: 600;
+.schedule-status {
+  font-size: 24rpx;
+  padding: 8rpx 20rpx;
+  border-radius: var(--radius-sm);
 }
 
 .card-progress-text {
@@ -917,29 +932,30 @@
   color: #8B7E6A;
 }
 
-.chip-success {
-  background: #EDF5EE;
-  color: #5B8C5A;
+.schedule-status.available {
+  background-color: var(--color-success-bg);
+  color: var(--color-success);
 }
 
-.chip-warning {
-  background: #FAEEE4;
-  color: #C4663E;
+.schedule-status.full {
+  background-color: var(--color-danger-bg);
+  color: var(--color-danger);
 }
 
-.chip-danger {
-  background: #FDF0F0;
-  color: #C44B4B;
+.schedule-status.cancelled,
+.schedule-status.offline {
+  background-color: rgba(184, 175, 158, 0.2);
+  color: var(--text-tertiary);
 }
 
-.chip-info {
-  background: #EDF5EE;
-  color: #5B8C5A;
+.schedule-status.completed {
+  background-color: rgba(77, 184, 160, 0.1);
+  color: #4DB8A0;
 }
 
-.chip-muted {
-  background: #F0ECE6;
-  color: #B8AF9E;
+.schedule-status.not_open {
+  background-color: var(--color-warning-bg);
+  color: var(--color-warning);
 }
 
 .card-stats {

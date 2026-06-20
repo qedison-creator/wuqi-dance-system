@@ -12,6 +12,8 @@ Page({
     permConfig: false,
     permLog: false,
     avatarLoadFailed: false,
+    avatarRetryCount: 0,
+    avatarSrc: '',
   },
 
   onShow() {
@@ -19,45 +21,60 @@ Page({
     if (typeof this.getTabBar === 'function' && this.getTabBar()) {
       this.getTabBar().setData({ selected: 4 });
     }
-    const userInfo = app.globalData.userInfo;
-    if (userInfo) {
-      // 规范化avatar_url：相对路径按环境拼接，HTTP IP地址转为当前环境地址
-      this.normalizeAvatarUrl(userInfo);
-      this.setData({
-        userInfo: userInfo,
-        currentStore: app.globalData.currentStore || null,
-        isAdmin: userInfo.role === 'super_admin',
-        isStoreManager: userInfo.role === 'store_manager',
-        permAccount: app.hasPermission('account'),
-        permConfig: app.hasPermission('config'),
-        permLog: app.hasPermission('log'),
-      });
-    } else {
-      this.loadUserInfo();
-    }
+    // 每次进入页面重置头像加载状态，允许重新尝试加载
+    this.setData({ avatarLoadFailed: false, avatarRetryCount: 0 });
+    // 始终从服务端拉取最新用户信息，避免本地缓存过期导致头像失效
+    this.loadUserInfo();
   },
 
   async loadUserInfo() {
     try {
       const res = await request({ url: '/auth/me', method: 'GET' });
       const userInfo = res.data;
-      // 规范化avatar_url
       if (userInfo) {
         this.normalizeAvatarUrl(userInfo);
         app.globalData.userInfo = userInfo;
+        // 构造头像地址，附带时间戳避免缓存导致加载失败
+        const avatarSrc = this._buildAvatarSrc(userInfo.avatar_url);
+        this.setData({
+          userInfo: userInfo,
+          avatarSrc,
+          currentStore: app.globalData.currentStore || null,
+          isAdmin: userInfo.role === 'super_admin',
+          isStoreManager: userInfo.role === 'store_manager',
+          permAccount: app.hasPermission('account'),
+          permConfig: app.hasPermission('config'),
+          permLog: app.hasPermission('log'),
+        });
       }
-      this.setData({
-        userInfo: userInfo,
-        currentStore: app.globalData.currentStore || null,
-        isAdmin: userInfo.role === 'super_admin',
-        isStoreManager: userInfo.role === 'store_manager',
-        permAccount: app.hasPermission('account'),
-        permConfig: app.hasPermission('config'),
-        permLog: app.hasPermission('log'),
-      });
     } catch (err) {
       console.error('获取用户信息失败', err);
+      // 请求失败时降级使用本地缓存的 userInfo
+      const userInfo = app.globalData.userInfo;
+      if (userInfo) {
+        this.normalizeAvatarUrl(userInfo);
+        const avatarSrc = this._buildAvatarSrc(userInfo.avatar_url);
+        this.setData({
+          userInfo,
+          avatarSrc,
+          currentStore: app.globalData.currentStore || null,
+          isAdmin: userInfo.role === 'super_admin',
+          isStoreManager: userInfo.role === 'store_manager',
+          permAccount: app.hasPermission('account'),
+          permConfig: app.hasPermission('config'),
+          permLog: app.hasPermission('log'),
+        });
+      }
     }
+  },
+
+  /**
+   * 构造头像 src：附带时间戳防缓存，最多重试 3 次
+   */
+  _buildAvatarSrc(rawUrl) {
+    if (!rawUrl) return '';
+    const sep = rawUrl.indexOf('?') >= 0 ? '&' : '?';
+    return rawUrl + sep + '_t=' + Date.now();
   },
 
   /**
@@ -93,6 +110,19 @@ Page({
   },
 
   onAvatarError(e) {
+    const retryCount = this.data.avatarRetryCount || 0;
+    // 最多重试 3 次，避免无限重试
+    if (retryCount < 3) {
+      const rawUrl = (this.data.userInfo && this.data.userInfo.avatar_url) || '';
+      if (rawUrl) {
+        const sep = rawUrl.indexOf('?') >= 0 ? '&' : '?';
+        const newSrc = rawUrl + sep + '_retry=' + (retryCount + 1) + '&_t=' + Date.now();
+        console.log('[Profile] 头像加载失败，第 ' + (retryCount + 1) + ' 次重试');
+        this.setData({ avatarRetryCount: retryCount + 1, avatarSrc: newSrc });
+        return;
+      }
+    }
+    // 重试耗尽或无 URL，使用本地默认头像兜底
     console.log('[Profile] 头像加载失败，使用本地默认头像');
     this.setData({ avatarLoadFailed: true });
   },

@@ -440,9 +440,9 @@
 }
 
 .schedule-status {
-  font-size: 22rpx;
-  padding: 6rpx 16rpx;
-  border-radius: 8rpx;
+  font-size: 24rpx;
+  padding: 8rpx 20rpx;
+  border-radius: var(--radius-sm);
 }
 
 .schedule-status.available {
@@ -456,9 +456,8 @@
 }
 
 .schedule-status.cancelled,
-.schedule-status.cancelled_insufficient,
 .schedule-status.offline {
-  background-color: var(--bg-elevated);
+  background-color: rgba(184, 175, 158, 0.2);
   color: var(--text-tertiary);
 }
 
@@ -467,9 +466,14 @@
   color: var(--color-warning);
 }
 
+.schedule-status.completed {
+  background-color: rgba(77, 184, 160, 0.1);
+  color: #4DB8A0;
+}
+
 .schedule-status.history-status {
-  background-color: var(--color-completed-bg);
-  color: var(--color-completed);
+  background-color: rgba(77, 184, 160, 0.1);
+  color: #4DB8A0;
 }
 
 .schedule-status.template-status {
@@ -540,6 +544,14 @@
 
 .action-btn.danger text {
   color: var(--color-danger);
+}
+
+.action-btn.warning {
+  background-color: #fff7e6;
+}
+
+.action-btn.warning text {
+  color: #fa8c16;
 }
 
 .action-btn.disabled {
@@ -721,7 +733,9 @@
 
 .modal-body-scroll {
   flex: 1;
+  height: calc(75vh - 200rpx);
   overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
   padding-right: 20rpx;
 }
 

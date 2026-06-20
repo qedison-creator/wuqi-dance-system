@@ -22,6 +22,8 @@ exports.getMemberList = async (query) => {
       { nick_name: { $regex: keyword, $options: 'i' } },
       { real_name: { $regex: keyword, $options: 'i' } },
       { phone: { $regex: keyword, $options: 'i' } },
+      { wechat_phone: { $regex: keyword, $options: 'i' } },
+      { reserve_phone: { $regex: keyword, $options: 'i' } },
       { member_code: { $regex: keyword, $options: 'i' } },
     ];
   }

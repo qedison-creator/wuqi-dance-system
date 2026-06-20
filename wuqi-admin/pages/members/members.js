@@ -38,6 +38,7 @@ Page({
     currentStoreName: '',
     totalMembers: 0,
     pendingCount: 0,
+    infoChangeCount: 0,
     filterLabel: '使用中',
     // 门店选择弹窗
     showStorePicker: false,
@@ -60,17 +61,7 @@ Page({
       remark: ''
     },
     storeListForPicker: [],
-    packageFormStoreIndex: 0,
-    // 套餐状态分布数据看板
-    packageDistribution: {
-      active: 0,
-      suspended: 0,
-      pending: 0,
-      expired: 0,
-      exhausted: 0
-    },
-    packageTotal: 0,
-    showDashboard: false
+    packageFormStoreIndex: 0
   },
 
   onShow() {
@@ -101,7 +92,27 @@ Page({
     
     // 独立加载门店列表，不依赖全局数据
     this.loadStoreList();
-    this.loadPackageDistribution();
+    this.loadInfoChangeCount();
+    this._startAutoRefresh();
+  },
+
+  onHide() {
+    this._stopAutoRefresh();
+  },
+
+  _startAutoRefresh() {
+    this._stopAutoRefresh();
+    this._autoRefreshTimer = setInterval(() => {
+      this.loadStoreList();
+      this.loadInfoChangeCount();
+    }, 30000);
+  },
+
+  _stopAutoRefresh() {
+    if (this._autoRefreshTimer) {
+      clearInterval(this._autoRefreshTimer);
+      this._autoRefreshTimer = null;
+    }
   },
   
   // 加载门店列表
@@ -130,7 +141,7 @@ Page({
   onRefresh() {
     this.setData({ page: 1, hasMore: true });
     this.loadStoreList();
-    this.loadPackageDistribution();
+    this.loadInfoChangeCount();
   },
 
   onPullDownRefresh() {
@@ -147,57 +158,18 @@ Page({
     wx.navigateTo({ url: '/pages/members/info-review/info-review' });
   },
 
-  // ========== 套餐状态分布数据看板 ==========
-  async loadPackageDistribution() {
+  // ========== 待审核信息修改数量 ==========
+  async loadInfoChangeCount() {
     try {
       const res = await request({
-        url: '/stats/dashboard',
-        method: 'GET',
-        data: {
-          store_id: this.data.currentStoreId || ''
-        }
+        url: '/members/info-change/list',
+        method: 'GET'
       });
-      const dist = (res.data && res.data.package_status_distribution) || {
-        active: 0,
-        suspended: 0,
-        pending: 0,
-        expired: 0,
-        exhausted: 0
-      };
-      const total = (dist.active || 0) + (dist.suspended || 0) + (dist.pending || 0) + (dist.expired || 0) + (dist.exhausted || 0);
-      this.setData({
-        packageDistribution: dist,
-        packageTotal: total
-      });
+      const list = res.data && Array.isArray(res.data) ? res.data : (res.data && res.data.list ? res.data.list : []);
+      this.setData({ infoChangeCount: list.length });
     } catch (err) {
-      console.error('加载套餐分布数据失败', err);
+      console.error('加载信息修改请求数量失败', err);
     }
-  },
-
-  onToggleDashboard() {
-    this.setData({ showDashboard: !this.data.showDashboard });
-  },
-
-  onDashFilterTap(e) {
-    const { filter } = e.currentTarget.dataset;
-    const filterLabelMap = {
-      'all': '全部会员',
-      'active': '使用中',
-      'suspended': '已停卡',
-      'unactivated': '待激活',
-      'exhausted': '已用完',
-      'expired': '已过期',
-      'no-package': '未录套餐'
-    };
-    this.setData({
-      activeFilter: filter,
-      filterLabel: filterLabelMap[filter] || '全部会员',
-      members: [],
-      page: 1,
-      hasMore: true,
-      totalMembers: 0
-    });
-    this.loadMembers();
   },
 
   // ========== 门店选择弹窗 ==========
@@ -224,7 +196,7 @@ Page({
       hasMore: true
     });
     this.loadMembers();
-    this.loadPackageDistribution();
+    this.loadInfoChangeCount();
   },
 
   // ========== 套餐状态筛选 ==========
@@ -732,7 +704,6 @@ Page({
         hasMore: true
       });
       this.loadMembers();
-      this.loadPackageDistribution();
     } catch (err) {
       console.error('录入套餐失败', err);
       wx.showToast({ title: err.data?.message || '录入失败', icon: 'none' });

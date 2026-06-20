@@ -130,7 +130,7 @@
               <view class="empty-modal" wx:if="{{scheduleList.length === 0}}">
                 <text>暂无数据</text>
               </view>
-              <view class="course-card" wx:for="{{scheduleList}}" wx:key="_id" wx:for-item="sch" data-schedule-id="{{sch._id}}" bindtap="onScheduleCardTap">
+              <view class="course-card {{sch.status}}" wx:for="{{scheduleList}}" wx:key="_id" wx:for-item="sch" data-schedule-id="{{sch._id}}" bindtap="onScheduleCardTap">
                 <view class="card-main">
                   <view class="card-left">
                     <view class="card-name-row">
@@ -138,18 +138,21 @@
                       <text class="card-store-inline" wx:if="{{sch.store_name}}">{{sch.store_name}}</text>
                     </view>
                     <view class="card-meta">
-                      <text class="card-time">{{sch.start_time}} - {{sch.end_time}}</text>
+                      <view class="card-meta-line">
+                        <text class="card-date" wx:if="{{sch.date_display}}">{{sch.date_display}} {{sch.weekday_display}}</text>
+                        <text class="card-time">{{sch.start_time}} - {{sch.end_time}}</text>
+                      </view>
                       <text class="card-coach" wx:if="{{sch.coach_name}}">教练：{{sch.coach_name}}</text>
                     </view>
                   </view>
                   <view class="card-right">
-                    <view class="status-chip {{sch.status === 'cancelled' ? 'chip-danger' : sch.status === 'available' ? 'chip-success' : sch.status === 'full' ? 'chip-warning' : sch.status === 'completed' ? 'chip-muted' : 'chip-info'}}">
-                      <text>{{sch.status === 'cancelled' ? '已取消' : sch.status === 'available' ? '可预约' : sch.status === 'full' ? '已满' : sch.status === 'completed' ? '已完成' : '进行中'}}</text>
+                    <view class="schedule-status {{sch.status}}">
+                      <text>{{sch.statusText}}</text>
                     </view>
-                    <text class="card-progress-text" wx:if="{{sch.status !== 'cancelled'}}">{{sch.bookedCount}}/{{sch.capacity}} 已预约</text>
+                    <text class="card-progress-text" wx:if="{{sch.status !== 'cancelled' && sch.status !== 'offline'}}">{{sch.bookedCount}}/{{sch.capacity}} 已预约</text>
                   </view>
                 </view>
-                <view class="card-stats" wx:if="{{sch.status !== 'cancelled'}}">
+                <view class="card-stats" wx:if="{{sch.status !== 'cancelled' && sch.status !== 'offline'}}">
                   <view class="stat-item">
                     <text class="stat-num stat-booked">{{sch.bookedCount}}</text>
                     <text class="stat-label">已预约</text>

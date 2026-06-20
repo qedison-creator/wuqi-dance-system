@@ -94,7 +94,8 @@
   box-shadow: 0 2rpx 8rpx rgba(44,36,22,0.06);
 }
 
-.course-card.cancelled {
+.course-card.cancelled,
+.course-card.offline {
   opacity: 0.45;
 }
 
@@ -144,11 +145,10 @@
   gap: 8rpx;
 }
 
-.status-chip {
-  padding: 6rpx 16rpx;
-  border-radius: 8rpx;
-  font-size: 22rpx;
-  font-weight: 600;
+.schedule-status {
+  font-size: 24rpx;
+  padding: 8rpx 20rpx;
+  border-radius: var(--radius-sm);
 }
 
 .card-progress-text {
@@ -156,29 +156,77 @@
   color: #8B7E6A;
 }
 
-.chip-success {
-  background: #EDF5EE;
-  color: #5B8C5A;
+/* 日期课程卡片布局 */
+.card-row-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16rpx;
 }
 
-.chip-warning {
-  background: #FAEEE4;
-  color: #C4663E;
+.card-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6rpx;
 }
 
-.chip-danger {
-  background: #FDF0F0;
-  color: #C44B4B;
+.card-progress {
+  margin-bottom: 16rpx;
 }
 
-.chip-info {
-  background: #EDF5EE;
-  color: #5B8C5A;
-}
-
-.chip-muted {
+.progress-track {
+  height: 10rpx;
   background: #F0ECE6;
-  color: #B8AF9E;
+  border-radius: 5rpx;
+  overflow: hidden;
+  margin-bottom: 8rpx;
+}
+
+.progress-fill {
+  height: 100%;
+  border-radius: 5rpx;
+  transition: width 0.3s ease;
+}
+
+.fill-warning {
+  background: #F5A623;
+}
+
+.fill-accent {
+  background: #C5744B;
+}
+
+.progress-label {
+  font-size: 22rpx;
+  color: #8B7E6A;
+}
+
+.schedule-status.available {
+  background-color: var(--color-success-bg);
+  color: var(--color-success);
+}
+
+.schedule-status.full {
+  background-color: var(--color-danger-bg);
+  color: var(--color-danger);
+}
+
+.schedule-status.cancelled,
+.schedule-status.offline {
+  background-color: rgba(184, 175, 158, 0.2);
+  color: var(--text-tertiary);
+}
+
+.schedule-status.not_open {
+  background-color: var(--color-warning-bg);
+  color: var(--color-warning);
+}
+
+.schedule-status.completed {
+  background-color: rgba(77, 184, 160, 0.1);
+  color: #4DB8A0;
 }
 
 .card-stats {
@@ -280,7 +328,7 @@
   margin-left: 16rpx;
 }
 
-.today-btn text {
+.today-btn-text {
   font-size: 24rpx;
   color: #C5744B;
 }

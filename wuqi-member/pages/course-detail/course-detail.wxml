@@ -89,7 +89,7 @@
 
   <view class="bottom-bar">
     <view class="bb-btns" wx:if="{{isBooked && isOfficial}}">
-      <view class="bb-secondary" bindtap="onCancelTap">取消预约</view>
+      <view class="bb-secondary {{!canCancel ? 'disabled' : ''}}" bindtap="onCancelTap">取消预约</view>
       <view class="bb-primary state-booked">已预约</view>
     </view>
     <view class="bb-btns" wx:elif="{{isWaitlisted && isOfficial}}">

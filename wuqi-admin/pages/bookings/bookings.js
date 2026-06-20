@@ -1,5 +1,6 @@
 const app = getApp();
 const { request } = require('../../utils/request');
+const { getScheduleStatusText } = require('../../utils/util');
 
 Page({
   data: {
@@ -50,7 +51,12 @@ Page({
         url: `/schedules/${this.data.scheduleId}`,
         method: 'GET'
       });
-      this.setData({ scheduleInfo: res.data });
+      // 直接信任后端返回的 status 字段，前端不再推导状态
+      const scheduleInfo = res.data;
+      if (scheduleInfo) {
+        scheduleInfo.statusText = getScheduleStatusText(scheduleInfo.status);
+      }
+      this.setData({ scheduleInfo });
     } catch (err) {
       console.error('加载排课信息失败', err);
     }

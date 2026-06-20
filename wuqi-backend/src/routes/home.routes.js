@@ -67,14 +67,20 @@ router.get('/member', async (req, res, next) => {
 // GET /api/v1/home/admin - 管理端首页数据
 router.get('/admin', auth, async (req, res, next) => {
   try {
+    const { store_id } = req.query;
     const today = dayjs().format('YYYY-MM-DD');
     const thisMonthStart = dayjs().startOf('month').format('YYYY-MM-DD');
 
+    const storeFilter = {};
+    if (store_id) storeFilter.store_id = store_id;
+
     // 统计数据
-    const totalMembers = await User.countDocuments({ user_type: 'member' });
-    const officialMembers = await User.countDocuments({ user_type: 'member', member_status: 'official' });
-    const todaySchedules = await Schedule.countDocuments({ date: today, status: { $in: ['available', 'full'] } });
+    const totalMembers = await User.countDocuments({ user_type: 'member', ...storeFilter });
+    const officialMembers = await User.countDocuments({ user_type: 'member', member_status: 'official', ...storeFilter });
+    // 今日课程数：统计所有非软删除的排课（与展开列表一致）
+    const todaySchedules = await Schedule.countDocuments({ ...storeFilter, date: today, status: { $ne: 'deleted' } });
     const todayBookings = await Booking.countDocuments({
+      ...storeFilter,
       booking_date: today,
       status: 'booked',
     });
@@ -98,15 +104,34 @@ router.get('/admin', auth, async (req, res, next) => {
       member_status: 'registered',
     });
 
-    // 今日排课列表
-    const todayScheduleList = await Schedule.find({
+    // 今日排课列表（所有非软删除的课程，带动态状态修正）
+    const todayScheduleDocs = await Schedule.find({
+      ...storeFilter,
       date: today,
-      status: { $in: ['available', 'full'] },
+      status: { $ne: 'deleted' },
     })
       .populate('coach_id', 'name')
       .populate('dance_style_id', 'name')
       .populate('store_id', 'name')
       .sort({ start_time: 1 });
+
+    // 动态状态修正（与 getScheduleList 保持一致）
+    const now = dayjs();
+    const todayScheduleList = todayScheduleDocs.map(doc => {
+      const s = doc.toObject ? doc.toObject() : doc;
+      // 终态保持不变
+      if (['cancelled', 'offline', 'deleted', 'completed'].includes(s.status)) {
+        return s;
+      }
+      // 已过结束时间 → 已完成
+      if (s.date && s.end_time) {
+        const endDateTime = dayjs(s.date + ' ' + s.end_time);
+        if (endDateTime.isValid() && now.isAfter(endDateTime)) {
+          s.status = 'completed';
+        }
+      }
+      return s;
+    });
 
     // 处理hero背景图URL（参照banners处理方式）
     const protocol = req.protocol;

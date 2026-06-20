@@ -96,8 +96,15 @@ Page({
     }
     this.updateGreeting();
     this.updateContentPadding();
-    // 仅首次加载或切换门店时请求数据，避免从其他页面返回时重复请求
     const currentStoreId = this.data.currentStore ? this.data.currentStore._id : '';
+    // 从其他 tab 切回时，若课程数据为空则重新加载（修复游客切换 tab 后卡片消失）
+    if (this.data._dataLoaded && this.data._lastStoreId === currentStoreId && (!this.data.recentCourses || this.data.recentCourses.length === 0)) {
+      this.setData({ _lastStoreId: currentStoreId });
+      this.loadHomeData();
+      this.startAnnounceFlip();
+      return;
+    }
+    // 仅首次加载或切换门店时请求数据，避免从其他页面返回时重复请求
     if (!this.data._dataLoaded || this.data._lastStoreId !== currentStoreId) {
       this.setData({ _dataLoaded: true, _lastStoreId: currentStoreId });
       this.loadHomeData();
@@ -221,7 +228,7 @@ Page({
       const recentCourses = courses
         .filter(course => {
           if (!course.date) return false;
-          if (course.status === 'cancelled' || course.status === 'offline' || course.status === 'cancelled_insufficient') return false;
+          if (course.status === 'cancelled' || course.status === 'offline') return false;
           const d = typeof course.date === 'string' ? course.date.substring(0, 10) : course.date;
           return d >= todayStr && d <= endStr;
         })
@@ -300,50 +307,68 @@ Page({
   },
 
   onStoreTap() {
-    // 尝试获取模糊位置以显示距离
     const that = this;
+    // 先检查 scope.userFuzzyLocation 授权状态
     wx.getSetting({
       success(settingRes) {
-        if (settingRes.authSetting['scope.userFuzzyLocation']) {
-          wx.getFuzzyLocation({
-            success(locRes) {
-              const lat = locRes.latitude;
-              const lng = locRes.longitude;
-
-              // 前端本地计算各门店距离
-              const storesWithDist = that.data.storeList.map(store => {
-                let storeLat, storeLng;
-                const loc = store.location;
-                if (loc && loc.latitude !== undefined && loc.longitude !== undefined) {
-                  storeLat = Number(loc.latitude);
-                  storeLng = Number(loc.longitude);
-                } else if (loc && loc.coordinates && loc.coordinates.length >= 2) {
-                  storeLng = Number(loc.coordinates[0]);
-                  storeLat = Number(loc.coordinates[1]);
-                }
-
-                let dist = null;
-                if (!isNaN(storeLat) && !isNaN(storeLng)) {
-                  dist = that._haversineDistance(lat, lng, storeLat, storeLng);
-                }
-                return { ...store, distance: dist };
-              });
-
-              app.globalData.storeList = storesWithDist;
-              that.setData({
-                storeList: storesWithDist,
-                showStoreModal: true
-              });
-            },
-            fail() {
-              that.setData({ showStoreModal: true });
+        if (settingRes.authSetting['scope.userFuzzyLocation'] === false) {
+          // 用户之前拒绝过，引导去设置页开启
+          wx.showModal({
+            title: '需要位置权限',
+            content: '用于为您匹配最近的门店，请在设置中开启位置信息',
+            confirmText: '去设置',
+            confirmColor: '#D4956B',
+            success(modalRes) {
+              if (modalRes.confirm) {
+                wx.openSetting({
+                  success(openRes) {
+                    if (openRes.authSetting['scope.userFuzzyLocation']) {
+                      that._getFuzzyLocationAndShowStores();
+                    } else {
+                      that.setData({ showStoreModal: true });
+                    }
+                  },
+                  fail() {
+                    that.setData({ showStoreModal: true });
+                  }
+                });
+              } else {
+                that.setData({ showStoreModal: true });
+              }
             }
           });
         } else {
-          that.setData({ showStoreModal: true });
+          // 未拒绝过，直接调用 wx.getFuzzyLocation
+          that._getFuzzyLocationAndShowStores();
         }
       },
       fail() {
+        // 获取设置失败，直接调用
+        that._getFuzzyLocationAndShowStores();
+      }
+    });
+  },
+
+  _getFuzzyLocationAndShowStores() {
+    const that = this;
+    wx.getFuzzyLocation({
+      type: 'gcj02',
+      success(res) {
+        // 缓存用户坐标，下次启动自动匹配最近门店
+        wx.setStorageSync('userCoords', {
+          latitude: res.latitude,
+          longitude: res.longitude
+        });
+        // 计算各门店距离
+        const storesWithDist = app.calcStoresWithDist(res.latitude, res.longitude, that.data.storeList);
+        app.globalData.storeList = storesWithDist;
+        that.setData({
+          storeList: storesWithDist,
+          showStoreModal: true
+        });
+      },
+      fail() {
+        // 获取位置失败，直接显示门店列表（无距离信息）
         that.setData({ showStoreModal: true });
       }
     });
@@ -377,23 +402,26 @@ Page({
   onLocationAuthConfirm() {
     this.setData({ showLocationAuthModal: false });
     app.globalData.pendingLocationAuth = false;
-    wx.authorize({
-      scope: 'scope.userFuzzyLocation',
-      success: () => {
-        app.requestLocationForNearestStore(app.globalData.storeList);
-      },
-      fail: () => {
-        wx.showModal({
-          title: '提示',
-          content: '您可以在小程序设置中开启位置权限，以便获取最近门店',
-          confirmText: '去设置',
-          confirmColor: '#D4786E',
-          success: (res) => {
-            if (res.confirm) {
-              wx.openSetting();
-            }
-          }
+    // 用户确认开启位置，调用 wx.getFuzzyLocation 获取坐标后自动匹配最近门店
+    const that = this;
+    wx.getFuzzyLocation({
+      type: 'gcj02',
+      success(res) {
+        wx.setStorageSync('userCoords', {
+          latitude: res.latitude,
+          longitude: res.longitude
         });
+        // 匹配最近门店并自动切换
+        const nearest = app._findNearestStoreByCoords(res.latitude, res.longitude, app.globalData.storeList);
+        if (nearest) {
+          app.globalData.currentStore = nearest;
+          wx.setStorageSync('currentStore', nearest);
+          that.setData({ currentStore: nearest });
+          that.loadHomeData();
+        }
+      },
+      fail() {
+        // 获取位置失败，不做任何操作
       }
     });
   },

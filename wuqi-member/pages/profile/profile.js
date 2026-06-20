@@ -66,18 +66,48 @@ Page({
     avatarImageError: false,
     currentPackageType: '',
     avatarSrc: '/images/default-avatar.svg',
-    memberStatusText: ''
+    memberStatusText: '',
+    showLoginModal: false
   },
 
-  getMemberSinceDays(userInfo) {
+  getMemberSinceDays(userInfo, packages) {
     if (!userInfo) return 0;
-    const created = userInfo.created_at || userInfo.createdAt || userInfo.join_date;
-    if (!created) return 0;
-    const createdDate = new Date(created);
-    if (isNaN(createdDate.getTime())) return 0;
+
+    // 按北京时间取整的天数差
+    const getBeijingDateStr = (date) => {
+      const d = new Date(date);
+      const beijingTime = d.getTime() + 8 * 60 * 60 * 1000;
+      const beijingDate = new Date(beijingTime);
+      return beijingDate.toISOString().split('T')[0];
+    };
+    const diffBeijingDays = (date1, date2) => {
+      const d1 = new Date(getBeijingDateStr(date1));
+      const d2 = new Date(getBeijingDateStr(date2));
+      return Math.floor((d2 - d1) / (1000 * 60 * 60 * 24));
+    };
+
     const now = new Date();
-    const diff = Math.floor((now - createdDate) / (1000 * 60 * 60 * 24));
-    return Math.max(0, diff);
+    let baseDate = null;
+
+    // 正式会员优先以最早套餐的开始日期作为加入时间
+    if (userInfo.member_status === 'official' && packages && packages.length > 0) {
+      packages.forEach(function(pkg) {
+        if (pkg.start_date) {
+          const d = new Date(pkg.start_date);
+          if (!baseDate || d < baseDate) baseDate = d;
+        }
+      });
+    }
+
+    // 没有套餐时回退到注册时间
+    if (!baseDate) {
+      const created = userInfo.created_at || userInfo.createdAt || userInfo.join_date;
+      if (!created) return 0;
+      baseDate = new Date(created);
+    }
+
+    if (isNaN(baseDate.getTime())) return 0;
+    return Math.max(0, diffBeijingDays(baseDate, now));
   },
 
   computeMemberStatus(userInfo, packages) {
@@ -96,6 +126,11 @@ Page({
     this.checkLoginStatus();
     // 初始化时启用下拉刷新
     this._updatePullDownRefresh();
+    // 服务号跳转场景：未登录用户自动弹出登录面板，避免白屏/功能异常
+    if (!checkLogin() && app.globalData.fromServiceAccount && !this._serviceLoginPrompted) {
+      this._serviceLoginPrompted = true;
+      this.setData({ showLoginModal: true });
+    }
   },
 
   onHide() {
@@ -139,17 +174,17 @@ Page({
 
   checkLoginStatus() {
     if (checkLogin()) {
-      const userInfo = app.globalData && app.globalData.userInfo ? app.globalData.userInfo : {};
-      var avatarSrc = userInfo.avatar || '/images/default-avatar.svg';
-      this.setData({
-        isLoggedIn: true,
-        userInfo: userInfo,
-        memberSinceDays: this.getMemberSinceDays(userInfo),
-        avatarSrc: avatarSrc,
-        avatarImageError: false
-      });
-      this.loadUserData();
-    } else {
+          const userInfo = app.globalData && app.globalData.userInfo ? app.globalData.userInfo : {};
+          var avatarSrc = userInfo.avatar || '/images/default-avatar.svg';
+          this.setData({
+            isLoggedIn: true,
+            userInfo: userInfo,
+            memberSinceDays: this.getMemberSinceDays(userInfo, this.data.packages),
+            avatarSrc: avatarSrc,
+            avatarImageError: false
+          });
+          this.loadUserData();
+        } else {
       this.setData({ isLoggedIn: false, userInfo: null, memberSinceDays: 0, avatarSrc: '/images/default-avatar.svg', avatarImageError: false });
     }
   },
@@ -211,12 +246,14 @@ Page({
       }
       if (pkg.end_date) {
         pkg.end_date_display = getBeijingDateStr(pkg.end_date);
-        // 已激活的套餐计算剩余天数（包括已过期的，用于显示"已超X天"）
-        if (pkg.is_activated && !pkg.is_suspended) {
+        // 仅对未过期且未暂停的激活套餐计算剩余天数，避免历史套餐出现负数
+        if (pkg.is_activated && !pkg.is_suspended && pkg.status === 'active') {
           var now = new Date();
           var end = new Date(pkg.end_date);
-          var diff = diffBeijingDays(now, end) + 1;
-          pkg.remaining_days = diff;
+          if (now <= end) {
+            var diff = diffBeijingDays(now, end) + 1;
+            pkg.remaining_days = Math.max(0, diff);
+          }
         }
       }
     });
@@ -264,6 +301,11 @@ Page({
                 completedClasses: this.data.stats.completedClasses
               }
             });
+            // 套餐加载完成后再按套餐开始日期校准加入天数，保持与已用天数口径一致
+            var userInfo = this.data.userInfo;
+            if (userInfo) {
+              this.setData({ memberSinceDays: this.getMemberSinceDays(userInfo, packages) });
+            }
             this.processPackageGroups(packages, memberStatus);
           }
         }).catch(function(err) {
@@ -310,7 +352,7 @@ Page({
               store_name: storeName
             };
 
-            var memberSinceDays = this.getMemberSinceDays(userInfo);
+            var memberSinceDays = this.getMemberSinceDays(userInfo, this.data.packages);
             var memberStatus = this.computeMemberStatus(userInfo, this.data.packages);
 
             this.setData({
@@ -404,8 +446,10 @@ Page({
             if (pkg.is_activated && pkg.status === 'active' && !pkg.is_suspended) {
               var now = new Date();
               var end = new Date(pkg.end_date);
-              var diff = diffBeijingDays(now, end) + 1;
-              pkg.remaining_days = diff;
+              if (now <= end) {
+                var diff = diffBeijingDays(now, end) + 1;
+                pkg.remaining_days = Math.max(0, diff);
+              }
             }
           }
         });
@@ -444,6 +488,11 @@ Page({
           memberStatus: memberStatus,
           'stats.remainingClasses': remainingClasses
         });
+        // 刷新完成后同步加入天数
+        var userInfo = this.data.userInfo;
+        if (userInfo) {
+          this.setData({ memberSinceDays: this.getMemberSinceDays(userInfo, packages) });
+        }
         this.processPackageGroups(packages, memberStatus);
       }
     }.bind(this)).catch(function(err) {
@@ -657,7 +706,7 @@ Page({
           store_id: storeId,
           store_name: storeName
         };
-        var memberSinceDays = this.getMemberSinceDays(userInfo);
+        var memberSinceDays = this.getMemberSinceDays(userInfo, this.data.packages);
         this.setData({
           showForceProfileModal: false,
           userInfo: userInfo,
@@ -789,7 +838,8 @@ Page({
           if (pkg.start_date && pkg.is_activated) {
             var now = new Date();
             var start = new Date(pkg.start_date);
-            usedDays = diffBeijingDays(start, now) + 1;
+            // 已用天数不包含今天（今天同时算入剩余天数），避免两者相加比总天数多1
+            usedDays = diffBeijingDays(start, now);
             if (usedDays < 0) usedDays = 0;
             if (usedDays > totalDays) usedDays = totalDays;
           }

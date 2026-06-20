@@ -1,3 +1,4 @@
+<page-meta page-style="{{showAddModal || showManageModal || showCopyModal || showCancelReasonModal ? 'overflow: hidden;' : ''}}"/>
 <view class="schedule-page">
   <!-- 门店切换 -->
   <view class="store-tabs">
@@ -108,9 +109,9 @@
           <text class="label">扣除次数</text>
           <text class="value">{{item.credits_cost || 1}}次/节</text>
         </view>
-        <view class="info-row" wx:if="{{item.status === 'cancelled' && item.cancel_reason}}">
+        <view class="info-row" wx:if="{{item.status === 'cancelled' && item.cancelReasonText}}">
           <text class="label">取消原因</text>
-          <text class="value cancel-reason">{{item.cancel_reason}}</text>
+          <text class="value cancel-reason">{{item.cancelReasonText}}</text>
         </view>
         <view class="info-row" wx:if="{{!item.isTemplatePreview}}">
           <text class="label">预约人数</text>
@@ -132,21 +133,26 @@
           <view class="action-btn" data-id="{{item._id}}" bindtap="onViewBookings">
             <text>{{item.isHistory ? '查看预约' : '预约名单'}}</text>
           </view>
-          <view class="action-btn {{item.isHistory || item.status === 'cancelled' || item.status === 'cancelled_insufficient' || item.status === 'offline' || item.status === 'completed' ? 'disabled' : ''}}" data-index="{{index}}" bindtap="{{item.isHistory || item.status === 'cancelled' || item.status === 'cancelled_insufficient' || item.status === 'offline' || item.status === 'completed' ? '' : 'onEditSchedule'}}">
-            <text>{{item.isHistory ? '已归档' : (item.status === 'cancelled' || item.status === 'cancelled_insufficient' || item.status === 'offline') ? '已取消' : (item.status === 'completed' ? '已完成' : '编辑')}}</text>
+          <view class="action-btn {{item.isHistory || item.status === 'cancelled' || item.status === 'offline' || item.status === 'completed' ? 'disabled' : ''}}" data-index="{{index}}" bindtap="{{item.isHistory || item.status === 'cancelled' || item.status === 'offline' || item.status === 'completed' ? '' : 'onEditSchedule'}}">
+            <text>{{item.isHistory ? '已归档' : (item.status === 'cancelled' || item.status === 'offline') ? '已取消' : (item.status === 'completed' ? '已完成' : '编辑')}}</text>
           </view>
-          <!-- 已取消/已下架状态显示删除按钮 -->
-          <view class="action-btn danger" wx:if="{{item.status === 'cancelled' || item.status === 'cancelled_insufficient' || item.status === 'offline'}}" data-id="{{item._id}}" data-bookings="{{item.current_bookings || 0}}" bindtap="onDeleteSchedule">
+          <!-- 已取消/已下线状态显示删除按钮 -->
+          <view class="action-btn danger" wx:if="{{item.status === 'cancelled' || item.status === 'offline'}}" data-id="{{item._id}}" data-bookings="{{item.current_bookings || 0}}" bindtap="onDeleteSchedule">
             <text>删除</text>
           </view>
           <!-- 已结束课程：查看上课记录 -->
           <view class="action-btn history-action" wx:elif="{{item.isHistory || item.status === 'completed'}}" data-id="{{item._id}}" bindtap="onViewAttendance">
             <text>上课记录</text>
           </view>
-          <!-- 正常状态显示取消按钮 -->
-          <view class="action-btn danger" wx:else data-id="{{item._id}}" data-bookings="{{item.current_bookings || 0}}" bindtap="onCancelSchedule">
-            <text>取消</text>
-          </view>
+          <!-- 正常状态显示下线+取消按钮 -->
+          <block wx:else>
+            <view class="action-btn warning" data-id="{{item._id}}" data-bookings="{{item.current_bookings || 0}}" bindtap="onOfflineSchedule">
+              <text>下线</text>
+            </view>
+            <view class="action-btn danger" data-id="{{item._id}}" data-bookings="{{item.current_bookings || 0}}" bindtap="onCancelSchedule">
+              <text>取消</text>
+            </view>
+          </block>
         </block>
         <!-- 星期视图显示启用开关、编辑、删除 -->
         <block wx:else>
@@ -190,8 +196,8 @@
         <text class="modal-title">{{formData._id ? '编辑排课' : '新增排课'}}</text>
         <text class="modal-close" bindtap="onCloseModal">✕</text>
       </view>
-      
-      <scroll-view class="modal-body-scroll" scroll-y="true">
+
+      <scroll-view class="modal-body-scroll" scroll-y enhanced show-scrollbar="{{false}}">
         <!-- 课程名称 -->
         <view class="form-group">
           <text class="form-label">课程名称</text>
@@ -361,7 +367,7 @@
   </view>
 
   <!-- 批量管理弹窗 -->
-  <view class="modal-mask" wx:if="{{showManageModal}}" bindtap="onCloseManageModal">
+  <view class="modal-mask" wx:if="{{showManageModal}}" bindtap="onCloseManageModal" catchtouchmove="preventTouchMove">
     <view class="modal-content manage-modal" catchtap="onModalTap">
       <view class="modal-header">
         <text class="modal-title">⚙️ 批量管理</text>
@@ -456,7 +462,7 @@
   </view>
 
   <!-- 复制周排课弹窗 -->
-  <view class="modal-mask" wx:if="{{showCopyModal}}" bindtap="onCloseCopyModal">
+  <view class="modal-mask" wx:if="{{showCopyModal}}" bindtap="onCloseCopyModal" catchtouchmove="preventTouchMove">
     <view class="modal-content copy-modal" catchtap="onModalTap">
       <view class="modal-header">
         <text class="modal-title">📋 批量排课</text>
@@ -656,7 +662,7 @@
   </view>
 
   <!-- 取消排课原因选择弹窗 -->
-  <view class="modal-mask" wx:if="{{showCancelReasonModal}}" bindtap="onCloseCancelReasonModal">
+  <view class="modal-mask" wx:if="{{showCancelReasonModal}}" bindtap="onCloseCancelReasonModal" catchtouchmove="preventTouchMove">
     <view class="modal-content cancel-reason-modal" catchtap="onModalTap">
       <view class="modal-header">
         <text class="modal-title">取消排课</text>

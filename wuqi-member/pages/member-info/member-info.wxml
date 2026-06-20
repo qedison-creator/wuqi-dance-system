@@ -50,10 +50,10 @@
     <view class="form-group">
       <text class="form-label">头像</text>
       <view class="avatar-edit-row">
-        <button class="avatar-btn" open-type="chooseAvatar" bindchooseavatar="onChooseAvatar">
+        <view class="avatar-btn" bindtap="onAvatarTap">
           <image class="avatar-preview" src="{{editForm.avatar || '/images/default-avatar.svg'}}" mode="aspectFill"></image>
           <text class="avatar-tip">点击更换</text>
-        </button>
+        </view>
       </view>
     </view>
     <view class="form-group">
@@ -86,5 +86,26 @@
     </view>
 
     <view class="form-tip">头像和昵称即时生效，姓名、手机号需管理端审核</view>
+  </view>
+</view>
+
+<!-- 头像选择面板 -->
+<view class="avatar-sheet-mask" wx:if="{{showAvatarSheet}}" bindtap="onCloseAvatarSheet">
+  <view class="avatar-sheet" catchtap="onSheetTap">
+    <view class="as-header">
+      <text class="as-title">更换头像</text>
+    </view>
+    <button class="as-item" open-type="chooseAvatar" bindchooseavatar="onChooseAvatar">
+      <text>获取微信头像</text>
+    </button>
+    <view class="as-item" bindtap="onChooseFromCamera">
+      <text>拍照</text>
+    </view>
+    <view class="as-item" bindtap="onChooseFromAlbum">
+      <text>本地上传</text>
+    </view>
+    <view class="as-cancel" bindtap="onCloseAvatarSheet">
+      <text>取消</text>
+    </view>
   </view>
 </view>

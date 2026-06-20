@@ -3,83 +3,168 @@
     <view class="tb-item {{activeTab === 'booking' ? 'active' : ''}}" data-tab="booking" bindtap="onTabChange">
       <text>预约记录</text>
     </view>
+    <view class="tb-item {{activeTab === 'attendance' ? 'active' : ''}}" data-tab="attendance" bindtap="onTabChange">
+      <text>上课记录</text>
+    </view>
     <view class="tb-item {{activeTab === 'waitlist' ? 'active' : ''}}" data-tab="waitlist" bindtap="onTabChange">
       <text>排队轮候</text>
     </view>
-    <view class="tb-item {{activeTab === 'class' ? 'active' : ''}}" data-tab="class" bindtap="onTabChange">
-      <text>上课记录</text>
-    </view>
-    <view class="tb-slider {{activeTab === 'waitlist' ? 'mid' : (activeTab === 'class' ? 'right' : '')}}"></view>
+    <view class="tb-slider {{activeTab === 'attendance' ? 'pos1' : (activeTab === 'waitlist' ? 'pos2' : '')}}"></view>
   </view>
 
-  <scroll-view class="filter-bar" scroll-x wx:if="{{activeTab !== 'waitlist'}}">
-    <view class="fb-item {{item.active ? 'active' : ''}}" wx:for="{{filters}}" wx:key="value" data-value="{{item.value}}" bindtap="onFilterChange">
-      <text>{{item.label}}</text>
+  <!-- 预约记录页：已预约 + 已取消 合并显示，默认展开5条 -->
+  <block wx:if="{{activeTab === 'booking'}}">
+    <view class="record-list" wx:if="{{records.length > 0}}">
+      <view class="r-card" wx:for="{{records}}" wx:key="_id" wx:if="{{index < bookingVisibleCount}}">
+        <view class="rc-left-line {{item.status === 'cancelled' ? 'cancelled' : item.status}}"></view>
+        <view class="rc-body">
+          <view class="rc-top">
+            <text class="rc-name">{{item.courseName || '课程名称'}}</text>
+            <block wx:if="{{item.status === 'cancelled'}}">
+              <view class="rc-status cancelled">
+                <text>{{item.cancelTypeLabel || '已取消'}}</text>
+              </view>
+            </block>
+            <block wx:else>
+              <view class="rc-status {{item.status}}">
+                <text>{{item.status === 'completed' ? '已完成' : '待上课'}}</text>
+              </view>
+            </block>
+          </view>
+          <view class="rc-info">
+            <view class="rci-row">
+              <view class="rci-icon date"></view>
+              <text class="rci-text">{{item.dateStr}} {{item.weekDayStr}}</text>
+            </view>
+            <view class="rci-row">
+              <view class="rci-icon time"></view>
+              <text class="rci-text">{{item.startTime}} - {{item.endTime}}</text>
+            </view>
+            <view class="rci-row" wx:if="{{item.status === 'cancelled' && item.cancelTime}}">
+              <view class="rci-icon time"></view>
+              <text class="rci-text">取消时间 {{item.cancelTime}}</text>
+            </view>
+            <view class="rci-row">
+              <view class="rci-icon coach"></view>
+              <text class="rci-text">{{item.coachName || '教练'}}</text>
+            </view>
+            <view class="rci-row">
+              <view class="rci-icon store"></view>
+              <text class="rci-text">{{item.storeName || '门店'}}</text>
+            </view>
+          </view>
+        </view>
+      </view>
     </view>
-  </scroll-view>
 
-  <view class="record-list" wx:if="{{records.length > 0}}">
-    <view class="r-card" wx:for="{{records}}" wx:key="_id">
-      <view class="rc-left-line {{activeTab === 'waitlist' ? 'waitlist' : item.status}}"></view>
-      <view class="rc-body">
-        <view class="rc-top">
-          <text class="rc-name">{{item.courseName || '课程名称'}}</text>
-          <block wx:if="{{activeTab === 'class'}}">
+    <!-- 展开/收起按钮 -->
+    <view class="expand-toggle" wx:if="{{records.length > 5}}" bindtap="onToggleBookingExpand">
+      <text>{{bookingExpanded ? '收起' : '查看更多 (' + (records.length - 5) + '条)'}}</text>
+      <view class="toggle-arrow {{bookingExpanded ? 'up' : 'down'}}"></view>
+    </view>
+
+    <empty-state
+      wx:if="{{!loading && records.length === 0}}"
+      text="暂无记录"
+      hint="快去预约喜欢的课程吧">
+    </empty-state>
+  </block>
+
+  <!-- 上课记录页：默认展开5条 -->
+  <block wx:if="{{activeTab === 'attendance'}}">
+    <view class="record-list" wx:if="{{records.length > 0}}">
+      <view class="r-card" wx:for="{{records}}" wx:key="_id" wx:if="{{index < attendanceVisibleCount}}">
+        <view class="rc-left-line {{item.status}}"></view>
+        <view class="rc-body">
+          <view class="rc-top">
+            <text class="rc-name">{{item.courseName || '课程名称'}}</text>
             <view class="rc-source method-{{item.checkInMethod || item.source}}">{{item.sourceLabel}}</view>
-          </block>
-          <block wx:elif="{{activeTab === 'waitlist'}}">
+          </view>
+          <view class="rc-info">
+            <view class="rci-row">
+              <view class="rci-icon date"></view>
+              <text class="rci-text">{{item.dateStr}} {{item.weekDayStr}}</text>
+            </view>
+            <view class="rci-row">
+              <view class="rci-icon time"></view>
+              <text class="rci-text">{{item.startTime}} - {{item.endTime}}</text>
+            </view>
+            <view class="rci-row" wx:if="{{item.checkInTime}}">
+              <view class="rci-icon checkin"></view>
+              <text class="rci-text highlight">签到时间 {{item.checkInTime}}</text>
+            </view>
+            <view class="rci-row">
+              <view class="rci-icon coach"></view>
+              <text class="rci-text">{{item.coachName || '教练'}}</text>
+            </view>
+            <view class="rci-row">
+              <view class="rci-icon store"></view>
+              <text class="rci-text">{{item.storeName || '门店'}}</text>
+            </view>
+            <view class="rci-row" wx:if="{{item.creditsCost > 0}}">
+              <view class="rci-icon credit"></view>
+              <text class="rci-text highlight">消耗 {{item.creditsCost}} 课时</text>
+            </view>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 展开/收起按钮 -->
+    <view class="expand-toggle" wx:if="{{records.length > 5}}" bindtap="onToggleAttendanceExpand">
+      <text>{{attendanceExpanded ? '收起' : '查看更多 (' + (records.length - 5) + '条)'}}</text>
+      <view class="toggle-arrow {{attendanceExpanded ? 'up' : 'down'}}"></view>
+    </view>
+
+    <empty-state
+      wx:if="{{!loading && records.length === 0}}"
+      text="暂无上课记录"
+      hint="快去预约喜欢的课程吧">
+    </empty-state>
+  </block>
+
+  <!-- 排队轮候页 -->
+  <block wx:if="{{activeTab === 'waitlist'}}">
+    <view class="record-list" wx:if="{{records.length > 0}}">
+      <view class="r-card" wx:for="{{records}}" wx:key="_id">
+        <view class="rc-left-line waitlist"></view>
+        <view class="rc-body">
+          <view class="rc-top">
+            <text class="rc-name">{{item.courseName || '课程名称'}}</text>
             <view class="rc-position-tag">
               <text>排队 {{item.position}}</text>
             </view>
-          </block>
-          <block wx:else>
-            <view class="rc-status {{item.status}}">
-              <text>{{item.status === 'completed' ? '已完成' : (item.status === 'cancelled' ? '已取消' : '待上课')}}</text>
+          </view>
+          <view class="rc-info">
+            <view class="rci-row">
+              <view class="rci-icon date"></view>
+              <text class="rci-text">{{item.dateStr}} {{item.weekDayStr}}</text>
             </view>
-          </block>
-        </view>
-        <view class="rc-info">
-          <view class="rci-row">
-            <view class="rci-icon date"></view>
-            <text class="rci-text">{{item.dateStr}} {{item.weekDayStr}}</text>
-          </view>
-          <view class="rci-row">
-            <view class="rci-icon time"></view>
-            <text class="rci-text">{{item.startTime}} - {{item.endTime}}</text>
-          </view>
-          <view class="rci-row" wx:if="{{activeTab === 'class' && item.checkInTime}}">
-            <view class="rci-icon checkin"></view>
-            <text class="rci-text highlight">签到时间 {{item.checkInTime}}</text>
-          </view>
-          <view class="rci-row">
-            <view class="rci-icon coach"></view>
-            <text class="rci-text">{{item.coachName || '教练'}}</text>
-          </view>
-          <view class="rci-row">
-            <view class="rci-icon store"></view>
-            <text class="rci-text">{{item.storeName || '门店'}}</text>
-          </view>
-          <view class="rci-row" wx:if="{{activeTab === 'class' && item.creditsCost > 0}}">
-            <view class="rci-icon credit"></view>
-            <text class="rci-text highlight">消耗 {{item.creditsCost}} 课时</text>
+            <view class="rci-row">
+              <view class="rci-icon time"></view>
+              <text class="rci-text">{{item.startTime}} - {{item.endTime}}</text>
+            </view>
+            <view class="rci-row">
+              <view class="rci-icon coach"></view>
+              <text class="rci-text">{{item.coachName || '教练'}}</text>
+            </view>
+            <view class="rci-row">
+              <view class="rci-icon store"></view>
+              <text class="rci-text">{{item.storeName || '门店'}}</text>
+            </view>
           </view>
         </view>
-        <view class="rc-cancel-reason" wx:if="{{activeTab === 'booking' && item.status === 'cancelled' && item.cancelReason}}">
-          <view class="rcr-tag"></view>
-          <text class="rcr-text">{{item.cancelReason}}</text>
-        </view>
+        <view class="rca-btn cancel" data-id="{{item._id}}" catchtap="onCancelWaitlistTap">取消</view>
       </view>
-      <view class="rca-btn cancel" wx:if="{{activeTab === 'waitlist'}}" data-id="{{item._id}}" catchtap="onCancelWaitlistTap">取消</view>
     </view>
-  </view>
 
-  <empty-state 
-    wx:if="{{!loading && records.length === 0}}" 
-    text="{{activeTab === 'waitlist' ? '暂无排队轮候' : '暂无记录'}}" 
-    hint="{{activeTab !== 'waitlist' ? '快去预约喜欢的课程吧' : ''}}">
-  </empty-state>
+    <empty-state
+      wx:if="{{!loading && records.length === 0}}"
+      text="暂无排队轮候">
+    </empty-state>
+  </block>
 
-  <view class="load-more" wx:if="{{records.length > 0 && !hasMore}}">
+  <view class="load-more" wx:if="{{records.length > 0 && !hasMore && activeTab !== 'booking' && activeTab !== 'attendance'}}">
     <view class="lm-line"></view>
     <text>没有更多了</text>
     <view class="lm-line"></view>

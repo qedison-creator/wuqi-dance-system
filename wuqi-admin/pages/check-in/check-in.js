@@ -42,7 +42,7 @@ Page({
       let data = res.data;
       if (data && data.list) data = data.list;
       // 过滤：排除已取消、已结束、已下架、已删除、未开放的课程，只保留可签到的
-      const excludedStatuses = ['cancelled', 'cancelled_insufficient', 'completed', 'offline', 'deleted', 'not_open'];
+      const excludedStatuses = ['cancelled', 'completed', 'offline', 'deleted', 'not_open'];
       const schedules = (data || [])
         .filter(s => !excludedStatuses.includes(s.status))
         .map(s => ({

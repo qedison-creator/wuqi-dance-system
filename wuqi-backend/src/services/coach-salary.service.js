@@ -226,7 +226,8 @@ exports.createSalaryStat = async (scheduleId, operatorId) => {
 
   const Attendance = require('../models/Attendance');
   const attendanceCount = await Attendance.countDocuments({
-    schedule_id: scheduleId
+    schedule_id: scheduleId,
+    check_in_method: { $ne: 'exempt_cancel' },  // 豁免取消不计入课时
   });
 
   const duration = schedule.duration || 75;
@@ -394,12 +395,13 @@ exports.generateSalaryBill = async (startDate, endDate, preview = false, operato
   const end = new Date(endDate);
   const Attendance = require('../models/Attendance');
   
-  // 只统计有签到的排课（有人上课教练才算干活）
+  // 只统计有签到的排课（有人上课教练才算干活，排除豁免取消）
   const attendanceRecords = await Attendance.find({
     date: {
       $gte: startDate,
       $lte: endDate
-    }
+    },
+    check_in_method: { $ne: 'exempt_cancel' },
   }).select('schedule_id');
   
   const attendedScheduleIds = [...new Set(attendanceRecords.map(a => a.schedule_id.toString()))];
@@ -516,7 +518,8 @@ exports.generateSalaryBill = async (startDate, endDate, preview = false, operato
               // 从 Attendance 表获取实际签到人数
               const Attendance = require('../models/Attendance');
               const realAttendance = await Attendance.countDocuments({
-                schedule_id: scheduleId
+                schedule_id: scheduleId,
+                check_in_method: { $ne: 'exempt_cancel' },  // 豁免取消不计入课时
               });
               
               await CoachSalaryStat.create({
@@ -623,10 +626,11 @@ exports.getMonthlySalaryBreakdown = async (query) => {
   const { coach_id, store_id } = query;
   const Attendance = require('../models/Attendance');
 
-  // 步骤1：获取所有签到记录中的排课ID
+  // 步骤1：获取所有签到记录中的排课ID（排除豁免取消的签到）
   const attendanceFilter = {};
   if (coach_id) attendanceFilter.coach_id = coach_id;
   if (store_id) attendanceFilter.store_id = store_id;
+  attendanceFilter.check_in_method = { $ne: 'exempt_cancel' };
 
   const attendances = await Attendance.find(attendanceFilter).select('schedule_id coach_id store_id');
   const scheduleIds = [...new Set(attendances.map(a => a.schedule_id.toString()))];
@@ -766,6 +770,8 @@ exports.getClassHoursStats = async (query) => {
   const attendanceFilter = {};
   if (coach_id) attendanceFilter.coach_id = coach_id;
   if (store_id) attendanceFilter.store_id = store_id;
+  // 豁免取消的签到不计入课时统计
+  attendanceFilter.check_in_method = { $ne: 'exempt_cancel' };
   
   const attendances = await Attendance.find(attendanceFilter).select('schedule_id coach_id store_id');
   const scheduleIds = [...new Set(attendances.map(a => a.schedule_id.toString()))];

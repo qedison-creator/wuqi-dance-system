@@ -1,19 +1,6 @@
 <view class="page {{showPackageModal || showReviewModal ? 'page-scroll-disabled' : ''}}">
   <view class="page-header">
     <text class="page-title">会员管理</text>
-    <view class="header-actions">
-      <view class="header-chip-wrap" bindtap="onGoReview">
-        <view class="header-chip header-chip-review">
-          <text class="header-chip-text">待审核用户</text>
-        </view>
-        <view class="review-badge" wx:if="{{pendingCount > 0}}">{{pendingCount}}</view>
-      </view>
-      <view class="header-chip-wrap" bindtap="onGoInfoReview">
-        <view class="header-chip header-chip-info">
-          <text class="header-chip-text">会员信息修改请求</text>
-        </view>
-      </view>
-    </view>
   </view>
 
   <view class="store-bar">
@@ -32,13 +19,13 @@
 
   <view class="stats-section">
     <view class="stats-chips">
-      <view class="stats-chip">
-        <text class="stats-chip-val">{{totalMembers || 0}}</text>
-        <text class="stats-chip-label">{{filterLabel || '总会员'}}</text>
+      <view class="stats-chip stats-chip-info" bindtap="onGoInfoReview">
+        <text class="stats-chip-val">{{infoChangeCount || 0}}</text>
+        <text class="stats-chip-label">会员信息修改请求</text>
       </view>
-      <view class="stats-chip stats-chip-warning">
+      <view class="stats-chip stats-chip-warning" bindtap="onGoReview">
         <text class="stats-chip-val">{{pendingCount || 0}}</text>
-        <text class="stats-chip-label">待审核</text>
+        <text class="stats-chip-label">待审核用户</text>
       </view>
     </view>
   </view>
@@ -50,46 +37,6 @@
       <view class="search-clear" wx:if="{{keyword}}" catchtap="onClearSearch">
         <text>✕</text>
       </view>
-    </view>
-  </view>
-
-  <view class="distribution-section">
-    <view class="section-label" bindtap="onToggleDashboard">
-      <text class="section-label-text">套餐状态分布</text>
-      <view class="toggle-icon {{showDashboard ? 'expanded' : ''}}">
-        <text class="toggle-arrow">{{showDashboard ? '▲' : '▼'}}</text>
-      </view>
-    </view>
-    <view class="distribution-content" wx:if="{{showDashboard}}">
-      <scroll-view class="dist-cards-scroll" scroll-x enhanced show-scrollbar="{{false}}" enable-flex>
-        <view class="dist-cards">
-          <view class="dist-card {{activeFilter === 'active' ? 'dist-card-active' : ''}}" data-filter="active" bindtap="onDashFilterTap">
-            <view class="dist-card-dot dot-success"></view>
-            <text class="dist-card-val">{{packageDistribution.active}}</text>
-            <text class="dist-card-label">使用中</text>
-          </view>
-          <view class="dist-card {{activeFilter === 'suspended' ? 'dist-card-active' : ''}}" data-filter="suspended" bindtap="onDashFilterTap">
-            <view class="dist-card-dot dot-danger"></view>
-            <text class="dist-card-val">{{packageDistribution.suspended}}</text>
-            <text class="dist-card-label">已停卡</text>
-          </view>
-          <view class="dist-card {{activeFilter === 'unactivated' ? 'dist-card-active' : ''}}" data-filter="unactivated" bindtap="onDashFilterTap">
-            <view class="dist-card-dot dot-warning"></view>
-            <text class="dist-card-val">{{packageDistribution.pending}}</text>
-            <text class="dist-card-label">待激活</text>
-          </view>
-          <view class="dist-card {{activeFilter === 'expired' ? 'dist-card-active' : ''}}" data-filter="expired" bindtap="onDashFilterTap">
-            <view class="dist-card-dot dot-danger"></view>
-            <text class="dist-card-val">{{packageDistribution.expired}}</text>
-            <text class="dist-card-label">已过期</text>
-          </view>
-          <view class="dist-card {{activeFilter === 'exhausted' ? 'dist-card-active' : ''}}" data-filter="exhausted" bindtap="onDashFilterTap">
-            <view class="dist-card-dot dot-info"></view>
-            <text class="dist-card-val">{{packageDistribution.exhausted}}</text>
-            <text class="dist-card-label">已用完</text>
-          </view>
-        </view>
-      </scroll-view>
     </view>
   </view>
 

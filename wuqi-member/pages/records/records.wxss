@@ -39,7 +39,7 @@
   position: absolute;
   top: 6rpx;
   left: 6rpx;
-  width: calc(33.333% - 6rpx);
+  width: calc(33.333% - 4rpx);
   height: calc(100% - 12rpx);
   background: linear-gradient(135deg, #D4786E, #EBA89F);
   border-radius: 20rpx;
@@ -48,12 +48,47 @@
   box-shadow: 0 4rpx 16rpx rgba(212,120,110,0.25);
 }
 
-.tb-slider.mid {
+.tb-slider.pos1 {
   transform: translateX(100%);
 }
 
-.tb-slider.right {
+.tb-slider.pos2 {
   transform: translateX(200%);
+}
+
+/* 展开/收起按钮 */
+.expand-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 28rpx 0;
+  margin: 0 28rpx;
+  font-size: 26rpx;
+  color: #D4786E;
+  background: #FFFFFF;
+  border-radius: 20rpx;
+  margin-top: 20rpx;
+  box-shadow: 0 4rpx 16rpx rgba(61,44,46,0.04);
+}
+
+.expand-toggle text {
+  margin-right: 10rpx;
+}
+
+.toggle-arrow {
+  width: 0;
+  height: 0;
+  border-left: 10rpx solid transparent;
+  border-right: 10rpx solid transparent;
+  transition: all 0.3s ease;
+}
+
+.toggle-arrow.down {
+  border-top: 12rpx solid #D4786E;
+}
+
+.toggle-arrow.up {
+  border-bottom: 12rpx solid #D4786E;
 }
 
 .filter-bar {

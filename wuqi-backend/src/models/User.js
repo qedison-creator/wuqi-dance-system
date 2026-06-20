@@ -20,7 +20,7 @@ const userSchema = new mongoose.Schema({
   username: { type: String, unique: true, sparse: true },
   password: { type: String },
   status: { type: String, enum: ['active', 'disabled'], required: true, default: 'active' },
-  exemption_count: { type: Number, default: 3 },
+  exemption_count: { type: Number, default: 2 },
   member_code: { type: String, unique: true, sparse: true },
   info_completed: { type: Boolean, default: false },
   phone_audit_status: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'pending' },

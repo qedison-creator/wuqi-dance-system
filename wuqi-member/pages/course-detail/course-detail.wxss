@@ -397,6 +397,13 @@
   background: rgba(212,120,110,0.04);
 }
 
+.bb-secondary.disabled {
+  background: #F2F0EE;
+  color: #B5A5A5;
+  border-color: rgba(181,165,165,0.20);
+  opacity: 0.7;
+}
+
 .modal-mask {
   position: fixed;
   top: 0;

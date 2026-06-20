@@ -13,13 +13,14 @@ const bookingSchema = new mongoose.Schema({
   cancelled_at: { type: Date },
   is_exempt: { type: Boolean, default: false },
   remark: { type: String },
-  cancel_type: { type: String, enum: ['normal', 'timeout', 'exempt', 'admin_cancel', 'min_bookings_not_met', 'holiday'] },
+  cancel_type: { type: String, enum: ['normal', 'exempt', 'admin_cancel', 'min_bookings_not_met', 'holiday'] },
   cancel_time: { type: Date },
   credits_deducted: { type: Number, default: 1 },
   credits_refunded: { type: Number, default: 0 },
   exemption_used: { type: Boolean, default: false },
   checked_in: { type: Boolean, default: false },
   check_in_time: { type: Date },
+  check_in_method: { type: String, enum: ['scan', 'auto', 'onsite', 'admin'], default: null },
   checked_in_by: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   // 关联套餐
   user_package_id: { type: mongoose.Schema.Types.ObjectId, ref: 'UserPackage' },
@@ -27,6 +28,18 @@ const bookingSchema = new mongoose.Schema({
   // 上课提醒发送状态
   reminder_1h_sent: { type: Boolean, default: false },
   reminder_30m_sent: { type: Boolean, default: false },
+  // === 课程快照字段（课程删除后仍可独立溯源）===
+  course_name:         { type: String, default: '' },
+  schedule_date:       { type: String, default: '' },
+  schedule_start_time: { type: String, default: '' },
+  schedule_end_time:   { type: String, default: '' },
+  schedule_duration:   { type: Number, default: 0 },
+  coach_name:          { type: String, default: '' },
+  store_name:          { type: String, default: '' },
+  dance_style_name:    { type: String, default: '' },
+  classroom:           { type: String, default: '' },
+  credits_cost:        { type: Number, default: 0 },
+  max_bookings:        { type: Number, default: 0 },
 }, { timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' } });
 
 bookingSchema.index({ user_id: 1, booking_date: 1 });

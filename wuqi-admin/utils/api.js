@@ -57,6 +57,8 @@ module.exports = {
     create: (data) => request({ url: '/schedules', method: 'POST', data }),
     update: (id, data) => request({ url: `/schedules/${id}`, method: 'PUT', data }),
     delete: (id) => request({ url: `/schedules/${id}`, method: 'DELETE' }),
+    cancel: (id, data) => request({ url: `/schedules/${id}/cancel`, method: 'PUT', data }),
+    offline: (id, data) => request({ url: `/schedules/${id}/offline`, method: 'PUT', data }),
   },
 
   // 预约相关

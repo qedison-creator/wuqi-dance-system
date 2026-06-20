@@ -14,6 +14,9 @@
 
     <!-- 日期筛选 -->
     <view class="date-filter">
+      <view class="date-tab {{dateFilter === 'all' ? 'active' : ''}}" data-filter="all" bindtap="onDateFilter">
+        <text>所有日期</text>
+      </view>
       <view class="date-tab {{dateFilter === 'today' ? 'active' : ''}}" data-filter="today" bindtap="onDateFilter">
         <text>今日</text>
       </view>

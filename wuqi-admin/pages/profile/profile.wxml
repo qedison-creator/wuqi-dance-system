@@ -1,7 +1,7 @@
 <view class="profile-page">
   <view class="profile-card">
     <view class="avatar-wrapper">
-      <image class="avatar-ring-img" src="{{userInfo.avatar_url}}" mode="aspectFill" wx:if="{{userInfo.avatar_url && !avatarLoadFailed}}" binderror="onAvatarError"></image>
+      <image class="avatar-ring-img" src="{{avatarSrc}}" mode="aspectFill" wx:if="{{avatarSrc && !avatarLoadFailed}}" binderror="onAvatarError"></image>
       <view class="avatar-ring" wx:else>
         <view class="avatar-inner">
           <!-- 本地默认管理员头像兜底 -->

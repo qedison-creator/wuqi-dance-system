@@ -11,11 +11,14 @@ App({
     defaultStoreSet: false,
     pendingLocationAuth: false,
     locationAuthorized: false,  // 用户是否已授权位置
-    privacyResolve: null
+    privacyResolve: null,
+    scene: null,
+    fromServiceAccount: false
   },
-  onLaunch() {
+  onLaunch(options) {
     this.silenceUnsupportedApi();
     this.registerPrivacyHandler();
+    this._updateEntryScene(options);
     const { fetchTemplates } = require('./utils/subscribe-message');
     fetchTemplates();
     const token = wx.getStorageSync('token');
@@ -30,6 +33,7 @@ App({
   },
 
   onShow(options) {
+    this._updateEntryScene(options);
     // 热启动时检查是否需要刷新用户信息（5分钟缓存控制）
     if (this.globalData.token) {
       const now = Date.now();
@@ -37,6 +41,21 @@ App({
           (now - this.globalData.userInfoLastFetch > 5 * 60 * 1000)) {
         this.getUserInfo();
       }
+    }
+  },
+
+  // 识别是否来自服务号等公众号跳转的场景
+  _isServiceAccountScene(scene) {
+    const serviceScenes = [1035, 1043, 1058, 1067, 1074, 1082, 1020];
+    return serviceScenes.indexOf(Number(scene)) !== -1;
+  },
+
+  _updateEntryScene(options) {
+    if (!options) return;
+    const scene = options.scene || this.globalData.scene;
+    if (scene) {
+      this.globalData.scene = scene;
+      this.globalData.fromServiceAccount = this._isServiceAccountScene(scene);
     }
   },
 
@@ -210,7 +229,12 @@ App({
         data.history.forEach(p => packages.push(p));
       }
 
-      const activePackages = packages.filter(p => p.status === 'active' && !p.is_suspended);
+      const activePackages = packages.filter(p => {
+        if (p.status !== 'active' || p.is_suspended) return false;
+        // 过滤已过期套餐（end_date 已过）
+        if (p.is_activated && p.end_date && new Date() > new Date(p.end_date)) return false;
+        return true;
+      });
       const storeIds = [...new Set(
         activePackages
           .map(p => {
@@ -227,6 +251,7 @@ App({
   selectNearestStore(candidateStores) {
     if (candidateStores.length === 0) return;
 
+    // 1. 优先使用上次选择的门店
     const savedStore = wx.getStorageSync('currentStore');
     if (savedStore && savedStore._id) {
       const found = candidateStores.find(s => s._id === savedStore._id);
@@ -236,84 +261,70 @@ App({
       }
     }
 
-    // 不再自动获取位置，等待用户主动点击门店选择按钮
-    // 如果之前授权过位置，设置标记，在用户点击时直接使用
-    wx.getSetting({
-      success: (settingRes) => {
-        const locationAuth = settingRes.authSetting['scope.userFuzzyLocation'];
-        if (locationAuth === true) {
-          // ✅ 已授权，但不自动获取位置，只在用户主动触发时使用
-          this.globalData.locationAuthorized = true;
-        } else if (locationAuth === undefined) {
-          // 只有在用户还没做出过选择的时候才显示弹窗
-          this.globalData.pendingLocationAuth = true;
-        }
-        // 先设置默认门店，等待用户主动触发位置获取
-        this.setStore(candidateStores[0]);
-      },
-      fail: () => {
-        this.setStore(candidateStores[0]);
+    // 2. 有缓存的用户坐标（来自 wx.getFuzzyLocation 成功回调）→ 自动匹配最近门店
+    const cachedCoords = wx.getStorageSync('userCoords');
+    if (cachedCoords && cachedCoords.latitude && cachedCoords.longitude) {
+      const nearest = this._findNearestStoreByCoords(cachedCoords.latitude, cachedCoords.longitude, candidateStores);
+      if (nearest) {
+        this.setStore(nearest);
+        return;
       }
-    });
+    }
+
+    // 3. 首次使用，无坐标缓存 → 标记待引导，回退到第一个门店
+    this.globalData.pendingLocationAuth = true;
+    this.setStore(candidateStores[0]);
   },
 
-  requestLocationForNearestStore(candidateStores) {
-    wx.getFuzzyLocation({
-      success: (locRes) => {
-        const lat = locRes.latitude;
-        const lng = locRes.longitude;
+  // 根据给定坐标从门店列表中找到最近的
+  _findNearestStoreByCoords(lat, lng, candidateStores) {
+    let nearestStore = null;
+    let minDist = Infinity;
 
-        // 计算各门店距离，找出最近的
-        let nearestStore = null;
-        let minDist = Infinity;
-
-        const storesWithDist = candidateStores.map(store => {
-          let storeLat, storeLng;
-          const loc = store.location;
-          if (loc && loc.latitude !== undefined && loc.longitude !== undefined) {
-            storeLat = Number(loc.latitude);
-            storeLng = Number(loc.longitude);
-          } else if (loc && loc.coordinates && loc.coordinates.length >= 2) {
-            storeLng = Number(loc.coordinates[0]);
-            storeLat = Number(loc.coordinates[1]);
-          }
-
-          let dist = null;
-          if (!isNaN(storeLat) && !isNaN(storeLng)) {
-            dist = this._haversineDistance(lat, lng, storeLat, storeLng);
-          }
-
-          if (dist !== null && dist < minDist) {
-            minDist = dist;
-            nearestStore = store;
-          }
-          return { ...store, distance: dist };
-        });
-
-        // 保存带距离的门店列表
-        this.globalData.storeList = storesWithDist;
-
-        // 匹配到最近门店则自动切换
-        if (nearestStore) {
-          this.setStore(nearestStore);
-          return;
-        }
-        // 未匹配到则用缓存/默认
-        const savedStore = wx.getStorageSync('currentStore');
-        if (savedStore && savedStore._id) {
-          const found = candidateStores.find(s => s._id === savedStore._id);
-          if (found) { this.setStore(found); return; }
-        }
-        this.setStore(candidateStores[0]);
-      },
-      fail: () => {
-        const savedStore = wx.getStorageSync('currentStore');
-        if (savedStore && savedStore._id) {
-          const found = candidateStores.find(s => s._id === savedStore._id);
-          if (found) { this.setStore(found); return; }
-        }
-        this.setStore(candidateStores[0]);
+    const storesWithDist = candidateStores.map(store => {
+      let storeLat, storeLng;
+      const loc = store.location;
+      if (loc && loc.latitude !== undefined && loc.longitude !== undefined) {
+        storeLat = Number(loc.latitude);
+        storeLng = Number(loc.longitude);
+      } else if (loc && loc.coordinates && loc.coordinates.length >= 2) {
+        storeLng = Number(loc.coordinates[0]);
+        storeLat = Number(loc.coordinates[1]);
       }
+
+      let dist = null;
+      if (!isNaN(storeLat) && !isNaN(storeLng)) {
+        dist = this._haversineDistance(lat, lng, storeLat, storeLng);
+      }
+
+      if (dist !== null && dist < minDist) {
+        minDist = dist;
+        nearestStore = store;
+      }
+      return { ...store, distance: dist };
+    });
+
+    this.globalData.storeList = storesWithDist;
+    return nearestStore;
+  },
+
+  // 公共方法：根据坐标计算各门店距离（供页面调用）
+  calcStoresWithDist(lat, lng, stores) {
+    return stores.map(store => {
+      let storeLat, storeLng;
+      const loc = store.location;
+      if (loc && loc.latitude !== undefined && loc.longitude !== undefined) {
+        storeLat = Number(loc.latitude);
+        storeLng = Number(loc.longitude);
+      } else if (loc && loc.coordinates && loc.coordinates.length >= 2) {
+        storeLng = Number(loc.coordinates[0]);
+        storeLat = Number(loc.coordinates[1]);
+      }
+      let dist = null;
+      if (!isNaN(storeLat) && !isNaN(storeLng)) {
+        dist = this._haversineDistance(lat, lng, storeLat, storeLng);
+      }
+      return { ...store, distance: dist };
     });
   },
 

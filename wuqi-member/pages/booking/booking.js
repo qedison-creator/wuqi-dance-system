@@ -97,10 +97,38 @@ Page({
     if (!checkLogin()) {
       this.setData({ isLoggedIn: false, isOfficial: false });
       this.initPage();
+      // 服务号跳转场景：未登录用户自动弹出登录面板，避免白屏/功能异常
+      if (app.globalData.fromServiceAccount && !this._serviceLoginPrompted) {
+        this._serviceLoginPrompted = true;
+        this.setData({ showLoginModal: true });
+      }
       return;
     }
     this.setData({ isLoggedIn: true });
     this.refreshUserInfo();
+    // 切回预约 tab 时立即刷新课程 + 启动 30 秒自动轮询
+    if (this.data.dates.length > 0) {
+      this.loadCourses();
+    }
+    this._startAutoRefresh();
+  },
+
+  onHide() {
+    this._stopAutoRefresh();
+  },
+
+  _startAutoRefresh() {
+    this._stopAutoRefresh();
+    this._autoRefreshTimer = setInterval(() => {
+      this.loadCourses(true);
+    }, 5000);
+  },
+
+  _stopAutoRefresh() {
+    if (this._autoRefreshTimer) {
+      clearInterval(this._autoRefreshTimer);
+      this._autoRefreshTimer = null;
+    }
   },
 
   refreshUserInfo() {
@@ -148,7 +176,11 @@ Page({
     const packages = pkgData.packages || history;
     const allPackages = Array.isArray(packages) ? packages : [];
     const hasValidPackage = allPackages.some(pkg => {
-      return pkg.status === 'pending' || pkg.status === 'active';
+      if (pkg.status === 'pending') return true;
+      if (pkg.status !== 'active' || pkg.is_suspended) return false;
+      // 过滤已过期套餐
+      if (pkg.is_activated && pkg.end_date && new Date() > new Date(pkg.end_date)) return false;
+      return true;
     });
     if (!hasValidPackage) {
       this.setData({ canViewCapacity: false });
@@ -157,6 +189,8 @@ Page({
     const hasActivePackage = allPackages.some(pkg => {
       if (pkg.status !== 'active') return false;
       if (pkg.is_suspended) return false;
+      // 过滤已过期套餐
+      if (pkg.is_activated && pkg.end_date && new Date() > new Date(pkg.end_date)) return false;
       return true;
     });
     const hasPendingPackage = allPackages.some(pkg => pkg.status === 'pending');
@@ -244,9 +278,11 @@ Page({
 
   _isDateInBookingWindow(dateStr) {
     const today = getBeijingDate();
-    const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-    const target = new Date(dateStr);
-    const diffDays = Math.floor((target - today) / (1000 * 60 * 60 * 24));
+    // 使用年月日构造日期对象，消除时分秒对天数差计算的干扰
+    const todayDate = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const parts = dateStr.split('-');
+    const target = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+    const diffDays = Math.floor((target - todayDate) / (1000 * 60 * 60 * 24));
     return diffDays >= 0 && diffDays < this.data.bookingWindowDays;
   },
 
@@ -292,7 +328,7 @@ Page({
     });
   },
 
-  loadCourses() {
+  loadCourses(silent) {
     const { holidays, selectedDate } = this.data;
     const isHoliday = holidays.some(h => {
       const hEnd = h.end_date || h.date;
@@ -302,7 +338,9 @@ Page({
       this.setData({ courses: [], loading: false, courseCount: 0, isHolidayToday: true });
       return Promise.resolve();
     }
-    this.setData({ loading: true, isHolidayToday: false });
+    if (!silent) {
+      this.setData({ loading: true, isHolidayToday: false });
+    }
     const storeId = this.data.currentStore ? this.data.currentStore._id : '';
     const reqData = {
       store_id: storeId,
@@ -313,7 +351,7 @@ Page({
       const courses = res.data && res.data.list
         ? res.data.list
         : (Array.isArray(res.data) ? res.data : []);
-      
+
       // 计算当前分钟数（今日专用）
       const now = new Date();
       const currentMin = now.getHours() * 60 + now.getMinutes();
@@ -337,12 +375,9 @@ Page({
           if (e.length >= 2) endMin = parseInt(e[0], 10) * 60 + parseInt(e[1], 10);
         }
 
-        // 课程状态：是否已经开始 / 是否已超过豁免取消窗口（开始后10分钟）
+        // 课程状态：是否已经开始 / 是否已结束
         const _started = isToday && startMin !== null && currentMin >= startMin;
         const _ended = isToday && endMin !== null && currentMin >= endMin;
-        // 豁免取消窗口期 = 10 分钟，过此时间后课程才从列表中移除；已取消/下架课程直接不展示
-        const _cancelled = course.status === 'cancelled' || course.status === 'offline' || course.status === 'cancelled_insufficient';
-        const _hiddenAfterGrace = _cancelled || (isToday && startMin !== null && currentMin >= startMin + 10);
 
         // 处理教练头像URL
         const coachAvatar = (course.coach_id && course.coach_id.avatar_url)
@@ -358,23 +393,16 @@ Page({
           danceTagText: tagColor.text,
           _started,
           _ended,
-          _cancelled,
-          _hiddenAfterGrace,
           coachAvatar,
           bookingOpen: this._isDateInBookingWindow(course.date)
         };
       });
 
-      // 过滤：已取消的课程，以及今日已超过豁免取消窗口的课程
-      let filteredCourses = processedCourses.filter(course => !course._hiddenAfterGrace);
-      // 判断当天原本有课（无论何种状态）但都不可预约 → 显示「课程已结束」
-      const hasEndedCourses = processedCourses.length > 0 && filteredCourses.length === 0;
-
+      // 后端已统一课程状态，已取消/已下线课程不会在列表中返回，前端无需再自行过滤
       this.setData({
-        courses: filteredCourses,
+        courses: processedCourses,
         loading: false,
-        courseCount: filteredCourses.length,
-        hasEndedCourses
+        courseCount: processedCourses.length
       });
       this.loadMyBookings();
       this.loadMyWaitlists();
@@ -505,16 +533,16 @@ Page({
 
       wx.showLoading({ title: '预约中...' });
       loadingShown = true;
-      
+
       await request({
         url: '/bookings',
         method: 'POST',
         data: { schedule_id: scheduleId }
       });
-      
+
       wx.hideLoading();
       loadingShown = false;
-      
+
       if (acceptedTemplates.length > 0) {
         wx.showModal({
           title: '预约成功',
@@ -526,7 +554,7 @@ Page({
       } else {
         wx.showToast({ title: '预约成功', icon: 'success' });
       }
-      
+
       this.loadCourses();
     } catch (err) {
       if (loadingShown) {
@@ -581,7 +609,7 @@ Page({
         method: 'GET'
       });
       const pendingPackage = (res.data?.pending || res.data?.history || []).find(p => p.status === 'pending');
-      
+
       if (pendingPackage) {
         this.setData({
           showActivateModal: true,
@@ -629,7 +657,7 @@ Page({
 
       wx.hideLoading();
       this.setData({ showActivateModal: false, activating: false, pendingPackage: null });
-      
+
       wx.showToast({ title: '套餐已激活', icon: 'success' });
 
       if (pendingScheduleId) {
@@ -750,7 +778,7 @@ Page({
 
   onBookCourse(e) {
     if (!auth.requireLogin(() => this.setData({ showLoginModal: true }))) return;
-    
+
     // 套餐停卡中，拦截预约
     if (this.data.isPackageSuspended) {
       wx.showModal({
@@ -762,7 +790,7 @@ Page({
       });
       return;
     }
-    
+
     if (this.data.isOfficial && !this.data.canBookCurrentStore) {
       const packageStoreNames = this.data.memberPackageStoreIds.map(id => {
         const s = this.data.storeList.find(store => String(store._id) === id);
@@ -779,12 +807,12 @@ Page({
     }
     const course = e.currentTarget.dataset.course;
     if (!course) return;
-    
+
     // 未开放预约，点击无反应
     if (!course.bookingOpen) {
       return;
     }
-    
+
     // 客户端兜底校验：课程已开始不再允许预约
     const { selectedDate } = this.data;
     if (selectedDate) {

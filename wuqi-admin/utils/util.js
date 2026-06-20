@@ -85,6 +85,52 @@ const formatNumber = (num) => {
   return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
 };
 
+// 课程状态文案映射（与后端统一状态枚举一致）
+// 状态枚举: not_open / available / full / offline / cancelled / in_progress / completed / deleted
+const STATUS_TEXT_MAP = {
+  'not_open': '未开放',
+  'available': '可预约',
+  'full': '已满',
+  'offline': '已下线',
+  'cancelled': '已取消',
+  'in_progress': '进行中',
+  'completed': '已完成',
+  'deleted': '已删除',
+};
+
+// 课程取消原因文案映射
+const CANCEL_REASON_TEXT_MAP = {
+  'min_bookings_not_met': '人数不足取消',
+  'admin_cancel': '管理员取消',
+  'holiday': '放假取消',
+  'admin_offline': '管理员下线',
+};
+
+// 预约取消类型文案映射
+const CANCEL_TYPE_TEXT_MAP = {
+  'normal': '正常取消',
+  'exempt': '豁免取消',
+  'admin_cancel': '管理员取消',
+  'min_bookings_not_met': '人数不足取消',
+  'holiday': '放假取消',
+};
+
+// 获取课程状态文案
+const getScheduleStatusText = (status) => {
+  return STATUS_TEXT_MAP[status] || status || '';
+};
+
+// 获取课程取消原因文案
+const getCancelReasonText = (reason) => {
+  return CANCEL_REASON_TEXT_MAP[reason] || reason || '';
+};
+
+// 获取预约取消类型文案
+const getCancelTypeText = (cancelType) => {
+  if (!cancelType) return '已取消';
+  return CANCEL_TYPE_TEXT_MAP[cancelType] || cancelType;
+};
+
 const getStatusText = (status, type = 'booking') => {
   const statusMap = {
     booking: {
@@ -169,6 +215,12 @@ module.exports = {
   getNextDays,
   formatMoney,
   formatNumber,
+  STATUS_TEXT_MAP,
+  CANCEL_REASON_TEXT_MAP,
+  CANCEL_TYPE_TEXT_MAP,
+  getScheduleStatusText,
+  getCancelReasonText,
+  getCancelTypeText,
   getStatusText,
   showToast,
   showLoading,
