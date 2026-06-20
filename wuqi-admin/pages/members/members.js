@@ -151,11 +151,11 @@ Page({
 
   // 跳转到待审核页面
   onGoReview() {
-    wx.navigateTo({ url: '/pages/members/member-review/member-review' });
+    wx.navigateTo({ url: '/package-member/pages/members/member-review/member-review' });
   },
 
   onGoInfoReview() {
-    wx.navigateTo({ url: '/pages/members/info-review/info-review' });
+    wx.navigateTo({ url: '/package-member/pages/members/info-review/info-review' });
   },
 
   // ========== 待审核信息修改数量 ==========
@@ -715,7 +715,7 @@ Page({
     const member = e.currentTarget.dataset.member || (e.detail && e.detail.member);
     if (!member) return;
     wx.navigateTo({
-      url: `/pages/members/member-detail/member-detail?id=${member._id}`
+      url: `/package-member/pages/members/member-detail/member-detail?id=${member._id}`
     });
   }
 });

@@ -3,18 +3,31 @@
     "pages/splash/splash",
     "pages/index/index",
     "pages/booking/booking",
-    "pages/course-detail/course-detail",
-    "pages/profile/profile",
-    "pages/records/records",
-    "pages/coach-detail/coach-detail",
-    "pages/coach-list/coach-list",
-    "pages/package-detail/package-detail",
-    "pages/member-info/member-info",
-    "pages/privacy/privacy",
-    "pages/agreement/agreement",
-    "pages/about/about",
-    "pages/subscribe-settings/subscribe-settings"
+    "pages/profile/profile"
   ],
+  "subPackages": [
+    {
+      "root": "package-sub",
+      "pages": [
+        "pages/course-detail/course-detail",
+        "pages/coach-detail/coach-detail",
+        "pages/coach-list/coach-list",
+        "pages/records/records",
+        "pages/package-detail/package-detail",
+        "pages/member-info/member-info",
+        "pages/privacy/privacy",
+        "pages/agreement/agreement",
+        "pages/about/about",
+        "pages/subscribe-settings/subscribe-settings"
+      ]
+    }
+  ],
+  "preloadRule": {
+    "pages/index/index": {
+      "network": "all",
+      "packages": ["package-sub"]
+    }
+  },
   "window": {
     "navigationBarBackgroundColor": "#FBFAF8",
     "navigationBarTitleText": "舞栖舞蹈社",

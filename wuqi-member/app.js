@@ -120,14 +120,14 @@ App({
   getUserInfo(forceRefresh = false) {
     const now = Date.now();
     const cacheTimeout = 5 * 60 * 1000; // 5分钟缓存
-    
+
     // 如果缓存有效且不强制刷新，直接返回缓存的用户信息
-    if (!forceRefresh && this.globalData.userInfo && 
+    if (!forceRefresh && this.globalData.userInfo &&
         (now - this.globalData.userInfoLastFetch < cacheTimeout)) {
       console.log('[App] 使用缓存的用户信息');
       return Promise.resolve(this.globalData.userInfo);
     }
-    
+
     const { request } = require('./utils/request');
     return request({
       url: '/auth/me',
@@ -135,38 +135,51 @@ App({
     }).then(res => {
       this.globalData.userInfo = res.data;
       this.globalData.userInfoLastFetch = Date.now(); // 更新缓存时间
-      
-      // 优先使用用户信息中绑定的门店
-      const userInfo = res.data;
-      if (userInfo && userInfo.store_id && this.globalData.storeList.length > 0) {
-        const storeId = typeof userInfo.store_id === 'object' && userInfo.store_id ? 
-          (userInfo.store_id._id || userInfo.store_id.id || '') : 
-          (userInfo.store_id || '');
-        if (storeId) {
-          const matchedStore = this.globalData.storeList.find(s => s._id === storeId);
-          if (matchedStore) {
-            this.setStore(matchedStore);
-            return; // 找到匹配的门店，直接返回，不执行默认选择逻辑
-          }
-        }
-      }
-      
-      // 如果本地有保存的门店，也优先使用
-      const savedStore = wx.getStorageSync('currentStore');
-      if (savedStore && savedStore._id) {
-        const matchedStore = this.globalData.storeList.find(s => s._id === savedStore._id);
+      this._tryMatchStoreForUser();
+    }).catch(() => {
+      wx.removeStorageSync('token');
+      this.globalData.token = '';
+    });
+  },
+
+  // 启动时统一匹配用户门店，避免 getUserInfo 和 getStoreList 都触发 determineDefaultStore
+  _tryMatchStoreForUser() {
+    const userInfo = this.globalData.userInfo;
+    const storeList = this.globalData.storeList;
+
+    // 如果门店列表还没加载完，先标记待匹配，等 getStoreList 完成后再执行
+    if (!storeList || storeList.length === 0) {
+      this.globalData._pendingStoreMatch = true;
+      return;
+    }
+    this.globalData._pendingStoreMatch = false;
+
+    // 优先使用用户信息中绑定的门店
+    if (userInfo && userInfo.store_id) {
+      const storeId = typeof userInfo.store_id === 'object' && userInfo.store_id ?
+        (userInfo.store_id._id || userInfo.store_id.id || '') :
+        (userInfo.store_id || '');
+      if (storeId) {
+        const matchedStore = storeList.find(s => s._id === storeId);
         if (matchedStore) {
           this.setStore(matchedStore);
           return;
         }
       }
-      
-      // 只有在上面都没找到的情况下，才执行默认选择逻辑
-      this.determineDefaultStore();
-    }).catch(() => {
-      wx.removeStorageSync('token');
-      this.globalData.token = '';
-    });
+    }
+
+    // 如果本地有保存的门店，也优先使用
+    const savedStore = wx.getStorageSync('currentStore');
+    if (savedStore && savedStore._id) {
+      const matchedStore = storeList.find(s => s._id === savedStore._id);
+      if (matchedStore) {
+        this.setStore(matchedStore);
+        return;
+      }
+    }
+
+    // 只有在上面都没找到的情况下，才执行默认选择逻辑
+    this.determineDefaultStore();
   },
 
   getStoreList() {
@@ -179,7 +192,10 @@ App({
         ? res.data.list
         : (Array.isArray(res.data) ? res.data : []);
       this.globalData.storeList = list;
-      if (!this.globalData.defaultStoreSet) {
+      // 如果 getUserInfo 已经拿到但还在等门店列表，现在统一匹配
+      if (this.globalData._pendingStoreMatch) {
+        this._tryMatchStoreForUser();
+      } else if (!this.globalData.defaultStoreSet) {
         this.determineDefaultStore();
       }
     }).catch(() => {

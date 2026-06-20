@@ -46,11 +46,11 @@ Page({
   },
 
   onOpenPrivacy() {
-    wx.navigateTo({ url: '/pages/privacy/privacy' });
+    wx.navigateTo({ url: '/package-common/pages/privacy/privacy' });
   },
 
   onOpenAgreement() {
-    wx.navigateTo({ url: '/pages/agreement/agreement' });
+    wx.navigateTo({ url: '/package-common/pages/agreement/agreement' });
   },
 
   async onLogin() {

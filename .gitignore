@@ -35,8 +35,8 @@ check-templates.js
 process.exit(0)
 
 # 临时文件
-wuqi-admin/pages/schedule/schedule_full.txt
-wuqi-admin/pages/schedule/schedule_temp.wxss
+wuqi-admin/**/schedule_full.txt
+wuqi-admin/**/schedule_temp.wxss
 
 # 后端上传目录（敏感，不提交）
 wuqi-backend/uploads/

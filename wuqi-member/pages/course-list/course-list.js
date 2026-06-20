@@ -49,7 +49,7 @@ Page({
     const { id } = e.currentTarget.dataset;
     if (!id) return;
     wx.navigateTo({
-      url: '/pages/coach-detail/coach-detail?id=' + id
+      url: '/package-sub/pages/coach-detail/coach-detail?id=' + id
     });
   },
 

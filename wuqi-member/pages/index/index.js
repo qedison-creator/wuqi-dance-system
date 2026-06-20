@@ -7,7 +7,7 @@ const auth = require('../../utils/auth');
 
 function getDanceTagColor(styleName) {
   if (!styleName) return { bg: '#9B89FF', text: '#FFFFFF' };
-  if (styleName.indexOf('古典舞') !== -1 || styleName === '古典舞') {
+  if (styleName.indexOf('古典�?) !== -1 || styleName === '古典�?) {
     return { bg: '#F8D57E', text: '#6B5B2E' };
   }
   if (styleName.indexOf('韩舞') !== -1 || styleName === '韩舞') {
@@ -16,7 +16,7 @@ function getDanceTagColor(styleName) {
   if (styleName.indexOf('街舞') !== -1 || styleName === '街舞') {
     return { bg: '#FF8A7A', text: '#FFFFFF' };
   }
-  if (styleName.indexOf('流行舞') !== -1 || styleName === '流行舞') {
+  if (styleName.indexOf('流行�?) !== -1 || styleName === '流行�?) {
     return { bg: '#A0D4FF', text: '#FFFFFF' };
   }
   var hash = 0;
@@ -42,7 +42,7 @@ Page({
   data: {
     statusBarHeight: 44,
     contentPaddingTop: 400,
-    greeting: { text: '晨间好', emoji: '🌤', sub: '今天也要元气满满' },
+    greeting: { text: '晨间�?, emoji: '🌤', sub: '今天也要元气满满' },
     bannerCurrent: 0,
     storeList: [],
     currentStore: null,
@@ -97,7 +97,7 @@ Page({
     this.updateGreeting();
     this.updateContentPadding();
     const currentStoreId = this.data.currentStore ? this.data.currentStore._id : '';
-    // 从其他 tab 切回时，若课程数据为空则重新加载（修复游客切换 tab 后卡片消失）
+    // 从其�?tab 切回时，若课程数据为空则重新加载（修复游客切�?tab 后卡片消失）
     if (this.data._dataLoaded && this.data._lastStoreId === currentStoreId && (!this.data.recentCourses || this.data.recentCourses.length === 0)) {
       this.setData({ _lastStoreId: currentStoreId });
       this.loadHomeData();
@@ -130,8 +130,7 @@ Page({
       // Phase 1: 当前标题向上滑出
       this.setData({ announceAnimPhase: 'out' });
       setTimeout(() => {
-        // Phase 2: 切换文本，新标题从下方滑入
-        this.setData({
+        // Phase 2: 切换文本，新标题从下方滑�?        this.setData({
           announceBarIndex: nextIdx,
           announceAnimPhase: 'in'
         });
@@ -152,13 +151,13 @@ Page({
   updateGreeting() {
     const hour = new Date().getHours();
     let greeting;
-    if (hour >= 5 && hour < 9)   greeting = { text: '晨间好', emoji: '🌤', sub: '今天也要元气满满' };
-    else if (hour >= 9 && hour < 11)  greeting = { text: '上午好', emoji: '☀️', sub: '舒展身体，准备起舞' };
-    else if (hour >= 11 && hour < 14) greeting = { text: '午后好', emoji: '🌞', sub: '午后的舞蹈时光' };
-    else if (hour >= 14 && hour < 18) greeting = { text: '下午好', emoji: '🌈', sub: '喝杯茶，再来跳舞' };
-    else if (hour >= 18 && hour < 19) greeting = { text: '傍晚好', emoji: '🌅', sub: '下班后的舞动时刻' };
-    else if (hour >= 19 && hour < 23) greeting = { text: '晚间好', emoji: '🌙', sub: '夜晚的律动最迷人' };
-    else if (hour >= 23)              greeting = { text: '夜深了', emoji: '🌃', sub: '早点睡' };
+    if (hour >= 5 && hour < 9)   greeting = { text: '晨间�?, emoji: '🌤', sub: '今天也要元气满满' };
+    else if (hour >= 9 && hour < 11)  greeting = { text: '上午�?, emoji: '☀�?, sub: '舒展身体，准备起�? };
+    else if (hour >= 11 && hour < 14) greeting = { text: '午后�?, emoji: '🌞', sub: '午后的舞蹈时�? };
+    else if (hour >= 14 && hour < 18) greeting = { text: '下午�?, emoji: '🌈', sub: '喝杯茶，再来跳舞' };
+    else if (hour >= 18 && hour < 19) greeting = { text: '傍晚�?, emoji: '🌅', sub: '下班后的舞动时刻' };
+    else if (hour >= 19 && hour < 23) greeting = { text: '晚间�?, emoji: '🌙', sub: '夜晚的律动最迷人' };
+    else if (hour >= 23)              greeting = { text: '夜深�?, emoji: '🌃', sub: '早点�? };
     else                             greeting = { text: '还没睡呢', emoji: '🌠', sub: '好梦，明天见' };
     this.setData({ greeting });
   },
@@ -181,21 +180,20 @@ Page({
     endDate.setDate(endDate.getDate() + 5);
     const endStr = `${endDate.getFullYear()}-${String(endDate.getMonth() + 1).padStart(2, '0')}-${String(endDate.getDate()).padStart(2, '0')}`;
 
-    // 并行加载所有数据
-    Promise.all([
+    // 并行加载所有数�?    Promise.all([
       request({ url: '/home/banners', data: { store_id: storeId } }),
       request({ url: '/home/coaches', data: { store_id: storeId, limit: 6 } }),
-      request({ url: '/schedules', data: { store_id: storeId, limit: 50 } }),
+      request({ url: '/schedules', data: { store_id: storeId, limit: 10 } }),
       request({ url: '/home/images', data: { limit: 6 } })
     ]).then(([bannerRes, coachRes, scheduleRes, imageRes]) => {
-      // 处理轮播图 / 教练头像 / 课程封面 / 视频封面：统一使用 SERVER_BASE
-      // 注意：服务器返回的 URL 可能是 http 或 完整 https 地址，这里统一规范化为 /uploads/xxx 格式
-      // 当图片加载失败时，binderror 会触发 fallback 到本地默认图
+      // 处理轮播�?/ 教练头像 / 课程封面 / 视频封面：统一使用 SERVER_BASE
+      // 注意：服务器返回�?URL 可能�?http �?完整 https 地址，这里统一规范化为 /uploads/xxx 格式
+      // 当图片加载失败时，binderror 会触�?fallback 到本地默认图
       const fixImageUrl = (url) => {
         if (!url) return '';
         // 如果是相对路径（/uploads/xxx），直接拼接 SERVER_BASE
         if (url.startsWith('/')) return SERVER_BASE + url;
-        // 如果是本服务器的 URL（http://IP:3000/... 或 https://api.yuekeme.cn/...），提取路径拼 SERVER_BASE
+        // 如果是本服务器的 URL（http://IP:3000/... �?https://api.yuekeme.cn/...），提取路径�?SERVER_BASE
         const serverHosts = ['101.33.203.22:3000', 'localhost:3000', 'api.yuekeme.cn', 'admin-api.yuekeme.cn'];
         const match = url.match(/^https?:\/\/([^/]+)(\/.*)/);
         if (match) {
@@ -203,15 +201,13 @@ Page({
           if (serverHosts.some(h => host === h || host.endsWith('.' + h))) {
             return SERVER_BASE + match[2];
           }
-          // 外部域名（如 images.unsplash.com）保留原样
-          return url;
+          // 外部域名（如 images.unsplash.com）保留原�?          return url;
         }
         // 其他情况原样返回
         return url;
       };
       const banners = (Array.isArray(bannerRes.data) ? bannerRes.data : (bannerRes.data && bannerRes.data.data) || [])
         .map(b => ({ ...b, image_url: fixImageUrl(b.image_url) }));
-      this.setData({ banners });
 
       // 处理热门教练
       const coachData = coachRes.data || {};
@@ -220,9 +216,8 @@ Page({
         ...c,
         avatar_url: fixImageUrl(c.avatar_url) || ''
       }));
-      this.setData({ hotCoaches: coaches });
 
-      // 处理近期课程（同时处理 cover 字段）- 已取消/下架的不展示
+      // 处理近期课程（同时处�?cover 字段�? 已取�?下架的不展示
       const scheduleData = scheduleRes.data || {};
       const courses = Array.isArray(scheduleData) ? scheduleData : (scheduleData.data || scheduleData.list || []);
       const recentCourses = courses
@@ -250,7 +245,6 @@ Page({
             cover: fixImageUrl(course.cover) || ''
           };
         });
-      this.setData({ recentCourses, loading: false });
 
       // 处理图片
       const rawImages = imageRes.data || [];
@@ -276,15 +270,16 @@ Page({
         };
       });
       const imageUrls = images.map(img => img.image_url);
-      this.setData({ images, imageUrls, loading: false });
+
+      // 合并为一次 setData，减少渲染次数
+      this.setData({ banners, hotCoaches: coaches, recentCourses, images, imageUrls, loading: false });
 
     }).catch((err) => {
       console.error('加载首页数据失败:', err);
       this.setData({ loading: false });
     });
 
-    // 并行加载公告和假期信息
-    this.loadAnnounces();
+    // 并行加载公告和假期信�?    this.loadAnnounces();
     this.loadHolidays();
   },
 
@@ -308,15 +303,13 @@ Page({
 
   onStoreTap() {
     const that = this;
-    // 先检查 scope.userFuzzyLocation 授权状态
-    wx.getSetting({
+    // 先检�?scope.userFuzzyLocation 授权状�?    wx.getSetting({
       success(settingRes) {
         if (settingRes.authSetting['scope.userFuzzyLocation'] === false) {
-          // 用户之前拒绝过，引导去设置页开启
-          wx.showModal({
-            title: '需要位置权限',
-            content: '用于为您匹配最近的门店，请在设置中开启位置信息',
-            confirmText: '去设置',
+          // 用户之前拒绝过，引导去设置页开�?          wx.showModal({
+            title: '需要位置权�?,
+            content: '用于为您匹配最近的门店，请在设置中开启位置信�?,
+            confirmText: '去设�?,
             confirmColor: '#D4956B',
             success(modalRes) {
               if (modalRes.confirm) {
@@ -338,13 +331,12 @@ Page({
             }
           });
         } else {
-          // 未拒绝过，直接调用 wx.getFuzzyLocation
+          // 未拒绝过，直接调�?wx.getFuzzyLocation
           that._getFuzzyLocationAndShowStores();
         }
       },
       fail() {
-        // 获取设置失败，直接调用
-        that._getFuzzyLocationAndShowStores();
+        // 获取设置失败，直接调�?        that._getFuzzyLocationAndShowStores();
       }
     });
   },
@@ -354,13 +346,11 @@ Page({
     wx.getFuzzyLocation({
       type: 'gcj02',
       success(res) {
-        // 缓存用户坐标，下次启动自动匹配最近门店
-        wx.setStorageSync('userCoords', {
+        // 缓存用户坐标，下次启动自动匹配最近门�?        wx.setStorageSync('userCoords', {
           latitude: res.latitude,
           longitude: res.longitude
         });
-        // 计算各门店距离
-        const storesWithDist = app.calcStoresWithDist(res.latitude, res.longitude, that.data.storeList);
+        // 计算各门店距�?        const storesWithDist = app.calcStoresWithDist(res.latitude, res.longitude, that.data.storeList);
         app.globalData.storeList = storesWithDist;
         that.setData({
           storeList: storesWithDist,
@@ -384,8 +374,7 @@ Page({
 
   onLoginSuccess() {
     this.setData({ showLoginModal: false });
-    // 登录成功后刷新页面数据
-    this.loadHomeData();
+    // 登录成功后刷新页面数�?    this.loadHomeData();
   },
 
   checkLocationAuth() {
@@ -402,8 +391,7 @@ Page({
   onLocationAuthConfirm() {
     this.setData({ showLocationAuthModal: false });
     app.globalData.pendingLocationAuth = false;
-    // 用户确认开启位置，调用 wx.getFuzzyLocation 获取坐标后自动匹配最近门店
-    const that = this;
+    // 用户确认开启位置，调用 wx.getFuzzyLocation 获取坐标后自动匹配最近门�?    const that = this;
     wx.getFuzzyLocation({
       type: 'gcj02',
       success(res) {
@@ -421,8 +409,7 @@ Page({
         }
       },
       fail() {
-        // 获取位置失败，不做任何操作
-      }
+        // 获取位置失败，不做任何操�?      }
     });
   },
 
@@ -457,14 +444,14 @@ Page({
     if (!auth.requireLogin(() => this.setData({ showLoginModal: true }))) return;
     const { id } = e.currentTarget.dataset;
     wx.navigateTo({
-      url: `/pages/coach-detail/coach-detail?id=${id}`
+      url: `/package-sub/pages/coach-detail/coach-detail?id=${id}`
     });
   },
 
   onCourseTap(e) {
     const { id } = e.currentTarget.dataset;
     wx.navigateTo({
-      url: `/pages/course-detail/course-detail?id=${id}`
+      url: `/package-sub/pages/course-detail/course-detail?id=${id}`
     });
   },
 
@@ -508,7 +495,7 @@ Page({
       wx.setClipboardData({
         data: store.address,
         success: () => {
-          wx.showToast({ title: '地址已复制，请粘贴到地图App中搜索', icon: 'success' });
+          wx.showToast({ title: '地址已复制，请粘贴到地图App中搜�?, icon: 'success' });
         }
       });
     } else {
@@ -518,7 +505,7 @@ Page({
 
   goCoachList() {
     wx.navigateTo({
-      url: '/pages/coach-list/coach-list'
+      url: '/package-sub/pages/coach-list/coach-list'
     });
   },
 
@@ -649,8 +636,7 @@ Page({
       }
       this.setData({ cardOffsetX: deltaX, cardOpacity: opacity });
     } else if (this._swipeDirection === 'right') {
-      // 右滑：上一张卡片从左侧滑入覆盖，当前卡片不动
-      if (this.data.announceSwiperIndex === 0) return;
+      // 右滑：上一张卡片从左侧滑入覆盖，当前卡片不�?      if (this.data.announceSwiperIndex === 0) return;
       const offset = -600 + deltaX;
       const clampedOffset = Math.min(0, Math.max(-600, offset));
       this.setData({ returnCardOffsetX: clampedOffset });
@@ -672,8 +658,7 @@ Page({
         // 卡片滑出：先动画滑出
         this.setData({ isDragging: false, cardOffsetX: -600, cardOpacity: 0 });
         setTimeout(() => {
-          // 合并所有状态变更到一次setData，避免中间渲染导致抖动
-          this.setData({
+          // 合并所有状态变更到一次setData，避免中间渲染导致抖�?          this.setData({
             announceSwiperIndex: this.data.announceSwiperIndex + 1,
             cardOffsetX: 0,
             cardOpacity: 1,
@@ -696,8 +681,7 @@ Page({
         // 回滑完成：动画到0位置
         this.setData({ isDragging: false, returnCardOffsetX: 0 });
         setTimeout(() => {
-          // 合并所有状态变更到一次setData，避免中间渲染导致抖动
-          this.setData({
+          // 合并所有状态变更到一次setData，避免中间渲染导致抖�?          this.setData({
             announceSwiperIndex: this.data.announceSwiperIndex - 1,
             returnCardVisible: false,
             returnCardOffsetX: -600
@@ -718,8 +702,7 @@ Page({
   },
 
   onProgressTap(e) {
-    // 保留但不再在wxml中使用
-    const index = Number(e.currentTarget.dataset.index);
+    // 保留但不再在wxml中使�?    const index = Number(e.currentTarget.dataset.index);
     if (index !== this.data.announceSwiperIndex) {
       this.setData({ announceSwiperIndex: index });
     }
@@ -729,7 +712,7 @@ Page({
     const store = this.data.currentStore;
     const storeName = store ? store.name : '';
     return {
-      title: storeName ? `舞栖舞蹈社 - ${storeName}` : '舞栖舞蹈社 - 专业舞蹈培训',
+      title: storeName ? `舞栖舞蹈�?- ${storeName}` : '舞栖舞蹈�?- 专业舞蹈培训',
       path: '/pages/index/index',
       imageUrl: ''
     };
@@ -752,7 +735,7 @@ Page({
     const store = this.data.currentStore;
     const storeName = store ? store.name : '';
     return {
-      title: storeName ? `舞栖舞蹈社 - ${storeName}` : '舞栖舞蹈社 - 专业舞蹈培训',
+      title: storeName ? `舞栖舞蹈�?- ${storeName}` : '舞栖舞蹈�?- 专业舞蹈培训',
       query: ''
     };
   },

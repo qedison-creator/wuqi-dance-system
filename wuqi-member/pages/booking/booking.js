@@ -424,7 +424,7 @@ Page({
       return;
     }
     const storeId = this.data.currentStore ? this.data.currentStore._id : '';
-    let url = '/bookings/my?type=booked&pageSize=50';
+    let url = '/bookings/my?type=booked&pageSize=20';
     if (storeId) {
       url += '&store_id=' + storeId;
     }
@@ -724,7 +724,7 @@ Page({
     const course = e.currentTarget.dataset.course;
     if (course && course._id) {
       wx.navigateTo({
-        url: `/pages/course-detail/course-detail?id=${course._id}`
+        url: `/package-sub/pages/course-detail/course-detail?id=${course._id}`
       });
     }
   },

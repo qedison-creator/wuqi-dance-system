@@ -57,50 +57,50 @@ Page({
   },
 
   onGoToStoreMaintenance() {
-    wx.navigateTo({ url: '/pages/shop/store-maintenance/store-maintenance' });
+    wx.navigateTo({ url: '/package-shop/pages/shop/store-maintenance/store-maintenance' });
   },
 
   onGoToSchedule() {
-    wx.navigateTo({ url: '/pages/schedule/schedule' });
+    wx.navigateTo({ url: '/package-schedule/pages/schedule/schedule' });
   },
 
   onGoToBookingWindow() {
-    wx.navigateTo({ url: '/pages/shop/booking-window/booking-window' });
+    wx.navigateTo({ url: '/package-shop/pages/shop/booking-window/booking-window' });
   },
 
   onGoToWaitlist() {
-    wx.navigateTo({ url: '/pages/waitlist/waitlist' });
+    wx.navigateTo({ url: '/package-schedule/pages/waitlist/waitlist' });
   },
 
   onGoToSalary() {
-    wx.navigateTo({ url: '/pages/salary/salary' });
+    wx.navigateTo({ url: '/package-shop/pages/salary/salary' });
   },
 
   onGoToPackageLogs() {
-    wx.navigateTo({ url: '/pages/package-logs/package-logs' });
+    wx.navigateTo({ url: '/package-shop/pages/package-logs/package-logs' });
   },
 
   onGoToCoaches() {
-    wx.navigateTo({ url: '/pages/coaches/coaches' });
+    wx.navigateTo({ url: '/package-shop/pages/coaches/coaches' });
   },
 
   onGoToImages() {
-    wx.navigateTo({ url: '/pages/images/images' });
+    wx.navigateTo({ url: '/package-shop/pages/images/images' });
   },
 
   onGoToBanner() {
-    wx.navigateTo({ url: '/pages/banner/banner' });
+    wx.navigateTo({ url: '/package-shop/pages/banner/banner' });
   },
 
   onGoToHolidays() {
-    wx.navigateTo({ url: '/pages/holidays/holidays' });
+    wx.navigateTo({ url: '/package-shop/pages/holidays/holidays' });
   },
 
   onGoToExemption() {
-    wx.navigateTo({ url: '/pages/settings/exemption/exemption' });
+    wx.navigateTo({ url: '/package-settings/pages/settings/exemption/exemption' });
   },
 
   onGoToAnnouncements() {
-    wx.navigateTo({ url: '/pages/announcements/announcements' });
+    wx.navigateTo({ url: '/package-shop/pages/announcements/announcements' });
   },
 });

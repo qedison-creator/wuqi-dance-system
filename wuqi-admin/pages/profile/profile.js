@@ -128,39 +128,39 @@ Page({
   },
 
   onManageAccounts() {
-    wx.navigateTo({ url: '/pages/settings/accounts/accounts' });
+    wx.navigateTo({ url: '/package-settings/pages/settings/accounts/accounts' });
   },
 
   onAccountSecurity() {
-    wx.navigateTo({ url: '/pages/profile/account-security/account-security' });
+    wx.navigateTo({ url: '/package-common/pages/profile/account-security/account-security' });
   },
 
   onGoToConfig() {
-    wx.navigateTo({ url: '/pages/settings/config/config' });
+    wx.navigateTo({ url: '/package-settings/pages/settings/config/config' });
   },
 
   onGoToSettings() {
-    wx.navigateTo({ url: '/pages/settings/settings' });
+    wx.navigateTo({ url: '/package-settings/pages/settings/settings' });
   },
 
   onSystemReset() {
-    wx.navigateTo({ url: '/pages/system-reset/system-reset' });
+    wx.navigateTo({ url: '/package-settings/pages/system-reset/system-reset' });
   },
 
   onOperationLog() {
-    wx.navigateTo({ url: '/pages/logs/logs' });
+    wx.navigateTo({ url: '/package-common/pages/logs/logs' });
   },
 
   onAbout() {
-    wx.navigateTo({ url: '/pages/about/about' });
+    wx.navigateTo({ url: '/package-common/pages/about/about' });
   },
 
   onPrivacy() {
-    wx.navigateTo({ url: '/pages/privacy/privacy' });
+    wx.navigateTo({ url: '/package-common/pages/privacy/privacy' });
   },
 
   onAgreement() {
-    wx.navigateTo({ url: '/pages/agreement/agreement' });
+    wx.navigateTo({ url: '/package-common/pages/agreement/agreement' });
   },
 
   onLogout() {

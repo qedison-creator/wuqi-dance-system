@@ -15,7 +15,8 @@ App({
   onLaunch() {
     this.silenceUnsupportedApi();
     this.registerPrivacyHandler();
-    this.initDeviceFingerprint();
+    // 延迟初始化设备指纹，不阻塞启动
+    setTimeout(() => this.initDeviceFingerprint(), 0);
     const token = wx.getStorageSync('admin_token');
     if (token) {
       this.globalData.token = token;

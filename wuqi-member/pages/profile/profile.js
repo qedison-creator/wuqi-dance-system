@@ -73,8 +73,7 @@ Page({
   getMemberSinceDays(userInfo, packages) {
     if (!userInfo) return 0;
 
-    // 按北京时间取整的天数差
-    const getBeijingDateStr = (date) => {
+    // 按北京时间取整的天数�?    const getBeijingDateStr = (date) => {
       const d = new Date(date);
       const beijingTime = d.getTime() + 8 * 60 * 60 * 1000;
       const beijingDate = new Date(beijingTime);
@@ -89,8 +88,7 @@ Page({
     const now = new Date();
     let baseDate = null;
 
-    // 正式会员优先以最早套餐的开始日期作为加入时间
-    if (userInfo.member_status === 'official' && packages && packages.length > 0) {
+    // 正式会员优先以最早套餐的开始日期作为加入时�?    if (userInfo.member_status === 'official' && packages && packages.length > 0) {
       packages.forEach(function(pkg) {
         if (pkg.start_date) {
           const d = new Date(pkg.start_date);
@@ -99,8 +97,7 @@ Page({
       });
     }
 
-    // 没有套餐时回退到注册时间
-    if (!baseDate) {
+    // 没有套餐时回退到注册时�?    if (!baseDate) {
       const created = userInfo.created_at || userInfo.createdAt || userInfo.join_date;
       if (!created) return 0;
       baseDate = new Date(created);
@@ -149,8 +146,7 @@ Page({
     }
   },
 
-  // 根据弹窗状态动态开关下拉刷新
-  _isAnyModalOpen() {
+  // 根据弹窗状态动态开关下拉刷�?  _isAnyModalOpen() {
     return this.data.showPackageDetail || this.data.showQRModal
       || this.data.showForceProfileModal || this.data.showStorePicker
       || this.data.showChangePhoneModal || this.data.showTransferModal
@@ -167,8 +163,7 @@ Page({
     } catch (e) {
       console.error('刷新失败:', e);
     } finally {
-      // 无论成功失败，都要停止刷新动画
-      this.setData({ refresherTriggered: false });
+      // 无论成功失败，都要停止刷新动�?      this.setData({ refresherTriggered: false });
     }
   },
 
@@ -224,8 +219,7 @@ Page({
               });
             }
 
-            // 计算北京时区的自然日差值
-    const getBeijingDateStr = (date) => {
+            // 计算北京时区的自然日差�?    const getBeijingDateStr = (date) => {
       const d = new Date(date);
       const beijingTime = d.getTime() + 8 * 60 * 60 * 1000;
       const beijingDate = new Date(beijingTime);
@@ -301,8 +295,7 @@ Page({
                 completedClasses: this.data.stats.completedClasses
               }
             });
-            // 套餐加载完成后再按套餐开始日期校准加入天数，保持与已用天数口径一致
-            var userInfo = this.data.userInfo;
+            // 套餐加载完成后再按套餐开始日期校准加入天数，保持与已用天数口径一�?            var userInfo = this.data.userInfo;
             if (userInfo) {
               this.setData({ memberSinceDays: this.getMemberSinceDays(userInfo, packages) });
             }
@@ -368,8 +361,7 @@ Page({
             }
             app.globalData.userInfo = userInfo;
             
-            // 检查是否需要完善个人信息
-            this._checkForceProfile(profileForm, userInfo);
+            // 检查是否需要完善个人信�?            this._checkForceProfile(profileForm, userInfo);
           }
         }.bind(this)).catch(function(err) {
           console.error('加载用户信息失败:', err);
@@ -406,8 +398,7 @@ Page({
           packageIds[currentPkg._id] = true;
         }
 
-        // 计算北京时区的自然日差值
-        const getBeijingDateStr = (date) => {
+        // 计算北京时区的自然日差�?        const getBeijingDateStr = (date) => {
           const d = new Date(date);
           const beijingTime = d.getTime() + 8 * 60 * 60 * 1000;
           const beijingDate = new Date(beijingTime);
@@ -488,8 +479,7 @@ Page({
           memberStatus: memberStatus,
           'stats.remainingClasses': remainingClasses
         });
-        // 刷新完成后同步加入天数
-        var userInfo = this.data.userInfo;
+        // 刷新完成后同步加入天�?        var userInfo = this.data.userInfo;
         if (userInfo) {
           this.setData({ memberSinceDays: this.getMemberSinceDays(userInfo, packages) });
         }
@@ -550,13 +540,13 @@ Page({
     request({ url: '/stores' }).then(function(res) {
       var storeList = res.data && res.data.list ? res.data.list : (Array.isArray(res.data) ? res.data : []);
       if (storeList.length === 0) {
-        wx.showToast({ title: '暂无可选门店', icon: 'none' });
+        wx.showToast({ title: '暂无可选门�?, icon: 'none' });
         return;
       }
       this.setData({
         storeList: storeList,
         showStorePicker: true,
-        storePickerTitle: '选择所在门店',
+        storePickerTitle: '选择所在门�?,
         storePickerMode: 'login',
         selectedStoreId: '',
         selectedStoreName: '',
@@ -573,7 +563,7 @@ Page({
         this.setData({
           storeList: res.data || [],
           showStorePicker: true,
-          storePickerTitle: '选择所在门店',
+          storePickerTitle: '选择所在门�?,
           storePickerMode: 'edit',
           selectedStoreId: this.data.profileForm.store_id,
           selectedStoreName: this.data.profileForm.store_name
@@ -583,7 +573,7 @@ Page({
     } else {
       this.setData({
         showStorePicker: true,
-        storePickerTitle: '选择所在门店',
+        storePickerTitle: '选择所在门�?,
         storePickerMode: 'edit',
         selectedStoreId: this.data.profileForm.store_id,
         selectedStoreName: this.data.profileForm.store_name
@@ -632,7 +622,7 @@ Page({
   },
 
   doLogin(storeId) {
-    wx.showLoading({ title: '登录中...' });
+    wx.showLoading({ title: '登录�?..' });
     var wxLogin = require('../../utils/auth').wxLogin;
     wxLogin(storeId).then(function() {
       wx.hideLoading();
@@ -664,12 +654,12 @@ Page({
     var gender = this.data.profileForm.gender;
 
     if (!real_name || !real_name.trim()) {
-      wx.showToast({ title: '请输入真实姓名', icon: 'none' });
+      wx.showToast({ title: '请输入真实姓�?, icon: 'none' });
       return;
     }
 
     if (!phone || phone.length !== 11) {
-      wx.showToast({ title: '请输入正确的手机号', icon: 'none' });
+      wx.showToast({ title: '请输入正确的手机�?, icon: 'none' });
       return;
     }
 
@@ -683,7 +673,7 @@ Page({
       return;
     }
 
-    wx.showLoading({ title: '保存中...' });
+    wx.showLoading({ title: '保存�?..' });
 
     var postData = { real_name: real_name, phone: phone, gender: gender };
 
@@ -786,26 +776,22 @@ Page({
       // 门店名称
       pkg._storeName = (pkg.store_id && pkg.store_id.name) ? pkg.store_id.name : '';
 
-      // 套餐类型标签（简短版用于标签）
-      pkg._typeLabel = pkg.package_type === 'time_card' ? '时间卡' : '次卡';
+      // 套餐类型标签（简短版用于标签�?      pkg._typeLabel = pkg.package_type === 'time_card' ? '时间�? : '次卡';
       
-      // 状态文案（情绪价值表达，无emoji）
-      // 动态修正：已激活但有效期已过的，标记为已过期
-      var isExpired = pkg.is_activated && pkg.end_date && new Date() > new Date(pkg.end_date);
+      // 状态文案（情绪价值表达，无emoji�?      // 动态修正：已激活但有效期已过的，标记为已过�?      var isExpired = pkg.is_activated && pkg.end_date && new Date() > new Date(pkg.end_date);
       if (pkg.is_suspended) {
-        pkg._statusText = '暂停中';
+        pkg._statusText = '暂停�?;
       } else if (isExpired || pkg.status === 'expired') {
-        pkg._statusText = '已过期';
+        pkg._statusText = '已过�?;
       } else if (pkg.status === 'active') {
-        pkg._statusText = '畅享中';
+        pkg._statusText = '畅享�?;
       } else if (pkg.status === 'pending') {
-        pkg._statusText = '静待开启';
+        pkg._statusText = '静待开�?;
       } else {
-        pkg._statusText = '已满载';
+        pkg._statusText = '已满�?;
       }
 
-      // 自动激活日期
-      if (!pkg.is_activated && pkg.auto_activate_at) {
+      // 自动激活日�?      if (!pkg.is_activated && pkg.auto_activate_at) {
         var autoDate = new Date(pkg.auto_activate_at);
         pkg._autoActivateDate = autoDate.getFullYear() + '-' +
           String(autoDate.getMonth() + 1).padStart(2, '0') + '-' +
@@ -818,8 +804,7 @@ Page({
         pkg._autoActivateDays = 0;
       }
 
-      // 进度条
-      if (pkg.is_activated && pkg.status === 'active' && !pkg.is_suspended) {
+      // 进度�?      if (pkg.is_activated && pkg.status === 'active' && !pkg.is_suspended) {
         if (pkg.package_type === 'count_card') {
           var totalC = pkg.total_credits || 0;
           var usedC = totalC - (pkg.remaining_credits || 0);
@@ -828,7 +813,7 @@ Page({
           pkg._totalAmount = totalC;
           pkg._progressPercent = totalC > 0 ? Math.min(Math.round((usedC / totalC) * 100), 100) : 0;
           pkg._hasProgress = true;
-          pkg._progressLabel = '已用 ' + usedC + ' 次';
+          pkg._progressLabel = '已用 ' + usedC + ' �?;
         } else if (pkg.package_type === 'time_card') {
           var totalDays = 0;
           if (pkg.start_date && pkg.end_date) {
@@ -847,7 +832,7 @@ Page({
           pkg._totalAmount = totalDays;
           pkg._progressPercent = totalDays > 0 ? Math.min(Math.round((usedDays / totalDays) * 100), 100) : 0;
           pkg._hasProgress = totalDays > 0;
-          pkg._progressLabel = '已用 ' + usedDays + ' 天';
+          pkg._progressLabel = '已用 ' + usedDays + ' �?;
         } else {
           pkg._hasProgress = false;
         }
@@ -855,8 +840,7 @@ Page({
         pkg._hasProgress = false;
       }
 
-      // 时间卡使用情况（本周预约）
-      if (pkg.package_type === 'time_card' && pkg.timeCardUsage) {
+      // 时间卡使用情况（本周预约�?      if (pkg.package_type === 'time_card' && pkg.timeCardUsage) {
         pkg._weekUsed = pkg.timeCardUsage.weekly_used !== null ? pkg.timeCardUsage.weekly_used : pkg.timeCardUsage.daily_used;
         pkg._weekLimit = pkg.timeCardUsage.weekly_limit !== null ? pkg.timeCardUsage.weekly_limit : pkg.timeCardUsage.daily_limit;
         pkg._weekRemaining = pkg.timeCardUsage.weekly_remaining !== null ? pkg.timeCardUsage.weekly_remaining : pkg.timeCardUsage.daily_remaining;
@@ -865,46 +849,41 @@ Page({
         pkg._periodLabel = pkg.timeCardUsage.weekly_limit ? '本周' : (pkg.timeCardUsage.daily_limit ? '今日' : '');
       }
       
-      // 待激活套餐显示文本
-            if (pkg.package_type === 'count_card') {
-                var unitText = pkg.duration_unit === 'month' ? '个月' : '天';
-                pkg._pendingCreditsText = '共 ' + (pkg.total_credits || pkg.remaining_credits || 0) + ' 次 · 有效期 ' + (pkg.duration_value || '-') + unitText;
+      // 待激活套餐显示文�?            if (pkg.package_type === 'count_card') {
+                var unitText = pkg.duration_unit === 'month' ? '个月' : '�?;
+                pkg._pendingCreditsText = '�?' + (pkg.total_credits || pkg.remaining_credits || 0) + ' �?· 有效�?' + (pkg.duration_value || '-') + unitText;
             } else {
-                var unitText = pkg.duration_unit === 'month' ? '个月' : '天';
-                pkg._pendingCreditsText = '有效期 ' + (pkg.duration_value || '-') + unitText;
+                var unitText = pkg.duration_unit === 'month' ? '个月' : '�?;
+                pkg._pendingCreditsText = '有效�?' + (pkg.duration_value || '-') + unitText;
             }
             
             // 历史套餐统计文本
             if (pkg.package_type === 'count_card') {
                 if (pkg.total_credits) {
                     var used = pkg.total_credits - (pkg.remaining_credits || 0);
-                    pkg._historyStat = '已用 ' + used + ' / 共 ' + pkg.total_credits + ' 次';
+                    pkg._historyStat = '已用 ' + used + ' / �?' + pkg.total_credits + ' �?;
                 } else {
-                    pkg._historyStat = '剩余 ' + (pkg.remaining_credits || 0) + ' 次';
+                    pkg._historyStat = '剩余 ' + (pkg.remaining_credits || 0) + ' �?;
                 }
             } else {
-                pkg._historyStat = (pkg.start_date_display || '') + ' 至 ' + (pkg.end_date_display || '');
+                pkg._historyStat = (pkg.start_date_display || '') + ' �?' + (pkg.end_date_display || '');
             }
 
-      // 预计算动态 class 和 style
+      // 预计算动�?class �?style
       pkg._progressFillClass = 'pkg-progress-fill pkg-progress-fill-' + pkg.status;
       pkg._progressWidthStyle = 'width: ' + (pkg._progressPercent || 0) + '%;';
       
-      // 分类：使用中 / 待激活 / 历史
-      // 使用中：status === 'active'，未暂停，且未过期，且次卡还有次数
-      // 过期的套餐（即使 status 仍为 active）归入历史
-      if (pkg.status === 'active' && !pkg.is_suspended && !isExpired) {
+      // 分类：使用中 / 待激�?/ 历史
+      // 使用中：status === 'active'，未暂停，且未过期，且次卡还有次�?      // 过期的套餐（即使 status 仍为 active）归入历�?      if (pkg.status === 'active' && !pkg.is_suspended && !isExpired) {
         activePackages.push(pkg);
       } else if (pkg.status === 'pending') {
         pendingPackages.push(pkg);
       } else {
-        // 历史：expired / 过期的active / 用完的active / 暂停的(is_suspended) / exhausted等
-        historyPackages.push(pkg);
+        // 历史：expired / 过期的active / 用完的active / 暂停�?is_suspended) / exhausted�?        historyPackages.push(pkg);
       }
     });
 
-    // currentPackage取第一个active（兼容旧逻辑）
-    if (activePackages.length > 0) {
+    // currentPackage取第一个active（兼容旧逻辑�?    if (activePackages.length > 0) {
       currentPackage = activePackages[0];
     }
 
@@ -914,8 +893,8 @@ Page({
       activePackages: activePackages,
       pendingPackages: pendingPackages,
       historyPackages: historyPackages,
-      currentPackageType: currentPackage ? (currentPackage.package_type === 'time_card' ? '时间卡' : '次卡') : '',
-      memberStatusText: memberStatus === 'active' ? '正式会员' : (memberStatus === 'suspended' ? '已停用' : '待激活')
+      currentPackageType: currentPackage ? (currentPackage.package_type === 'time_card' ? '时间�? : '次卡') : '',
+      memberStatusText: memberStatus === 'active' ? '正式会员' : (memberStatus === 'suspended' ? '已停�? : '待激�?)
     });
   },
 
@@ -981,23 +960,22 @@ Page({
 
   onMemberInfo() {
     if (!requireLogin()) return;
-    wx.navigateTo({ url: '/pages/member-info/member-info' });
+    wx.navigateTo({ url: '/package-sub/pages/member-info/member-info' });
   },
 
-  // 审核通过后引导完善资料
-  onGoSetup() {
+  // 审核通过后引导完善资�?  onGoSetup() {
     if (!requireLogin()) return;
-    wx.navigateTo({ url: '/pages/member-info/member-info' });
+    wx.navigateTo({ url: '/package-sub/pages/member-info/member-info' });
   },
 
   onSubscribeSettings() {
     if (!requireLogin()) return;
-    wx.navigateTo({ url: '/pages/subscribe-settings/subscribe-settings' });
+    wx.navigateTo({ url: '/package-sub/pages/subscribe-settings/subscribe-settings' });
   },
 
   onMyBookings() {
     if (!requireLogin()) return;
-    wx.navigateTo({ url: '/pages/records/records' });
+    wx.navigateTo({ url: '/package-sub/pages/records/records' });
   },
 
   onTransferCard() {
@@ -1043,7 +1021,7 @@ Page({
       wx.showToast({ title: '请选择目标门店', icon: 'none' });
       return;
     }
-    wx.showLoading({ title: '提交中...' });
+    wx.showLoading({ title: '提交�?..' });
     request({
       url: '/transfers',
       method: 'POST',
@@ -1063,7 +1041,7 @@ Page({
   onAbout() {
     wx.showModal({
       title: '关于系统',
-      content: '舞栖舞蹈社会员预约系统 V1.0.0\n\n为您提供课程预约、教练查看、会员签到等一站式舞蹈学习服务。\n\n如有疑问请联系门店客服。',
+      content: '舞栖舞蹈社会员预约系�?V1.0.0\n\n为您提供课程预约、教练查看、会员签到等一站式舞蹈学习服务。\n\n如有疑问请联系门店客服�?,
       showCancel: false,
       confirmText: '我知道了',
       confirmColor: '#D4786E'
@@ -1071,15 +1049,15 @@ Page({
   },
 
   onPrivacy() {
-    wx.navigateTo({ url: '/pages/privacy/privacy' });
+    wx.navigateTo({ url: '/package-sub/pages/privacy/privacy' });
   },
 
   onAgreement() {
-    wx.navigateTo({ url: '/pages/agreement/agreement' });
+    wx.navigateTo({ url: '/package-sub/pages/agreement/agreement' });
   },
 
   onAbout() {
-    wx.navigateTo({ url: '/pages/about/about' });
+    wx.navigateTo({ url: '/package-sub/pages/about/about' });
   },
 
   onContactStore() {
@@ -1158,7 +1136,7 @@ Page({
           this.setData({ checkInAutoCloseTimer: timer });
         }
       }.bind(this)).catch(function(err) {
-        console.error('签到状态轮询失败:', err);
+        console.error('签到状态轮询失�?', err);
       });
     }.bind(this), 2000);
   },
@@ -1196,8 +1174,7 @@ Page({
           qrCountdown: this.data.qrExpireSeconds,
           qrCodeUrl: ''
         });
-        // 使用 Canvas 生成二维码（包含 JSON 数据，不依赖外部 URL）
-        this.drawQRCodeToCanvas(encryptedToken);
+        // 使用 Canvas 生成二维码（包含 JSON 数据，不依赖外部 URL�?        this.drawQRCodeToCanvas(encryptedToken);
       }
       this.startCountdown();
       this.qrRefreshTimer = setInterval(function() {
@@ -1293,7 +1270,7 @@ Page({
     var newPhone = this.data.newPhone;
 
     if (!newPhone || newPhone.length !== 11) {
-      wx.showToast({ title: '请输入正确的手机号', icon: 'none' });
+      wx.showToast({ title: '请输入正确的手机�?, icon: 'none' });
       return;
     }
 
@@ -1312,7 +1289,7 @@ Page({
       console.log('[Profile] 请求审核订阅授权失败:', e.message);
     }
 
-    wx.showLoading({ title: '提交中...' });
+    wx.showLoading({ title: '提交�?..' });
 
     var requestModule = require('../../utils/request');
 
@@ -1322,7 +1299,7 @@ Page({
       data: { new_phone: newPhone }
     }).then(function() {
       wx.hideLoading();
-      wx.showToast({ title: '已提交审核，请等待', icon: 'success' });
+      wx.showToast({ title: '已提交审核，请等�?, icon: 'success' });
       this.setData({ showChangePhoneModal: false });
       this._updatePullDownRefresh();
     }.bind(this)).catch(function(err) {
@@ -1354,18 +1331,15 @@ Page({
   onHandleTouchMove(e) {
     const currentY = e.touches[0].clientY;
     const diffY = currentY - this._handleStartY;
-    // 只允许向下拖拽，向上不响应
-    if (diffY > 0) {
-      // 加阻尼：拖拽距离越大越费力
-      const dampedY = diffY * 0.6;
+    // 只允许向下拖拽，向上不响�?    if (diffY > 0) {
+      // 加阻尼：拖拽距离越大越费�?      const dampedY = diffY * 0.6;
       this.setData({ sheetDragY: dampedY });
     }
   },
 
   onHandleTouchEnd() {
     const dragY = this.data.sheetDragY;
-    // 拖拽超过 100px 关闭弹窗，否则回弹
-    if (dragY > 100) {
+    // 拖拽超过 100px 关闭弹窗，否则回�?    if (dragY > 100) {
       this.setData({ sheetDragY: 0, sheetDragging: false });
       this.onClosePackageDetail();
     } else {

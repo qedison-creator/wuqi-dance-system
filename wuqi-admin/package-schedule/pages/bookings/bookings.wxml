@@ -1,0 +1,172 @@
+<view class="bookings-page">
+  <!-- 排课信息头部 -->
+  <view class="schedule-header card" wx:if="{{scheduleInfo}}">
+    <view class="schedule-title">
+      <text class="course-name">{{scheduleInfo.course_name || (scheduleInfo.dance_style_id && scheduleInfo.dance_style_id.name ? scheduleInfo.dance_style_id.name + '课程' : '课程')}}</text>
+      <text class="schedule-status {{scheduleInfo.status}}">{{scheduleInfo.statusText}}</text>
+    </view>
+    <view class="schedule-detail">
+      <text class="detail-item">{{scheduleInfo.date}} {{scheduleInfo.start_time}}-{{scheduleInfo.end_time}}</text>
+      <text class="detail-item">{{scheduleInfo.coach_id && scheduleInfo.coach_id.name ? scheduleInfo.coach_id.name : ''}}</text>
+      <text class="detail-item">{{scheduleInfo.store_id && scheduleInfo.store_id.name ? scheduleInfo.store_id.name : ''}}</text>
+    </view>
+    <view class="booking-stats" wx:if="{{viewMode !== 'attendance'}}">
+      <view class="stat-item">
+        <text class="stat-num">{{bookedList.length}}</text>
+        <text class="stat-label">已预约</text>
+      </view>
+      <view class="stat-item">
+        <text class="stat-num">{{completedList.length}}</text>
+        <text class="stat-label">已签到</text>
+      </view>
+      <view class="stat-item">
+        <text class="stat-num">{{cancelledList.length}}</text>
+        <text class="stat-label">已取消</text>
+      </view>
+      <view class="stat-item">
+        <text class="stat-num">{{exemptedList.length}}</text>
+        <text class="stat-label">已豁免</text>
+      </view>
+    </view>
+    <view class="booking-stats" wx:if="{{viewMode === 'attendance'}}">
+      <view class="stat-item">
+        <text class="stat-num">{{attendanceList.length}}</text>
+        <text class="stat-label">上课记录</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- Tab切换 (预约视图) -->
+  <view class="tab-bar" wx:if="{{viewMode !== 'attendance'}}">
+    <view class="tab-item {{activeTab === 'booked' ? 'active' : ''}}" data-tab="booked" bindtap="onTabChange">
+      <text>已预约({{bookedList.length}})</text>
+    </view>
+    <view class="tab-item {{activeTab === 'completed' ? 'active' : ''}}" data-tab="completed" bindtap="onTabChange">
+      <text>已签到({{completedList.length}})</text>
+    </view>
+    <view class="tab-item {{activeTab === 'cancelled' ? 'active' : ''}}" data-tab="cancelled" bindtap="onTabChange">
+      <text>已取消({{cancelledList.length}})</text>
+    </view>
+    <view class="tab-item {{activeTab === 'exempted' ? 'active' : ''}}" data-tab="exempted" bindtap="onTabChange">
+      <text>已豁免({{exemptedList.length}})</text>
+    </view>
+  </view>
+
+  <!-- 已预约名单 -->
+  <view class="booking-list" wx:if="{{viewMode !== 'attendance' && activeTab === 'booked'}}">
+    <view class="booking-item card" wx:for="{{bookedList}}" wx:key="_id">
+      <view class="user-info">
+        <image class="user-avatar" src="{{item.userAvatar || '/images/default-avatar.svg'}}" mode="aspectFill" lazy-load></image>
+        <view class="user-detail">
+          <text class="user-name">{{item.userName}}</text>
+          <text class="user-nick-name" wx:if="{{item.userNickName}}">{{item.userNickName}}</text>
+          <text class="user-phone" wx:if="{{item.userPhone}}">{{item.userPhone}}</text>
+          <text class="booking-time">预约时间: {{item.bookingTime}}</text>
+        </view>
+      </view>
+      <view class="booking-meta">
+        <text class="credits">扣课: {{item.creditsDeducted}}次</text>
+        <view class="action-btn danger" data-id="{{item._id}}" bindtap="onCancelBooking">
+          <text>取消预约</text>
+        </view>
+      </view>
+    </view>
+    <view class="empty-state" wx:if="{{bookedList.length === 0}}">
+      <text class="empty-text">暂无已预约会员</text>
+    </view>
+  </view>
+
+  <!-- 已签到名单 -->
+  <view class="booking-list" wx:if="{{viewMode !== 'attendance' && activeTab === 'completed'}}">
+    <view class="booking-item card" wx:for="{{completedList}}" wx:key="_id">
+      <view class="user-info">
+        <image class="user-avatar" src="{{item.userAvatar || '/images/default-avatar.svg'}}" mode="aspectFill" lazy-load></image>
+        <view class="user-detail">
+          <text class="user-name">{{item.userName}}</text>
+          <text class="user-nick-name" wx:if="{{item.userNickName}}">{{item.userNickName}}</text>
+          <text class="user-phone" wx:if="{{item.userPhone}}">{{item.userPhone}}</text>
+          <text class="booking-time" wx:if="{{item.checkInTime}}">签到时间: {{item.checkInTime}}</text>
+        </view>
+      </view>
+      <view class="booking-meta">
+        <text class="credits">扣课: {{item.creditsDeducted}}次</text>
+      </view>
+    </view>
+    <view class="empty-state" wx:if="{{completedList.length === 0}}">
+      <text class="empty-text">暂无已签到会员</text>
+    </view>
+  </view>
+
+  <!-- 已取消名单 -->
+  <view class="booking-list" wx:if="{{viewMode !== 'attendance' && activeTab === 'cancelled'}}">
+    <view class="booking-item card cancelled" wx:for="{{cancelledList}}" wx:key="_id">
+      <view class="user-info">
+        <image class="user-avatar" src="{{item.userAvatar || '/images/default-avatar.svg'}}" mode="aspectFill" lazy-load></image>
+        <view class="user-detail">
+          <text class="user-name">{{item.userName}}</text>
+          <text class="user-nick-name" wx:if="{{item.userNickName}}">{{item.userNickName}}</text>
+          <text class="user-phone" wx:if="{{item.userPhone}}">{{item.userPhone}}</text>
+          <text class="booking-time">原预约时间: {{item.bookingTime}}</text>
+        </view>
+      </view>
+      <view class="booking-meta">
+        <view class="cancel-info">
+          <text class="cancel-time">取消: {{item.cancelTime}}</text>
+          <text class="cancel-reason" wx:if="{{item.cancelReason}}">原因: {{item.cancelReason}}</text>
+        </view>
+        <text class="credits refunded">退还: {{item.creditsRefunded}}次</text>
+      </view>
+    </view>
+    <view class="empty-state" wx:if="{{cancelledList.length === 0}}">
+      <text class="empty-text">暂无已取消预约</text>
+    </view>
+  </view>
+
+  <!-- 已豁免名单 -->
+  <view class="booking-list" wx:if="{{viewMode !== 'attendance' && activeTab === 'exempted'}}">
+    <view class="booking-item card exempted" wx:for="{{exemptedList}}" wx:key="_id">
+      <view class="user-info">
+        <image class="user-avatar" src="{{item.userAvatar || '/images/default-avatar.svg'}}" mode="aspectFill" lazy-load></image>
+        <view class="user-detail">
+          <text class="user-name">{{item.userName}}</text>
+          <text class="user-nick-name" wx:if="{{item.userNickName}}">{{item.userNickName}}</text>
+          <text class="user-phone" wx:if="{{item.userPhone}}">{{item.userPhone}}</text>
+          <text class="booking-time">预约时间: {{item.bookingTime}}</text>
+        </view>
+      </view>
+      <view class="booking-meta">
+        <text class="exempt-tag">已豁免</text>
+        <text class="credits">扣课: {{item.creditsDeducted}}次</text>
+      </view>
+    </view>
+    <view class="empty-state" wx:if="{{exemptedList.length === 0}}">
+      <text class="empty-text">暂无已豁免会员</text>
+    </view>
+  </view>
+
+  <!-- 上课记录（attendance视图） -->
+  <view class="booking-list" wx:if="{{viewMode === 'attendance'}}">
+    <view class="booking-item card" wx:for="{{attendanceList}}" wx:key="_id">
+      <view class="user-info">
+        <image class="user-avatar" src="{{item.userAvatar || '/images/default-avatar.svg'}}" mode="aspectFill" lazy-load></image>
+        <view class="user-detail">
+          <view class="user-name-row">
+            <text class="user-name">{{item.userName}}</text>
+            <text class="user-nick" wx:if="{{item.userNickName}}">（{{item.userNickName}}）</text>
+          </view>
+          <text class="user-phone" wx:if="{{item.userPhone}}">{{item.userPhone}}</text>
+          <text class="booking-time" wx:if="{{item.checkInTime}}">签到时间: {{item.checkInTime}}</text>
+        </view>
+      </view>
+      <view class="booking-meta">
+        <view class="check-in-method method-{{item.checkInMethod}}" wx:if="{{item.checkedIn}}">
+          <text>{{item.checkInMethodText}}</text>
+        </view>
+        <text class="credits">扣课: {{item.creditsCost}}次</text>
+      </view>
+    </view>
+    <view class="empty-state" wx:if="{{attendanceList.length === 0}}">
+      <text class="empty-text">暂无上课记录</text>
+    </view>
+  </view>
+</view>

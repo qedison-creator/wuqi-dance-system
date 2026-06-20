@@ -58,7 +58,7 @@
     <view class="banner-section" wx:if="{{banners.length > 0}}">
       <swiper class="banner-swiper" indicator-dots="{{false}}" autoplay circular interval="5000" easing-function="easeInOutCubic" duration="600" bindchange="onBannerChange">
         <swiper-item wx:for="{{banners}}" wx:key="_id">
-          <image class="banner-img" src="{{imageErrors['banner_'+item._id] ? '/images/default-course.svg' : item.image_url}}" binderror="onImgError" data-type="banner" data-id="{{item._id}}" mode="aspectFill" />
+          <image class="banner-img" src="{{imageErrors['banner_'+item._id] ? '/images/default-course.svg' : item.image_url}}" binderror="onImgError" data-type="banner" data-id="{{item._id}}" mode="aspectFill" lazy-load />
         </swiper-item>
       </swiper>
       <view class="banner-gradient"></view>

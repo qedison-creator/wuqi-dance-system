@@ -4,43 +4,9 @@
     "pages/login/login",
     "pages/dashboard/dashboard",
     "pages/operations/operations",
-    "pages/schedule/schedule",
     "pages/members/members",
     "pages/shop/shop",
-    "pages/shop/store-maintenance/store-maintenance",
-    "pages/shop/booking-window/booking-window",
-    "pages/todo-list/todo-list",
-    "pages/members/member-detail/member-detail",
-    "pages/members/booking-list/booking-list",
-    "pages/members/member-review/member-review",
-    "pages/members/phone-review/phone-review",
-    "pages/members/info-review/info-review",
-    "pages/bookings/bookings",
-    "pages/check-in/check-in",
-    "pages/salary/salary",
-    "pages/waitlist/waitlist",
-    "pages/transfers/transfers",
-    "pages/package-logs/package-logs",
-    "pages/images/images",
-    "pages/banner/banner",
-    "pages/settings/settings",
-    "pages/settings/roles/roles",
-    "pages/settings/accounts/accounts",
-    "pages/settings/config/config",
-    "pages/settings/exemption/exemption",
-    "pages/settings/template-edit/template-edit",
-    "pages/logs/logs",
-    "pages/coaches/coaches",
-    "pages/holidays/holidays",
-    "pages/announcements/announcements",
-    "pages/profile/profile",
-    "pages/profile/account-security/account-security",
-    "pages/course-records/course-records",
-    "pages/booking-summary/booking-summary",
-    "pages/system-reset/system-reset",
-    "pages/privacy/privacy",
-    "pages/agreement/agreement",
-    "pages/about/about"
+    "pages/profile/profile"
   ],
   "window": {
     "navigationBarBackgroundColor": "#F6F3F0",
@@ -81,5 +47,74 @@
   "sitemapLocation": "sitemap.json",
   "style": "v2",
   "lazyCodeLoading": "requiredComponents",
-  "resizable": false
+  "resizable": false,
+  "subPackages": [
+    {
+      "root": "package-schedule",
+      "pages": [
+        "pages/schedule/schedule",
+        "pages/bookings/bookings",
+        "pages/check-in/check-in",
+        "pages/course-records/course-records",
+        "pages/booking-summary/booking-summary",
+        "pages/waitlist/waitlist"
+      ]
+    },
+    {
+      "root": "package-member",
+      "pages": [
+        "pages/members/member-detail/member-detail",
+        "pages/members/booking-list/booking-list",
+        "pages/members/member-review/member-review",
+        "pages/members/phone-review/phone-review",
+        "pages/members/info-review/info-review"
+      ]
+    },
+    {
+      "root": "package-shop",
+      "pages": [
+        "pages/shop/store-maintenance/store-maintenance",
+        "pages/shop/booking-window/booking-window",
+        "pages/package-logs/package-logs",
+        "pages/images/images",
+        "pages/banner/banner",
+        "pages/coaches/coaches",
+        "pages/holidays/holidays",
+        "pages/announcements/announcements",
+        "pages/transfers/transfers",
+        "pages/salary/salary"
+      ]
+    },
+    {
+      "root": "package-settings",
+      "pages": [
+        "pages/settings/settings",
+        "pages/settings/roles/roles",
+        "pages/settings/accounts/accounts",
+        "pages/settings/config/config",
+        "pages/settings/exemption/exemption",
+        "pages/settings/template-edit/template-edit",
+        "pages/system-reset/system-reset"
+      ]
+    },
+    {
+      "root": "package-common",
+      "pages": [
+        "pages/todo-list/todo-list",
+        "pages/logs/logs",
+        "pages/about/about",
+        "pages/privacy/privacy",
+        "pages/agreement/agreement",
+        "pages/profile/account-security/account-security"
+      ]
+    }
+  ],
+  "preloadRule": {
+    "pages/dashboard/dashboard": {
+      "network": "all",
+      "packages": [
+        "package-schedule"
+      ]
+    }
+  }
 }

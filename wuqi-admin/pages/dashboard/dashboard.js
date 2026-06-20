@@ -424,10 +424,10 @@ Page({
         this.onGoToMembers();
         break;
       case 'waitlist':
-        wx.navigateTo({ url: '/pages/waitlist/waitlist' });
+        wx.navigateTo({ url: '/package-schedule/pages/waitlist/waitlist' });
         break;
       case 'reviews':
-        wx.navigateTo({ url: '/pages/members/member-review/member-review' });
+        wx.navigateTo({ url: '/package-member/pages/members/member-review/member-review' });
         break;
     }
   },
@@ -659,7 +659,7 @@ Page({
     var memberId = e.currentTarget.dataset.memberId;
     if (!memberId) return;
     wx.navigateTo({
-      url: '/pages/members/member-detail/member-detail?id=' + memberId
+      url: '/package-member/pages/members/member-detail/member-detail?id=' + memberId
     });
   },
 
@@ -960,20 +960,20 @@ Page({
     const scheduleId = e.currentTarget.dataset.scheduleId;
     if (!scheduleId) return;
     wx.navigateTo({
-      url: '/pages/bookings/bookings?schedule_id=' + scheduleId
+      url: '/package-schedule/pages/bookings/bookings?schedule_id=' + scheduleId
     });
   },
 
   onViewSchedule() {
-    wx.navigateTo({ url: '/pages/schedule/schedule' });
+    wx.navigateTo({ url: '/package-schedule/pages/schedule/schedule' });
   },
 
   onViewAllTodos() {
-    wx.navigateTo({ url: '/pages/todo-list/todo-list' });
+    wx.navigateTo({ url: '/package-common/pages/todo-list/todo-list' });
   },
 
   onGoToSchedule() {
-    wx.navigateTo({ url: '/pages/schedule/schedule' });
+    wx.navigateTo({ url: '/package-schedule/pages/schedule/schedule' });
   },
 
   onGoToMembers() {
@@ -981,23 +981,23 @@ Page({
   },
 
   onGoToBookings() {
-    wx.navigateTo({ url: '/pages/booking-summary/booking-summary' });
+    wx.navigateTo({ url: '/package-schedule/pages/booking-summary/booking-summary' });
   },
 
   onGoToCheckIn() {
-    wx.navigateTo({ url: '/pages/check-in/check-in' });
+    wx.navigateTo({ url: '/package-schedule/pages/check-in/check-in' });
   },
 
   onScanSignIn() {
-    wx.navigateTo({ url: '/pages/check-in/check-in' });
+    wx.navigateTo({ url: '/package-schedule/pages/check-in/check-in' });
   },
 
   onGoToImages() {
-    wx.navigateTo({ url: '/pages/images/images' });
+    wx.navigateTo({ url: '/package-shop/pages/images/images' });
   },
 
   onGoToBanners() {
-    wx.navigateTo({ url: '/pages/todo-list/todo-list' });
+    wx.navigateTo({ url: '/package-common/pages/todo-list/todo-list' });
   },
 
 });
