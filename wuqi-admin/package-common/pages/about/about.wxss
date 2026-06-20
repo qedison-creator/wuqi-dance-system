@@ -14,7 +14,6 @@
 .logo {
   width: 160rpx;
   height: 160rpx;
-  border-radius: 40rpx;
   margin-bottom: 32rpx;
 }
 
