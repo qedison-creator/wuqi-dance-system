@@ -123,9 +123,7 @@ Page({
    * 下拉刷新
    */
   onPullDownRefresh() {
-    this.loadBookings().then(() => {
-      wx.stopPullDownRefresh();
-    }).catch(() => {
+    this.loadBookings().finally(() => {
       wx.stopPullDownRefresh();
     });
   }

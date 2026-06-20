@@ -4,5 +4,6 @@
     "empty-state": "/components/empty-state/empty-state"
   },
   "enablePullDownRefresh": true,
+  "backgroundTextStyle": "dark",
   "onReachBottomDistance": 100
 }

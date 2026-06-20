@@ -147,13 +147,16 @@ Page({
 
   onRefresh() {
     this.setData({ page: 1, hasMore: true });
-    this.loadStoreList();
-    this.loadInfoChangeCount();
+    return Promise.all([
+      this.loadStoreList(),
+      this.loadInfoChangeCount()
+    ]);
   },
 
   onPullDownRefresh() {
-    this.onRefresh();
-    wx.stopPullDownRefresh();
+    this.onRefresh().finally(() => {
+      wx.stopPullDownRefresh();
+    });
   },
 
   // 跳转到待审核页面

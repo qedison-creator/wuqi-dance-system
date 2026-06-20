@@ -1,6 +1,7 @@
 const app = getApp();
 const { request } = require('../../../utils/request');
 const { getScheduleStatusText } = require('../../../utils/util');
+const wsClient = require('../../../utils/websocket-client');
 
 Page({
   data: {
@@ -43,6 +44,46 @@ Page({
     if (this.data.scheduleId) {
       this.loadBookingList();
     }
+    this._connectWebSocket();
+  },
+
+  onHide() {
+    this._disconnectWebSocket();
+  },
+
+  onUnload() {
+    this._disconnectWebSocket();
+  },
+
+  // ========== WebSocket 实时推送 ==========
+  _connectWebSocket() {
+    if (!this.data.scheduleId) return;
+    wsClient.connect({
+      onMessage: {
+        // 会员预约成功 -> 刷新预约名单
+        booking_create: (data) => {
+          // 仅当推送的是当前课程的预约时刷新
+          if (!data || !data.schedule_id || data.schedule_id === this.data.scheduleId) {
+            this.loadBookingList();
+            this.loadScheduleInfo();
+          }
+        },
+        // 会员/管理员取消预约 -> 刷新预约名单
+        booking_cancel: (data) => {
+          if (!data || !data.schedule_id || data.schedule_id === this.data.scheduleId) {
+            this.loadBookingList();
+            this.loadScheduleInfo();
+          }
+        }
+      },
+      onFallback: () => {
+        this.loadBookingList();
+      }
+    });
+  },
+
+  _disconnectWebSocket() {
+    wsClient.disconnect();
   },
 
   // 加载排课信息

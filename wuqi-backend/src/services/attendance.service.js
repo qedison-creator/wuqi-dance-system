@@ -226,17 +226,24 @@ exports.getMyAttendance = async (userId, page, pageSize) => {
         console.error(`[getMyAttendance] 补建attendance失败 bookingId=${booking._id}:`, err.message);
       }
 
-      // 用 booking 数据构造一个虚拟的 attendance 返回
+      // 用 booking 数据构造一个虚拟的 attendance 返回（补齐快照字段，避免课程删除后无法溯源）
       merged.push({
         _id: booking._id,
-        schedule_id: booking.schedule_id,
+        schedule_id: sch,
         user_id: booking.user_id,
         check_in_time: booking.check_in_time || new Date(),
         source: booking.check_in_by ? 'admin' : 'booking',
         check_in_method: booking.check_in_by ? 'scan' : 'auto',
         credits_cost: booking.credits_deducted || 0,
-        date: booking.schedule_id.date,
-        course_name: booking.schedule_id.course_name || '',
+        date: sch.date,
+        course_name: sch.course_name || '',
+        start_time: sch.start_time || '',
+        end_time: sch.end_time || '',
+        duration: sch.duration || 0,
+        coach_id: sch.coach_id,
+        coach_name: sch.coach_id?.name || '',
+        store_id: sch.store_id,
+        store_name: sch.store_id?.name || '',
         created_at: booking.check_in_time || booking.created_at,
       });
     }

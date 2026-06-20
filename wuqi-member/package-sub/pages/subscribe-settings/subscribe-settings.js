@@ -2,7 +2,6 @@ const { request } = require('../../../utils/request');
 const {
   SUBSCRIBE_TEMPLATES,
   fetchTemplates,
-  requestSubscribeMessage,
   markTemplatesAccepted,
   getLocalAcceptedMap
 } = require('../../../utils/subscribe-message');
@@ -46,34 +45,35 @@ Page({
         success: (res) => {
           const subscriptions = res.subscriptionsSetting || {};
           const itemSettings = subscriptions.itemSettings || {};
-          // wxStatus: 'accept'=已授权(勾了"总是保持"), 'reject'=已拒绝(无法再弹出), 'ban'=被禁用, undefined=未处理
-          // 注意：对于一次性订阅消息，用户曾经点过"允许"但没勾"总是保持"，也需要重新授权
-          // isSubscribed: 仅当 itemSettings[id] === 'accept'（勾了"总是保持"并点了允许）时才算已订阅
-          // wasAcceptedOnce: 本地记录曾经点过"允许"，但微信未记录（可能未勾总是保持），需重新订阅
+          // 微信订阅消息状态判定：
+          // - wxStatus === 'accept'：用户勾了"总是保持"并点了允许，微信永久记录
+          // - wxStatus === 'reject'/'ban'：用户永久拒绝，无法再弹窗
+          // - wxStatus === undefined：用户点过"允许"但未勾"总是保持"（一次性消费），或从未授权
+          //   此时本地 subscribe_accepted_map 记录了用户曾点过"允许"，应视为"已订阅"（一次性配额已发放）
+          //   只有本地也无记录时，才是"待授权"
           const templatesWithStatus = allIds.map(item => {
             const wxStatus = itemSettings[item.id];
-            const isSubscribed = wxStatus === 'accept';
-            const wasAcceptedOnce = !wxStatus && !!localAccepted[item.id];
+            const isSubscribed = wxStatus === 'accept' || (!!localAccepted[item.id] && wxStatus !== 'reject' && wxStatus !== 'ban');
             const isRejected = wxStatus === 'reject' || wxStatus === 'ban';
             return {
               ...item,
               subscribed: isSubscribed,
-              wasAcceptedOnce: wasAcceptedOnce,
+              wasAcceptedOnce: false,
               rejected: isRejected,
-              canSubscribe: !isSubscribed && !isRejected  // 只要不是永久订阅且未拒绝，都可重新订阅
+              canSubscribe: !isSubscribed && !isRejected
             };
           });
           const unsubscribedCount = templatesWithStatus.filter(t => t.canSubscribe).length;
           this.setData({ templatesWithStatus, loading: false, unsubscribedCount });
         },
         fail: () => {
-          // wx.getSetting 失败时，仅以本地记录做参考（标记为 wasAcceptedOnce，不标记为 subscribed）
+          // wx.getSetting 失败时，以本地记录为准（点过"允许"即视为已订阅）
           const templatesWithStatus = allIds.map(item => ({
             ...item,
-            subscribed: false,
-            wasAcceptedOnce: !!localAccepted[item.id],
+            subscribed: !!localAccepted[item.id],
+            wasAcceptedOnce: false,
             rejected: false,
-            canSubscribe: true
+            canSubscribe: !localAccepted[item.id]
           }));
           const unsubscribedCount = templatesWithStatus.filter(t => t.canSubscribe).length;
           this.setData({ templatesWithStatus, loading: false, unsubscribedCount });
@@ -83,12 +83,12 @@ Page({
   },
 
   // "一键订阅"：微信限制每次用户操作只能弹一次授权窗口，每次最多3个模板
-  // 策略：每次点击处理最多3个可重新订阅的模板（排除已永久拒绝的）
+  // 策略：每次处理一批（最多3个），处理完后用 showModal 询问是否继续下一批
+  // 必须在用户点击事件上下文中调用 wx.requestSubscribeMessage，不能在异步回调中自动调用
   onSubscribeAll() {
     const canSubscribe = this.data.templatesWithStatus.filter(item => item.canSubscribe);
 
     if (canSubscribe.length === 0) {
-      // 检查是否全部是已拒绝的
       const rejected = this.data.templatesWithStatus.filter(item => item.rejected && !item.subscribed);
       if (rejected.length > 0) {
         wx.showModal({
@@ -103,80 +103,107 @@ Page({
       return;
     }
 
-    // 只取前3个可订阅的
-    const batch = canSubscribe.slice(0, 3);
-    const batchIds = batch.map(item => item.id);
+    // 开始第一批授权
+    this._processBatch(canSubscribe, 0, { accepted: [], rejected: [] });
+  },
 
-    wx.showLoading({ title: '请求授权...', mask: true });
+  // 处理一批授权（最多3个模板）
+  _processBatch(canSubscribeList, startIndex, accum) {
+    const batch = canSubscribeList.slice(startIndex, startIndex + 3);
+    if (batch.length === 0) {
+      this._showFinalResult(accum, canSubscribeList.length);
+      return;
+    }
+    const batchIds = batch.map(item => item.id);
+    const batchNames = batch.map(item => item.name);
+    const totalBatches = Math.ceil(canSubscribeList.length / 3);
+    const currentBatchNum = Math.floor(startIndex / 3) + 1;
+
+    wx.showLoading({
+      title: `授权中(${currentBatchNum}/${totalBatches})`,
+      mask: true
+    });
 
     wx.requestSubscribeMessage({
       tmplIds: batchIds,
       success: (res) => {
         wx.hideLoading();
-        
-        const acceptedIds = [];
-        const rejectedIds = [];
+
         batch.forEach(item => {
           if (res[item.id] === 'accept') {
-            acceptedIds.push(item.id);
+            accum.accepted.push(item.id);
           } else {
-            rejectedIds.push(item.id);
+            accum.rejected.push(item.id);
           }
         });
 
-        if (acceptedIds.length > 0) {
-          markTemplatesAccepted(acceptedIds);
+        if (accum.accepted.length > 0) {
+          markTemplatesAccepted(accum.accepted);
         }
 
-        // 计算剩余可订阅数量
+        // 实时更新列表状态
         const updatedList = this.data.templatesWithStatus.map(item => ({
           ...item,
-          subscribed: item.subscribed || acceptedIds.includes(item.id),
-          canSubscribe: item.canSubscribe && !acceptedIds.includes(item.id)
+          subscribed: item.subscribed || accum.accepted.includes(item.id),
+          canSubscribe: item.canSubscribe && !accum.accepted.includes(item.id)
         }));
         const remainingAfter = updatedList.filter(t => t.canSubscribe).length;
-        
         this.setData({ templatesWithStatus: updatedList, unsubscribedCount: remainingAfter });
 
-        // 显示结果弹窗（避免toast字数限制）
-        if (acceptedIds.length > 0 && remainingAfter > 0) {
+        // 检查是否还有下一批
+        const nextStart = startIndex + 3;
+        if (nextStart < canSubscribeList.length && remainingAfter > 0) {
+          // 还有剩余，弹窗询问是否继续（用户点击"继续"触发下一批，保持在用户事件上下文中）
+          const acceptedSoFar = accum.accepted.length;
           wx.showModal({
-            title: '部分订阅成功',
-            content: `已订阅 ${acceptedIds.length} 个通知，还有 ${remainingAfter} 个未订阅。点击「继续订阅」处理剩余通知。`,
-            confirmText: '继续订阅',
-            cancelText: '知道了',
+            title: `第${currentBatchNum}批完成`,
+            content: `已成功授权 ${acceptedSoFar} 个通知，还有 ${remainingAfter} 个待授权。点击「继续」授权剩余通知。`,
+            confirmText: '继续',
+            cancelText: '稍后',
             confirmColor: '#C5744B',
             success: (modalRes) => {
               if (modalRes.confirm) {
-                this.onSubscribeAll();
+                // 用户点击"继续"，在用户事件上下文中调用下一批
+                this._processBatch(canSubscribeList, nextStart, accum);
+              } else {
+                // 用户选择稍后，显示当前结果
+                this._showFinalResult(accum, canSubscribeList.length);
               }
             }
           });
-        } else if (acceptedIds.length > 0 && remainingAfter === 0) {
-          wx.showToast({ title: '全部订阅完成', icon: 'success' });
         } else {
-          wx.showToast({ title: '未授权，可重试', icon: 'none' });
+          // 所有批次处理完毕
+          this._showFinalResult(accum, canSubscribeList.length);
         }
       },
       fail: () => {
         wx.hideLoading();
-        wx.showToast({ title: '授权失败，请重试', icon: 'none' });
+        if (startIndex === 0) {
+          wx.showToast({ title: '授权失败，请重试', icon: 'none' });
+        } else {
+          this._showFinalResult(accum, canSubscribeList.length);
+        }
       }
     });
   },
 
-  async onSubscribeItem(e) {
-    const key = e.currentTarget.dataset.key;
-    await fetchTemplates();
-    const item = this.data.templatesWithStatus.find(t => t.key === key);
-    if (!item || !item.id) return;
+  _showFinalResult(accum, total) {
+    const acceptedCount = accum.accepted.length;
+    const rejectedCount = accum.rejected.length;
 
-    const result = await requestSubscribeMessage([item.id], 'settings_' + key);
-
-    if (result && result[item.id] === 'accept') {
-      markTemplatesAccepted([item.id]);
-      wx.showToast({ title: '订阅成功', icon: 'success' });
-      this.loadSubscribedStatus();
+    if (acceptedCount === total) {
+      wx.showToast({ title: '全部订阅完成', icon: 'success' });
+    } else if (acceptedCount > 0) {
+      wx.showModal({
+        title: '订阅完成',
+        content: `已成功订阅 ${acceptedCount} 个通知${rejectedCount > 0 ? `，${rejectedCount} 个未授权` : ''}。可稍后再次点击「一键订阅」处理未授权项。`,
+        showCancel: false,
+        confirmText: '知道了',
+        confirmColor: '#C5744B'
+      });
+    } else {
+      wx.showToast({ title: '未授权，可重试', icon: 'none' });
     }
+    this.loadSubscribedStatus();
   }
 });

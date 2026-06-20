@@ -202,7 +202,7 @@
       <view class="store-opt {{currentStore && currentStore._id === item._id ? 'active' : ''}}" wx:for="{{storeList}}" wx:key="_id" data-store="{{item}}" bindtap="onSelectStore">
         <view class="store-opt-left">
           <text class="store-opt-name">{{item.name}}</text>
-          <text class="store-opt-distance" wx:if="{{item.distance !== undefined && item.distance !== null}}">{{item.distance}}km</text>
+          <text class="store-opt-distance" wx:if="{{item.distance !== undefined && item.distance !== null}}">{{fmt.distance(item.distance)}}</text>
         </view>
         <view class="store-opt-check" wx:if="{{currentStore && currentStore._id === item._id}}"></view>
       </view>

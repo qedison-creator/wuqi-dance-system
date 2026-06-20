@@ -1,4 +1,5 @@
 {
   "navigationBarTitleText": "舞栖会员预约管理系统",
-  "enablePullDownRefresh": true
+  "enablePullDownRefresh": true,
+  "backgroundTextStyle": "dark"
 }

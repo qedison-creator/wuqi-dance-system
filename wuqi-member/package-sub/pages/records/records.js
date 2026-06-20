@@ -24,6 +24,13 @@ const CANCEL_TYPE_MAP = {
   holiday: '放假取消'
 };
 
+// 预约记录状态文案映射（统一分类）
+const BOOKING_STATUS_LABEL_MAP = {
+  booked: '待上课',
+  completed: '已完成',
+  cancelled: '已取消'
+};
+
 // 预约记录页默认展开显示的条数
 const DEFAULT_VISIBLE_COUNT = 5;
 
@@ -91,8 +98,7 @@ Page({
     const tab = this.data.activeTab;
 
     if (tab === 'waitlist') {
-      this.loadWaitlistRecords();
-      return;
+      return this.loadWaitlistRecords();
     }
 
     const isAttendanceTab = tab === 'attendance';
@@ -100,26 +106,24 @@ Page({
     const params = { page: this.data.page, pageSize: 10 };
 
     if (tab === 'booking') {
-      // 预约记录：同时展示已预约 + 已取消的记录（合并显示）
-      // 不传 type 参数，让后端返回所有 booked + cancelled 记录
-      // 后端 /bookings/my 不传 type 时返回所有记录，前端按时间倒序混合展示
       params.type = 'all';
     }
 
-    request({ url, data: params }).then(res => {
+    return request({ url, data: params }).then(res => {
       const list = res.data && res.data.list ? res.data.list : (res.data || []);
       const newRecords = list.map(item => {
         const schedule = item.schedule_id;
+        // 优先使用 schedule 关联数据；若课程/教练/门店已删除，回退到 Attendance 快照字段，确保记录仍可溯源
         const base = {
           ...item,
           scheduleId: schedule ? schedule._id : '',
           dateStr: schedule ? formatDate(schedule.date, 'YYYY-MM-DD') : (item.date ? formatDate(item.date, 'YYYY-MM-DD') : ''),
           weekDayStr: schedule ? getWeekDay(schedule.date) : (item.date ? getWeekDay(item.date) : ''),
           courseName: schedule ? (schedule.course_name || item.course_name || '课程') : (item.course_name || '课程'),
-          startTime: schedule ? (schedule.start_time || '') : '',
-          endTime: schedule ? (schedule.end_time || '') : '',
-          coachName: schedule && schedule.coach_id ? schedule.coach_id.name : (item.coach_id && item.coach_id.name ? item.coach_id.name : '教练'),
-          storeName: schedule && schedule.store_id ? schedule.store_id.name : (item.store_id && item.store_id.name ? item.store_id.name : '')
+          startTime: schedule ? (schedule.start_time || '') : (item.start_time || ''),
+          endTime: schedule ? (schedule.end_time || '') : (item.end_time || ''),
+          coachName: schedule && schedule.coach_id && schedule.coach_id.name ? schedule.coach_id.name : (item.coach_name || (item.coach_id && item.coach_id.name ? item.coach_id.name : '教练')),
+          storeName: schedule && schedule.store_id && schedule.store_id.name ? schedule.store_id.name : (item.store_name || (item.store_id && item.store_id.name ? item.store_id.name : ''))
         };
 
         if (isAttendanceTab) {
@@ -130,10 +134,15 @@ Page({
         }
 
         if (tab === 'booking') {
-          // 预约记录页：已取消的记录显示取消类型文案
+          // 预约记录页：统一状态分类标签
+          base.statusLabel = BOOKING_STATUS_LABEL_MAP[item.status] || item.status || '';
           if (item.status === 'cancelled') {
             base.cancelTypeLabel = item.cancel_type ? (CANCEL_TYPE_MAP[item.cancel_type] || '已取消') : '已取消';
-            base.cancelTime = item.cancelled_at ? formatDate(item.cancelled_at, 'YYYY-MM-DD HH:mm') : (item.updated_at ? formatDate(item.updated_at, 'YYYY-MM-DD HH:mm') : '');
+            base.cancelTime = item.cancelled_at ? formatDate(item.cancelled_at, 'YYYY-MM-DD HH:mm') : (item.cancel_time ? formatDate(item.cancel_time, 'YYYY-MM-DD HH:mm') : (item.updated_at ? formatDate(item.updated_at, 'YYYY-MM-DD HH:mm') : ''));
+          } else if (item.status === 'completed') {
+            // 已完成：注明签到方式
+            const method = item.check_in_method || 'auto';
+            base.checkInMethodText = CHECK_IN_METHOD_LABEL_MAP[method] || '自动签到';
           }
         }
 
@@ -153,7 +162,7 @@ Page({
       this.setData({
         records,
         loading: false,
-        hasMore: sortedRecords.length >= 50
+        hasMore: sortedRecords.length >= 10
       });
     }).catch((err) => {
       console.error('加载记录失败:', err);
@@ -162,7 +171,7 @@ Page({
   },
 
   loadWaitlistRecords() {
-    request({ url: '/bookings/waitlist/my' }).then(res => {
+    return request({ url: '/bookings/waitlist/my' }).then(res => {
       const rawList = res.data && res.data.data ? res.data.data : (res.data || []);
       const list = Array.isArray(rawList) ? rawList : [];
       const records = list.map(item => {
@@ -250,5 +259,12 @@ Page({
       this.setData({ page: this.data.page + 1 });
       this.loadRecords();
     }
+  },
+
+  onPullDownRefresh() {
+    this.setData({ page: 1, hasMore: true });
+    this.loadRecords().finally(() => {
+      wx.stopPullDownRefresh();
+    });
   }
 });

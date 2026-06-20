@@ -5,6 +5,7 @@ const { normalizeImageUrl } = require('../../utils/util');
 const config = require('../../config/index.js');
 const SERVER_BASE = config.serverBase;
 const auth = require('../../utils/auth');
+const wsClient = require('../../utils/websocket-client');
 
 const WEEK_DAYS = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
 
@@ -93,6 +94,8 @@ Page({
     const storeList = app.globalData.storeList || [];
     const currentStore = app.globalData.currentStore || (storeList.length > 0 ? storeList[0] : null);
     this.setData({ storeList, currentStore });
+    // 所有用户（含游客）都启动 30 秒自动轮询，确保课程列表实时性
+    this._startAutoRefresh();
     const { checkLogin } = require('../../utils/auth');
     if (!checkLogin()) {
       this.setData({ isLoggedIn: false, isOfficial: false });
@@ -106,22 +109,42 @@ Page({
     }
     this.setData({ isLoggedIn: true });
     this.refreshUserInfo();
-    // 切回预约 tab 时立即刷新课程 + 启动 30 秒自动轮询
-    if (this.data.dates.length > 0) {
-      this.loadCourses();
-    }
-    this._startAutoRefresh();
+    // 建立 WebSocket 实时推送连接（仅登录用户，游客无 token 无法连接）
+    this._connectWebSocket();
   },
 
   onHide() {
     this._stopAutoRefresh();
+    // 离开页面时断开 WebSocket，清理定时器
+    wsClient.disconnect();
+  },
+
+  onUnload() {
+    this._stopAutoRefresh();
+    wsClient.disconnect();
+  },
+
+  // 建立 WebSocket 连接，接收课程更新推送
+  _connectWebSocket() {
+    wsClient.connect({
+      onMessage: {
+        // 收到课程更新事件，重新加载课程列表
+        course_update: () => {
+          this.loadCourses(true);
+        }
+      },
+      // WebSocket 连续重连失败后降级为 60 秒轮询
+      onFallback: () => {
+        this.loadCourses(true);
+      }
+    });
   },
 
   _startAutoRefresh() {
     this._stopAutoRefresh();
     this._autoRefreshTimer = setInterval(() => {
       this.loadCourses(true);
-    }, 5000);
+    }, 30000);
   },
 
   _stopAutoRefresh() {
@@ -293,9 +316,15 @@ Page({
       const activeHolidays = list.filter(h => h.status === 'active');
       const dates = getNextDays(7, activeHolidays);
       const weekDays = dates;
-      const selectedDate = dates[0].date;
-      const sectionTitle = dates[0].isToday ? '今日课程' : (this.formatDate(dates[0].date) + ' ' + dates[0].weekDay + ' 课程');
-      this.setData({ holidays: activeHolidays, dates, weekDays, selectedDate, weekDaysIndex: 0, sectionTitle });
+      // 保留用户已选中的日期（若仍在新日期列表中），避免切回页面时被重置为今日
+      const prevSelected = this.data.selectedDate;
+      const stillValid = prevSelected && dates.some(d => d.date === prevSelected);
+      const selectedDate = stillValid ? prevSelected : dates[0].date;
+      const selectedIndex = dates.findIndex(d => d.date === selectedDate);
+      const weekDaysIndex = selectedIndex >= 0 ? selectedIndex : 0;
+      const selectedDateItem = dates[selectedIndex] || dates[0];
+      const sectionTitle = selectedDateItem.isToday ? '今日课程' : (this.formatDate(selectedDateItem.date) + ' ' + selectedDateItem.weekDay + ' 课程');
+      this.setData({ holidays: activeHolidays, dates, weekDays, selectedDate, weekDaysIndex, sectionTitle });
     } catch (err) {
       console.error('加载假期信息失败', err);
       this.generateWeekDaysSym();

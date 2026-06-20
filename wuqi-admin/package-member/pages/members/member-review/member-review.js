@@ -31,7 +31,7 @@ Page({
   },
 
   onPullDownRefresh() {
-    this.loadPendingMembers().then(() => {
+    this.loadPendingMembers().finally(() => {
       wx.stopPullDownRefresh();
     });
   },

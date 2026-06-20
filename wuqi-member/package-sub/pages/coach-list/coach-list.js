@@ -9,6 +9,7 @@ Page({
   data: {
     coaches: [],
     loading: true,
+    loadError: false,
     imageErrors: {}
   },
 
@@ -17,15 +18,16 @@ Page({
   },
 
   onPullDownRefresh() {
-    this.loadCoaches();
-    wx.stopPullDownRefresh();
+    this.loadCoaches().finally(() => {
+      wx.stopPullDownRefresh();
+    });
   },
 
   loadCoaches() {
-    this.setData({ loading: true });
+    this.setData({ loading: true, loadError: false });
     const storeId = app.globalData.currentStore ? app.globalData.currentStore._id : '';
 
-    request({ url: '/home/coaches', data: { store_id: storeId } }).then(res => {
+    return request({ url: '/home/coaches', data: { store_id: storeId } }).then(res => {
       const data = res.data || {};
       const list = Array.isArray(data) ? data : (data.data || data.list || []);
 
@@ -37,10 +39,15 @@ Page({
           : []
       }));
 
-      this.setData({ coaches, loading: false });
-    }).catch(() => {
-      this.setData({ loading: false });
+      this.setData({ coaches, loading: false, loadError: false });
+    }).catch((err) => {
+      console.error('加载教练列表失败:', err);
+      this.setData({ loading: false, loadError: true });
     });
+  },
+
+  onRetry() {
+    this.loadCoaches();
   },
 
   onCoachTap(e) {

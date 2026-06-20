@@ -2,9 +2,9 @@ const { request } = require('../../../../utils/request');
 const { getBeijingDate } = require('../../../../utils/helpers');
 
 // 预约状态文案映射（booking 专属状态，与课程状态不同）
-
+// 统一分类：待上课 / 已完成 / 已取消
 const BOOKING_STATUS_TEXT_MAP = {
-  'booked': '已预约',
+  'booked': '待上课',
   'completed': '已完成',
   'cancelled': '已取消',
   'exempted': '已豁免'
@@ -69,9 +69,15 @@ Page({
     this.setData({ isAdmin: userInfo.role === 'super_admin' });
   },
 
+  onPullDownRefresh() {
+    this.loadMemberDetail().finally(() => {
+      wx.stopPullDownRefresh();
+    });
+  },
+
   loadMemberDetail() {
     this.setData({ loading: true });
-    request({
+    return request({
       url: `/members/${this.data.memberId}`,
       method: 'GET',
       timeout: 30000

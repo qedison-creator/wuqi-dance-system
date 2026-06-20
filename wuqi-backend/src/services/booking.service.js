@@ -8,6 +8,7 @@ const logService = require('./log.service');
 const memberService = require('./member.service');
 const packageService = require('./package.service');
 const wechatMessageService = require('./wechat-message.service');
+const { broadcastToAdmins } = require('./websocket.service');
 const { CANCEL_TYPE, TIME_RULES, SCHEDULE_STATUS } = require('../constants/scheduleStatus.constants');
 const dayjs = require('dayjs');
 const utc = require('dayjs/plugin/utc');
@@ -467,6 +468,22 @@ exports.createBooking = async (userId, scheduleId) => {
       }
     };
     console.log('[Booking] 预约创建成功');
+
+    // 实时推送：通知管理端有新预约
+    try {
+      broadcastToAdmins('booking_create', {
+        booking_id: booking._id,
+        schedule_id: scheduleId,
+        user_id: userId,
+        store_id: scheduleStoreId,
+        course_name: booking.course_name || schedule.course_name,
+        schedule_date: booking.booking_date,
+        schedule_start_time: booking.booking_time,
+        current_bookings: updatedSchedule.current_bookings,
+        max_bookings: updatedSchedule.max_bookings
+      });
+    } catch (e) {}
+
     return result;
   } catch (err) {
     console.error('[Booking] 创建预约失败:', err);
@@ -598,6 +615,22 @@ exports.cancelBooking = async (userId, bookingId) => {
     processed: 'pending'
   });
 
+  // 实时推送：通知管理端有会员取消预约
+  try {
+    broadcastToAdmins('booking_cancel', {
+      booking_id: booking._id,
+      schedule_id: schedule._id,
+      user_id: userId,
+      store_id: schedule.store_id,
+      cancel_type: booking.cancel_type,
+      course_name: booking.course_name || schedule.course_name,
+      schedule_date: booking.booking_date,
+      schedule_start_time: booking.booking_time,
+      current_bookings: updatedSchedule.current_bookings,
+      max_bookings: updatedSchedule.max_bookings
+    });
+  } catch (e) {}
+
   return booking;
 };
 
@@ -612,8 +645,8 @@ exports.getMyBookings = async (userId, type, page, pageSize, storeId) => {
   } else if (type === 'cancelled') {
     filter.status = 'cancelled';
   } else if (type === 'all') {
-    // 预约记录页合并显示：已预约 + 已取消（不含已完成的上课记录，上课记录在 attendance 页）
-    filter.status = { $in: ['booked', 'cancelled'] };
+    // 预约记录页合并显示：待上课(booked) + 已完成(completed) + 已取消(cancelled)
+    filter.status = { $in: ['booked', 'completed', 'cancelled'] };
   }
 
   if (storeId) {
@@ -814,6 +847,21 @@ exports.adminCancelBooking = async (bookingId, reason, operatorId) => {
     target_id: bookingId,
     detail: `管理员取消预约: 预约ID=${bookingId}, 原因: ${reason || '管理员取消'}, 退还次数: ${booking.credits_deducted}`,
   });
+
+  // 实时推送：通知其他管理端连接刷新
+  try {
+    broadcastToAdmins('booking_cancel', {
+      booking_id: booking._id,
+      schedule_id: booking.schedule_id,
+      user_id: booking.user_id,
+      store_id: booking.store_id,
+      cancel_type: 'admin_cancel',
+      operator_id: operatorId,
+      reason: reason || '',
+      current_bookings: schedule ? schedule.current_bookings : undefined,
+      max_bookings: schedule ? schedule.max_bookings : undefined
+    });
+  } catch (e) {}
 
   return booking;
 };

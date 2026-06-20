@@ -5,7 +5,7 @@
       <text>全部</text>
     </view>
     <view class="filter-item {{statusFilter === 'booked' ? 'active' : ''}}" bindtap="onFilterChange" data-status="booked">
-      <text>已预约</text>
+      <text>待上课</text>
     </view>
     <view class="filter-item {{statusFilter === 'completed' ? 'active' : ''}}" bindtap="onFilterChange" data-status="completed">
       <text>已完成</text>
@@ -45,7 +45,7 @@
         </view>
       </view>
       <view class="booking-status {{item.status}}">
-        <text>{{item.status === 'booked' ? '已预约' : (item.status === 'completed' ? '已完成' : '已取消')}}</text>
+        <text>{{item.status === 'booked' ? '待上课' : (item.status === 'completed' ? '已完成' : '已取消')}}</text>
       </view>
     </view>
   </view>

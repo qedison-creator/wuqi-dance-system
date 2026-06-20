@@ -4,6 +4,7 @@ const { optionalAuth } = require('../middleware/auth');
 const checkPermission = require('../middleware/permission');
 const storeFilter = require('../middleware/storeFilter');
 const scheduleService = require('../services/schedule.service');
+const { broadcastCourseUpdate } = require('../services/websocket.service');
 const { success, paginate } = require('../utils/response');
 
 // GET /api/v1/schedules - 获取排课列表(会员可匿名浏览)
@@ -32,6 +33,10 @@ router.get('/weekly/:storeId', auth, async (req, res, next) => {
 router.post('/copy-week', auth, checkPermission(['super_admin', 'store_manager', 'staff']), async (req, res, next) => {
   try {
     const result = await scheduleService.copyScheduleWeeks(req.body, req.user.id);
+    // 复制排课成功后广播课程更新
+    if (result.created_count > 0) {
+      broadcastCourseUpdate({ action: 'copy', count: result.created_count });
+    }
     res.json(success(result, `复制排课成功，共创建${result.created_count}节课`));
   } catch (err) {
     next(err);
@@ -72,6 +77,8 @@ router.get('/:id', optionalAuth, async (req, res, next) => {
 router.post('/', auth, checkPermission(['super_admin', 'store_manager', 'staff']), storeFilter(), async (req, res, next) => {
   try {
     const schedule = await scheduleService.createSchedule(req.body, req.user.id);
+    // 排课写入数据库成功后，通过 WebSocket 广播课程更新事件
+    broadcastCourseUpdate({ action: 'create', scheduleId: schedule._id, storeId: schedule.store_id });
     res.json(success(schedule, '创建排课成功'));
   } catch (err) {
     next(err);
@@ -87,6 +94,10 @@ router.post('/batch-create', auth, checkPermission(['super_admin', 'store_manage
     }
 
     const result = await scheduleService.batchCreateSchedules(schedules, req.user.id);
+    // 批量创建成功后广播课程更新
+    if (result.created.length > 0) {
+      broadcastCourseUpdate({ action: 'batch-create', count: result.created.length });
+    }
     res.json({
       code: 200,
       data: {

@@ -366,8 +366,9 @@ exports.getScheduleList = async (query, req = null) => {
             await autoCheckInAtStart(schedule._id);
             const updated = await Schedule.findById(schedule._id).lean();
             if (updated) schedule.status = updated.status;
-          } else if (now.isAfter(bookingDeadlineTime) && currentBookings < (schedule.min_bookings || 5)) {
-            // 截止时间已过且人数不足 → 触发 checkAndCancelIfInsufficient（兜底）
+          } else if (now.isAfter(bookingDeadlineTime) && currentBookings > 0 && currentBookings < (schedule.min_bookings || 5)) {
+            // 截止时间已过且有人预约但人数不足 → 触发 checkAndCancelIfInsufficient（兜底）
+            // 注意：currentBookings === 0 时不触发，避免新建的空课程被误取消
             await checkAndCancelIfInsufficient(schedule._id);
             const updated = await Schedule.findById(schedule._id).lean();
             if (updated) schedule.status = updated.status;

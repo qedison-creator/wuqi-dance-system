@@ -12,7 +12,7 @@
     <view class="tb-slider {{activeTab === 'attendance' ? 'pos1' : (activeTab === 'waitlist' ? 'pos2' : '')}}"></view>
   </view>
 
-  <!-- 预约记录页：已预约 + 已取消 合并显示，默认展开5条 -->
+  <!-- 预约记录页：待上课 + 已完成 + 已取消 合并显示，默认展开5条 -->
   <block wx:if="{{activeTab === 'booking'}}">
     <view class="record-list" wx:if="{{records.length > 0}}">
       <view class="r-card" wx:for="{{records}}" wx:key="_id" wx:if="{{index < bookingVisibleCount}}">
@@ -43,6 +43,10 @@
             <view class="rci-row" wx:if="{{item.status === 'cancelled' && item.cancelTime}}">
               <view class="rci-icon time"></view>
               <text class="rci-text">取消时间 {{item.cancelTime}}</text>
+            </view>
+            <view class="rci-row" wx:if="{{item.status === 'completed' && item.checkInMethodText}}">
+              <view class="rci-icon checkin"></view>
+              <text class="rci-text highlight">{{item.checkInMethodText}}</text>
             </view>
             <view class="rci-row">
               <view class="rci-icon coach"></view>

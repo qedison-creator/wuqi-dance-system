@@ -38,9 +38,12 @@ Page({
   },
 
   onPullDownRefresh() {
-    this.loadStores();
-    this.loadHolidays();
-    wx.stopPullDownRefresh();
+    Promise.all([
+      this.loadStores(),
+      this.loadHolidays()
+    ]).finally(() => {
+      wx.stopPullDownRefresh();
+    });
   },
 
   initDates() {

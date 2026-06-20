@@ -5,6 +5,7 @@ const config = require('./src/config');
 const { startScheduler } = require('./src/utils/scheduler');
 const { syncServerTime } = require('./src/utils/time');
 const { ensureTemplateMappings } = require('./src/services/wechat-message.service');
+const { initWebSocketServer } = require('./src/services/websocket.service');
 const PORT = process.env.PORT || 3000;
 
 if (config.isProd && !process.env.JWT_SECRET) {
@@ -24,10 +25,12 @@ connectDB().then(async () => {
   }
   startScheduler();
   syncServerTime();
-  app.listen(PORT, () => {
+  // 启动 HTTP 服务并初始化 WebSocket（复用同一端口）
+  const server = app.listen(PORT, () => {
     console.log(`[Server] 舞栖舞蹈社后端服务已启动: http://localhost:${PORT}`);
     console.log(`[Server] 环境: ${config.env}, API域名: https://api.yuekeme.cn`);
   });
+  initWebSocketServer(server);
 }).catch(err => {
   console.error('数据库连接失败:', err.message);
   process.exit(1);

@@ -1,8 +1,10 @@
 {
   "navigationBarTitleText": "课程预约",
+  "enablePullDownRefresh": true,
+  "backgroundColor": "#FBFAF8",
+  "backgroundTextStyle": "dark",
   "usingComponents": {
     "empty-state": "/components/empty-state/empty-state",
     "login-modal": "/components/login-modal/login-modal"
-  },
-  "enablePullDownRefresh": true
+  }
 }

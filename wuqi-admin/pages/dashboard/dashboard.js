@@ -2,6 +2,7 @@ const app = getApp();
 const { request } = require('../../utils/request');
 const config = require('../../config/index.js');
 const { getScheduleStatusText } = require('../../utils/util');
+const wsClient = require('../../utils/websocket-client');
 
 function getCurrentDate() {
   const now = new Date();
@@ -103,10 +104,45 @@ Page({
     this.loadUserInfo();
     this.loadAllData();
     this._startAutoRefresh();
+    this._connectWebSocket();
   },
 
   onHide() {
     this._stopAutoRefresh();
+    this._disconnectWebSocket();
+  },
+
+  onUnload() {
+    this._stopAutoRefresh();
+    this._disconnectWebSocket();
+  },
+
+  // ========== WebSocket 实时推送 ==========
+  _connectWebSocket() {
+    wsClient.connect({
+      onMessage: {
+        // 会员预约成功 -> 刷新首页统计/待办
+        booking_create: () => {
+          this.loadAllData();
+        },
+        // 会员/管理员取消预约 -> 刷新首页统计/待办
+        booking_cancel: () => {
+          this.loadAllData();
+        },
+        // 排课变更（管理端新增排课等）-> 刷新首页
+        course_update: () => {
+          this.loadAllData();
+        }
+      },
+      // 连接断开且重连失败时降级为轮询
+      onFallback: () => {
+        this.loadAllData();
+      }
+    });
+  },
+
+  _disconnectWebSocket() {
+    wsClient.disconnect();
   },
 
   _startAutoRefresh() {
@@ -380,6 +416,13 @@ Page({
     this.setData({ loadingSkeleton: true });
     this.loadAllData().finally(() => {
       wx.hideLoading();
+      wx.stopPullDownRefresh();
+    });
+  },
+
+  onPullDownRefresh() {
+    this.setData({ loadingSkeleton: true });
+    this.loadAllData().finally(() => {
       wx.stopPullDownRefresh();
     });
   },

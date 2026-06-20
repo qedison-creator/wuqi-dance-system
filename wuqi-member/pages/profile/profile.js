@@ -158,7 +158,7 @@ Page({
   _isAnyModalOpen() {
     return this.data.showPackageDetail || this.data.showQRModal
       || this.data.showForceProfileModal || this.data.showStorePicker
-      || this.data.showChangePhoneModal || this.data.showTransferModal
+      || this.data.showChangePhoneModal
       || this.data.showCheckInSuccess;
   },
 
@@ -171,10 +171,13 @@ Page({
       await this.loadUserData();
     } catch (e) {
       console.error('刷新失败:', e);
-    } finally {
-      // 无论成功失败，都要停止刷新动画
-      this.setData({ refresherTriggered: false });
     }
+  },
+
+  onPullDownRefresh() {
+    this.loadUserData().finally(() => {
+      wx.stopPullDownRefresh();
+    });
   },
 
   checkLoginStatus() {
@@ -898,12 +901,17 @@ Page({
       
       // 分类：使用中 / 待激活 / 历史
       // 使用中：status === 'active'，未暂停，且未过期，且次卡还有次数      // 过期的套餐（即使 status 仍为 active）归入历史
+      const isActuallyExpired = isExpired || pkg.status === 'expired' || pkg.status === 'exhausted';
       if (pkg.status === 'active' && !pkg.is_suspended && !isExpired) {
         activePackages.push(pkg);
       } else if (pkg.status === 'pending') {
         pendingPackages.push(pkg);
+      } else if (isActuallyExpired || pkg.is_suspended) {
+        // 历史：expired / 过期的active / 用完的active / 暂停中 / exhausted
+        historyPackages.push(pkg);
       } else {
-        // 历史：expired / 过期的active / 用完的active / 暂停中 / is_suspended) / exhausted）        historyPackages.push(pkg);
+        // 兜底：其他非常规状态也归入历史，避免丢失显示
+        historyPackages.push(pkg);
       }
     });
 
@@ -1008,66 +1016,6 @@ Page({
   onMyBookings() {
     if (!requireLogin(() => this._goLogin())) return;
     wx.navigateTo({ url: '/package-sub/pages/records/records' });
-  },
-
-  onTransferCard() {
-    if (!requireLogin(() => this._goLogin())) return;
-    const userInfo = app.globalData.userInfo || {};
-    if (userInfo.member_status !== 'official') {
-      wx.showToast({ title: '仅正式会员可提交转卡申请', icon: 'none' });
-      return;
-    }
-    const storeList = app.globalData.storeList || this.data.storeList || [];
-    const userStoreId = userInfo.store_id;
-    const filteredStores = storeList.filter(s => String(s._id) !== String(userStoreId));
-    if (filteredStores.length === 0) {
-      wx.showToast({ title: '暂无可转入的门店', icon: 'none' });
-      return;
-    }
-    this.setData({
-      showTransferModal: true,
-      transferStoreList: filteredStores,
-      transferStoreId: '',
-      transferReason: ''
-    });
-    this._updatePullDownRefresh();
-  },
-
-  onCloseTransferModal() {
-    this.setData({ showTransferModal: false });
-    this._updatePullDownRefresh();
-  },
-
-  onTransferStoreSelect(e) {
-    const { id } = e.currentTarget.dataset;
-    this.setData({ transferStoreId: id });
-  },
-
-  onTransferReasonInput(e) {
-    this.setData({ transferReason: e.detail.value });
-  },
-
-  onSubmitTransfer() {
-    const { transferStoreId, transferReason } = this.data;
-    if (!transferStoreId) {
-      wx.showToast({ title: '请选择目标门店', icon: 'none' });
-      return;
-    }
-    wx.showLoading({ title: '提交中...' });
-    request({
-      url: '/transfers',
-      method: 'POST',
-      data: { to_store_id: transferStoreId, reason: transferReason }
-    }).then(() => {
-      wx.hideLoading();
-      wx.showToast({ title: '转卡申请已提交，等待审核', icon: 'success' });
-      this.setData({ showTransferModal: false });
-      this._updatePullDownRefresh();
-    }).catch(err => {
-      wx.hideLoading();
-      const errMsg = err.message || err.data?.message || '提交失败';
-      wx.showToast({ title: errMsg, icon: 'none' });
-    });
   },
 
   onAbout() {

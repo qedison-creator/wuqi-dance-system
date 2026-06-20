@@ -9,6 +9,11 @@
     <text class="loading-text">加载中...</text>
   </view>
 
+  <view class="error-area" wx:elif="{{loadError}}">
+    <text class="error-text">网络连接失败，请检查网络后重试</text>
+    <view class="retry-btn" bindtap="onRetry">重新加载</view>
+  </view>
+
   <view wx:elif="{{coaches.length > 0}}">
     <view class="coach-card" wx:for="{{coaches}}" wx:key="_id" data-id="{{item._id}}" bindtap="onCoachTap">
       <image class="coach-avatar" src="{{imageErrors['coach_'+item._id] ? '/images/default-avatar.svg' : (item.avatar_url || '/images/default-avatar.svg')}}" binderror="onImgError" data-type="coach" data-id="{{item._id}}" mode="aspectFill" lazy-load />

@@ -38,9 +38,23 @@ exports.getMyPackage = async (userId) => {
   // 先刷新套餐状态（将已过期的 active 标记为 expired）
   await exports.refreshPackageStatus(userId);
 
-  const packages = await UserPackage.find({ user_id: userId })
+  let packages = await UserPackage.find({ user_id: userId })
     .populate('store_id', 'name')
     .sort({ created_at: 1 });
+
+  // 强制修正：已激活且过期的 active 套餐必须标记为 expired，避免前端/后端状态不同步
+  const now = new Date();
+  const toSave = [];
+  packages = packages.map(pkg => {
+    if (pkg.status === 'active' && pkg.is_activated && pkg.end_date && now > new Date(pkg.end_date)) {
+      pkg.status = 'expired';
+      toSave.push(pkg.save());
+    }
+    return pkg;
+  });
+  if (toSave.length > 0) {
+    await Promise.all(toSave);
+  }
 
   const activePackage = packages.find(p => p.status === 'active' && !p.is_suspended);
   const pendingPackages = packages.filter(p => p.status === 'pending');

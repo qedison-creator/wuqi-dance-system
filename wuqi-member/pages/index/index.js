@@ -187,7 +187,7 @@ Page({
 
     // 并行加载所有数据
 
-    Promise.all([
+    return Promise.all([
       request({ url: '/home/banners', data: { store_id: storeId } }),
       request({ url: '/home/coaches', data: { store_id: storeId, limit: 6 } }),
       request({ url: '/schedules', data: { store_id: storeId, limit: 10 } }),
@@ -353,12 +353,12 @@ Page({
           });
         } else {
           // 未拒绝过，直接调用
- wx.getFuzzyLocation
           that._getFuzzyLocationAndShowStores();
         }
       },
       fail() {
-        // 获取设置失败，直接调用        that._getFuzzyLocationAndShowStores();
+        // 获取设置失败，直接调用
+        that._getFuzzyLocationAndShowStores();
       }
     });
   },
@@ -375,9 +375,16 @@ Page({
         });
         // 计算各门店距离
         const storesWithDist = app.calcStoresWithDist(res.latitude, res.longitude, that.data.storeList);
-        app.globalData.storeList = storesWithDist;
+        // 按距离从近到远排序（无距离的门店排在后面）
+        const sortedStores = storesWithDist.sort((a, b) => {
+          if (a.distance === null && b.distance === null) return 0;
+          if (a.distance === null) return 1;
+          if (b.distance === null) return -1;
+          return a.distance - b.distance;
+        });
+        app.globalData.storeList = sortedStores;
         that.setData({
-          storeList: storesWithDist,
+          storeList: sortedStores,
           showStoreModal: true
         });
       },
@@ -426,7 +433,6 @@ Page({
           longitude: res.longitude
         });
         // 匹配最近门店并自动切换
-
         const nearest = app._findNearestStoreByCoords(res.latitude, res.longitude, app.globalData.storeList);
         if (nearest) {
           app.globalData.currentStore = nearest;
@@ -436,7 +442,8 @@ Page({
         }
       },
       fail() {
-        // 获取位置失败，不做任何操作
+        // 获取位置失败，提示用户
+        wx.showToast({ title: '获取位置失败，可稍后在切换门店时重试', icon: 'none' });
       }
     });
   },
@@ -551,12 +558,6 @@ Page({
     if (!url) return;
     if (!auth.requireLogin(() => this.setData({ showLoginModal: true }))) return;
     wx.navigateTo({ url });
-  },
-
-  onPullDownRefresh() {
-    this.setData({ _dataLoaded: false });
-    this.loadHomeData();
-    wx.stopPullDownRefresh();
   },
 
   async loadAnnounces() {

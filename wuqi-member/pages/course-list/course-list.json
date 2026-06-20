@@ -4,6 +4,7 @@
   "navigationBarTextStyle": "black",
   "enablePullDownRefresh": true,
   "backgroundColor": "#FBFAF8",
+  "backgroundTextStyle": "dark",
   "usingComponents": {
     "empty-state": "/components/empty-state/empty-state"
   }

@@ -1,4 +1,4 @@
-<scroll-view class="page-scroll" scroll-y enhanced show-scrollbar="{{false}}" refresher-enabled="{{canPullRefresh}}" bindrefresherrefresh="onRefresh" refresher-triggered="{{refresherTriggered}}">
+<view class="page-scroll">
 <view class="profile-page">
   <block wx:if="{{isLoggedIn}}">
     <view class="hero-card">
@@ -431,7 +431,7 @@
           <view class="menu-icon-wrap muted">
             <image class="menu-icon" src="/images/icons/document.svg" mode="aspectFit"></image>
           </view>
-          <text class="menu-item-title">用户服务协议</text>
+          <text class="menu-item-title">用户协议</text>
           <view class="menu-item-arrow"></view>
         </view>
       </view>
@@ -557,14 +557,14 @@
           <view class="menu-icon-wrap muted">
             <image class="menu-icon" src="/images/icons/document.svg" mode="aspectFit"></image>
           </view>
-          <text class="menu-item-title">用户服务协议</text>
+          <text class="menu-item-title">用户协议</text>
           <view class="menu-item-arrow"></view>
         </view>
       </view>
     </view>
   </block>
 </view>
-</scroll-view>
+</view>
 
 <!-- 套餐详情 Sheet -->
 <view class="pkg-sheet-mask {{showPackageDetail ? 'show' : ''}}" bindtap="onClosePackageDetail" catchtouchmove="preventTouchMove">
@@ -703,24 +703,6 @@
       </view>
       <view class="tip-box">修改手机号需要管理员审核通过后生效</view>
       <view class="btn-primary" bindtap="onSubmitChangePhone">提交审核</view>
-    </view>
-  </view>
-
-  <view class="modal-mask" wx:if="{{showTransferModal}}" bindtap="onCloseTransferModal">
-    <view class="modal-content" catchtap="onModalTap">
-      <view class="modal-title-text">转卡申请</view>
-      <view class="modal-hint-text">请选择要转入的目标门店</view>
-      <view class="store-list">
-        <view class="store-opt {{transferStoreId === item._id ? 'active' : ''}}" wx:for="{{transferStoreList}}" wx:key="_id" data-id="{{item._id}}" data-name="{{item.name}}" bindtap="onTransferStoreSelect">
-          <text class="store-opt-name">{{item.name}}</text>
-          <text class="store-opt-dist" wx:if="{{item.distance !== undefined}}">{{item.distance}}km</text>
-        </view>
-      </view>
-      <view class="form-group">
-        <text class="form-label">申请原因（选填）</text>
-        <textarea class="transfer-textarea" placeholder="请输入转卡原因" placeholder-class="ph" maxlength="200" value="{{transferReason}}" bindinput="onTransferReasonInput"></textarea>
-      </view>
-      <view class="btn-primary" bindtap="onSubmitTransfer" disabled="{{!transferStoreId}}">提交申请</view>
     </view>
   </view>
 
