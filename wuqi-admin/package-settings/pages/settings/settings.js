@@ -29,6 +29,7 @@ Page({
     this.setData({ loading: true });
     try {
       // 加载提醒设置配置
+
       const reminderRes = await request({ url: '/config/reminder-settings', method: 'GET' });
       const reminderConfig = reminderRes.data || {};
 

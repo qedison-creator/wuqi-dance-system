@@ -2,13 +2,16 @@ const app = getApp();
 const { request } = require('../../../utils/request');
 
 // 最大图片上传大小（与后端 multer limits.fileSize 一致）
+
 const MAX_IMAGE_SIZE = 10 * 1024 * 1024; // 10MB
 
 // 从上传错误中提取有意义的提示信息
+
 function getUploadErrorMessage(err) {
   if (!err) return '上传失败，请重试';
   const msg = err.message || err.errMsg || String(err);
   // 服务器返回的具体错误
+
   if (msg.includes('文件过大')) return msg;
   if (msg.includes('不支持的图片类型')) return msg;
   if (msg.includes('413')) return '图片文件过大，最大支持 10MB';
@@ -66,6 +69,7 @@ Page({
     const config = require('../../../config/index.js');
     const serverBase = config.serverBase || '';
     // HTTP IP地址（旧数据），提取相对路径后重新拼接当前环境地址
+
     if (url.startsWith('http://')) {
       const match = url.match(/^https?:\/\/[^/]+(\/.*)$/);
       if (match) return serverBase + match[1];
@@ -107,8 +111,10 @@ Page({
         method: 'GET'
       });
       // 后端返回 paginate 格式: { list: [...], total, page, pageSize }
+
       const list = res.data && Array.isArray(res.data.list) ? res.data.list : (Array.isArray(res.data) ? res.data : []);
       // 补全图片路径
+
       const processedList = list.map(coach => ({
         ...coach,
         avatar_url: this.fixImageUrl(coach.avatar_url)
@@ -127,6 +133,7 @@ Page({
         method: 'GET'
       });
       // 后端返回 paginate 格式: { list: [...], total, page, pageSize }
+
       const list = res.data && Array.isArray(res.data.list) ? res.data.list : (Array.isArray(res.data) ? res.data : []);
       this.setData({ stores: list });
     } catch (err) {
@@ -141,6 +148,7 @@ Page({
         method: 'GET'
       });
       // 后端返回 paginate 格式: { list: [...], total, page, pageSize }
+
       const list = res.data && Array.isArray(res.data.list) ? res.data.list : (Array.isArray(res.data) ? res.data : []);
       this.setData({ danceStyles: list });
     } catch (err) {
@@ -170,6 +178,7 @@ Page({
     this.setData({ danceStyleList: list });
     
     // 更新 coachForm.dance_style_ids
+
     const selectedIds = list.filter(i => i.selected).map(i => String(i._id));
     this.setData({ 'coachForm.dance_style_ids': selectedIds });
   },
@@ -199,6 +208,7 @@ Page({
     const index = e.currentTarget.dataset.index;
     const coach = this.data.coaches[index];
     // 确保 dance_style_ids 是字符串数组用于比较
+
     const danceStyleIds = coach.dance_style_ids ? coach.dance_style_ids.map(id => String(id)) : [];
     this.setData({
       showCoachModal: true,
@@ -242,6 +252,7 @@ Page({
     }
 
     // 构造符合后端模型的数据
+
     const submitData = {
       name: coachForm.name,
       gender: Number(coachForm.gender) || 0,
@@ -278,6 +289,7 @@ Page({
 
   async onDeleteCoach(e) {
     // 防抖处理：如果正在删除中，则直接返回
+
     if (this.data.deleting) {
       wx.showToast({ title: '正在删除中，请稍候', icon: 'none' });
       return;
@@ -292,6 +304,7 @@ Page({
         if (res.confirm) {
           try {
             // 设置防抖标志位
+
             this.setData({ deleting: true });
             await request({
               url: `/coaches/${coach._id}`,
@@ -304,12 +317,14 @@ Page({
             wx.showToast({ title: '删除失败', icon: 'none' });
           } finally {
             // 无论成功或失败，都重置防抖标志位
+
             this.setData({ deleting: false });
           }
         }
       },
       fail: () => {
         // 用户取消删除，重置防抖标志位
+
         this.setData({ deleting: false });
       }
     });
@@ -342,11 +357,13 @@ Page({
       success: async (res) => {
         const file = res.tempFiles[0];
         // 上传前检查文件大小
+
         if (file.size > MAX_IMAGE_SIZE) {
           wx.showToast({ title: '图片过大，最大支持 10MB', icon: 'none' });
           return;
         }
         // 裁剪：正方形1:1，用户可缩放/拖动
+
         let filePath = file.tempFilePath;
         try {
           if (wx.cropImage) {
@@ -528,6 +545,7 @@ Page({
 
   async onDeleteDanceStyle(e) {
     // 防抖处理：如果正在删除中，则直接返回
+
     if (this.data.deleting) {
       wx.showToast({ title: '正在删除中，请稍候', icon: 'none' });
       return;
@@ -542,6 +560,7 @@ Page({
         if (res.confirm) {
           try {
             // 设置防抖标志位
+
             this.setData({ deleting: true });
             await request({
               url: `/dance-styles/${ds._id}`,
@@ -554,15 +573,18 @@ Page({
             wx.showToast({ title: '删除失败', icon: 'none' });
           } finally {
             // 无论成功或失败，都重置防抖标志位
+
             this.setData({ deleting: false });
           }
         } else {
           // 用户取消删除，重置防抖标志位
+
           this.setData({ deleting: false });
         }
       },
       fail: () => {
         // 用户取消删除，重置防抖标志位
+
         this.setData({ deleting: false });
       }
     });

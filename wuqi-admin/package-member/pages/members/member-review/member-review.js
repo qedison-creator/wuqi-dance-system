@@ -105,9 +105,11 @@ Page({
       const storeList = res.data && Array.isArray(res.data.list) ? res.data.list : (Array.isArray(res.data) ? res.data : []);
       
       // 自动选中用户已选择的门店
+
       let autoSelectedStoreId = '';
       if (storeId) {
         // 检查门店列表中是否存在这个门店
+
         const targetStore = storeList.find(s => String(s._id) === String(storeId));
         if (targetStore) {
           autoSelectedStoreId = targetStore._id;

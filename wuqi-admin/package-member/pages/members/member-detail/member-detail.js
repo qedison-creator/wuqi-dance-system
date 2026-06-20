@@ -2,6 +2,7 @@ const { request } = require('../../../../utils/request');
 const { getBeijingDate } = require('../../../../utils/helpers');
 
 // 预约状态文案映射（booking 专属状态，与课程状态不同）
+
 const BOOKING_STATUS_TEXT_MAP = {
   'booked': '已预约',
   'completed': '已完成',
@@ -62,6 +63,7 @@ Page({
       this.loadMemberDetail();
     }
     // 判断是否是超级管理员
+
     const app = getApp();
     const userInfo = app.globalData.userInfo || {};
     this.setData({ isAdmin: userInfo.role === 'super_admin' });
@@ -78,10 +80,12 @@ Page({
       const member = { ...data };
 
       // 性别显示映射
+
       const genderMap = { 0: '未知', 1: '男', 2: '女' };
       member.gender_display = genderMap[member.gender] || '未知';
 
       // 门店名称处理
+
       if (member.store_id && typeof member.store_id === 'object' && member.store_id.name) {
         member.store_name = member.store_id.name;
       } else if (member.store_id && typeof member.store_id === 'string') {
@@ -89,6 +93,7 @@ Page({
       }
 
       // 从套餐推导关联门店
+
       const linkedStoreMap = {};
       const allPkgs = data.packages || [];
       allPkgs.forEach(pkg => {
@@ -102,11 +107,13 @@ Page({
       member.linkedStores = Object.values(linkedStoreMap);
 
       // 格式化注册时间
+
       if (member.created_at) {
         member.created_at_display = this.formatDate(member.created_at);
       }
 
       // 录入套餐时间（取最早的套餐创建时间）
+
       const allPkgsRaw = data.packages || [];
       if (allPkgsRaw.length > 0) {
         const earliestPkg = allPkgsRaw.reduce((earliest, pkg) => {
@@ -120,6 +127,7 @@ Page({
       }
 
       // 格式化套餐日期
+
       const packages = (data.packages || []).map(pkg => {
         if (pkg.start_date) {
           pkg.start_date_display = this.formatDate(pkg.start_date);
@@ -128,12 +136,14 @@ Page({
           pkg.end_date_display = this.formatDate(pkg.end_date);
         }
         // 计算剩余天数（已激活的套餐）
+
         if (pkg.is_activated && pkg.end_date) {
           const now = getBeijingDate();
           const end = getBeijingDate(pkg.end_date);
           const diff = Math.ceil((end - now) / (1000 * 60 * 60 * 24));
           pkg.remaining_days = diff;
           // 动态修正状态：已激活但有效期已过的，标记为已过期
+
           if (diff < 0 && (pkg.status === 'active' || pkg.status !== 'expired')) {
             pkg._displayStatus = 'expired';
           }
@@ -141,6 +151,7 @@ Page({
           pkg.remaining_days = null;
         }
         // 格式化自动激活日期（未激活的套餐）
+
         if (!pkg.is_activated && pkg.auto_activate_at) {
           pkg.auto_activate_at_display = this.formatDate(pkg.auto_activate_at);
         }
@@ -148,11 +159,13 @@ Page({
       });
 
       // 格式化预约记录日期
+
       const bookings = (data.bookings || []).map(booking => {
         if (booking.created_at) {
           booking.created_at_display = this.formatDateTime(booking.created_at);
         }
         // 计算课程星期
+
         const date = booking.schedule_id ? booking.schedule_id.date : booking.booking_date;
         if (date) {
           booking._weekday = this.getWeekDay(date);
@@ -163,6 +176,7 @@ Page({
       });
 
       // 计算综合会员状态
+
       const { statusText, statusClass, hasActive, hasSuspended } = this.calcMemberStatus(member, packages);
 
       this.setData({
@@ -192,40 +206,48 @@ Page({
     const hasSuspended = suspendedPackages.length > 0;
 
     // 账户已停用
+
     if (member.status === 'disabled') {
       return { statusText: '已停卡', statusClass: 'suspended', hasActive: false, hasSuspended };
     }
 
     // 没有套餐
+
     if (pkgList.length === 0) {
       return { statusText: '无套餐', statusClass: 'no-package', hasActive: false, hasSuspended: false };
     }
 
     // 检查是否有使用中的套餐（已激活、未停卡、未过期）
+
     const activePackages = pkgList.filter(p => p.status === 'active' && !p._displayStatus && p.is_activated && !p.is_suspended);
     if (activePackages.length > 0) {
       // 有活跃套餐，同时可能也有已停卡套餐（混合状态：仍算已激活，可操作停卡/复卡）
+
       return { statusText: '已激活', statusClass: 'activated', hasActive: true, hasSuspended };
     }
 
     // 所有活跃套餐都停卡了
+
     if (hasSuspended) {
       return { statusText: '已停卡', statusClass: 'suspended', hasActive: false, hasSuspended: true };
     }
 
     // 检查是否有待激活的套餐
+
     const pendingPackages = pkgList.filter(p => p.status === 'pending' || !p.is_activated);
     if (pendingPackages.length > 0) {
       return { statusText: '待激活', statusClass: 'pending', hasActive: false, hasSuspended: false };
     }
 
     // 检查是否全部过期（考虑动态修正的显示状态）
+
     const allExpired = pkgList.every(p => p.status === 'expired' || p._displayStatus === 'expired');
     if (allExpired) {
       return { statusText: '已到期', statusClass: 'expired', hasActive: false, hasSuspended: false };
     }
 
     // 检查是否全部用完
+
     const allExhausted = pkgList.every(p => p.status === 'exhausted');
     if (allExhausted) {
       const hasCountCard = pkgList.some(p => p.package_type === 'count_card');
@@ -240,6 +262,7 @@ Page({
     }
 
     // 混合状态（部分过期、部分用完等）
+
     return { statusText: '套餐已失效', statusClass: 'expired', hasActive: false, hasSuspended: false };
   },
 
@@ -419,6 +442,7 @@ Page({
     const { editingPackage, editPackageForm } = this.data;
 
     // 验证必填字段
+
     if (editPackageForm.package_type === 'count_card' && !editPackageForm.total_credits) {
       wx.showToast({ title: '请输入次数', icon: 'none' });
       return;
@@ -453,6 +477,7 @@ Page({
       }
 
       // 时间卡可以修改限制次数
+
       if (editPackageForm.package_type === 'time_card') {
         if (editPackageForm.limit_type === 'daily') {
           postData.daily_limit = parseInt(editPackageForm.limit_value);

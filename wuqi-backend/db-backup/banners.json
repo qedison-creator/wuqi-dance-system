@@ -31,5 +31,27 @@
     "created_at": "2026-05-08T13:23:34.539Z",
     "updated_at": "2026-05-08T13:23:34.539Z",
     "__v": 0
+  },
+  {
+    "_id": "6a1c0debcd8d428e259907e2",
+    "title": "会员合影",
+    "image_url": "http://localhost:3000/uploads/banners/1780223385713-ihw3zs.jpg",
+    "link_type": "none",
+    "sort_order": 1,
+    "status": "active",
+    "created_at": "2026-05-31T10:31:07.489Z",
+    "updated_at": "2026-05-31T10:31:07.489Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a1c15b5cd8d428e259907e3",
+    "title": "舞栖福永店",
+    "image_url": "http://localhost:3000/uploads/banners/1780225449721-omvkqu.jpg",
+    "link_type": "none",
+    "sort_order": 1,
+    "status": "active",
+    "created_at": "2026-05-31T11:04:21.479Z",
+    "updated_at": "2026-05-31T11:04:21.479Z",
+    "__v": 0
   }
 ]

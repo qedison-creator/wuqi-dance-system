@@ -4,9 +4,11 @@
  */
 
 // 最大图片上传大小（与后端 multer limits.fileSize 一致）
+
 const MAX_IMAGE_SIZE = 10 * 1024 * 1024; // 10MB
 
 // 从上传错误中提取有意义的提示信息
+
 function getUploadErrorMessage(err) {
   if (!err) return '上传失败，请重试';
   const msg = err.message || err.errMsg || String(err);

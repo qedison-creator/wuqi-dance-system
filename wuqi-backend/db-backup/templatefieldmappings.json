@@ -1,0 +1,296 @@
+[
+  {
+    "_id": "6a1b40fe628401734666cb76",
+    "template_key": "bookingSuccess",
+    "template_name": "课程预约成功通知",
+    "template_id": "mVdMRIYRRDRzk789Rw3Y6xUSo6fkkbTHuA1oicTlobE",
+    "description": "用户预约课程成功后发送",
+    "mappings": [
+      {
+        "wx_field": "thing1",
+        "biz_field": "courseName",
+        "example_value": "拉伸课",
+        "_id": "6a1b49eafa3bdc9e18e86c2a"
+      },
+      {
+        "wx_field": "phrase2",
+        "biz_field": "coachName",
+        "example_value": "张三",
+        "_id": "6a1b49eafa3bdc9e18e86c2b"
+      },
+      {
+        "wx_field": "thing3",
+        "biz_field": "storeName",
+        "example_value": "微信健身馆",
+        "_id": "6a1b49eafa3bdc9e18e86c2c"
+      },
+      {
+        "wx_field": "time4",
+        "biz_field": "courseTime",
+        "example_value": "2018-07-08 11:00~12:00",
+        "_id": "6a1b49eafa3bdc9e18e86c2d"
+      },
+      {
+        "wx_field": "time16",
+        "biz_field": "bookingTime",
+        "example_value": "2024年10月17日15:01",
+        "_id": "6a1b49eafa3bdc9e18e86c2e"
+      }
+    ],
+    "created_at": "2026-05-30T19:56:46.452Z",
+    "updated_at": "2026-05-30T20:34:50.666Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a1b40fe628401734666cb7c",
+    "template_key": "bookingCancel",
+    "template_name": "课程预约取消通知",
+    "template_id": "UICX8hELSZ_TCGg1Jdnd3nGkrn9dlk6qep6H9grWLgo",
+    "description": "用户取消预约时发送通知",
+    "mappings": [
+      {
+        "wx_field": "thing3",
+        "biz_field": "courseName",
+        "example_value": "普拉提",
+        "_id": "6a1b49cdfa3bdc9e18e86c01"
+      },
+      {
+        "wx_field": "thing10",
+        "biz_field": "coachName",
+        "example_value": "John",
+        "_id": "6a1b49cdfa3bdc9e18e86c02"
+      },
+      {
+        "wx_field": "const5",
+        "biz_field": "cancelReason",
+        "example_value": "恶劣天气",
+        "_id": "6a1b49cdfa3bdc9e18e86c03"
+      },
+      {
+        "wx_field": "thing1",
+        "biz_field": "storeName",
+        "example_value": "瑜伽馆",
+        "_id": "6a1b49cdfa3bdc9e18e86c04"
+      },
+      {
+        "wx_field": "time12",
+        "biz_field": "cancelTime",
+        "example_value": "2022年11月22日 16:00",
+        "_id": "6a1b49cdfa3bdc9e18e86c05"
+      }
+    ],
+    "created_at": "2026-05-30T19:56:46.459Z",
+    "updated_at": "2026-05-30T20:34:21.630Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a1b4639fa3bdc9e18e86ae8",
+    "template_key": "classReminder",
+    "template_name": "上课提醒",
+    "template_id": "",
+    "description": "课程开始前定时发送提醒",
+    "mappings": [
+      {
+        "wx_field": "thing1",
+        "biz_field": "courseName",
+        "example_value": "爵士舞入门",
+        "_id": "6a1b4639fa3bdc9e18e86ae9"
+      },
+      {
+        "wx_field": "time2",
+        "biz_field": "courseTime",
+        "example_value": "2026-06-01 19:00",
+        "_id": "6a1b4639fa3bdc9e18e86aea"
+      },
+      {
+        "wx_field": "thing3",
+        "biz_field": "classroom",
+        "example_value": "固戍店A教室",
+        "_id": "6a1b4639fa3bdc9e18e86aeb"
+      }
+    ],
+    "created_at": "2026-05-30T20:19:05.339Z",
+    "updated_at": "2026-05-30T20:19:05.339Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a1b4639fa3bdc9e18e86af1",
+    "template_key": "waitlistAvailable",
+    "template_name": "候补成功通知",
+    "template_id": "",
+    "description": "有名额空出时通知候补用户",
+    "mappings": [
+      {
+        "wx_field": "thing1",
+        "biz_field": "courseName",
+        "example_value": "有氧舞蹈",
+        "_id": "6a1b4c9041a10379e617c6a9"
+      },
+      {
+        "wx_field": "time2",
+        "biz_field": "courseTime",
+        "example_value": "2026-06-02 10:00",
+        "_id": "6a1b4c9041a10379e617c6aa"
+      },
+      {
+        "wx_field": "thing3",
+        "biz_field": "tipMessage",
+        "example_value": "有名额空出，请尽快预约",
+        "_id": "6a1b4c9041a10379e617c6ab"
+      }
+    ],
+    "created_at": "2026-05-30T20:19:05.350Z",
+    "updated_at": "2026-05-30T20:46:08.239Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a1b4639fa3bdc9e18e86af5",
+    "template_key": "packageExpiring",
+    "template_name": "套餐即将到期",
+    "template_id": "",
+    "description": "套餐到期前发送提醒",
+    "mappings": [
+      {
+        "wx_field": "thing1",
+        "biz_field": "packageName",
+        "example_value": "月卡套餐",
+        "_id": "6a1b4639fa3bdc9e18e86af6"
+      },
+      {
+        "wx_field": "date2",
+        "biz_field": "expireDate",
+        "example_value": "2026-06-30",
+        "_id": "6a1b4639fa3bdc9e18e86af7"
+      },
+      {
+        "wx_field": "thing3",
+        "biz_field": "tipMessage",
+        "example_value": "您的套餐即将到期，请及时续费",
+        "_id": "6a1b4639fa3bdc9e18e86af8"
+      }
+    ],
+    "created_at": "2026-05-30T20:19:05.353Z",
+    "updated_at": "2026-05-30T20:19:05.353Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a1b4639fa3bdc9e18e86af9",
+    "template_key": "packageActivated",
+    "template_name": "套餐已激活",
+    "template_id": "",
+    "description": "套餐激活成功时发送通知",
+    "mappings": [
+      {
+        "wx_field": "thing1",
+        "biz_field": "packageName",
+        "example_value": "次卡30次",
+        "_id": "6a1b4639fa3bdc9e18e86afa"
+      },
+      {
+        "wx_field": "date2",
+        "biz_field": "expireDate",
+        "example_value": "2026-12-31",
+        "_id": "6a1b4639fa3bdc9e18e86afb"
+      },
+      {
+        "wx_field": "thing3",
+        "biz_field": "tipMessage",
+        "example_value": "套餐已激活，快来预约课程吧",
+        "_id": "6a1b4639fa3bdc9e18e86afc"
+      }
+    ],
+    "created_at": "2026-05-30T20:19:05.357Z",
+    "updated_at": "2026-05-30T20:19:05.357Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a1b4639fa3bdc9e18e86afd",
+    "template_key": "countCardLowRemind",
+    "template_name": "次卡低次数提醒",
+    "template_id": "",
+    "description": "次卡剩余次数低于阈值时发送提醒",
+    "mappings": [
+      {
+        "wx_field": "thing1",
+        "biz_field": "packageName",
+        "example_value": "次卡20次",
+        "_id": "6a1b4639fa3bdc9e18e86afe"
+      },
+      {
+        "wx_field": "number2",
+        "biz_field": "remainCount",
+        "example_value": "3",
+        "_id": "6a1b4639fa3bdc9e18e86aff"
+      },
+      {
+        "wx_field": "thing3",
+        "biz_field": "tipMessage",
+        "example_value": "剩余次数不足，请及时续费",
+        "_id": "6a1b4639fa3bdc9e18e86b00"
+      }
+    ],
+    "created_at": "2026-05-30T20:19:05.360Z",
+    "updated_at": "2026-05-30T20:19:05.360Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a1b4639fa3bdc9e18e86b01",
+    "template_key": "memberInactiveRemind",
+    "template_name": "会员不活跃提醒",
+    "template_id": "",
+    "description": "会员长期未预约时发送提醒",
+    "mappings": [
+      {
+        "wx_field": "thing1",
+        "biz_field": "memberNickname",
+        "example_value": "小明",
+        "_id": "6a1b4639fa3bdc9e18e86b02"
+      },
+      {
+        "wx_field": "number2",
+        "biz_field": "inactiveDays",
+        "example_value": "30",
+        "_id": "6a1b4639fa3bdc9e18e86b03"
+      },
+      {
+        "wx_field": "thing3",
+        "biz_field": "tipMessage",
+        "example_value": "好久不见，快来跳舞吧",
+        "_id": "6a1b4639fa3bdc9e18e86b04"
+      }
+    ],
+    "created_at": "2026-05-30T20:19:05.364Z",
+    "updated_at": "2026-05-30T20:19:05.364Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a1b4639fa3bdc9e18e86b05",
+    "template_key": "phoneAuditResult",
+    "template_name": "手机号审核结果",
+    "template_id": "",
+    "description": "手机号修改审核结果通知",
+    "mappings": [
+      {
+        "wx_field": "thing1",
+        "biz_field": "auditItem",
+        "example_value": "预留手机号修改",
+        "_id": "6a1b4639fa3bdc9e18e86b06"
+      },
+      {
+        "wx_field": "phrase2",
+        "biz_field": "auditResult",
+        "example_value": "审核通过",
+        "_id": "6a1b4639fa3bdc9e18e86b07"
+      },
+      {
+        "wx_field": "thing3",
+        "biz_field": "remark",
+        "example_value": "手机号已更新成功",
+        "_id": "6a1b4639fa3bdc9e18e86b08"
+      }
+    ],
+    "created_at": "2026-05-30T20:19:05.368Z",
+    "updated_at": "2026-05-30T20:19:05.368Z",
+    "__v": 0
+  }
+]

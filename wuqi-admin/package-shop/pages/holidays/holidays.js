@@ -3,6 +3,7 @@ const { request } = require('../../../utils/request');
 const { formatDate } = require('../../../utils/util');
 
 // 前端计算放假天数的备用函数
+
 const calculateDaysCount = (startDate, endDate) => {
   if (!startDate) return 0;
   const start = new Date(startDate);
@@ -54,6 +55,7 @@ Page({
       list = list.map(item => {
         const newItem = { ...item };
         // 如果后端没有计算或者计算为0，则前端重新计算
+
         if (!newItem.daysCount || newItem.daysCount === 0) {
           const start = newItem.start_date || newItem.date;
           const end = newItem.end_date || newItem.date;
@@ -61,6 +63,7 @@ Page({
         }
         
         // 前端备用处理 - 如果没有 storeNames 但有 store_id，尝试从 storeList 中查找
+
         if (newItem.store_scope === 'single' && (!newItem.storeNames || newItem.storeNames.length === 0)) {
           let storeId = newItem.store_id_str || '';
           if (!storeId && newItem.store_id) {
@@ -202,6 +205,7 @@ Page({
     const holiday = this.data.holidays[index];
 
     // 使用后端提供的 store_id_str，如果没有再尝试解析 store_id
+
     let storeId = holiday.store_id_str || '';
     if (!storeId && holiday.store_id) {
       if (typeof holiday.store_id === 'object') {
@@ -215,6 +219,7 @@ Page({
     storeId = storeId ? String(storeId) : '';
 
     // 查找门店在 storeList 中的索引
+
     let storePickerIndex = 0;
     let selectedStoreName = '';
     if (storeId && this.data.storeList.length > 0) {
@@ -266,6 +271,7 @@ Page({
 
   async onDelete(e) {
     // 防抖处理：如果正在删除中，则直接返回
+
     if (this.data.deleting) {
       wx.showToast({ title: '正在删除中，请稍候', icon: 'none' });
       return;
@@ -280,6 +286,7 @@ Page({
         if (res.confirm) {
           try {
             // 设置防抖标志位
+
             this.setData({ deleting: true });
             await request({
               url: `/holidays/${id}`,
@@ -292,12 +299,14 @@ Page({
             wx.showToast({ title: '删除失败', icon: 'none' });
           } finally {
             // 无论成功或失败，都重置防抖标志位
+
             this.setData({ deleting: false });
           }
         }
       },
       fail: () => {
         // 用户取消删除，重置防抖标志位
+
         this.setData({ deleting: false });
       }
     });

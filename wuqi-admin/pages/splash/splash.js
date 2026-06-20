@@ -80,9 +80,11 @@ Page({
     try {
       await request({ url: '/auth/me', method: 'GET' });
       // token有效，直接进入首页
+
       wx.switchTab({ url: '/pages/dashboard/dashboard' });
     } catch (err) {
       // token无效，清除并跳转登录
+
       wx.removeStorageSync('admin_token');
       app.globalData.token = '';
       app.globalData.userInfo = null;

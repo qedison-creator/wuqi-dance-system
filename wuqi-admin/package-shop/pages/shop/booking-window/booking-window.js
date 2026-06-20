@@ -29,6 +29,7 @@ Page({
     const value = e.detail.value;
     if (field === 'bookingWindowDays') {
       // 限制最小值为 1
+
       const num = parseInt(value, 10);
       if (value !== '' && (isNaN(num) || num < 1)) {
         wx.showToast({ title: '最小为 1 天', icon: 'none' });

@@ -28,6 +28,7 @@ Page({
       });
       this.loadScheduleInfo();
       // 始终加载签到数据（预约视图也需要显示已签到Tab）
+
       this.loadAttendanceList();
       if (options.view_mode === 'attendance') {
         this.setData({ activeTab: 'all' });
@@ -52,6 +53,7 @@ Page({
         method: 'GET'
       });
       // 直接信任后端返回的 status 字段，前端不再推导状态
+
       const scheduleInfo = res.data;
       if (scheduleInfo) {
         scheduleInfo.statusText = getScheduleStatusText(scheduleInfo.status);
@@ -73,6 +75,7 @@ Page({
       const allBookings = res.data || [];
       
       // 分类处理
+
       const bookedList = [];
       const completedList = [];
       const cancelledList = [];
@@ -97,6 +100,7 @@ Page({
         };
         
         // 根据状态分类（没有缺勤业务，所有未签到的都自动签到）
+
         const status = item.status;
         if (status === 'booked') {
           bookedList.push(booking);
@@ -134,6 +138,7 @@ Page({
       });
       
       // 后端返回 { total, checkedIn, booked, cancelled, records: [...] }
+
       const records = (res.data && res.data.records) || [];
       
       const processedList = records.map(item => {

@@ -21,6 +21,7 @@ Page({
   onShow() {
     if (!app.checkAuth()) return;
     // 更新自定义tabbar的选中状态
+
     if (typeof this.getTabBar === 'function' && this.getTabBar()) {
       this.getTabBar().setData({ selected: 3 });
     }
@@ -36,6 +37,7 @@ Page({
     const todayStr = this._formatDate(today);
 
     // 生成日期范围：历史1年 + 未来3个月
+
     const startOffset = -365;
     const endOffset = 90;
 
@@ -51,6 +53,7 @@ Page({
       const monthName = `${year}年${month}月`;
 
       // 记录月份变化
+
       if (monthKey !== currentMonth) {
         currentMonth = monthKey;
         if (!months.find(m => m.key === monthKey)) {
@@ -68,6 +71,7 @@ Page({
     const currentMonthInfo = months.find(m => m.key === todayMonthKey);
 
     // 默认初始化时，当天不是历史日期（因为today >= today）
+
     this.setData({
       monthList: months,
       currentDate: todayStr,
@@ -94,11 +98,13 @@ Page({
     const [year, month] = monthKey.split('-').map(Number);
 
     // 获取当月第一天和最后一天
+
     const firstDay = new Date(year, month - 1, 1);
     const lastDay = new Date(year, month, 0);
 
     // 获取第一天是星期几 (0=周日, 1=周一, ..., 6=周六)
     // 调整为从周一开始：周日→6，周一→0，周二→1...周六→5
+
     let startWeekday = firstDay.getDay();
     if (startWeekday === 0) {
       startWeekday = 6;
@@ -107,10 +113,12 @@ Page({
     }
 
     // 创建日历数据
+
     const today = new Date();
     const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
 
     // 生成完整的日历数据（按周组织）
+
     const weeks = [];
     let currentWeek = [];
 
@@ -118,11 +126,13 @@ Page({
     await this.loadMonthSchedules(monthKey);
 
     // 填充第一周的空白
+
     for (let i = 0; i < startWeekday; i++) {
       currentWeek.push({ type: 'empty' });
     }
 
     // 填充日期
+
     for (let day = 1; day <= lastDay.getDate(); day++) {
       const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
       const isToday = dateStr === todayStr;
@@ -130,6 +140,7 @@ Page({
       const isPast = new Date(dateStr) < today;
 
       // 判断当天的课程状态
+
       const dayStatus = this.getDayStatus(dateStr);
 
       currentWeek.push({
@@ -143,6 +154,7 @@ Page({
       });
 
       // 如果一周已满，添加到weeks并开始新周
+
       if (currentWeek.length === 7) {
         weeks.push(currentWeek);
         currentWeek = [];
@@ -150,8 +162,10 @@ Page({
     }
 
     // 添加最后一周（如果有剩余）
+
     if (currentWeek.length > 0) {
       // 填充最后一周的空白
+
       while (currentWeek.length < 7) {
         currentWeek.push({ type: 'empty' });
       }
@@ -159,6 +173,7 @@ Page({
     }
 
     // 计算当前月份名称
+
     let monthName = '';
     if (this.data.monthList && this.data.monthList.length > 0) {
       const currentMonthInfo = this.data.monthList.find(m => m.key === monthKey);
@@ -219,12 +234,14 @@ Page({
   // 判断某天的状态
   getDayStatus(dateStr) {
     // 首先检查是否是未来日期
+
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const checkDate = new Date(dateStr);
     checkDate.setHours(0, 0, 0, 0);
     
     // 未来的日期直接返回none，不显示边框
+
     if (checkDate > today) {
       return 'none';
     }
@@ -232,6 +249,7 @@ Page({
     const { monthSchedules, holidays } = this.data;
     
     // 检查是否是假期
+
     const isHoliday = holidays.some(holiday => {
       const hEnd = holiday.end_date || holiday.date;
       return holiday.date <= dateStr && hEnd >= dateStr;
@@ -242,12 +260,14 @@ Page({
     }
 
     // 检查当天是否有课程
+
     const daySchedules = monthSchedules[dateStr];
     if (!daySchedules || daySchedules.length === 0) {
       return 'none';
     }
 
     // 检查课程状态
+
     let hasNormal = false;
     let hasCancelled = false;
 
@@ -296,6 +316,7 @@ Page({
     if (!date) return;
 
     // 首先检查选择的日期是否是历史日期
+
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const current = new Date(date);
@@ -307,6 +328,7 @@ Page({
       isCurrentDatePast: isPastDate
     }, () => {
       // 重新生成日历以更新选中状态
+
       this.generateMonthCalendar(this.data.currentMonth);
       this.loadSchedules();
     });
@@ -343,6 +365,7 @@ Page({
 
     try {
       // 首先检查是否是未来日期
+
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       const current = new Date(currentDate);
@@ -350,11 +373,13 @@ Page({
       const isPastDate = current < today;
       
       // 设置当前日期是否是历史日期的状态
+
       this.setData({
         isCurrentDatePast: isPastDate
       });
       
       // 未来日期直接不加载课程
+
       if (!isPastDate) {
         this.setData({
           schedules: []
@@ -370,6 +395,7 @@ Page({
       let list = res.data && Array.isArray(res.data.list) ? res.data.list : (Array.isArray(res.data) ? res.data : []);
 
       // 直接信任后端返回的 status 字段，前端不再推导历史课程状态
+
       const processedList = list.map(item => {
         const status = item.status || 'available';
         return {
@@ -394,6 +420,7 @@ Page({
     this.setData({ currentStoreId: e.currentTarget.dataset.id }, () => {
       this.loadSchedules();
       // 重新加载月课程
+
       this.generateMonthCalendar(this.data.currentMonth);
     });
   },

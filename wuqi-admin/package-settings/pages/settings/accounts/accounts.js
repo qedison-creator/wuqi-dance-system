@@ -95,6 +95,7 @@ Page({
     const account = this.data.accounts[index];
     const roleIndex = this.data.roles.findIndex(r => r.id === account.role);
     // 处理门店多选：优先使用 store_ids，兼容旧的 store_id
+
     let storeIds = [];
     if (account.store_ids && account.store_ids.length > 0) {
       storeIds = account.store_ids.map(s => typeof s === 'object' ? s._id : s);
@@ -134,6 +135,7 @@ Page({
     const newRole = this.data.roles[index].id;
     if (newRole === 'super_admin') {
       // 超级管理员不属于任何门店
+
       this.setData({
         roleIndex: index,
         'formData.role': newRole,
@@ -143,6 +145,7 @@ Page({
       });
     } else {
       // 店长、员工默认全部门店
+
       const allStoreIds = this.data.stores.map(s => s._id);
       const allChecked = this.data.stores.map(() => true);
       this.setData({
@@ -247,6 +250,7 @@ Page({
 
   onDeleteAccount(e) {
     // 防抖处理：如果正在删除中，则直接返回
+
     if (this.data.deleting) {
       wx.showToast({ title: '正在删除中，请稍候', icon: 'none' });
       return;
@@ -259,6 +263,7 @@ Page({
       success: (res) => {
         if (res.confirm) {
           // 设置防抖标志位
+
           this.setData({ deleting: true });
           request({
             url: `/accounts/${id}`,
@@ -267,19 +272,23 @@ Page({
             wx.showToast({ title: '已删除', icon: 'success' });
             this.loadAccounts();
             // 重置防抖标志位
+
             this.setData({ deleting: false });
           }).catch(() => {
             wx.showToast({ title: '删除失败', icon: 'none' });
             // 重置防抖标志位
+
             this.setData({ deleting: false });
           });
         } else {
           // 用户取消删除，重置防抖标志位
+
           this.setData({ deleting: false });
         }
       },
       fail: () => {
         // 用户取消删除，重置防抖标志位
+
         this.setData({ deleting: false });
       }
     });

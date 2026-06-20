@@ -108,13 +108,5 @@
         "pages/profile/account-security/account-security"
       ]
     }
-  ],
-  "preloadRule": {
-    "pages/dashboard/dashboard": {
-      "network": "all",
-      "packages": [
-        "package-schedule"
-      ]
-    }
-  }
+  ]
 }

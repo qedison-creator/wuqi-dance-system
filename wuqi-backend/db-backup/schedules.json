@@ -240,7 +240,7 @@
     "max_bookings": 20,
     "min_bookings": 5,
     "current_bookings": 0,
-    "status": "available",
+    "status": "cancelled",
     "schedule_type": "group",
     "course_name": "古典舞",
     "classroom": "",
@@ -251,8 +251,9 @@
     "from_template": true,
     "remark": "从周模板恢复",
     "created_at": "2026-05-16T19:33:20.964Z",
-    "updated_at": "2026-05-16T19:33:20.964Z",
-    "__v": 0
+    "updated_at": "2026-05-31T09:00:00.064Z",
+    "__v": 0,
+    "cancel_reason": "预约人数不足"
   },
   {
     "_id": "6a08c68018e8399ce501aed0",
@@ -343,7 +344,7 @@
     "max_bookings": 20,
     "min_bookings": 5,
     "current_bookings": 0,
-    "status": "available",
+    "status": "cancelled",
     "schedule_type": "group",
     "course_name": "街舞基本功",
     "classroom": "",
@@ -354,8 +355,9 @@
     "from_template": true,
     "remark": "从周模板恢复",
     "created_at": "2026-05-16T19:33:20.984Z",
-    "updated_at": "2026-05-16T19:33:20.984Z",
-    "__v": 0
+    "updated_at": "2026-05-27T08:30:00.109Z",
+    "__v": 0,
+    "cancel_reason": "预约人数不足"
   },
   {
     "_id": "6a08c68018e8399ce501aed4",
@@ -367,8 +369,8 @@
     "end_time": "20:30",
     "max_bookings": 20,
     "min_bookings": 5,
-    "current_bookings": 0,
-    "status": "available",
+    "current_bookings": 1,
+    "status": "completed",
     "schedule_type": "group",
     "course_name": "韩舞",
     "classroom": "",
@@ -379,7 +381,7 @@
     "from_template": true,
     "remark": "从周模板恢复",
     "created_at": "2026-05-16T19:33:20.989Z",
-    "updated_at": "2026-05-16T19:33:20.989Z",
+    "updated_at": "2026-05-30T17:00:00.100Z",
     "__v": 0
   },
   {
@@ -393,7 +395,7 @@
     "max_bookings": 20,
     "min_bookings": 5,
     "current_bookings": 0,
-    "status": "available",
+    "status": "cancelled",
     "schedule_type": "group",
     "course_name": "抖音舞",
     "classroom": "",
@@ -404,8 +406,9 @@
     "from_template": true,
     "remark": "从周模板恢复",
     "created_at": "2026-05-16T19:33:20.997Z",
-    "updated_at": "2026-05-16T19:33:20.997Z",
-    "__v": 0
+    "updated_at": "2026-05-29T08:30:00.097Z",
+    "__v": 0,
+    "cancel_reason": "预约人数不足"
   },
   {
     "_id": "6a08c68118e8399ce501aed6",
@@ -418,7 +421,7 @@
     "max_bookings": 20,
     "min_bookings": 5,
     "current_bookings": 0,
-    "status": "available",
+    "status": "cancelled",
     "schedule_type": "group",
     "course_name": "街舞",
     "classroom": "",
@@ -429,8 +432,9 @@
     "from_template": true,
     "remark": "从周模板恢复",
     "created_at": "2026-05-16T19:33:21.002Z",
-    "updated_at": "2026-05-16T19:33:21.002Z",
-    "__v": 0
+    "updated_at": "2026-05-29T09:30:00.097Z",
+    "__v": 0,
+    "cancel_reason": "预约人数不足"
   },
   {
     "_id": "6a08c68118e8399ce501aed7",
@@ -441,9 +445,9 @@
     "start_time": "19:45",
     "end_time": "21:00",
     "max_bookings": 20,
-    "min_bookings": 5,
+    "min_bookings": 3,
     "current_bookings": 0,
-    "status": "available",
+    "status": "cancelled",
     "schedule_type": "group",
     "course_name": "古典舞",
     "classroom": "",
@@ -454,8 +458,9 @@
     "from_template": true,
     "remark": "从周模板恢复",
     "created_at": "2026-05-16T19:33:21.025Z",
-    "updated_at": "2026-05-16T19:33:21.025Z",
-    "__v": 0
+    "updated_at": "2026-05-30T09:30:00.106Z",
+    "__v": 0,
+    "cancel_reason": "预约人数不足"
   },
   {
     "_id": "6a08c68118e8399ce501aed8",
@@ -504,7 +509,7 @@
     "from_template": true,
     "remark": "从周模板恢复",
     "created_at": "2026-05-16T19:33:21.041Z",
-    "updated_at": "2026-05-16T19:33:21.041Z",
+    "updated_at": "2026-05-27T09:24:33.661Z",
     "__v": 0
   },
   {
@@ -1123,7 +1128,7 @@
     "max_bookings": 20,
     "min_bookings": 5,
     "current_bookings": 0,
-    "status": "available",
+    "status": "cancelled",
     "schedule_type": "group",
     "course_name": "爵士舞基本功",
     "classroom": "",
@@ -1134,8 +1139,9 @@
     "from_template": true,
     "remark": "从周模板恢复",
     "created_at": "2026-05-16T19:33:21.177Z",
-    "updated_at": "2026-05-16T19:33:21.177Z",
-    "__v": 0
+    "updated_at": "2026-05-31T08:30:00.098Z",
+    "__v": 0,
+    "cancel_reason": "预约人数不足"
   },
   {
     "_id": "6a08c68118e8399ce501aef3",
@@ -1200,7 +1206,7 @@
     "max_bookings": 20,
     "min_bookings": 5,
     "current_bookings": 0,
-    "status": "available",
+    "status": "cancelled",
     "schedule_type": "group",
     "course_name": "古典舞",
     "classroom": "",
@@ -1211,8 +1217,9 @@
     "from_template": true,
     "remark": "从周模板恢复",
     "created_at": "2026-05-16T19:33:21.193Z",
-    "updated_at": "2026-05-16T19:33:21.193Z",
-    "__v": 0
+    "updated_at": "2026-05-27T08:30:00.115Z",
+    "__v": 0,
+    "cancel_reason": "预约人数不足"
   },
   {
     "_id": "6a08c68118e8399ce501aef6",
@@ -1225,7 +1232,7 @@
     "max_bookings": 20,
     "min_bookings": 5,
     "current_bookings": 0,
-    "status": "available",
+    "status": "completed",
     "schedule_type": "group",
     "course_name": "爵士舞",
     "classroom": "",
@@ -1236,7 +1243,7 @@
     "from_template": true,
     "remark": "从周模板恢复",
     "created_at": "2026-05-16T19:33:21.197Z",
-    "updated_at": "2026-05-16T19:33:21.197Z",
+    "updated_at": "2026-05-30T17:00:00.085Z",
     "__v": 0
   },
   {
@@ -1250,7 +1257,7 @@
     "max_bookings": 20,
     "min_bookings": 5,
     "current_bookings": 0,
-    "status": "available",
+    "status": "cancelled",
     "schedule_type": "group",
     "course_name": "古典舞",
     "classroom": "",
@@ -1261,8 +1268,9 @@
     "from_template": true,
     "remark": "从周模板恢复",
     "created_at": "2026-05-16T19:33:21.201Z",
-    "updated_at": "2026-05-16T19:33:21.201Z",
-    "__v": 0
+    "updated_at": "2026-05-29T08:30:00.117Z",
+    "__v": 0,
+    "cancel_reason": "预约人数不足"
   },
   {
     "_id": "6a08c68118e8399ce501aef8",
@@ -1275,7 +1283,7 @@
     "max_bookings": 20,
     "min_bookings": 5,
     "current_bookings": 0,
-    "status": "available",
+    "status": "cancelled",
     "schedule_type": "group",
     "course_name": "古典舞",
     "classroom": "",
@@ -1286,8 +1294,9 @@
     "from_template": true,
     "remark": "从周模板恢复",
     "created_at": "2026-05-16T19:33:21.205Z",
-    "updated_at": "2026-05-16T19:33:21.205Z",
-    "__v": 0
+    "updated_at": "2026-05-30T09:30:00.086Z",
+    "__v": 0,
+    "cancel_reason": "预约人数不足"
   },
   {
     "_id": "6a08c68118e8399ce501aef9",
@@ -1300,7 +1309,7 @@
     "max_bookings": 20,
     "min_bookings": 5,
     "current_bookings": 0,
-    "status": "available",
+    "status": "cancelled",
     "schedule_type": "group",
     "course_name": "爵士舞",
     "classroom": "",
@@ -1311,8 +1320,9 @@
     "from_template": true,
     "remark": "从周模板恢复",
     "created_at": "2026-05-16T19:33:21.210Z",
-    "updated_at": "2026-05-16T19:33:21.210Z",
-    "__v": 0
+    "updated_at": "2026-05-30T10:00:00.070Z",
+    "__v": 0,
+    "cancel_reason": "预约人数不足"
   },
   {
     "_id": "6a08c68118e8399ce501aefa",

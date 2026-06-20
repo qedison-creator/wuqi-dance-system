@@ -492,7 +492,7 @@
     "unionid": null,
     "nick_name": "微信用户",
     "user_type": "member",
-    "member_status": "registered",
+    "member_status": "guest",
     "gender": 0,
     "store_id": "69fbf63456465be2d1b67aea",
     "permissions": [],
@@ -504,7 +504,7 @@
       "status": "none"
     },
     "created_at": "2026-05-19T12:51:37.438Z",
-    "updated_at": "2026-05-19T12:51:37.438Z",
+    "updated_at": "2026-05-26T21:14:26.096Z",
     "__v": 0
   },
   {
@@ -537,9 +537,9 @@
     "unionid": null,
     "nick_name": "微信用户",
     "user_type": "member",
-    "member_status": "registered",
+    "member_status": "official",
     "gender": 0,
-    "store_id": "69fbf63456465be2d1b67aeb",
+    "store_id": "69fbf63456465be2d1b67aea",
     "permissions": [],
     "status": "active",
     "exemption_count": 3,
@@ -549,8 +549,9 @@
       "status": "none"
     },
     "created_at": "2026-05-23T12:16:43.450Z",
-    "updated_at": "2026-05-23T12:16:43.450Z",
-    "__v": 0
+    "updated_at": "2026-05-26T21:21:14.024Z",
+    "__v": 0,
+    "member_code": "FY2026052701"
   },
   {
     "_id": "6a11e2c68293d3192db774bf",
@@ -558,7 +559,7 @@
     "unionid": null,
     "nick_name": "微信用户",
     "user_type": "member",
-    "member_status": "registered",
+    "member_status": "guest",
     "gender": 0,
     "store_id": "69fbf63456465be2d1b67aeb",
     "permissions": [],
@@ -570,7 +571,7 @@
       "status": "none"
     },
     "created_at": "2026-05-23T17:24:22.681Z",
-    "updated_at": "2026-05-23T17:24:22.681Z",
+    "updated_at": "2026-05-26T21:21:17.341Z",
     "__v": 0
   },
   {
@@ -668,5 +669,62 @@
     "member_code": "FY2026052601",
     "phone": "13112345678",
     "real_name": "李四"
+  },
+  {
+    "_id": "6a1609204e8261df6ba3fd67",
+    "openid": "dev_openid_1899aae2cf61734e",
+    "unionid": null,
+    "nick_name": "微信用户",
+    "user_type": "member",
+    "member_status": "official",
+    "gender": 2,
+    "store_id": "69fbf63456465be2d1b67aeb",
+    "permissions": [],
+    "status": "active",
+    "exemption_count": 3,
+    "info_completed": true,
+    "phone_audit_status": "pending",
+    "info_change_request": {
+      "status": "approved",
+      "pending_data": {
+        "real_name": "春风",
+        "phone": "15561556677",
+        "gender": 2
+      },
+      "requested_at": "2026-05-26T21:59:43.892Z",
+      "reviewed_by": "69fbf63456465be2d1b67ae9",
+      "reviewed_at": "2026-05-31T12:35:25.554Z",
+      "reject_reason": null
+    },
+    "created_at": "2026-05-26T20:57:04.663Z",
+    "updated_at": "2026-05-31T12:35:25.557Z",
+    "__v": 0,
+    "member_code": "GS2026052701",
+    "phone": "15561556677",
+    "real_name": "春风"
+  },
+  {
+    "_id": "6a1bd19374ff35fdf3f80453",
+    "openid": "dev_openid_a2138a626b16a613",
+    "unionid": null,
+    "nick_name": "微信用户",
+    "user_type": "member",
+    "member_status": "official",
+    "gender": 2,
+    "store_id": "69fbf63456465be2d1b67aeb",
+    "permissions": [],
+    "status": "active",
+    "exemption_count": 3,
+    "info_completed": false,
+    "phone_audit_status": "pending",
+    "info_change_request": {
+      "status": "none"
+    },
+    "created_at": "2026-05-31T06:13:39.124Z",
+    "updated_at": "2026-05-31T06:15:38.198Z",
+    "__v": 0,
+    "member_code": "GS2026053101",
+    "phone": "15885888858",
+    "real_name": "狸花猫"
   }
 ]

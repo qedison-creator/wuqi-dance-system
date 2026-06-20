@@ -52,6 +52,7 @@ Page({
     const yesterdayStr = getDateStr(yesterday);
 
     // 本周一
+
     const weekStart = new Date(today);
     const dayOfWeek = today.getDay();
     const diff = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
@@ -59,6 +60,7 @@ Page({
     const weekStartStr = getDateStr(weekStart);
 
     // 本月1号
+
     const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
     const monthStartStr = getDateStr(monthStart);
 
@@ -106,6 +108,7 @@ Page({
     switch (filter) {
       case 'all':
         // 所有日期：不传日期参数，加载全部记录
+
         this.setData({ dateFilter: 'all', startDate: '', endDate: '', yearGroups: [] });
         this.loadBookings();
         return;
@@ -127,6 +130,7 @@ Page({
         break;
       case 'custom':
         // 触发日期选择器
+
         this.setData({ dateFilter: 'custom' });
         return;
     }
@@ -331,6 +335,7 @@ Page({
       });
 
       // 更新最新状态
+
       if (new Date(item.created_at) > new Date(memberGroup.latestTime)) {
         memberGroup.latestStatus = item.status;
         memberGroup.latestTime = item.created_at;
@@ -353,6 +358,7 @@ Page({
             schedule.memberGroups.forEach(mg => {
               mg.records.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
               // 计算统计
+
               const totalRecords = mg.records.length;
               const cancelCount = mg.records.filter(r => r.status === 'cancelled').length;
               mg._totalBookings = totalRecords;
@@ -500,6 +506,7 @@ Page({
     const { yearGroups, startDate, endDate, summary } = this.data;
 
     // 收集所有预约记录，按 年-月-日-课程-会员-记录 展开
+
     const rows = [];
     yearGroups.forEach(yg => {
       (yg.months || []).forEach(mg => {
@@ -555,6 +562,7 @@ Page({
     wx.showLoading({ title: '生成表格中...' });
 
     // 生成 HTML 表格格式，保存为 .xls（Excel/WPS 可直接打开）
+
     let html = '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">';
     html += '<head><meta charset="UTF-8"></head><body>';
 

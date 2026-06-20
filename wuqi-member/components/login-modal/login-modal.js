@@ -12,7 +12,8 @@ Component({
     agreed: false
   },
 
-  // 弹窗显示/隐藏时重置勾选状�?  observers: {
+  // 弹窗显示/隐藏时重置勾选状态
+  observers: {
     'visible': function(newVal) {
       if (newVal) {
         this.setData({ agreed: false });
@@ -29,7 +30,7 @@ Component({
     /* 阻止点击卡片时冒泡到遮罩 */
     onModalTap() {},
 
-    /* 切换隐私协议勾选状�?*/
+    /* 切换隐私协议勾选状态 */
     onToggleAgree() {
       this.setData({ agreed: !this.data.agreed });
     },
@@ -44,7 +45,7 @@ Component({
       wx.navigateTo({ url: '/package-sub/pages/agreement/agreement' });
     },
 
-    /* 授权手机号回�?—�?直接调微信官方弹�?*/
+    /* 授权手机号回调——直接调微信官方弹窗 */
     onGetPhoneNumber(e) {
       if (!this.data.agreed) {
         wx.showToast({ title: '请先阅读并同意隐私保护指引和用户协议', icon: 'none' });
@@ -59,7 +60,7 @@ Component({
         return;
       }
 
-      wx.showLoading({ title: '登录�?..', mask: true });
+      wx.showLoading({ title: '登录中...', mask: true });
       const self = this;
 
       wx.login({
@@ -104,7 +105,8 @@ Component({
                   app.globalData.token = token;
                 }
 
-                // 登录成功后调�?/auth/me 获取完整用户信息
+                // 登录成功后调用 /auth/me 获取完整用户信息
+
                 wx.request({
                   url: baseUrl + '/auth/me',
                   method: 'GET',
@@ -126,6 +128,7 @@ Component({
                   },
                   fail: () => {
                     // /auth/me 失败时用登录返回的user
+
                     if (respUser) {
                       app.globalData.userInfo = respUser;
                       wx.setStorageSync('userInfo', respUser);

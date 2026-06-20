@@ -99,5 +99,20 @@
     "created_at": "2026-05-25T12:47:43.281Z",
     "updated_at": "2026-05-25T12:47:43.281Z",
     "__v": 0
+  },
+  {
+    "_id": "6a167764a4b3a54e301d2e3e",
+    "user_package_id": "6a161238a4b3a54e301d2e39",
+    "user_id": "6a1609204e8261df6ba3fd67",
+    "package_id": null,
+    "store_id": "69fbf63456465be2d1b67aeb",
+    "activation_type": "first_booking",
+    "booking_id": null,
+    "activated_by": "6a1609204e8261df6ba3fd67",
+    "activated_at": "2026-05-27T04:47:32.243Z",
+    "remark": "",
+    "created_at": "2026-05-27T04:47:32.251Z",
+    "updated_at": "2026-05-27T04:47:32.251Z",
+    "__v": 0
   }
 ]

@@ -1,5 +1,5 @@
 const app = getApp();
-const api = require('../../../utils/api');
+const api = require('../../utils/api');
 const config = require('../../../config/index.js');
 
 Page({
@@ -49,6 +49,7 @@ Page({
           item.created_at = item.created_at.substring(0, 10);
         }
         // 拼接完整图片URL
+
         if (item.thumbnail_url && !item.thumbnail_url.startsWith('http')) {
           item.thumbnail_url = serverBase + item.thumbnail_url;
         }

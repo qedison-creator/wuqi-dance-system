@@ -22,8 +22,10 @@ Page({
       this.getTabBar().setData({ selected: 4 });
     }
     // 每次进入页面重置头像加载状态，允许重新尝试加载
+
     this.setData({ avatarLoadFailed: false, avatarRetryCount: 0 });
     // 始终从服务端拉取最新用户信息，避免本地缓存过期导致头像失效
+
     this.loadUserInfo();
   },
 
@@ -35,6 +37,7 @@ Page({
         this.normalizeAvatarUrl(userInfo);
         app.globalData.userInfo = userInfo;
         // 构造头像地址，附带时间戳避免缓存导致加载失败
+
         const avatarSrc = this._buildAvatarSrc(userInfo.avatar_url);
         this.setData({
           userInfo: userInfo,
@@ -50,6 +53,7 @@ Page({
     } catch (err) {
       console.error('获取用户信息失败', err);
       // 请求失败时降级使用本地缓存的 userInfo
+
       const userInfo = app.globalData.userInfo;
       if (userInfo) {
         this.normalizeAvatarUrl(userInfo);
@@ -91,11 +95,13 @@ Page({
 
     if (url.startsWith('https://')) {
       // HTTPS地址直接使用
+
       return;
     }
 
     if (url.startsWith('http://')) {
       // HTTP IP地址（旧数据），提取相对路径部分
+
       const match = url.match(/^https?:\/\/[^/]+(\/.*)$/);
       if (match) {
         userInfo.avatar_url = serverBase + match[1];
@@ -112,6 +118,7 @@ Page({
   onAvatarError(e) {
     const retryCount = this.data.avatarRetryCount || 0;
     // 最多重试 3 次，避免无限重试
+
     if (retryCount < 3) {
       const rawUrl = (this.data.userInfo && this.data.userInfo.avatar_url) || '';
       if (rawUrl) {

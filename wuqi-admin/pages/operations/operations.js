@@ -145,6 +145,7 @@ Page({
       const statsResults = await Promise.all(statsPromises);
 
       // 直接信任后端返回的 status 字段，前端不再根据时间/人数推导状态
+
       const enrichedList = list.map((schedule, i) => {
         const bookingStats = statsResults[i];
         const status = schedule.status || 'available';
@@ -286,6 +287,7 @@ Page({
     if (!daySchedules || daySchedules.length === 0) return 'none';
 
     // 直接信任后端 status 字段判断当日状态
+
     let hasNormal = false, hasCancelled = false;
     daySchedules.forEach(s => {
       if (s.status === 'cancelled' || s.status === 'offline') hasCancelled = true;
@@ -375,6 +377,7 @@ Page({
       const statsResults = await Promise.all(statsPromises);
 
       // 直接信任后端返回的 status 字段，前端不再根据时间/人数推导状态
+
       const enrichedList = list.map((schedule, i) => {
         const bookingStats = statsResults[i];
         const status = schedule.status || 'available';

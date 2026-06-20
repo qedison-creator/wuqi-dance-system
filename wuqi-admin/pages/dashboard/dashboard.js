@@ -78,6 +78,7 @@ Page({
     const theme = getTheme();
     // 不再预先设置前端拼接的URL，等待后端/home/admin返回正确的hero_background_url
     // 由CSS渐变色背景作为初始兜底
+
     this.setData({
       currentDate: getCurrentDate(),
       greeting: getGreeting(),
@@ -288,9 +289,11 @@ Page({
     } else if (themeOrConfigs && typeof themeOrConfigs === 'object') {
       theme = this.data.theme;
       // 参照会员端banner方式：优先使用后端API返回的图片URL
+
       if (themeOrConfigs.hero_background_url) {
         bgUrl = themeOrConfigs.hero_background_url;
         // 参照会员端avatar_url处理：相对路径拼接serverBase，完整URL直接使用
+
         if (!bgUrl.startsWith('http')) {
           bgUrl = config.serverBase + bgUrl;
         }
@@ -300,11 +303,13 @@ Page({
     }
 
     // 没有后端配置URL时，使用默认路径拼接
+
     if (!bgUrl) {
       bgUrl = config.serverBase + '/uploads/hero/hero-' + theme + '.jpg';
     }
 
     // 后端通过 Nginx 代理时 req.protocol 可能返回 http，需确保使用 config 中的协议
+
     if (bgUrl.startsWith('http://') && config.serverBase.startsWith('https://')) {
       bgUrl = bgUrl.replace('http://', 'https://');
     }
@@ -328,9 +333,11 @@ Page({
       const statsData = statsRes.status === 'fulfilled' ? (statsRes.value.data || {}) : {};
 
       // 使用后端返回的hero背景图URL（参照会员端banner方式）
+
       if (homeData.hero_background_url) {
         let heroUrl = homeData.hero_background_url;
         // 后端通过 Nginx 代理时 req.protocol 可能返回 http，需确保使用 config 中的协议
+
         if (heroUrl.startsWith('http://') && config.serverBase.startsWith('https://')) {
           heroUrl = heroUrl.replace('http://', 'https://');
         }
@@ -449,6 +456,7 @@ Page({
       return;
     }
     // 会员审核：向下展开
+
     if (todo.type === 'member_audit') {
       if (this.data.expandedTodo === todo._id) {
         this.setData({ expandedTodo: '', pendingMembers: [] });
@@ -458,6 +466,7 @@ Page({
       return;
     }
     // 今日课程 / 近期课程：改为向下展开（之前是直接跳转）
+
     if (todo.type === 'schedule') {
       if (this.data.expandedTodo === todo._id) {
         this.setData({ expandedTodo: '', scheduleList: [] });
@@ -533,6 +542,7 @@ Page({
     if (!rawList || rawList.length === 0) return;
 
     // 先用快速映射把 UI 填充好，避免白屏
+
     const initialList = rawList.map((item) => this._quickMapCard(item, type));
     this.setData({ detailList: initialList });
 
@@ -548,8 +558,10 @@ Page({
         const data = res.data || {};
 
         // 头像：优先用接口返回的头像 URL
+
         let avatarUrl = data.avatar || data.avatar_url || data.head_img || data.headImg || data.headimgurl || '';
         // URL 规范化：相对路径补全
+
         if (avatarUrl && !/^https?:\/\//.test(avatarUrl)) {
           try {
             const cfg = require('../../config/index.js');
@@ -558,12 +570,15 @@ Page({
         }
 
         // 姓名
+
         let userName = data.real_name || data.nick_name || data.user_name || data.name || '';
 
         // 手机号
+
         let phone = data.phone || data.mobile || '';
 
         // 门店名：优先取 store_id.name；再从有效套餐里取
+
         let storeName = '';
         if (data.store_name) storeName = data.store_name;
         else if (data.store_id && typeof data.store_id === 'object' && data.store_id.name) {
@@ -580,6 +595,7 @@ Page({
         }
 
         // 套餐名：优先匹配当前 type，否则取第一个有效套餐
+
         let packageName = '';
         const packages = Array.isArray(data.packages) ? data.packages : [];
         if (packages.length > 0) {
@@ -597,6 +613,7 @@ Page({
         }
 
         // 剩余次数 / 天数：从详情兜底
+
         let remaining = item.remaining;
         let daysLeft = item.days_left;
         if ((remaining === undefined || remaining === null || remaining === 0) && packages.length > 0) {
@@ -628,6 +645,7 @@ Page({
     const enrichedList = await Promise.all(tasks);
 
     // 如果用户没关掉展开区域，就把补全后的内容刷新上去
+
     if (this.data.expandedTodo) {
       this.setData({ detailList: enrichedList });
     }
@@ -641,6 +659,7 @@ Page({
     }
     // 先展开区域（设置 expandedTodo）让用户能立刻看到展开动作
     // 同时用 _enrichMemberCards 内部第一时间填充 initialList
+
     this.setData({ expandedTodo: todoId });
     this._enrichMemberCards(list, 'count_card');
   },
@@ -826,6 +845,7 @@ Page({
     let endDate = todayStr;
     if (!isToday) {
       // 近期课程：从明天开始，到 13 天后（排除当天，当天属于"今日课程"）
+
       const startD = new Date();
       startD.setDate(today.getDate() + 1);
       const sy = startD.getFullYear();
@@ -865,6 +885,7 @@ Page({
         : (Array.isArray(res.data) ? res.data : []);
 
       // 为每节课调用一次 booking 接口，拿到真实的 booked / checkedIn / cancelled / exempted
+
       const statsPromises = rawList.map(s => this._loadScheduleBookingStats(s._id));
       const statsResults = await Promise.all(statsPromises);
 
@@ -874,11 +895,13 @@ Page({
         const storeName = (s.store_id && s.store_id.name) || s.store_name || this.data.currentStoreName || '';
 
         // 直接信任后端返回的 status 字段，前端不再根据时间推导状态
+
         const status = s.status || 'available';
 
         const bookingStats = statsResults[i];
 
         // 日期 + 星期显示（近期课程用，今日课程留空）
+
         let dateDisplay = '';
         let weekdayDisplay = '';
         if (!isToday && s.date) {
@@ -921,6 +944,7 @@ Page({
       this.setData({ scheduleList: processed });
 
       // 同步更新角标数量，使其与实际展开列表一致
+
       const todoList = this.data.todoList.map(t => {
         if (t._id === todo._id) {
           return { ...t, count: processed.length };

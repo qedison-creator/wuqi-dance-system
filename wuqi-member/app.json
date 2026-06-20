@@ -22,12 +22,6 @@
       ]
     }
   ],
-  "preloadRule": {
-    "pages/index/index": {
-      "network": "all",
-      "packages": ["package-sub"]
-    }
-  },
   "window": {
     "navigationBarBackgroundColor": "#FBFAF8",
     "navigationBarTitleText": "舞栖舞蹈社",

@@ -1,12 +1,16 @@
 {
-  "exportTime": "2026-05-26T18:15:20.032Z",
+  "exportTime": "2026-06-20T12:19:35.924Z",
   "database": "wuqi_dance",
-  "totalCollections": 24,
-  "totalDocuments": 229,
+  "totalCollections": 26,
+  "totalDocuments": 262,
   "collections": [
     {
+      "collection": "templatefieldmappings",
+      "count": 9
+    },
+    {
       "collection": "operationlogs",
-      "count": 36
+      "count": 47
     },
     {
       "collection": "dancestyles",
@@ -30,7 +34,7 @@
     },
     {
       "collection": "configs",
-      "count": 13
+      "count": 15
     },
     {
       "collection": "attendances",
@@ -42,11 +46,15 @@
     },
     {
       "collection": "userpackages",
-      "count": 23
+      "count": 25
+    },
+    {
+      "collection": "pendingtasks",
+      "count": 0
     },
     {
       "collection": "banners",
-      "count": 3
+      "count": 5
     },
     {
       "collection": "coaches",
@@ -78,7 +86,7 @@
     },
     {
       "collection": "bookings",
-      "count": 5
+      "count": 9
     },
     {
       "collection": "announcements",
@@ -86,7 +94,7 @@
     },
     {
       "collection": "packageactivations",
-      "count": 7
+      "count": 8
     },
     {
       "collection": "videos",
@@ -94,7 +102,7 @@
     },
     {
       "collection": "users",
-      "count": 33
+      "count": 35
     },
     {
       "collection": "weektemplates",

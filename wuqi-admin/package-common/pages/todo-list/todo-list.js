@@ -29,6 +29,7 @@ Page({
       this.setData({ loading: true });
       
       // 并行加载各项待办数据
+
       const [homeRes, statsRes, waitlistRes] = await Promise.allSettled([
         request({ url: '/home/admin', method: 'GET' }),
         request({ 
@@ -46,6 +47,7 @@ Page({
       const todoList = [];
       
       // 1. 待审核会员
+
       if (homeRes.status === 'fulfilled' && homeRes.value.data && homeRes.value.data.pending_review > 0) {
         todoList.push({
           id: 'member_audit',
@@ -60,6 +62,7 @@ Page({
       }
 
       // 2. 今日排课
+
       if (homeRes.status === 'fulfilled' && homeRes.value.data && homeRes.value.data.today_schedules && homeRes.value.data.today_schedules.length > 0) {
         todoList.push({
           id: 'today_schedule',
@@ -75,6 +78,7 @@ Page({
       }
 
       // 3. 时间卡快到期
+
       if (statsRes.status === 'fulfilled' && statsRes.value.data && statsRes.value.data.expiring_time_cards && statsRes.value.data.expiring_time_cards.length > 0) {
         todoList.push({
           id: 'expiring_cards',
@@ -90,6 +94,7 @@ Page({
       }
 
       // 4. 次卡会员跟进
+
       if (statsRes.status === 'fulfilled' && statsRes.value.data && statsRes.value.data.count_card_alerts && statsRes.value.data.count_card_alerts.length > 0) {
         todoList.push({
           id: 'count_card_alert',
@@ -105,6 +110,7 @@ Page({
       }
 
       // 5. 候补排队
+
       if (waitlistRes.status === 'fulfilled' && waitlistRes.value.data && waitlistRes.value.data.length > 0) {
         const totalWaitlist = waitlistRes.value.data.reduce((sum, item) => sum + item.waitlist_count, 0);
         if (totalWaitlist > 0) {
@@ -123,6 +129,7 @@ Page({
       }
 
       // 6. 近期课程安排提醒（如果课程即将开始）
+
       if (statsRes.status === 'fulfilled' && statsRes.value.data && statsRes.value.data.upcoming_schedules && statsRes.value.data.upcoming_schedules.length > 0) {
         todoList.push({
           id: 'upcoming_schedule',

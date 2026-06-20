@@ -50,6 +50,7 @@ Page({
       })
     ]).then(([res, systemRes]) => {
       // 过滤掉重复的模板ID配置
+
       const EXCLUDED_KEYS = ['tpl_bookingSuccessTemplateId', 'tpl_bookingCancelTemplateId'];
       const configs = (res.data || [])
         .filter(c => !EXCLUDED_KEYS.includes(c.key))
@@ -70,6 +71,7 @@ Page({
       this.setData({ configs, systemConfigs, heroConfigs, loading: false });
     }).catch(err => {
       // 即使系统配置请求失败，也要初始化 heroConfigs
+
       this.setData({
         configs: [
           { config_key: 'default_booking_deadline', config_value: '180', description: '默认预约截止时间(分钟)' },

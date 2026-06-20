@@ -275,28 +275,52 @@
   justify-content: space-between;
   align-items: center;
   margin-bottom: 16rpx;
+  gap: 16rpx;
 }
 
 .package-badges {
   display: flex;
   align-items: center;
-  gap: 12rpx;
+  gap: 8rpx;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .package-type-badge {
   display: inline-block;
-  padding: 6rpx 16rpx;
+  padding: 4rpx 12rpx;
   border-radius: var(--radius-xl);
-  font-size: 24rpx;
+  font-size: 22rpx;
   background-color: var(--color-primary-bg);
   color: var(--color-primary);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.package-store-badge {
+  display: inline-block;
+  padding: 2rpx 10rpx;
+  border-radius: var(--radius-xl);
+  font-size: 20rpx;
+  color: var(--color-info);
+  background: var(--color-info-bg);
+  border: 1rpx solid rgba(123, 158, 179, 0.25);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 240rpx;
+  flex-shrink: 1;
+  min-width: 0;
 }
 
 .package-status-badge {
   display: inline-block;
-  padding: 6rpx 16rpx;
+  padding: 4rpx 12rpx;
   border-radius: var(--radius-xl);
-  font-size: 24rpx;
+  font-size: 22rpx;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .package-status-badge.pending {
@@ -327,15 +351,18 @@
 .package-actions {
   display: flex;
   align-items: center;
-  gap: 16rpx;
+  gap: 12rpx;
+  flex-shrink: 0;
 }
 
 .package-edit-btn {
-  padding: 8rpx 24rpx;
+  padding: 6rpx 16rpx;
   border: 2rpx solid var(--color-primary);
   border-radius: var(--radius-lg);
-  font-size: 24rpx;
+  font-size: 22rpx;
   color: var(--color-primary);
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .package-edit-btn:active {
@@ -343,11 +370,13 @@
 }
 
 .package-delete-btn {
-  padding: 8rpx 24rpx;
+  padding: 6rpx 16rpx;
   border: 2rpx solid rgba(196, 75, 75, 0.4);
   border-radius: var(--radius-lg);
-  font-size: 24rpx;
+  font-size: 22rpx;
   color: var(--color-danger);
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .package-delete-btn:active {

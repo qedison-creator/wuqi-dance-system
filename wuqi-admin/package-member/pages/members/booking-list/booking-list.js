@@ -19,6 +19,7 @@ Page({
     });
     
     // 设置标题
+
     wx.setNavigationBarTitle({
       title: `${this.data.memberName}的预约记录`
     });
@@ -40,10 +41,12 @@ Page({
       const data = res.data || {};
       const bookings = (data.bookings || []).map(booking => {
         // 格式化创建时间
+
         if (booking.created_at) {
           booking.created_at_display = this.formatDateTime(booking.created_at);
         }
         // 计算课程星期
+
         const date = booking.schedule_id ? booking.schedule_id.date : booking.booking_date;
         if (date) {
           booking._weekday = this.getWeekDay(date);
@@ -51,6 +54,7 @@ Page({
         return booking;
       }).sort((a, b) => {
         // 按时间倒序排列
+
         const dateA = a.created_at ? new Date(a.created_at).getTime() : 0;
         const dateB = b.created_at ? new Date(b.created_at).getTime() : 0;
         return dateB - dateA;

@@ -255,6 +255,7 @@ Page({
     
     if (option === '自定义') {
       // wx.showModal 不支持 editable 参数，使用自定义弹窗
+
       this.setData({
         showCustomDurationModal: true,
         customDurationIndex: index
@@ -554,6 +555,7 @@ Page({
       if (res.data) {
         const { bill, settled_warning, total_amount } = res.data;
         // 默认全选，计算勾选汇总
+
         const preview = (bill || []).map(c => ({ ...c, _selected: true }));
         const selectedTotal = preview.reduce((sum, c) => sum + (c.total_amount || 0), 0);
         
@@ -587,6 +589,7 @@ Page({
       });
       if (res.data) {
         // 预格式化日期，生成唯一标题
+
         const fmt = (v) => {
           if (!v) return '';
           const s = typeof v === 'string' ? v.split('T')[0] : new Date(v).toISOString().split('T')[0];
@@ -631,6 +634,7 @@ Page({
     wx.showLoading({ title: '生成表格中...' });
 
     // 生成 HTML 表格格式，保存为 .xls（Excel/WPS 可直接打开）
+
     let html = '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">';
     html += '<head><meta charset="UTF-8"></head><body>';
     html += '<table border="1" cellspacing="0" cellpadding="4" style="font-family:微软雅黑;font-size:12px;">';
@@ -746,6 +750,7 @@ Page({
 
   async confirmBillGeneration(startDate, endDate) {
     // 只生成选中的教练
+
     const selectedCoachIds = this.data.billPreview
       .filter(c => c._selected)
       .map(c => c.coach_id);
@@ -774,6 +779,7 @@ Page({
       if (res.data) {
         wx.showToast({ title: '账单生成成功', icon: 'success' });
         // 清除预览、关闭面板、刷新账单列表和月度薪酬
+
         this.setData({ 
           billPreview: null, 
           billGenerated: false, 
@@ -904,6 +910,7 @@ Page({
     wx.showLoading({ title: '生成表格中...' });
 
     // 生成 HTML 表格格式，保存为 .xls（Excel/WPS 可直接打开）
+
     let html = '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">';
     html += '<head><meta charset="UTF-8"></head><body>';
     html += '<table border="1" cellspacing="0" cellpadding="4" style="font-family:微软雅黑;font-size:12px;">';

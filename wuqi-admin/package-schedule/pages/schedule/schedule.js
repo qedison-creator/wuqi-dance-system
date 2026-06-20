@@ -3,7 +3,7 @@ const { request } = require('../../../utils/request');
 const { COURSE_DURATIONS, DEFAULT_DURATION } = require('../../../utils/config');
 const { getBeijingDate, getWeekday } = require('../../../utils/helpers');
 const { getScheduleStatusText, getCancelReasonText } = require('../../../utils/util');
-const { MAX_IMAGE_SIZE, getUploadErrorMessage } = require('../../../utils/schedule-helpers');
+const { MAX_IMAGE_SIZE, getUploadErrorMessage } = require('../../utils/schedule-helpers');
 
 Page({
   data: {
@@ -102,6 +102,7 @@ Page({
     this.loadStores();
     // 如果默认视图是月视图，生成日历
     // 注意：loadSchedules() 会在 loadStores() 的回调中调用，避免重复请求
+
     if (this.data.viewMode === 'month') {
       this.generateMonthCalendar(this.data.currentMonth);
     }
@@ -140,6 +141,7 @@ Page({
     const weekdays = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
     
     // 生成日期范围：历史365天 + 未来90天
+
     const startOffset = -365; // 历史1年
     const endOffset = 90;     // 未来3个月
     
@@ -157,6 +159,7 @@ Page({
       const monthName = `${year}年${month}月`;
       
       // 记录月份变化
+
       if (monthKey !== currentMonth) {
         currentMonth = monthKey;
         if (!months.find(m => m.key === monthKey)) {
@@ -213,6 +216,7 @@ Page({
       }
       
       // 从后端加载星期模板
+
       const res = await request({
         url: '/week-template?store_id=' + currentStoreId,
         method: 'GET'
@@ -224,6 +228,7 @@ Page({
       let template = res.data;
       
       // 如果没有数据，初始化空模板结构
+
       if (!template || Object.keys(template).length === 0) {
   
         template = {
@@ -234,6 +239,7 @@ Page({
 
       this.setData({ weekTemplate: template }, () => {
         // 只在日视图下加载星期的排课，月视图使用 API 数据
+
         if (this.data.viewMode === 'day') {
           this.loadCurrentWeekdaySchedules();
         }
@@ -242,6 +248,7 @@ Page({
       console.error('加载星期模板失败', err);
       wx.showToast({ title: '加载模板失败', icon: 'none' });
       // 即使加载失败，也初始化一个空模板
+
       this.setData({ 
         weekTemplate: {
           0: [], 1: [], 2: [], 3: [], 4: [], 5: [], 6: []
@@ -290,6 +297,7 @@ Page({
 
     
     // 确保模板有对应星期的数据
+
     let templateSchedules = [];
     if (weekTemplate && weekTemplate[currentWeekday] !== undefined) {
       templateSchedules = weekTemplate[currentWeekday];
@@ -298,11 +306,13 @@ Page({
 
     
     // 确保 templateSchedules 是数组
+
     if (!Array.isArray(templateSchedules)) {
       templateSchedules = [];
     }
     
     // 获取未来30天内的正式排课，用于判断模板是否已排课
+
     let futureSchedules = [];
     if (currentStoreId) {
       try {
@@ -378,6 +388,7 @@ Page({
     
     if (mode === 'month') {
       // 切换到月视图时，生成当月日历
+
       this.generateMonthCalendar(this.data.currentMonth);
     }
     
@@ -391,11 +402,13 @@ Page({
     const [year, month] = monthKey.split('-').map(Number);
     
     // 获取当月第一天和最后一天
+
     const firstDay = getBeijingDate(new Date(year, month - 1, 1));
     const lastDay = getBeijingDate(new Date(year, month, 0));
     
     // 获取第一天是星期几 (0=周日, 1=周一, ..., 6=周六)
     // 调整为从周一开始：周日→6，周一→0，周二→1...周六→5
+
     let startWeekday = firstDay.getDay();
     if (startWeekday === 0) {
       startWeekday = 6;
@@ -404,19 +417,23 @@ Page({
     }
     
     // 创建日历数据
+
     const today = getBeijingDate();
     const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
     
     // 生成完整的日历数据（按周组织）
+
     const weeks = [];
     let currentWeek = [];
     
     // 填充第一周的空白
+
     for (let i = 0; i < startWeekday; i++) {
       currentWeek.push({ type: 'empty' });
     }
     
     // 填充日期
+
     for (let day = 1; day <= lastDay.getDate(); day++) {
       const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
       const isToday = dateStr === todayStr;
@@ -431,6 +448,7 @@ Page({
       });
       
       // 如果一周已满，添加到weeks并开始新周
+
       if (currentWeek.length === 7) {
         weeks.push(currentWeek);
         currentWeek = [];
@@ -438,8 +456,10 @@ Page({
     }
     
     // 添加最后一周（如果有剩余）
+
     if (currentWeek.length > 0) {
       // 填充最后一周的空白
+
       while (currentWeek.length < 7) {
         currentWeek.push({ type: 'empty' });
       }
@@ -447,6 +467,7 @@ Page({
     }
     
     // 计算当前月份名称
+
     let monthName = '';
     if (this.data.monthList && this.data.monthList.length > 0) {
       const currentMonthInfo = this.data.monthList.find(m => m.key === monthKey);
@@ -490,6 +511,7 @@ Page({
       // 不再自动切换到日视图，保持在月视图
     }, () => {
       // 重新生成日历以更新选中状态
+
       this.generateMonthCalendar(this.data.currentMonth);
       this.loadSchedules();
     });
@@ -499,6 +521,7 @@ Page({
   onGoToToday() {
     if (this.data.viewMode === 'month') {
       // 月视图：回到今天
+
       const today = this.data.dateList.find(d => d.isToday);
       if (today) {
         this.setData({
@@ -506,6 +529,7 @@ Page({
           currentMonth: today.monthKey
         }, () => {
           // 如果在月视图，重新生成日历以更新选中状态
+
           if (this.data.viewMode === 'month') {
             this.generateMonthCalendar(today.monthKey);
           }
@@ -514,6 +538,7 @@ Page({
       }
     } else {
       // 星期视图：重新初始化本周
+
       this.initWeekdayList();
       this.loadSchedules();
     }
@@ -556,9 +581,11 @@ Page({
 
       
       // 保存原始门店ID，用于判断是否需要切换
+
       const originalStoreId = this.data.currentStoreId;
       
       // 如果已经有选中的门店，且该门店仍在列表中，则保持当前选择
+
       let newStoreId = originalStoreId;
       if (!newStoreId || !list.find(s => s._id === newStoreId)) {
         // 如果没有选中门店，或选中的门店已不在列表中，则默认选中第一个
@@ -571,6 +598,7 @@ Page({
       }, async () => {
         // 设置完门店ID后，先加载星期模板，再加载排课
         // 只有当门店ID变化时才重新加载模板
+
         if (originalStoreId !== this.data.currentStoreId) {
           await this.loadWeekTemplate();
         }
@@ -587,6 +615,7 @@ Page({
     if (!currentStoreId) return;
 
     // 星期视图使用本地模板数据
+
     if (viewMode === 'day') {
       this.loadCurrentWeekdaySchedules();
       return;
@@ -605,12 +634,14 @@ Page({
       let list = res.data && Array.isArray(res.data.list) ? res.data.list : (Array.isArray(res.data) ? res.data : []);
       
       // 判断当前日期是否为历史日期
+
       let isPastDate = false;
       if (dateList && dateList.length > 0) {
         const currentDateInfo = dateList.find(d => d.date === currentDate);
         isPastDate = currentDateInfo?.isPast || false;
       } else {
         // 如果 dateList 不可用，通过比较日期来判断
+
         const today = getBeijingDate();
         today.setHours(0, 0, 0, 0);
         const current = getBeijingDate(new Date(currentDate));
@@ -619,6 +650,7 @@ Page({
       }
       
       // 如果没有实际排课数据，并且不是历史日期，则显示模板预览
+
       if (list.length === 0 && !isPastDate) {
         const currentDateObj = new Date(currentDate);
         const dayOfWeek = currentDateObj.getDay(); // 0=周日, 1=周一, ...
@@ -646,6 +678,7 @@ Page({
       }
       
       // 判断课程是否是历史课程（仅用于 UI 展示，不推导状态）
+
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       const current = new Date(currentDate);
@@ -653,6 +686,7 @@ Page({
       const isCurrentPast = current < today;
 
       // 直接信任后端返回的 status 字段，前端不再根据时间推导状态
+
       const processedList = list.map(item => {
         const status = item.status || 'available';
         return {
@@ -677,6 +711,7 @@ Page({
       if (this._isDestroyed) return;
 
       // API 失败时也尝试显示模板预览
+
       const today = getBeijingDate();
       today.setHours(0, 0, 0, 0);
       const current = getBeijingDate(new Date(currentDate));
@@ -740,12 +775,14 @@ Page({
   onSwitchStore(e) {
     const newStoreId = e.currentTarget.dataset.id;
     // 切换门店时先清空 weekTemplate，避免 loadSchedules 使用旧门店模板显示预览
+
     this.setData({
       currentStoreId: newStoreId,
       weekTemplate: { 0: [], 1: [], 2: [], 3: [], 4: [], 5: [], 6: [] },
       schedules: []
     }, () => {
       // 必须先加载新门店的模板，再加载排课数据，避免模板预览串门店
+
       this.loadWeekTemplate().then(() => {
         this.loadSchedules();
       });
@@ -884,6 +921,7 @@ Page({
       success: async (res) => {
         const file = res.tempFiles[0];
         // 上传前检查文件大小
+
         if (file.size > MAX_IMAGE_SIZE) {
           wx.showToast({ title: '图片过大，最大支持 10MB', icon: 'none' });
           return;
@@ -906,6 +944,7 @@ Page({
           }
         } catch (cropErr) {
           // 裁剪失败或用户取消裁剪，使用原图
+
           if (cropErr.errMsg && cropErr.errMsg.indexOf('cancel') !== -1) {
             return;
           }
@@ -989,6 +1028,7 @@ Page({
     this.setData({ [`formData.${field}`]: e.detail.value });
     
     // 如果是修改开课时间，自动计算结束时间
+
     if (field === 'startTime') {
       this.calculateEndTime(e.detail.value, this.data.formData.duration);
     }
@@ -999,6 +1039,7 @@ Page({
     const value = (e.detail.value || '').trim();
     if (!value) return;
     // 匹配非标准小时格式：一位小时数:两位分钟数
+
     const match = value.match(/^(\d):(\d{2})$/);
     if (match) {
       const formatted = '0' + match[1] + ':' + match[2];
@@ -1134,6 +1175,7 @@ Page({
     }
 
     // 时间冲突检测（月视图模式，排除自身）
+
     if (viewMode !== 'day' && schedules && schedules.length > 0) {
       const newStart = formData.startTime;
       const newEnd = formData.endTime;
@@ -1141,6 +1183,7 @@ Page({
       const conflictingSchedule = schedules.find(s => {
         if (s._id === editingId) return false;  // 排除正在编辑的自身
         // 排除所有非活跃状态的排课（已取消、已下架、已删除、已完成、未开放）
+
         if (['cancelled', 'offline', 'deleted', 'completed', 'not_open'].includes(s.status)) return false;
         const existingStart = s.start_time;
         const existingEnd = s.end_time;
@@ -1170,6 +1213,7 @@ Page({
     }
 
     // 处理预约截止时间和取消预约截止时间
+
     let bookingDeadline = formData.bookingDeadline;
     let cancelBookingDeadline = formData.cancelBookingDeadline;
     
@@ -1209,6 +1253,7 @@ Page({
     }
 
     // 星期视图模式，保存到本地模板
+
     if (viewMode === 'day') {
       const currentWeekday = weekdayList[currentWeekdayIndex]?.weekday;
       const templateItem = {
@@ -1233,6 +1278,7 @@ Page({
       };
 
       // 更新weekTemplate
+
       const newWeekTemplate = { ...weekTemplate };
       if (!newWeekTemplate[currentWeekday]) {
         newWeekTemplate[currentWeekday] = [];
@@ -1257,6 +1303,7 @@ Page({
     }
 
     // 月视图模式，使用API
+
     const submitData = {
       store_id: currentStoreId,
       date: this.data.currentDate,
@@ -1307,6 +1354,7 @@ Page({
   // 取消排课/删除模板
   async onCancelSchedule(e) {
     // 防抖处理：如果正在删除中，则直接返回
+
     if (this.data.deleting) {
       wx.showToast({ title: '正在处理中，请稍候', icon: 'none' });
       return;
@@ -1318,6 +1366,7 @@ Page({
     const bookings = parseInt(e.currentTarget.dataset.bookings) || 0;
     
     // 星期视图模式，从模板中删除
+
     if (viewMode === 'day') {
       wx.showModal({
         title: '确认删除',
@@ -1325,6 +1374,7 @@ Page({
         success: async (res) => {
           if (res.confirm) {
             // 设置防抖标志位
+
             this.setData({ deleting: true });
             try {
               const currentWeekday = weekdayList[currentWeekdayIndex]?.weekday;
@@ -1341,15 +1391,18 @@ Page({
               wx.showToast({ title: '删除失败', icon: 'none' });
             } finally {
               // 无论成功或失败，都重置防抖标志位
+
               this.setData({ deleting: false });
             }
           } else {
             // 用户取消删除，重置防抖标志位
+
             this.setData({ deleting: false });
           }
         },
         fail: () => {
           // 用户取消删除，重置防抖标志位
+
           this.setData({ deleting: false });
         }
       });
@@ -1357,6 +1410,7 @@ Page({
     }
     
     // 月视图模式：有预约时弹出原因选择，无预约时直接确认取消
+
     if (bookings > 0) {
       this.setData({
         showCancelReasonModal: true,
@@ -1373,6 +1427,7 @@ Page({
           if (res.confirm) {
             try {
               // 设置防抖标志位
+
               this.setData({ deleting: true });
               await request({ url: `/schedules/${id}/cancel`, method: 'PUT' });
               wx.showToast({ title: '已取消', icon: 'success' });
@@ -1382,15 +1437,18 @@ Page({
               wx.showToast({ title: '取消失败', icon: 'none' });
             } finally {
               // 无论成功或失败，都重置防抖标志位
+
               this.setData({ deleting: false });
             }
           } else {
             // 用户取消删除，重置防抖标志位
+
             this.setData({ deleting: false });
           }
         },
         fail: () => {
           // 用户取消删除，重置防抖标志位
+
           this.setData({ deleting: false });
         }
       });
@@ -1731,9 +1789,11 @@ Page({
   onShowCopyModal() {
     const { dateList, stores, currentStoreId, weekTemplate, viewMode } = this.data;
     // 获取当前门店名称
+
     const currentStore = stores.find(s => s._id === currentStoreId);
     
     // 计算模板总课程数
+
     let templateCount = 0;
     for (const weekday in weekTemplate) {
       if (weekTemplate[weekday] && Array.isArray(weekTemplate[weekday])) {
@@ -1742,6 +1802,7 @@ Page({
     }
     
     // 计算下周一作为默认起始日期
+
     const today = getBeijingDate();
     const dayOfWeek = today.getDay();
     const daysUntilNextMonday = dayOfWeek === 0 ? 1 : (8 - dayOfWeek);
@@ -1764,6 +1825,7 @@ Page({
     });
     
     // 如果是星期视图模式，立即更新预览文本
+
     if (viewMode === 'day') {
       const endDate = this._calcTargetEndDate(targetStartDate, 'weeks', 4);
       this.setData({
@@ -1996,6 +2058,7 @@ Page({
     this.setData({ [`copyForm.${field}`]: value });
 
     // 如果修改了源周日期，自动对齐为整周
+
     if (field === 'source_start_date' && value) {
       const weekRange = this._getWeekRange(value);
       this.setData({
@@ -2007,6 +2070,7 @@ Page({
     }
 
     // 如果修改了目标日期，更新预览
+
     if (field === 'target_start_date') {
       this._updatePreviewText();
     }
@@ -2016,6 +2080,7 @@ Page({
   onCopyModeChange(e) {
     const { mode } = e.currentTarget.dataset;
     // 切换模式时重置复制数量到合理默认值
+
     const defaultCount = mode === 'weeks' ? 4 : 3;
     this.setData({
       'copyForm.copyMode': mode,
@@ -2050,6 +2115,7 @@ Page({
 
     if (copyStep === 1) {
       // 验证第1步：源周必须选择且有排课
+
       if (!copyForm.source_start_date || !copyForm.source_end_date) {
         wx.showToast({ title: '请选择源周日期', icon: 'none' });
         return;
@@ -2059,9 +2125,11 @@ Page({
         return;
       }
       // 进入第2步
+
       this.setData({ copyStep: 2 });
     } else if (copyStep === 2) {
       // 验证第2步：目标日期和复制数量
+
       if (!copyForm.target_start_date) {
         wx.showToast({ title: '请选择目标起始周', icon: 'none' });
         return;
@@ -2071,6 +2139,7 @@ Page({
         return;
       }
       // 进入第3步
+
       this.setData({ copyStep: 3 });
     }
   },
@@ -2088,6 +2157,7 @@ Page({
     const { copyForm, currentStoreId, copySourceCount, viewMode, weekTemplate } = this.data;
 
     // 星期视图模式：逐个日期创建排课
+
     if (viewMode === 'day') {
       wx.showLoading({ title: '正在批量排课...', mask: true });
       try {
@@ -2141,6 +2211,7 @@ Page({
     }
 
     // 月视图模式：使用原有API
+
     const submitData = {
       store_id: currentStoreId,
       source_start_date: copyForm.source_start_date,
@@ -2207,6 +2278,7 @@ Page({
     for (let i = 0; i < count; i++) {
       if (mode === 'weeks') {
         // 计算当前周的起始日期
+
         const weekStart = getBeijingDate(startDate);
         weekStart.setDate(startDate.getDate() + i * 7);
         

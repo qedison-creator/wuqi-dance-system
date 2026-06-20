@@ -11,6 +11,7 @@ Page({
 
   onLoad() {
     // 加载已保存的账号密码（设备ID稳定存在于 storage，无需额外比对）
+
     const savedUsername = wx.getStorageSync('saved_username');
     const savedPassword = wx.getStorageSync('saved_password');
     if (savedUsername) {
@@ -79,6 +80,7 @@ Page({
       getApp().globalData.userInfo = res.data.admin;
 
       // 记住密码
+
       if (this.data.rememberMe) {
         wx.setStorageSync('saved_username', username);
         wx.setStorageSync('saved_password', password);

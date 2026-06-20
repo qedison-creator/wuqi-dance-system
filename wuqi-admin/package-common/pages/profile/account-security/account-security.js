@@ -26,6 +26,7 @@ Page({
         'staff': '员工'
       };
       // 规范化avatar_url
+
       let avatarUrl = userInfo.avatar_url || '';
       avatarUrl = this.normalizeAvatarUrl(avatarUrl);
       this.setData({
@@ -80,6 +81,7 @@ Page({
       success: (res) => {
         const tempFilePath = res.tempFiles[0].tempFilePath;
         // 调用裁剪接口，类似微信换头像的体验
+
         wx.cropImage({
           src: tempFilePath,
           cropScale: '1:1',
@@ -88,6 +90,7 @@ Page({
           },
           fail: (err) => {
             // 裁剪失败或取消，直接使用原图
+
             if (err.errMsg && err.errMsg.indexOf('cancel') > -1) {
               return;
             }
@@ -117,10 +120,12 @@ Page({
           const data = JSON.parse(res.data);
           if (data.code === 200 && data.data) {
             // 只保存相对路径到后端，显示时再根据环境拼接完整URL
+
             const relativeUrl = data.data.url;
             const avatarUrl = this.normalizeAvatarUrl(relativeUrl);
             this.setData({ avatarUrl: avatarUrl });
             // 保存相对路径到后端（不包含服务器地址，便于环境切换）
+
             this.saveAvatar(relativeUrl);
           } else {
             wx.showToast({ title: data.message || '上传失败', icon: 'none' });
@@ -145,6 +150,7 @@ Page({
         data: { avatar_url: avatarUrl }
       });
       // 更新全局用户信息
+
       if (app.globalData.userInfo) {
         app.globalData.userInfo.avatar_url = avatarUrl;
       }
@@ -169,6 +175,7 @@ Page({
         data: { nick_name: nickName.trim() }
       });
       // 更新全局用户信息
+
       if (app.globalData.userInfo) {
         app.globalData.userInfo.nick_name = nickName.trim();
       }

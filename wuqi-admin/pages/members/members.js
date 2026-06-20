@@ -2,6 +2,7 @@ const app = getApp();
 const { request } = require('../../utils/request');
 
 // 格式化日期为 YYYY-MM-DD
+
 const formatDate = (dateStr) => {
   if (!dateStr) return '';
   const d = new Date(dateStr);
@@ -12,6 +13,7 @@ const formatDate = (dateStr) => {
 };
 
 // 格式化审核通过日期为 YYYY-MM-DD 周X HH:mm
+
 const formatReviewDate = (dateStr) => {
   if (!dateStr) return '';
   const d = new Date(dateStr);
@@ -67,6 +69,7 @@ Page({
   onShow() {
     if (!app.checkAuth()) return;
     // 更新自定义tabbar的选中状态
+
     if (typeof this.getTabBar === 'function' && this.getTabBar()) {
       this.getTabBar().setData({ selected: 2 });
     }
@@ -91,6 +94,7 @@ Page({
     });
     
     // 独立加载门店列表，不依赖全局数据
+
     this.loadStoreList();
     this.loadInfoChangeCount();
     this._startAutoRefresh();
@@ -126,14 +130,17 @@ Page({
         ? res.data.list
         : (Array.isArray(res.data) ? res.data : []);
       // 同时更新本地和全局的门店列表
+
       this.setData({ storeList: list });
       app.globalData.storeList = list;
       // 加载会员列表需要在门店列表加载完成后进行
+
       this.loadMembers();
     } catch (err) {
       console.error('获取门店列表失败', err);
       wx.showToast({ title: '加载门店失败', icon: 'none' });
       // 即使获取门店列表失败，也尝试加载会员列表
+
       this.loadMembers();
     }
   },
@@ -250,6 +257,7 @@ Page({
         member_status: 'official'
       };
       // 套餐状态筛选
+
       if (this.data.activeFilter === 'active') {
         data.package_active = true;
       } else if (this.data.activeFilter === 'suspended') {
@@ -285,6 +293,7 @@ Page({
         const wechatPhone = maskPhone(member.wechat_phone || '');
 
         // 构建套餐信息文本
+
         let packageInfo = '';
         if (member.member_status === 'official' && member.packages && member.packages.length > 0) {
           const usablePkg = member.packages.find(p => p.status === 'active') || member.packages.find(p => p.status === 'pending');
@@ -324,9 +333,11 @@ Page({
         }
 
         // 处理门店标签
+
         let storeLabels = [];
         if (member.packages && member.packages.length > 0) {
           // 有套餐：显示套餐所属门店
+
           const storeMap = new Map();
           member.packages.forEach(pkg => {
             if (pkg.store_id && pkg.store_id._id && pkg.store_id.name) {
@@ -358,6 +369,7 @@ Page({
           displayStatus = 'no-package';
         } else {
           // 按优先级判断套餐状态：active > suspended > pending > exhausted > expired
+
           const activePkg = member.packages.find(p => p.status === 'active' && p.is_activated && !p.is_suspended);
           const suspendedPkg = member.packages.find(p => p.status === 'active' && p.is_activated && p.is_suspended);
           const pendingPkg = member.packages.find(p => p.status === 'pending' && !p.is_activated);
@@ -623,6 +635,7 @@ Page({
     const { packageMember, packageForm } = this.data;
 
     // 验证门店是否已选择
+
     if (!packageForm.store_id) {
       wx.showToast({ title: '请选择门店', icon: 'none' });
       return;

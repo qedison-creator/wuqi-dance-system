@@ -91,6 +91,7 @@ Page({
   onTabChange(e) {
     const tab = e.currentTarget.dataset.tab;
     // 切换标签时重置分页状态
+
     this.setData({ 
       activeTab: tab, 
       loading: true, 
@@ -114,6 +115,7 @@ Page({
 
   async loadActivationList() {
     // 竞态条件处理：生成请求标识
+
     const currentRequestId = Date.now();
     this.setData({ requestId: currentRequestId });
     
@@ -130,6 +132,7 @@ Page({
       });
       
       // 竞态条件处理：检查是否是最新的请求
+
       if (this.data.requestId !== currentRequestId) {
         console.log('忽略过期的激活记录请求');
         return;
@@ -148,6 +151,7 @@ Page({
       });
       
       // 分页处理：第一页替换数据，后续页面追加数据
+
       const activationList = this.data.page === 1 ? newList : [...this.data.activationList, ...newList];
       const hasMore = newList.length >= this.data.pageSize;
       
@@ -159,6 +163,7 @@ Page({
     } catch (err) {
       console.error('加载激活记录失败', err);
       // 竞态条件处理：检查是否是最新的请求
+
       if (this.data.requestId === currentRequestId) {
         wx.showToast({ title: '加载失败', icon: 'none' });
         this.setData({ loading: false });
@@ -168,6 +173,7 @@ Page({
 
   async loadExtensionList() {
     // 竞态条件处理：生成请求标识
+
     const currentRequestId = Date.now();
     this.setData({ requestId: currentRequestId });
     
@@ -184,6 +190,7 @@ Page({
       });
       
       // 竞态条件处理：检查是否是最新的请求
+
       if (this.data.requestId !== currentRequestId) {
         console.log('忽略过期的延长记录请求');
         return;
@@ -202,6 +209,7 @@ Page({
       });
       
       // 分页处理：第一页替换数据，后续页面追加数据
+
       const extensionList = this.data.page === 1 ? newList : [...this.data.extensionList, ...newList];
       const hasMore = newList.length >= this.data.pageSize;
       
@@ -213,6 +221,7 @@ Page({
     } catch (err) {
       console.error('加载延长记录失败', err);
       // 竞态条件处理：检查是否是最新的请求
+
       if (this.data.requestId === currentRequestId) {
         wx.showToast({ title: '加载失败', icon: 'none' });
         this.setData({ loading: false });
@@ -222,6 +231,7 @@ Page({
 
   async loadEntryList() {
     // 竞态条件处理：生成请求标识
+
     const currentRequestId = Date.now();
     this.setData({ requestId: currentRequestId });
     
@@ -238,6 +248,7 @@ Page({
       });
       
       // 竞态条件处理：检查是否是最新的请求
+
       if (this.data.requestId !== currentRequestId) {
         console.log('忽略过期的录入记录请求');
         return;
@@ -264,6 +275,7 @@ Page({
       });
       
       // 分页处理：第一页替换数据，后续页面追加数据
+
       const entryList = this.data.page === 1 ? newList : [...this.data.entryList, ...newList];
       const hasMore = newList.length >= this.data.pageSize;
       
@@ -275,6 +287,7 @@ Page({
     } catch (err) {
       console.error('加载录入记录失败', err);
       // 竞态条件处理：检查是否是最新的请求
+
       if (this.data.requestId === currentRequestId) {
         wx.showToast({ title: '加载失败', icon: 'none' });
         this.setData({ loading: false });

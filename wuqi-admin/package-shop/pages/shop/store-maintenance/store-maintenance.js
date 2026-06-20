@@ -35,6 +35,7 @@ Page({
 
   onAddStore() {
     // 新增门店：清空表单
+
     this.setData({
       editingStore: { _id: 'new' }, // 使用特殊ID标识新增模式
       editForm: {

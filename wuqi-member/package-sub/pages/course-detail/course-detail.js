@@ -243,7 +243,7 @@ Page({
     if (!checkLogin()) {
       return;
     }
-    const api = require('../../../utils/api');
+    const api = require('../../utils/api');
     api.bookings.getWaitlistMy().then(res => {
       const list = res.data || [];
       const { courseId } = this.data;
@@ -361,7 +361,7 @@ Page({
       wx.showLoading({ title: '加入候补...' });
       loadingShown = true;
 
-      const api = require('../../../utils/api');
+      const api = require('../../utils/api');
       await api.bookings.joinWaitlist({ schedule_id: this.data.courseId });
 
       wx.hideLoading();
@@ -406,7 +406,7 @@ Page({
 
     wx.showLoading({ title: '退出中...' });
     try {
-      const api = require('../../../utils/api');
+      const api = require('../../utils/api');
       await api.bookings.leaveWaitlist(currentWaitlistId);
 
       wx.hideLoading();

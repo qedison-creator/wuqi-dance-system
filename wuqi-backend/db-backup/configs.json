@@ -164,5 +164,25 @@
     "created_at": "2026-05-22T09:42:46.516Z",
     "updated_at": "2026-05-22T09:42:46.516Z",
     "__v": 0
+  },
+  {
+    "_id": "6a1b2804236563dbb8c40532",
+    "key": "tpl_bookingSuccessTemplateId",
+    "value": "mVdMRIYRRDRzk789Rw3Y6xUSo6fkkbTHuA1oicTlobE",
+    "description": "预约成功通知模板ID",
+    "category": "general",
+    "created_at": "2026-05-30T18:10:12.953Z",
+    "updated_at": "2026-05-30T18:10:12.953Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a1b2804236563dbb8c40533",
+    "key": "tpl_bookingCancelTemplateId",
+    "value": "UICX8hELSZ_TCGg1Jdnd3nGkrn9dlk6qep6H9grWLgo",
+    "description": "取消预约通知模板ID",
+    "category": "general",
+    "created_at": "2026-05-30T18:10:12.965Z",
+    "updated_at": "2026-05-30T18:10:12.965Z",
+    "__v": 0
   }
 ]

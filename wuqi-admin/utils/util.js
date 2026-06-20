@@ -87,6 +87,7 @@ const formatNumber = (num) => {
 
 // 课程状态文案映射（与后端统一状态枚举一致）
 // 状态枚举: not_open / available / full / offline / cancelled / in_progress / completed / deleted
+
 const STATUS_TEXT_MAP = {
   'not_open': '未开放',
   'available': '可预约',
@@ -99,6 +100,7 @@ const STATUS_TEXT_MAP = {
 };
 
 // 课程取消原因文案映射
+
 const CANCEL_REASON_TEXT_MAP = {
   'min_bookings_not_met': '人数不足取消',
   'admin_cancel': '管理员取消',
@@ -107,6 +109,7 @@ const CANCEL_REASON_TEXT_MAP = {
 };
 
 // 预约取消类型文案映射
+
 const CANCEL_TYPE_TEXT_MAP = {
   'normal': '正常取消',
   'exempt': '豁免取消',
@@ -116,16 +119,19 @@ const CANCEL_TYPE_TEXT_MAP = {
 };
 
 // 获取课程状态文案
+
 const getScheduleStatusText = (status) => {
   return STATUS_TEXT_MAP[status] || status || '';
 };
 
 // 获取课程取消原因文案
+
 const getCancelReasonText = (reason) => {
   return CANCEL_REASON_TEXT_MAP[reason] || reason || '';
 };
 
 // 获取预约取消类型文案
+
 const getCancelTypeText = (cancelType) => {
   if (!cancelType) return '已取消';
   return CANCEL_TYPE_TEXT_MAP[cancelType] || cancelType;

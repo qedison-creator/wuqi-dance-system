@@ -16,6 +16,7 @@ Page({
   async loadDefaultExemption() {
     try {
       // 直接获取指定配置
+
       const res = await request({
         url: '/config/default_exemption_count',
         method: 'GET'
@@ -118,6 +119,7 @@ Page({
       });
       
       // 更新本地数据
+
       const newList = this.data.memberList.map(m => {
         if (m._id === id) {
           return { ...m, exemption_count: newCount };

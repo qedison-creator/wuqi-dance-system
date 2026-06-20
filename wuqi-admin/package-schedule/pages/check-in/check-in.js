@@ -42,6 +42,7 @@ Page({
       let data = res.data;
       if (data && data.list) data = data.list;
       // 过滤：排除已取消、已结束、已下架、已删除、未开放的课程，只保留可签到的
+
       const excludedStatuses = ['cancelled', 'completed', 'offline', 'deleted', 'not_open'];
       const schedules = (data || [])
         .filter(s => !excludedStatuses.includes(s.status))
@@ -130,6 +131,7 @@ Page({
           else if (parsed.member_code) code = parsed.member_code;
         } catch (e) {
           // 非JSON：新格式短token（8位字母数字），也可能为会员号
+
           if (/^[A-Za-z0-9]{6,12}$/.test(rawResult)) {
             encryptedToken = rawResult;
           }
@@ -182,6 +184,7 @@ Page({
     }).catch((err) => {
       wx.hideLoading();
       // request.js 已显示后端业务错误，仅补漏手动逻辑抛出的错误
+
       if (err.message && err.message !== '请求失败') {
         wx.showToast({ title: err.message, icon: 'none' });
       }

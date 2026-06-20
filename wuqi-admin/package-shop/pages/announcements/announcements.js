@@ -217,6 +217,7 @@ Page({
 
   onDelete(e) {
     // 防抖处理：如果正在删除中，则直接返回
+
     if (this.data.deleting) {
       wx.showToast({ title: '正在删除中，请稍候', icon: 'none' });
       return;
@@ -229,11 +230,13 @@ Page({
       success: async (modalRes) => {
         if (!modalRes.confirm) {
           // 用户取消删除，重置防抖标志位
+
           this.setData({ deleting: false });
           return;
         }
         try {
           // 设置防抖标志位
+
           this.setData({ deleting: true });
           await request({ url: `/announces/${id}`, method: 'DELETE' });
           wx.showToast({ title: '已删除', icon: 'success' });
@@ -242,11 +245,13 @@ Page({
           wx.showToast({ title: err.message || '删除失败', icon: 'none' });
         } finally {
           // 无论成功或失败，都重置防抖标志位
+
           this.setData({ deleting: false });
         }
       },
       fail: () => {
         // 用户取消删除，重置防抖标志位
+
         this.setData({ deleting: false });
       }
     });
