@@ -1,0 +1,92 @@
+<view class="import-page">
+  <!-- 步骤说明 -->
+  <view class="step-section">
+    <view class="step-title">导入步骤</view>
+    <view class="step-item">
+      <text class="step-num">1</text>
+      <text class="step-text">下载标准模板，按格式填写预建档数据</text>
+    </view>
+    <view class="step-item">
+      <text class="step-num">2</text>
+      <text class="step-text">上传填写好的 Excel 文件（.xlsx / .xls）</text>
+    </view>
+    <view class="step-item">
+      <text class="step-num">3</text>
+      <text class="step-text">系统自动校验数据，校验通过后批量导入</text>
+    </view>
+  </view>
+
+  <!-- 下载模板 -->
+  <view class="action-section">
+    <view class="btn-download" bindtap="onDownloadTemplate">
+      <text class="btn-download-text">下载标准模板</text>
+    </view>
+  </view>
+
+  <!-- 上传文件：两种渠道 -->
+  <view class="action-section">
+    <view class="upload-title">上传 Excel 文件</view>
+    <view class="upload-btns">
+      <!-- 渠道1：聊天文件（需隐私授权） -->
+      <button class="btn-upload btn-upload-chat" open-type="agreePrivacyAuthorization" bindagreeprivacyauthorization="onPrivacyAgreed" bindtap="onChooseFromChat">
+        <text class="btn-upload-text">从聊天选择</text>
+      </button>
+      <!-- 渠道2：本地文件（需隐私授权） -->
+      <button class="btn-upload btn-upload-local" open-type="agreePrivacyAuthorization" bindagreeprivacyauthorization="onPrivacyAgreed" bindtap="onChooseFromLocal">
+        <text class="btn-upload-text">从本地选择</text>
+      </button>
+    </view>
+    <view class="upload-file-name" wx:if="{{fileName}}">
+      <text class="file-name-text">已选：{{fileName}}</text>
+    </view>
+  </view>
+
+  <!-- 校验结果 -->
+  <view class="result-section" wx:if="{{importResult}}">
+    <view class="result-summary">
+      <view class="result-item">
+        <text class="result-num">{{importResult.total}}</text>
+        <text class="result-label">总条数</text>
+      </view>
+      <view class="result-item result-passed">
+        <text class="result-num">{{importResult.passed}}</text>
+        <text class="result-label">通过</text>
+      </view>
+      <view class="result-item result-failed" wx:if="{{importResult.failed > 0}}">
+        <text class="result-num">{{importResult.failed}}</text>
+        <text class="result-label">失败</text>
+      </view>
+    </view>
+
+    <!-- 失败明细 -->
+    <view class="error-list" wx:if="{{importResult.errors && importResult.errors.length > 0}}">
+      <view class="error-title">失败明细</view>
+      <scroll-view scroll-y class="error-scroll">
+        <view class="error-item" wx:for="{{importResult.errors}}" wx:key="index">
+          <text class="error-row">第 {{item.row}} 行</text>
+          <text class="error-reason">{{item.reason}}</text>
+        </view>
+      </scroll-view>
+    </view>
+
+    <!-- 导入成功提示 -->
+    <view class="success-tip" wx:if="{{importResult.imported_count > 0}}">
+      <text class="success-icon">✓</text>
+      <text class="success-text">成功导入 {{importResult.imported_count}} 条预建档记录</text>
+    </view>
+
+    <!-- 操作按钮 -->
+    <view class="result-actions">
+      <view class="btn-back" bindtap="onGoBack" wx:if="{{importResult.imported_count > 0}}">返回列表</view>
+      <view class="btn-reupload" bindtap="onReset" wx:else>重新上传</view>
+    </view>
+  </view>
+
+  <!-- 上传中状态 -->
+  <view class="uploading-mask" wx:if="{{uploading}}">
+    <view class="uploading-content">
+      <view class="uploading-spinner"></view>
+      <text class="uploading-text">{{uploadingText}}</text>
+    </view>
+  </view>
+</view>

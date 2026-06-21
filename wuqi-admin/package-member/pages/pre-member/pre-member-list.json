@@ -1,0 +1,10 @@
+{
+  "navigationBarTitleText": "预建档管理",
+  "navigationBarBackgroundColor": "#F6F3F0",
+  "navigationBarTextStyle": "black",
+  "backgroundColor": "#FAF8F5",
+  "enablePullDownRefresh": true,
+  "usingComponents": {
+    "date-picker": "/components/date-picker/date-picker"
+  }
+}

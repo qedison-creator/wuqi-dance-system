@@ -3,7 +3,7 @@ const fs = require('fs');
 const path = require('path');
 
 (async () => {
-    console.log('🎨 开始生成问候图片...\n');
+    console.log('开始生成问候图片...\n');
     
     const browser = await puppeteer.launch({ headless: true });
     const page = await browser.newPage();
@@ -41,11 +41,11 @@ const path = require('path');
         const filePath = path.join(saveDir, image.filename);
         fs.writeFileSync(filePath, base64Data, 'base64');
         
-        console.log(`✓ 已保存: ${image.filename}`);
+        console.log(`√ 已保存: ${image.filename}`);
     }
     
     await browser.close();
     
-    console.log('\n🎉 所有图片生成完成！');
+    console.log('\n所有图片生成完成！');
     console.log(`保存位置: ${saveDir}`);
 })();

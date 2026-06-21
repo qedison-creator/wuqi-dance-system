@@ -41,6 +41,7 @@ Page({
     totalMembers: 0,
     pendingCount: 0,
     infoChangeCount: 0,
+    pendingClaimCount: 0,
     filterLabel: '使用中',
     // 门店选择弹窗
     showStorePicker: false,
@@ -97,6 +98,7 @@ Page({
 
     this.loadStoreList();
     this.loadInfoChangeCount();
+    this.loadPendingClaimCount();
     this._startAutoRefresh();
   },
 
@@ -109,6 +111,7 @@ Page({
     this._autoRefreshTimer = setInterval(() => {
       this.loadStoreList();
       this.loadInfoChangeCount();
+      this.loadPendingClaimCount();
     }, 30000);
   },
 
@@ -149,7 +152,8 @@ Page({
     this.setData({ page: 1, hasMore: true });
     return Promise.all([
       this.loadStoreList(),
-      this.loadInfoChangeCount()
+      this.loadInfoChangeCount(),
+      this.loadPendingClaimCount()
     ]);
   },
 
@@ -166,6 +170,25 @@ Page({
 
   onGoInfoReview() {
     wx.navigateTo({ url: '/package-member/pages/members/info-review/info-review' });
+  },
+
+  // 跳转到预建档管理页面
+  onGoPreMember() {
+    wx.navigateTo({ url: '/package-member/pages/pre-member/pre-member-list' });
+  },
+
+  // 加载预建档数量
+  async loadPendingClaimCount() {
+    try {
+      const res = await request({
+        url: '/pre-members/stats',
+        method: 'GET'
+      });
+      const count = res.data && res.data.pending_claim_count ? res.data.pending_claim_count : 0;
+      this.setData({ pendingClaimCount: count });
+    } catch (err) {
+      console.error('加载预建档数量失败', err);
+    }
   },
 
   // ========== 待审核信息修改数量 ==========
@@ -207,6 +230,7 @@ Page({
     });
     this.loadMembers();
     this.loadInfoChangeCount();
+    this.loadPendingClaimCount();
   },
 
   // ========== 套餐状态筛选 ==========

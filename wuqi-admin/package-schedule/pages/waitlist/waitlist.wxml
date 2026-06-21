@@ -48,7 +48,7 @@
   </view>
 
   <view class="empty-state" wx:if="{{!loading && waitlistList.length === 0}}">
-    <text class="empty-icon">📋</text>
+    <text class="empty-icon"></text>
     <text class="empty-text">暂无候补排队</text>
     <text class="empty-desc">当有会员加入候补中时，会在此处显示</text>
   </view>
@@ -62,7 +62,7 @@
     <view class="modal-content-large" catchtap="onModalTap">
       <view class="modal-header">
         <text class="modal-title">{{currentSchedule.course_name || '课程候补名单'}}</text>
-        <text class="modal-close" bindtap="onCloseModal">✕</text>
+        <text class="modal-close" bindtap="onCloseModal">×</text>
       </view>
       <view class="modal-body">
         <view class="modal-info-row">

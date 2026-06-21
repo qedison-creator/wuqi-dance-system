@@ -1,0 +1,610 @@
+/**
+ * 会员预建档服务（纯增量模块，零侵入现有注册流程）
+ *
+ * 核心红线：
+ * 1. 不修改现有会员注册审核流程的任何代码
+ * 2. 状态隔离：新增 member_status='pending_claim'（前端显示「待认领」）
+ * 3. 异常自动降级：所有异常不阻断主流程
+ * 4. 数据结构复用：沿用 User 集合，不新建集合
+ * 5. 可快速回滚：独立封装，仅登录入口保留一处调用
+ */
+
+const mongoose = require('mongoose');
+const User = require('../models/User');
+const UserPackage = require('../models/UserPackage');
+const Store = require('../models/Store');
+
+/**
+ * 校验手机号全局唯一性（待认领 + 待审核 + 正式会员均不可重复）
+ */
+async function checkPhoneUnique(reservePhone, excludeUserId = null) {
+  if (!reservePhone) return { unique: false, reason: '手机号不能为空' };
+  const phoneRegex = /^1[3-9]\d{9}$/;
+  if (!phoneRegex.test(reservePhone)) {
+    return { unique: false, reason: '手机号格式不正确' };
+  }
+  const query = {
+    reserve_phone: reservePhone,
+    member_status: { $in: ['pending_claim', 'registered', 'official'] }
+  };
+  if (excludeUserId) {
+    query._id = { $ne: excludeUserId };
+  }
+  const existing = await User.findOne(query).select('_id member_status');
+  if (existing) {
+    const statusMap = {
+      'pending_claim': '待认领',
+      'registered': '待审核',
+      'official': '正式会员'
+    };
+    return { unique: false, reason: `该手机号已存在${statusMap[existing.member_status] || ''}账号` };
+  }
+  return { unique: true };
+}
+
+/**
+ * 获取预建档列表（仅查询 member_status='pending_claim'）
+ */
+async function getPreMemberList(query = {}) {
+  const { store_id, keyword, status, page = 1, pageSize = 20 } = query;
+  const filter = { member_status: 'pending_claim' };
+
+  if (store_id) {
+    try {
+      filter.store_id = new mongoose.Types.ObjectId(store_id);
+    } catch (e) {
+      // store_id 无效时不添加筛选条件
+    }
+  }
+
+  // status 筛选：pending_claim=待认领，official=已认领
+  // 列表页支持查看已认领的记录（从 pending_claim 转为 official 的）
+  if (status === 'claimed') {
+    filter.member_status = 'official';
+    filter.claimed_at = { $exists: true, $ne: null };
+  } else if (status === 'all') {
+    // 全部：待认领 + 已认领
+    // 注意：先删除 member_status，再用 $or 避免冲突
+    delete filter.member_status;
+    filter.$or = [
+      { member_status: 'pending_claim' },
+      { member_status: 'official', claimed_at: { $exists: true, $ne: null } }
+    ];
+  }
+
+  if (keyword) {
+    const escapedKeyword = keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    filter.$and = filter.$and || [];
+    filter.$and.push({
+      $or: [
+        { real_name: { $regex: escapedKeyword, $options: 'i' } },
+        { reserve_phone: { $regex: escapedKeyword, $options: 'i' } }
+      ]
+    });
+  }
+
+  const skip = (Number(page) - 1) * Number(pageSize);
+  const [list, total] = await Promise.all([
+    User.find(filter)
+      .populate('store_id', 'name')
+      .sort({ created_at: -1 })
+      .skip(skip)
+      .limit(Number(pageSize))
+      .lean(),
+    User.countDocuments(filter)
+  ]);
+
+  // 为每条记录查询套餐信息
+  const userIds = list.map(u => u._id);
+  const packages = userIds.length > 0 ? await UserPackage.find({
+    user_id: { $in: userIds }
+  }).lean() : [];
+
+  const packageMap = {};
+  packages.forEach(p => {
+    const uid = p.user_id.toString();
+    if (!packageMap[uid]) packageMap[uid] = [];
+    packageMap[uid].push(p);
+  });
+
+  const resultList = list.map(user => {
+    const userPackages = packageMap[user._id.toString()] || [];
+    return {
+      ...user,
+      store_name: user.store_id && user.store_id.name ? user.store_id.name : '',
+      packages: userPackages,
+      has_package: userPackages.length > 0,
+      status_text: user.member_status === 'pending_claim' ? '待认领' : '已认领'
+    };
+  });
+
+  return {
+    list: resultList,
+    total,
+    page: Number(page),
+    pageSize: Number(pageSize),
+    totalPages: Math.ceil(total / pageSize)
+  };
+}
+
+/**
+ * 获取预建档统计数量
+ */
+async function getPreMemberStats(storeId = null) {
+  const filter = { member_status: 'pending_claim' };
+  if (storeId) {
+    try {
+      filter.store_id = new mongoose.Types.ObjectId(storeId);
+    } catch (e) {
+      // store_id 无效时不添加筛选条件
+    }
+  }
+  const count = await User.countDocuments(filter);
+  return { pending_claim_count: count };
+}
+
+/**
+ * 创建预建档记录
+ */
+async function createPreMember(data, operatorId) {
+  const { real_name, gender, reserve_phone, store_id, package: packageData, remark } = data;
+
+  // 基础校验
+  if (!real_name || !real_name.trim()) {
+    throw new Error('会员姓名不能为空');
+  }
+  if (gender !== 1 && gender !== 2) {
+    throw new Error('性别必须为男(1)或女(2)');
+  }
+  if (!store_id) {
+    throw new Error('所属门店不能为空');
+  }
+
+  // 校验门店存在
+  const store = await Store.findById(store_id).select('_id name');
+  if (!store) {
+    throw new Error('门店不存在');
+  }
+
+  // 校验手机号全局唯一
+  const phoneCheck = await checkPhoneUnique(reserve_phone);
+  if (!phoneCheck.unique) {
+    throw new Error(phoneCheck.reason);
+  }
+
+  // 创建预建档记录
+  const user = await User.create({
+    user_type: 'member',
+    member_status: 'pending_claim',
+    real_name: real_name.trim(),
+    gender: gender,
+    reserve_phone: reserve_phone,
+    store_id: store_id,
+    info_completed: true,
+    remark: remark || '',
+    created_by: operatorId
+    // openid/wechat_phone 留空，认领时回填
+  });
+
+  // 如有套餐信息，创建 UserPackage 记录
+  if (packageData && packageData.package_type) {
+    await createPackageForUser(user._id, store_id, packageData, operatorId);
+  }
+
+  return user;
+}
+
+/**
+ * 为用户创建套餐记录（内部辅助函数）
+ */
+async function createPackageForUser(userId, storeId, packageData, operatorId) {
+  const { package_type, total_credits, start_date, end_date, duration_value, duration_unit, weekly_limit, daily_limit, remark } = packageData;
+
+  if (!package_type || !['count_card', 'time_card'].includes(package_type)) {
+    throw new Error('套餐类型必须为次卡(count_card)或时间卡(time_card)');
+  }
+  if (!start_date || !end_date) {
+    throw new Error('套餐有效期起止日期不能为空');
+  }
+  if (package_type === 'count_card' && (!total_credits || total_credits <= 0)) {
+    throw new Error('次卡必须填写总次数');
+  }
+  if (package_type === 'time_card' && !weekly_limit && !daily_limit) {
+    throw new Error('时间卡必须填写周期限制');
+  }
+
+  const packageRecord = {
+    user_id: userId,
+    store_id: storeId,
+    package_type: package_type,
+    start_date: new Date(start_date),
+    end_date: new Date(end_date),
+    is_activated: false,
+    status: 'pending',
+    created_by: operatorId,
+    remark: remark || ''
+  };
+
+  if (package_type === 'count_card') {
+    packageRecord.total_credits = Number(total_credits);
+    packageRecord.remaining_credits = Number(total_credits);
+  } else {
+    // 时间卡
+    packageRecord.total_credits = 0;
+    packageRecord.remaining_credits = 0;
+    if (weekly_limit) packageRecord.weekly_limit = Number(weekly_limit);
+    if (daily_limit) packageRecord.daily_limit = Number(daily_limit);
+    if (duration_value) {
+      packageRecord.duration_value = Number(duration_value);
+      packageRecord.duration_unit = duration_unit || 'month';
+    }
+  }
+
+  return await UserPackage.create(packageRecord);
+}
+
+/**
+ * 编辑预建档记录（仅允许编辑 pending_claim 状态）
+ */
+async function updatePreMember(id, data, operatorId) {
+  const user = await User.findById(id);
+  if (!user) {
+    throw new Error('预建档记录不存在');
+  }
+  if (user.member_status !== 'pending_claim') {
+    throw new Error('仅待认领状态的预建档可编辑');
+  }
+
+  const { real_name, gender, reserve_phone, store_id, remark } = data;
+
+  // 如修改了手机号，需重新校验唯一性
+  if (reserve_phone && reserve_phone !== user.reserve_phone) {
+    const phoneCheck = await checkPhoneUnique(reserve_phone, id);
+    if (!phoneCheck.unique) {
+      throw new Error(phoneCheck.reason);
+    }
+    user.reserve_phone = reserve_phone;
+  }
+
+  if (real_name !== undefined) user.real_name = real_name.trim();
+  if (gender !== undefined) {
+    if (gender !== 1 && gender !== 2) throw new Error('性别必须为男(1)或女(2)');
+    user.gender = gender;
+  }
+  if (store_id !== undefined) {
+    const store = await Store.findById(store_id).select('_id');
+    if (!store) throw new Error('门店不存在');
+    user.store_id = store_id;
+  }
+  if (remark !== undefined) user.remark = remark;
+
+  user.updated_by = operatorId;
+  await user.save();
+
+  // 如有套餐信息变更，更新套餐
+  if (data.package) {
+    // 删除旧套餐，创建新套餐
+    await UserPackage.deleteMany({ user_id: id });
+    if (data.package.package_type) {
+      await createPackageForUser(id, user.store_id, data.package, operatorId);
+    }
+  }
+
+  return user;
+}
+
+/**
+ * 删除预建档记录（仅允许删除 pending_claim 状态）
+ */
+async function deletePreMember(id) {
+  const user = await User.findById(id);
+  if (!user) {
+    throw new Error('预建档记录不存在');
+  }
+  if (user.member_status !== 'pending_claim') {
+    throw new Error('仅待认领状态的预建档可删除');
+  }
+
+  // 删除关联的套餐记录
+  await UserPackage.deleteMany({ user_id: id });
+  // 删除预建档记录
+  await User.findByIdAndDelete(id);
+  return true;
+}
+
+/**
+ * 认领匹配逻辑（原子操作，防并发）
+ * 在微信登录时调用，匹配成功则将预建档转为正式会员
+ *
+ * @param {string} wechatPhone - 微信授权手机号
+ * @param {string} openid - 微信 openid
+ * @returns {Object|null} 匹配成功返回用户对象，失败返回 null
+ */
+async function claimByPhone(wechatPhone, openid) {
+  if (!wechatPhone || !openid) return null;
+
+  // 原子更新：member_status='pending_claim' 作为乐观锁条件，防止并发重复认领
+  const result = await User.findOneAndUpdate(
+    {
+      reserve_phone: wechatPhone,
+      member_status: 'pending_claim'  // 乐观锁条件
+    },
+    {
+      $set: {
+        member_status: 'official',
+        wechat_phone: wechatPhone,
+        openid: openid,
+        info_completed: true,
+        claimed_at: new Date()
+      }
+    },
+    { returnDocument: 'after' }
+  );
+
+  return result;  // 未匹配返回 null
+}
+
+/**
+ * 批量导入预建档记录
+ * @param {Array} rows - 解析后的行数据
+ * @param {string} operatorId - 操作员ID
+ * @returns {Object} 导入结果
+ */
+async function importPreMembers(rows, operatorId) {
+  const results = {
+    total: rows.length,
+    passed: 0,
+    failed: 0,
+    errors: [],
+    validRows: []
+  };
+
+  // 预加载门店列表（用于门店名称匹配）
+  const stores = await Store.find({ status: 'active' }).select('_id name').lean();
+  const storeMap = {};
+  stores.forEach(s => {
+    storeMap[s.name] = s._id;
+  });
+
+  // 1. 文件内手机号去重校验
+  const phoneSet = new Set();
+  const rowNumMap = {};  // 手机号 -> 首次出现的行号
+  rows.forEach((row, index) => {
+    const phone = row.reserve_phone;
+    if (phone) {
+      if (phoneSet.has(phone)) {
+        results.errors.push({
+          row: row._rowNum || index + 2,
+          reason: `文件内手机号重复（首次出现在第 ${rowNumMap[phone]} 行）`
+        });
+        row._invalid = true;
+      } else {
+        phoneSet.add(phone);
+        rowNumMap[phone] = row._rowNum || index + 2;
+      }
+    }
+  });
+
+  // 2. 逐行校验
+  for (const row of rows) {
+    if (row._invalid) {
+      results.failed++;
+      continue;
+    }
+
+    const rowNum = row._rowNum || 0;
+    const errors = [];
+
+    // 门店名称校验
+    if (!row.store_name) {
+      errors.push('门店名称不能为空');
+    } else if (!storeMap[row.store_name]) {
+      errors.push(`门店名称"${row.store_name}"不匹配，必须为：舞栖舞蹈社（固戍店）/ 舞栖舞蹈社（福永店）`);
+    }
+
+    // 会员姓名校验
+    if (!row.real_name || !row.real_name.trim()) {
+      errors.push('会员姓名不能为空');
+    } else if (row.real_name.length > 20) {
+      errors.push('会员姓名最长 20 字');
+    }
+
+    // 手机号格式校验
+    if (!row.reserve_phone) {
+      errors.push('预留手机号不能为空');
+    } else {
+      const phoneRegex = /^1[3-9]\d{9}$/;
+      if (!phoneRegex.test(row.reserve_phone)) {
+        errors.push('预留手机号格式不正确');
+      }
+    }
+
+    // 性别校验
+    if (row.gender !== '男' && row.gender !== '女') {
+      errors.push('性别仅可填「男」或「女」');
+    } else {
+      row._gender_num = row.gender === '男' ? 1 : 2;
+    }
+
+    // 套餐字段联动校验
+    if (row.package_type) {
+      if (!['次卡', '时间卡'].includes(row.package_type)) {
+        errors.push('套餐类型仅可填「次卡 / 时间卡」');
+      } else {
+        row._package_type = row.package_type === '次卡' ? 'count_card' : 'time_card';
+
+        // 有效期校验
+        if (!row.start_date) {
+          errors.push('填写了套餐类型时，有效期开始日期必填');
+        }
+        if (!row.end_date) {
+          errors.push('填写了套餐类型时，有效期结束日期必填');
+        }
+        if (row.start_date && row.end_date) {
+          const startDate = new Date(row.start_date);
+          const endDate = new Date(row.end_date);
+          if (isNaN(startDate.getTime())) {
+            errors.push('有效期开始日期格式不正确（应为 YYYY-MM-DD）');
+          }
+          if (isNaN(endDate.getTime())) {
+            errors.push('有效期结束日期格式不正确（应为 YYYY-MM-DD）');
+          }
+          if (!isNaN(startDate.getTime()) && !isNaN(endDate.getTime()) && startDate >= endDate) {
+            errors.push('有效期开始日期必须早于结束日期');
+          }
+        }
+
+        // 次卡专属校验
+        if (row._package_type === 'count_card') {
+          if (!row.total_credits || isNaN(Number(row.total_credits)) || Number(row.total_credits) <= 0) {
+            errors.push('次卡必须填写总次数（纯数字，大于0）');
+          }
+        }
+
+        // 时间卡专属校验（新逻辑：使用周期限制方式 + 限制次数两列）
+        if (row._package_type === 'time_card') {
+          const periodType = row.period_type || '';
+          if (!['每日限制', '每周限制', '无限次'].includes(periodType)) {
+            errors.push('时间卡周期限制方式仅可填「每日限制 / 每周限制 / 无限次」');
+          } else {
+            if (periodType === '无限次') {
+              row._period_type = 'unlimited';
+              row._period_count = 0;
+            } else {
+              row._period_type = periodType === '每日限制' ? 'daily' : 'weekly';
+              if (!row.period_count || isNaN(Number(row.period_count)) || Number(row.period_count) <= 0) {
+                errors.push('选择每日/每周限制时，限制次数必填（纯数字，大于0）');
+              } else {
+                row._period_count = Number(row.period_count);
+              }
+            }
+          }
+        }
+      }
+    }
+
+    if (errors.length > 0) {
+      results.errors.push({ row: rowNum, reason: errors.join('；') });
+      results.failed++;
+      row._invalid = true;
+    } else {
+      results.validRows.push(row);
+      results.passed++;
+    }
+  }
+
+  // 3. 全局唯一性批量校验（对通过校验的手机号查询数据库）
+  if (results.validRows.length > 0) {
+    const phones = results.validRows.map(r => r.reserve_phone);
+    const existing = await User.find({
+      reserve_phone: { $in: phones },
+      member_status: { $in: ['pending_claim', 'registered', 'official'] }
+    }).select('reserve_phone member_status').lean();
+
+    const existingMap = {};
+    existing.forEach(u => {
+      existingMap[u.reserve_phone] = u.member_status;
+    });
+
+    const stillValid = [];
+    results.validRows.forEach(row => {
+      if (existingMap[row.reserve_phone]) {
+        const statusMap = {
+          'pending_claim': '待认领',
+          'registered': '待审核',
+          'official': '正式会员'
+        };
+        results.errors.push({
+          row: row._rowNum || 0,
+          reason: `该手机号已存在${statusMap[existingMap[row.reserve_phone]]}账号`
+        });
+        results.passed--;
+        results.failed++;
+      } else {
+        stillValid.push(row);
+      }
+    });
+    results.validRows = stillValid;
+  }
+
+  // 4. 全部通过后批量写入
+  if (results.validRows.length > 0 && results.failed === 0) {
+    const usersToCreate = [];
+    const packagesToCreate = [];
+
+    results.validRows.forEach(row => {
+      const storeId = storeMap[row.store_name];
+      const userData = {
+        user_type: 'member',
+        member_status: 'pending_claim',
+        real_name: row.real_name.trim(),
+        gender: row._gender_num,
+        reserve_phone: row.reserve_phone,
+        store_id: storeId,
+        info_completed: true,
+        remark: row.remark || '',
+        created_by: operatorId
+      };
+      usersToCreate.push(userData);
+    });
+
+    const createdUsers = await User.insertMany(usersToCreate);
+
+    // 创建套餐记录
+    createdUsers.forEach((user, index) => {
+      const row = results.validRows[index];
+      if (row._package_type) {
+        const packageData = {
+          user_id: user._id,
+          store_id: user.store_id,
+          package_type: row._package_type,
+          start_date: new Date(row.start_date),
+          end_date: new Date(row.end_date),
+          is_activated: false,
+          status: 'pending',
+          created_by: operatorId,
+          remark: row.remark || ''
+        };
+
+        if (row._package_type === 'count_card') {
+          packageData.total_credits = Number(row.total_credits);
+          packageData.remaining_credits = Number(row.total_credits);
+        } else {
+          // 时间卡：使用校验后的周期类型和次数
+          packageData.total_credits = 0;
+          packageData.remaining_credits = 0;
+          if (row._period_type === 'weekly') {
+            packageData.weekly_limit = Number(row._period_count);
+          } else if (row._period_type === 'daily') {
+            packageData.daily_limit = Number(row._period_count);
+          }
+          // unlimited: 不设置 weekly_limit / daily_limit
+        }
+
+        packagesToCreate.push(packageData);
+      }
+    });
+
+    if (packagesToCreate.length > 0) {
+      await UserPackage.insertMany(packagesToCreate);
+    }
+
+    results.imported_count = createdUsers.length;
+  } else {
+    results.imported_count = 0;
+  }
+
+  return results;
+}
+
+module.exports = {
+  checkPhoneUnique,
+  getPreMemberList,
+  getPreMemberStats,
+  createPreMember,
+  updatePreMember,
+  deletePreMember,
+  claimByPhone,
+  importPreMembers,
+  createPackageForUser
+};

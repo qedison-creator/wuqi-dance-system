@@ -122,7 +122,7 @@
     <view class="modal-content modal-large" catchtap="onModalTap">
       <view class="modal-header">
         <text class="modal-title">{{coachForm._id ? '编辑教练' : '新增教练'}}</text>
-        <text class="modal-close" bindtap="onCloseCoachModal">✕</text>
+        <text class="modal-close" bindtap="onCloseCoachModal">×</text>
       </view>
       <scroll-view scroll-y class="detail-scroll">
         <view class="form-group">
@@ -172,7 +172,7 @@
     <view class="modal-content" catchtap="onModalTap">
       <view class="modal-header">
         <text class="modal-title">{{danceStyleForm._id ? '编辑舞种' : '新增舞种'}}</text>
-        <text class="modal-close" bindtap="onCloseDanceStyleModal">✕</text>
+        <text class="modal-close" bindtap="onCloseDanceStyleModal">×</text>
       </view>
       <view class="form-group">
         <text class="form-label">舞种名称 *</text>
@@ -194,7 +194,7 @@
     <view class="modal-content" catchtap="onModalTap">
       <view class="modal-header">
         <text class="modal-title">{{storeForm._id ? '编辑门店' : '新增门店'}}</text>
-        <text class="modal-close" bindtap="onCloseStoreModal">✕</text>
+        <text class="modal-close" bindtap="onCloseStoreModal">×</text>
       </view>
       <view class="form-group">
         <text class="form-label">门店名称 *</text>

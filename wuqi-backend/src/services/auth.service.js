@@ -78,6 +78,29 @@ exports.wxLogin = async (code, storeId, clientType = 'member', profileData = {})
 
   // 3. 查找或创建用户
   let user = await User.findOne({ openid });
+
+  // ===== 新增：预建档自动匹配（独立 try-catch，异常自动降级为原有流程）=====
+  // 匹配条件：用户不存在 + 已获取微信手机号 + 存在对应手机号的预建档记录
+  // 回滚方式：注释以下代码块即可恢复原有流程
+  if (!user && phoneNumber) {
+    try {
+      const preMemberService = require('./preMember.service');
+      const claimedUser = await preMemberService.claimByPhone(phoneNumber, openid);
+      if (claimedUser) {
+        // 匹配成功：预建档已转为正式会员，更新微信昵称头像等信息
+        if (avatar_url) claimedUser.avatar_url = avatar_url;
+        if (nick_name) claimedUser.nick_name = nick_name;
+        await claimedUser.save();
+        user = claimedUser;
+        console.log(`[预建档匹配] 手机号 ${phoneNumber.substring(0, 3)}****${phoneNumber.substring(7)} 认领成功，用户ID: ${user._id}`);
+      }
+    } catch (err) {
+      // 异常自动降级：仅记录日志，不抛出，继续向下执行原有注册逻辑
+      console.error('[预建档匹配] 异常，降级为原有流程:', err.message);
+    }
+  }
+  // ===== 预建档匹配结束 =====
+
   if (!user) {
     // 读取配置的默认豁免次数（默认2次）
     let defaultExemptionCount = 2;

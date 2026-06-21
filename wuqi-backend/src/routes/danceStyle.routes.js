@@ -31,7 +31,7 @@ router.post('/', auth, checkPermission(['super_admin', 'store_manager']), async 
 // PUT /api/v1/dance-styles/:id - 编辑舞种
 router.put('/:id', auth, checkPermission(['super_admin', 'store_manager']), async (req, res, next) => {
   try {
-    const style = await DanceStyle.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    const style = await DanceStyle.findByIdAndUpdate(req.params.id, req.body, { returnDocument: 'after' });
     res.json(success(style, '编辑舞种成功'));
   } catch (err) {
     next(err);

@@ -51,7 +51,7 @@ router.post('/', auth, checkModulePermission('banner'), async (req, res, next) =
 // PUT /api/v1/banners/:id - 编辑轮播图
 router.put('/:id', auth, checkModulePermission('banner'), async (req, res, next) => {
   try {
-    const banner = await Banner.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    const banner = await Banner.findByIdAndUpdate(req.params.id, req.body, { returnDocument: 'after' });
     res.json(success(banner, '编辑轮播图成功'));
   } catch (err) {
     next(err);
@@ -62,7 +62,7 @@ router.put('/:id', auth, checkModulePermission('banner'), async (req, res, next)
 router.put('/:id/status', auth, checkModulePermission('banner'), async (req, res, next) => {
   try {
     const { status } = req.body;
-    const banner = await Banner.findByIdAndUpdate(req.params.id, { status }, { new: true });
+    const banner = await Banner.findByIdAndUpdate(req.params.id, { status }, { returnDocument: 'after' });
     res.json(success(banner, status === 'active' ? '启用成功' : '禁用成功'));
   } catch (err) {
     next(err);

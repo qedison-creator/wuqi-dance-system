@@ -133,7 +133,7 @@
           </view>
           <view class="booking-details">
             <view class="booking-detail-row">
-              <text class="detail-icon">📅</text>
+              <text class="detail-icon"></text>
               <text class="detail-label">课程时间</text>
               <view class="detail-value course-time-wrap">
                 <text class="course-date">{{item.schedule_id ? item.schedule_id.date : item.booking_date}}</text>
@@ -142,12 +142,12 @@
               </view>
             </view>
             <view class="booking-detail-row" wx:if="{{item.schedule_id && item.schedule_id.coach_id && item.schedule_id.coach_id.name}}">
-              <text class="detail-icon">👤</text>
+              <text class="detail-icon"></text>
               <text class="detail-label">授课教练</text>
               <text class="detail-value coach">{{item.schedule_id.coach_id.name}}</text>
             </view>
             <view class="booking-detail-row" wx:if="{{item.created_at_display}}">
-              <text class="detail-icon">🕐</text>
+              <text class="detail-icon"></text>
               <text class="detail-label">预约时间</text>
               <text class="detail-value booking-time-text">{{item.created_at_display}}</text>
             </view>
@@ -193,11 +193,11 @@
     <view class="delete-modal-content" catchtap="onModalTap">
       <view class="modal-header">
         <text class="modal-title delete-modal-title">确认删除会员</text>
-        <text class="modal-close" bindtap="onCloseDeleteModal">✕</text>
+        <text class="modal-close" bindtap="onCloseDeleteModal">×</text>
       </view>
 
       <view class="delete-warning-box">
-        <text class="delete-warning-icon">⚠</text>
+        <text class="delete-warning-icon">!</text>
         <text class="delete-warning-text">此操作不可恢复，删除后该会员的以下数据将被永久清除：</text>
       </view>
 
@@ -233,11 +233,11 @@
     <view class="delete-modal-content" catchtap="onModalTap">
       <view class="modal-header">
         <text class="modal-title delete-modal-title">确认删除套餐</text>
-        <text class="modal-close" bindtap="onCloseDeletePackageModal">✕</text>
+        <text class="modal-close" bindtap="onCloseDeletePackageModal">×</text>
       </view>
 
       <view class="delete-warning-box">
-        <text class="delete-warning-icon">⚠</text>
+        <text class="delete-warning-icon">!</text>
         <text class="delete-warning-text">删除后该套餐数据将无法恢复：</text>
       </view>
 
@@ -273,7 +273,7 @@
     <view class="store-modal-content" catchtap="onModalTap">
       <view class="store-modal-header">
         <text class="store-modal-title">修改门店</text>
-        <text class="modal-close" bindtap="onCloseStoreModal">✕</text>
+        <text class="modal-close" bindtap="onCloseStoreModal">×</text>
       </view>
       <view class="store-modal-list">
         <view class="store-modal-item {{selectedStoreId === item._id ? 'active' : ''}}"
@@ -292,7 +292,7 @@
     <view class="package-modal-content" catchtap="onAddPackageModalTap">
       <view class="modal-header">
         <text class="modal-title">新增套餐</text>
-        <text class="modal-close" bindtap="onCloseAddPackageModal">✕</text>
+        <text class="modal-close" bindtap="onCloseAddPackageModal">×</text>
       </view>
 
       <view class="form-group">
@@ -386,7 +386,7 @@
     <view class="package-modal-content" catchtap="onPackageEditModalTap">
       <view class="modal-header">
         <text class="modal-title">编辑套餐</text>
-        <text class="modal-close" bindtap="onClosePackageEditModal">✕</text>
+        <text class="modal-close" bindtap="onClosePackageEditModal">×</text>
       </view>
 
       <!-- 套餐类型选择 -->
@@ -466,7 +466,7 @@
     <view class="name-modal-content" catchtap="onModalTap">
       <view class="modal-header">
         <text class="modal-title">编辑会员姓名</text>
-        <text class="modal-close" bindtap="onCloseEditNameModal">✕</text>
+        <text class="modal-close" bindtap="onCloseEditNameModal">×</text>
       </view>
       <view class="form-group">
         <text class="form-label">姓名</text>
@@ -481,7 +481,7 @@
     <view class="suspend-modal-content" catchtap="onModalTap">
       <view class="modal-header">
         <text class="modal-title">停卡申请</text>
-        <text class="modal-close" bindtap="onCloseSuspendModal">✕</text>
+        <text class="modal-close" bindtap="onCloseSuspendModal">×</text>
       </view>
       
       <view class="suspend-rules">

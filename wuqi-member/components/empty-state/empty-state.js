@@ -2,7 +2,7 @@ Component({
   properties: {
     icon: {
       type: String,
-      value: '📭'
+      value: ''
     },
     text: {
       type: String,

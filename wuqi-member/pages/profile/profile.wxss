@@ -1370,7 +1370,7 @@ page {
   transform: scale(0.95);
 }
 
-.guest-login-btn text {
+.guest-login-btn-text {
   font-size: 32rpx;
   color: #FFFFFF;
   font-weight: 700;
@@ -1599,6 +1599,43 @@ page {
   margin-bottom: 20rpx;
 }
 
+.qr-status-area {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20rpx;
+  margin-top: 12rpx;
+  background: rgba(93, 155, 155, 0.08);
+  border-radius: 12rpx;
+}
+
+.qr-status-spinner {
+  width: 32rpx;
+  height: 32rpx;
+  border: 4rpx solid rgba(93, 155, 155, 0.2);
+  border-top-color: #5D9B9B;
+  border-radius: 50%;
+  margin-right: 16rpx;
+  animation: scanning-spin 0.8s linear infinite;
+}
+
+@keyframes scanning-spin {
+  to { transform: rotate(360deg); }
+}
+
+.qr-status-text {
+  font-size: 26rpx;
+  color: #5D9B9B;
+}
+
+.qr-status-text.timeout {
+  color: #D4786E;
+}
+
+.qr-status-text.view_only {
+  color: #A69294;
+}
+
 .checkin-icon-wrap {
   width: 96rpx;
   height: 96rpx;
@@ -1610,6 +1647,10 @@ page {
   justify-content: center;
 }
 
+.checkin-icon-wrap.failed {
+  background: rgba(212, 120, 110, 0.1);
+}
+
 .checkin-ok {
   width: 20rpx;
   height: 36rpx;
@@ -1619,6 +1660,32 @@ page {
   margin-top: -4rpx;
 }
 
+.checkin-fail {
+  width: 32rpx;
+  height: 32rpx;
+  position: relative;
+}
+
+.checkin-fail::before,
+.checkin-fail::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 32rpx;
+  height: 4rpx;
+  background: #D4786E;
+  border-radius: 2rpx;
+}
+
+.checkin-fail::before {
+  transform: translate(-50%, -50%) rotate(45deg);
+}
+
+.checkin-fail::after {
+  transform: translate(-50%, -50%) rotate(-45deg);
+}
+
 .checkin-title {
   display: block;
   font-size: 32rpx;
@@ -1626,6 +1693,33 @@ page {
   font-weight: 700;
   text-align: center;
   margin-bottom: 24rpx;
+}
+
+.checkin-title.failed {
+  color: #D4786E;
+}
+
+.checkin-failed-text {
+  display: block;
+  font-size: 28rpx;
+  color: #2A2122;
+  text-align: center;
+  margin-bottom: 24rpx;
+  line-height: 1.6;
+  padding: 0 20rpx;
+}
+
+.pkg-resumed-tip {
+  padding: 16rpx;
+  margin-bottom: 20rpx;
+  background: rgba(93, 155, 155, 0.08);
+  border-radius: 12rpx;
+  text-align: center;
+}
+
+.pkg-resumed-tip-text {
+  font-size: 26rpx;
+  color: #5D9B9B;
 }
 
 .checkin-list {
@@ -1739,7 +1833,7 @@ page {
   transform: scale(0.95);
 }
 
-.guest-login-btn-small text {
+.guest-login-btn-text-small {
   font-size: 28rpx;
   color: #FFFFFF;
   font-weight: 600;

@@ -56,7 +56,7 @@
   </view>
 
   <view class="empty-state" wx:if="{{!loading && transfers.length === 0}}">
-    <text class="empty-icon">📋</text>
+    <text class="empty-icon"></text>
     <text class="empty-text">暂无转卡申请</text>
     <text class="empty-desc">当有会员提交转卡申请时，会在此处显示</text>
   </view>

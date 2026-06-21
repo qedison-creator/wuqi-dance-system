@@ -1,8 +1,8 @@
 <view class="page">
   <view class="privacy-section">
     <view class="privacy-title">舞栖DANCE预约系统管理 - 隐私保护指引</view>
-    <view class="privacy-date">更新日期：2026年6月13日</view>
-    <view class="privacy-date">生效日期：2026年6月13日</view>
+    <view class="privacy-date">更新日期：2026年6月22日</view>
+    <view class="privacy-date">生效日期：2026年6月22日</view>
 
     <view class="privacy-text">
       <text>双瑗文化艺术（深圳）有限公司（以下简称"我们"）深知个人信息对您的重要性，我们将按照法律法规的规定，保护您的个人信息及隐私安全。本隐私保护指引旨在向您说明我们如何收集、使用、存储和保护在舞栖舞蹈社预约管理系统中处理的个人信息。</text>
@@ -30,6 +30,8 @@
     <view class="privacy-text">
       <text>• 相册/相机权限：管理员在上传课程图片、教练照片、门店Banner、作品图片等业务内容时，需要访问您的相册或调用相机进行拍摄。\n</text>
       <text>• 扫码功能：管理员通过扫码快速完成会员签到，识别会员签到信息。\n</text>
+      <text>• 选中的文件（微信聊天文件）：管理员在批量导入会员预建档信息时，需要读取微信聊天内的 Excel 表格文件，用于批量导入会员档案信息。\n</text>
+      <text>• 相册（仅写入）权限：管理员在批量导入会员预建档信息时，需要读取手机本地存储的 Excel 表格文件，用于批量导入会员档案信息。\n</text>
       <text>• 本地存储：在您的设备上保存登录状态和操作配置，仅用于快捷登录与操作体验优化，您可随时通过退出登录清除本地存储的账号信息。\n</text>
     </view>
 

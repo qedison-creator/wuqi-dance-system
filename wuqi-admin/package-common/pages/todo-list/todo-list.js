@@ -71,8 +71,9 @@ Page({
           type: 'schedule',
           urgent: false,
           icon: '📅',
-          action: '去排课',
-          targetUrl: '/package-schedule/pages/schedule/schedule',
+          action: '查看预约',
+          targetUrl: '/pages/operations/operations',
+          clickable: false,
           detail: homeRes.value.data.today_schedules
         });
       }
@@ -140,6 +141,7 @@ Page({
           icon: '📆',
           action: '查看排课',
           targetUrl: '/package-schedule/pages/schedule/schedule',
+          clickable: false,
           detail: statsRes.value.data.upcoming_schedules
         });
       }
@@ -155,14 +157,43 @@ Page({
     this.setData({ currentTab: e.currentTarget.dataset.tab });
   },
 
+  // 判断是否为 tabBar 页面（tabBar 页面必须用 wx.switchTab，不能用 wx.navigateTo）
+  _isTabBarPage(url) {
+    if (!url) return false;
+    const tabBarPages = [
+      'pages/dashboard/dashboard',
+      'pages/operations/operations',
+      'pages/members/members',
+      'pages/shop/shop',
+      'pages/profile/profile'
+    ];
+    for (let i = 0; i < tabBarPages.length; i++) {
+      if (url.indexOf(tabBarPages[i]) !== -1) return true;
+    }
+    return false;
+  },
+
   onTodoItemClick(e) {
     const todo = e.currentTarget.dataset.todo;
+    // 今日排课/近期课程卡片不支持整体点击，仅右侧按钮可点击
+    if (todo.clickable === false) return;
     if (todo.targetUrl) {
-      if (todo.targetUrl.includes('pages/members/members')) {
+      if (this._isTabBarPage(todo.targetUrl)) {
         wx.switchTab({ url: todo.targetUrl });
       } else {
         wx.navigateTo({ url: todo.targetUrl });
       }
+    }
+  },
+
+  // 右侧按钮点击：今日排课/近期课程走这里，其他卡片点击按钮也会触发跳转
+  onTodoActionClick(e) {
+    const todo = e.currentTarget.dataset.todo;
+    if (!todo || !todo.targetUrl) return;
+    if (this._isTabBarPage(todo.targetUrl)) {
+      wx.switchTab({ url: todo.targetUrl });
+    } else {
+      wx.navigateTo({ url: todo.targetUrl });
     }
   },
 

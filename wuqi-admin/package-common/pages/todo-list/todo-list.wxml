@@ -31,7 +31,7 @@
         wx:for="{{todoList}}" 
         wx:key="id"
         wx:if="{{currentTab === 'all' || (currentTab === 'urgent' && item.urgent) || (currentTab === 'normal' && !item.urgent)}}"
-        bindtap="onTodoItemClick"
+        bindtap="{{item.clickable !== false ? 'onTodoItemClick' : ''}}"
         data-todo="{{item}}"
       >
         <view class="todo-left">
@@ -46,7 +46,7 @@
             <text class="todo-desc">{{item.desc}}</text>
           </view>
         </view>
-        <view class="todo-right">
+        <view class="todo-right" catchtap="onTodoActionClick" data-todo="{{item}}">
           <text class="todo-action">{{item.action}}</text>
           <text class="todo-arrow">›</text>
         </view>

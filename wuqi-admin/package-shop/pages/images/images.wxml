@@ -28,7 +28,7 @@
     <view class="select-bar" wx:if="{{selectMode}}">
       <view class="sb-left">
         <view class="sb-check {{selectAll ? 'checked' : ''}}" bindtap="onToggleSelectAll">
-          <text wx:if="{{selectAll}}">✓</text>
+          <text wx:if="{{selectAll}}">√</text>
         </view>
         <text class="sb-label">全选</text>
       </view>
@@ -43,7 +43,7 @@
       <!-- 多选勾选框 -->
       <view class="ic-checkbox" wx:if="{{selectMode}}" catchtap="onToggleSelect" data-id="{{item._id}}">
         <view class="ic-check {{item._selected ? 'checked' : ''}}">
-          <text wx:if="{{item._selected}}">✓</text>
+          <text wx:if="{{item._selected}}">√</text>
         </view>
       </view>
       <view class="ic-row">
@@ -112,7 +112,7 @@
         <!-- 教练多选面板 -->
         <view class="fi-coach-panel" wx:if="{{showCoachPicker}}">
           <view class="fcp-item" wx:for="{{coachList}}" wx:key="_id" bindtap="onCoachCheck" data-id="{{item._id}}">
-            <view class="fcp-check {{formCoachChecked[item._id] ? 'checked' : ''}}">{{formCoachChecked[item._id] ? '✓' : ''}}</view>
+            <view class="fcp-check {{formCoachChecked[item._id] ? 'checked' : ''}}">{{formCoachChecked[item._id] ? '√' : ''}}</view>
             <text class="fcp-name">{{item.name}}</text>
           </view>
         </view>

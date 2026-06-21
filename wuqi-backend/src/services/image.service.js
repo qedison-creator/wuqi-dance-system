@@ -138,7 +138,7 @@ exports.update = async (id, data) => {
       updateData.coach_ids = updateData.coach_ids.split(',').map(id => id.trim()).filter(Boolean);
     }
   }
-  return Image.findByIdAndUpdate(id, updateData, { new: true });
+  return Image.findByIdAndUpdate(id, updateData, { returnDocument: 'after' });
 };
 
 /**

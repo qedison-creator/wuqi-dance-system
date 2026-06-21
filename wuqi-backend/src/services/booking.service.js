@@ -8,8 +8,42 @@ const logService = require('./log.service');
 const memberService = require('./member.service');
 const packageService = require('./package.service');
 const wechatMessageService = require('./wechat-message.service');
-const { broadcastToAdmins } = require('./websocket.service');
+const { broadcastToAdmins, sendToUser } = require('./websocket.service');
 const { CANCEL_TYPE, TIME_RULES, SCHEDULE_STATUS } = require('../constants/scheduleStatus.constants');
+
+// 签到失败错误码枚举（与会员端/管理端约定，前端按码映射通俗文案）
+const CHECK_IN_ERROR_CODE = {
+  CREDITS_INSUFFICIENT: 'CREDITS_INSUFFICIENT',      // 课时不足
+  PACKAGE_EXPIRED: 'PACKAGE_EXPIRED',                // 套餐过期
+  PACKAGE_SUSPENDED: 'PACKAGE_SUSPENDED',            // 套餐停卡中（已改为可签到，仅作占位）
+  COURSE_MISMATCH: 'COURSE_MISMATCH',                // 课程不匹配
+  STORE_MISMATCH: 'STORE_MISMATCH',                  // 门店不匹配
+  ALREADY_CHECKED_IN: 'ALREADY_CHECKED_IN',          // 重复签到
+  SCHEDULE_NOT_AVAILABLE: 'SCHEDULE_NOT_AVAILABLE',  // 课程不可签到
+  NO_AVAILABLE_PACKAGE: 'NO_AVAILABLE_PACKAGE',      // 无可用套餐
+  MEMBER_NOT_OFFICIAL: 'MEMBER_NOT_OFFICIAL',        // 非正式会员
+  BOOKING_CANCELLED: 'BOOKING_CANCELLED',            // 预约已取消
+  UNKNOWN_ERROR: 'UNKNOWN_ERROR'                     // 未知错误
+};
+
+/**
+ * 推送签到失败事件给会员端（结构化错误码，前端按码映射文案）
+ * @param {string} userId - 会员ID
+ * @param {string} errorCode - 错误码（见 CHECK_IN_ERROR_CODE）
+ * @param {string} errorMessage - 会员端通俗文案
+ * @param {string} adminDetail - 管理端技术细节（可选）
+ * @param {boolean} canRetry - 是否可重试
+ */
+function pushCheckInFailed(userId, errorCode, errorMessage, adminDetail = '', canRetry = true) {
+  try {
+    sendToUser(String(userId), 'check_in_failed', {
+      error_code: errorCode,
+      error_message: errorMessage,
+      admin_detail: adminDetail,
+      can_retry: canRetry
+    });
+  } catch (e) {}
+}
 const dayjs = require('dayjs');
 const utc = require('dayjs/plugin/utc');
 const timezone = require('dayjs/plugin/timezone');
@@ -404,7 +438,7 @@ exports.createBooking = async (userId, scheduleId) => {
       const updatedPkg = await UserPackage.findOneAndUpdate(
         { _id: currentPackage._id, remaining_credits: { $gte: creditsCost } },
         { $inc: { remaining_credits: -creditsCost } },
-        { new: true }
+        { returnDocument: 'after' }
       );
       if (!updatedPkg) {
         throw new Error('套餐次数不足，无法预约');
@@ -421,7 +455,7 @@ exports.createBooking = async (userId, scheduleId) => {
     const updatedSchedule = await Schedule.findByIdAndUpdate(
       schedule._id,
       { $inc: { current_bookings: 1 } },
-      { new: true }
+      { returnDocument: 'after' }
     );
     if (updatedSchedule.current_bookings >= updatedSchedule.max_bookings) {
       updatedSchedule.status = 'full';
@@ -577,7 +611,7 @@ exports.cancelBooking = async (userId, bookingId) => {
   const updatedSchedule = await Schedule.findByIdAndUpdate(
     schedule._id,
     { $inc: { current_bookings: -1 } },
-    { new: true }
+    { returnDocument: 'after' }
   );
   if (updatedSchedule.current_bookings < 0) {
     updatedSchedule.current_bookings = 0;
@@ -1680,7 +1714,10 @@ exports.checkIn = async (scheduleId, userId, operatorId = null, isOnsite = false
     .populate('coach_id', 'name')
     .populate('dance_style_id', 'name')
     .populate('store_id', 'name');
-  if (!schedule) throw new Error('课程不存在');
+  if (!schedule) {
+    pushCheckInFailed(userId, CHECK_IN_ERROR_CODE.UNKNOWN_ERROR, '课程不存在，请刷新后重试', 'schedule not found', false);
+    throw new Error('课程不存在');
+  }
 
   let booking = await Booking.findOne({
     schedule_id: scheduleId,
@@ -1690,6 +1727,7 @@ exports.checkIn = async (scheduleId, userId, operatorId = null, isOnsite = false
 
   if (!booking) {
     if (!isOnsite) {
+      pushCheckInFailed(userId, CHECK_IN_ERROR_CODE.UNKNOWN_ERROR, '您未预约本节课，如需签到请联系管理员', 'member not booked and not onsite mode', false);
       throw new Error('该会员未预约本节课');
     }
 
@@ -1711,17 +1749,38 @@ exports.checkIn = async (scheduleId, userId, operatorId = null, isOnsite = false
 
     if (booking.credits_deducted > 0) {
       try {
+        // 查找可用套餐：包含停卡中的套餐（签到后自动恢复停卡）
         const userPackage = await UserPackage.findOne({
           user_id: userId,
-          status: 'active',
+          status: { $in: ['active', 'suspended'] },
         }).sort({ created_at: -1 });
 
-        if (userPackage && userPackage.remaining_credits >= booking.credits_deducted) {
-          userPackage.remaining_credits -= booking.credits_deducted;
-          if (userPackage.used_credits !== undefined) {
-            userPackage.used_credits = (userPackage.used_credits || 0) + booking.credits_deducted;
+        if (userPackage) {
+          // 停卡套餐自动恢复：签到即结束停卡，恢复正常使用
+          if (userPackage.is_suspended) {
+            userPackage.is_suspended = false;
+            userPackage.suspended_at = null;
+            userPackage.suspend_end_date = null;
+            if (userPackage.frozen_remaining_credits > 0) {
+              userPackage.remaining_credits = userPackage.frozen_remaining_credits;
+              userPackage.frozen_remaining_credits = 0;
+            }
+            if (userPackage.frozen_end_date) {
+              userPackage.end_date = userPackage.frozen_end_date;
+              userPackage.frozen_end_date = null;
+            }
+            if (userPackage.status === 'suspended') {
+              userPackage.status = 'active';
+            }
           }
-          await userPackage.save();
+
+          if (userPackage.remaining_credits >= booking.credits_deducted) {
+            userPackage.remaining_credits -= booking.credits_deducted;
+            if (userPackage.used_credits !== undefined) {
+              userPackage.used_credits = (userPackage.used_credits || 0) + booking.credits_deducted;
+            }
+            await userPackage.save();
+          }
         }
       } catch (err) {
         console.error('onsite check-in 扣减课时失败:', err);
@@ -1729,6 +1788,7 @@ exports.checkIn = async (scheduleId, userId, operatorId = null, isOnsite = false
     }
   } else {
     if (booking.status === 'completed') {
+      pushCheckInFailed(userId, CHECK_IN_ERROR_CODE.ALREADY_CHECKED_IN, '您已签到过本节课', 'booking already completed', false);
       throw new Error('已签到过');
     }
 
@@ -1763,6 +1823,25 @@ exports.checkIn = async (scheduleId, userId, operatorId = null, isOnsite = false
     schedule.status = 'completed';
     await schedule.save();
   }
+
+  // 实时推送：通知会员端签到成功（精确事件，避免轮询误判）
+  try {
+    const coachName = schedule.coach_id && schedule.coach_id.name ? schedule.coach_id.name : '';
+    const storeName = schedule.store_id && schedule.store_id.name ? schedule.store_id.name : '';
+    sendToUser(String(userId), 'check_in_success', {
+      schedule_id: scheduleId,
+      booking_id: booking._id,
+      course_name: schedule.course_name || '',
+      schedule_date: schedule.date,
+      start_time: schedule.start_time,
+      end_time: schedule.end_time,
+      coach_name: coachName,
+      store_name: storeName,
+      credits_deducted: booking.credits_deducted || 0,
+      check_in_time: booking.check_in_time,
+      source: isOnsite ? 'onsite' : 'booking'
+    });
+  } catch (e) {}
 
   return booking;
 };
@@ -1876,11 +1955,16 @@ exports.onsiteCheckIn = async (scheduleId, userId, operatorId = null, userPackag
     .populate('coach_id', 'name')
     .populate('store_id', 'name')
     .populate('dance_style_id', 'name');
-  if (!schedule) throw new Error('课程不存在');
+  if (!schedule) {
+    pushCheckInFailed(userId, CHECK_IN_ERROR_CODE.UNKNOWN_ERROR, '课程不存在，请刷新后重试', 'schedule not found', false);
+    throw new Error('课程不存在');
+  }
 
-  // 课程必须是进行中或已完成状态才能补签到
-  if (![SCHEDULE_STATUS.IN_PROGRESS, SCHEDULE_STATUS.COMPLETED].includes(schedule.status)) {
-    throw new Error('课程未开课，无法补签到');
+  // 放宽课程状态校验：允许课前/课中/课后签到，不再限制课程必须进行中或已完成
+  // 仅排除已取消的课程
+  if (schedule.status === SCHEDULE_STATUS.CANCELLED) {
+    pushCheckInFailed(userId, CHECK_IN_ERROR_CODE.SCHEDULE_NOT_AVAILABLE, '课程已取消，无法签到', 'schedule cancelled', false);
+    throw new Error('课程已取消，无法签到');
   }
 
   // 检查是否已有预约记录
@@ -1891,9 +1975,11 @@ exports.onsiteCheckIn = async (scheduleId, userId, operatorId = null, userPackag
 
   if (booking) {
     if (booking.status === 'completed' && booking.checked_in) {
+      pushCheckInFailed(userId, CHECK_IN_ERROR_CODE.ALREADY_CHECKED_IN, '您已签到过本节课', 'booking already completed', false);
       throw new Error('该会员已签到，无需重复签到');
     }
     if (booking.status === 'cancelled') {
+      pushCheckInFailed(userId, CHECK_IN_ERROR_CODE.BOOKING_CANCELLED, '您已取消预约，请联系管理员重新预约', 'booking cancelled', true);
       throw new Error('该会员已取消预约，请先重新预约再签到');
     }
     // 已有 booked 预约，直接签到
@@ -1906,10 +1992,14 @@ exports.onsiteCheckIn = async (scheduleId, userId, operatorId = null, userPackag
   } else {
     // 无预约记录，创建新的补签预约
     const user = await User.findById(userId);
-    if (!user) throw new Error('用户不存在');
+    if (!user) {
+      pushCheckInFailed(userId, CHECK_IN_ERROR_CODE.UNKNOWN_ERROR, '用户不存在，请重新登录', 'user not found', false);
+      throw new Error('用户不存在');
+    }
 
     // 检查会员状态
     if (user.member_status !== 'official') {
+      pushCheckInFailed(userId, CHECK_IN_ERROR_CODE.MEMBER_NOT_OFFICIAL, '会员身份未激活，请联系门店处理', 'member not official', false);
       throw new Error('非正式会员，无法补签到');
     }
 
@@ -1923,29 +2013,37 @@ exports.onsiteCheckIn = async (scheduleId, userId, operatorId = null, userPackag
         store_id: schedule.store_id,
         is_activated: true,
       });
-      if (!pkg) throw new Error('指定的套餐不存在或不属于该会员');
+      if (!pkg) {
+        pushCheckInFailed(userId, CHECK_IN_ERROR_CODE.NO_AVAILABLE_PACKAGE, '指定的套餐不存在或不属于该会员', 'specified package not found', true);
+        throw new Error('指定的套餐不存在或不属于该会员');
+      }
     } else {
+      // 查找可用套餐：包含停卡中的套餐（签到后自动恢复停卡）
       pkg = await UserPackage.findOne({
         user_id: userId,
         store_id: schedule.store_id,
-        status: 'active',
+        status: { $in: ['active', 'suspended'] },
         is_activated: true,
-        is_suspended: { $ne: true },
       }).sort({ package_type: 1, created_at: -1 });
     }
 
     if (!pkg) {
+      pushCheckInFailed(userId, CHECK_IN_ERROR_CODE.NO_AVAILABLE_PACKAGE, '无可用套餐，请联系门店处理', 'no available package', true);
       throw new Error('无可用套餐，无法补签到');
     }
 
     // 检查套餐是否过期
     if (pkg.end_date && new Date() > new Date(pkg.end_date)) {
+      pushCheckInFailed(userId, CHECK_IN_ERROR_CODE.PACKAGE_EXPIRED, '套餐已过期，请联系门店续费', 'package expired: ' + pkg.end_date, true);
       throw new Error('套餐过期，无法补签到');
     }
 
     // 次卡检查次数
     if (pkg.package_type === 'count_card') {
-      if (pkg.remaining_credits < (schedule.credits_cost || 1)) {
+      // 停卡套餐先恢复冻结课时再校验
+      const checkCredits = pkg.is_suspended ? (pkg.frozen_remaining_credits || 0) : pkg.remaining_credits;
+      if (checkCredits < (schedule.credits_cost || 1)) {
+        pushCheckInFailed(userId, CHECK_IN_ERROR_CODE.CREDITS_INSUFFICIENT, '套餐课时不足，请联系门店充值', 'credits insufficient: ' + checkCredits + '/' + (schedule.credits_cost || 1), true);
         throw new Error('次卡套餐次数不够');
       }
     }
@@ -1954,12 +2052,15 @@ exports.onsiteCheckIn = async (scheduleId, userId, operatorId = null, userPackag
     if (pkg.package_type === 'time_card') {
       const limitCheck = await checkTimeCardLimit(pkg, schedule.date, schedule.credits_cost || 1);
       if (!limitCheck.allowed) {
+        pushCheckInFailed(userId, CHECK_IN_ERROR_CODE.CREDITS_INSUFFICIENT, '本周预约次数已达上限', 'time card limit: ' + limitCheck.reason, true);
         throw new Error(limitCheck.reason);
       }
     }
 
     // 停卡会员：签到后终止停卡期限，恢复正常服务
+    let packageResumed = false;  // 标记是否触发了停卡恢复
     if (pkg.is_suspended) {
+      packageResumed = true;
       pkg.is_suspended = false;
       pkg.suspended_at = null;
       pkg.suspend_end_date = null;
@@ -1971,6 +2072,9 @@ exports.onsiteCheckIn = async (scheduleId, userId, operatorId = null, userPackag
       if (pkg.frozen_end_date) {
         pkg.end_date = pkg.frozen_end_date;
         pkg.frozen_end_date = null;
+      }
+      if (pkg.status === 'suspended') {
+        pkg.status = 'active';
       }
     }
 
@@ -2009,6 +2113,18 @@ exports.onsiteCheckIn = async (scheduleId, userId, operatorId = null, userPackag
 
     // 更新排课人数
     await Schedule.findByIdAndUpdate(scheduleId, { $inc: { current_bookings: 1 } });
+
+    // 停卡恢复：在签到成功推送中标记套餐已恢复
+    if (packageResumed) {
+      try {
+        sendToUser(String(userId), 'package_resumed', {
+          package_id: pkg._id,
+          package_name: pkg.name || '套餐',
+          resumed_at: new Date().toISOString(),
+          message: '套餐已恢复使用'
+        });
+      } catch (e) {}
+    }
   }
 
   // 创建 attendance 记录
@@ -2037,6 +2153,25 @@ exports.onsiteCheckIn = async (scheduleId, userId, operatorId = null, userPackag
   } catch (attErr) {
     console.error('[onsiteCheckIn] 创建attendance失败:', attErr.message);
   }
+
+  // 实时推送：通知会员端签到成功（精确事件，避免轮询误判）
+  try {
+    const coachName = schedule.coach_id && schedule.coach_id.name ? schedule.coach_id.name : '';
+    const storeName = schedule.store_id && schedule.store_id.name ? schedule.store_id.name : '';
+    sendToUser(String(userId), 'check_in_success', {
+      schedule_id: scheduleId,
+      booking_id: booking._id,
+      course_name: schedule.course_name || '',
+      schedule_date: schedule.date,
+      start_time: schedule.start_time,
+      end_time: schedule.end_time,
+      coach_name: coachName,
+      store_name: storeName,
+      credits_deducted: booking.credits_deducted || 0,
+      check_in_time: booking.check_in_time,
+      source: 'onsite'
+    });
+  } catch (e) {}
 
   return booking;
 };

@@ -1150,7 +1150,7 @@ exports.markAttendance = async (scheduleId, userIds, operatorId) => {
         check_in_time: new Date(),
         checked_in_by: operatorId,
       },
-      { new: true }
+      { returnDocument: 'after' }
     );
     if (booking) {
       updates.push(booking);

@@ -1,6 +1,6 @@
 <view class="system-reset-page">
   <view class="warning-banner">
-    <text class="warning-icon">⚠️</text>
+    <text class="warning-icon">!</text>
     <text class="warning-text">危险操作区域，所有初始化操作不可恢复</text>
   </view>
 
@@ -38,7 +38,7 @@
   <view class="confirm-mask" wx:if="{{showConfirmModal}}" bindtap="onCancelConfirm">
     <view class="confirm-modal" catchtap="onModalTap">
       <view class="confirm-modal-header">
-        <text class="confirm-modal-title">⚠️ 二次确认</text>
+        <text class="confirm-modal-title">二次确认</text>
         <text class="confirm-modal-close" bindtap="onCancelConfirm">×</text>
       </view>
       <view class="confirm-modal-body">
@@ -46,7 +46,7 @@
         <text class="confirm-modal-target">即将清理：{{confirmLabel}}（{{confirmCount}}条）</text>
         <view class="confirm-modal-input-wrap">
           <input class="confirm-modal-input" placeholder="请输入：确认初始化" value="{{confirmInput}}" bindinput="onConfirmInput" confirm-type="done" placeholder-style="color:#999;font-size:28rpx;" />
-          <text class="confirm-modal-input-hint">⚠️ 输入“确认初始化”后点击下方按钮执行</text>
+          <text class="confirm-modal-input-hint">输入“确认初始化”后点击下方按钮执行</text>
         </view>
       </view>
       <view class="confirm-modal-footer">

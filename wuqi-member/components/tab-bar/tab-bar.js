@@ -7,9 +7,9 @@ Component({
   },
   data: {
     list: [
-      { icon: '🏠', text: '首页', path: '/pages/index/index' },
-      { icon: '📅', text: '预约', path: '/pages/booking/booking' },
-      { icon: '👤', text: '我的', path: '/pages/profile/profile' }
+      { icon: '', text: '首页', path: '/pages/index/index' },
+      { icon: '', text: '预约', path: '/pages/booking/booking' },
+      { icon: '', text: '我的', path: '/pages/profile/profile' }
     ]
   },
   methods: {

@@ -86,6 +86,8 @@ function connect(options = {}) {
   // 连接打开
   socketTask.onOpen(() => {
     isConnecting = false;
+    // 记录是否为重连（在重置 reconnectCount 之前判断）
+    const isReconnect = reconnectCount > 0;
     isConnected = true;
     reconnectCount = 0;
 
@@ -94,6 +96,23 @@ function connect(options = {}) {
 
     _notifyStatus('connected');
     _startHeartbeat();
+
+    // 重连后发送 sync 请求，同步断连期间缺失的状态
+    // 服务端收到后会将 last_version 之后的状态重新推送（如有）
+    if (isReconnect) {
+      try {
+        const lastVersion = wx.getStorageSync('ws_last_version') || 0;
+        if (socketTask) {
+          socketTask.send({
+            data: JSON.stringify({
+              type: 'sync',
+              last_version: lastVersion,
+              timestamp: Date.now()
+            })
+          });
+        }
+      } catch (e) {}
+    }
   });
 
   // 接收消息
@@ -109,6 +128,16 @@ function connect(options = {}) {
 
       // 连接确认
       if (msg.type === 'connected') return;
+
+      // 重连后状态同步响应：服务端版本号更新时触发降级轮询拉取最新状态
+      if (msg.type === 'sync_ack') {
+        if (msg.need_refresh && fallbackPollCallback) {
+          try {
+            fallbackPollCallback();
+          } catch (e) {}
+        }
+        return;
+      }
 
       // 按事件类型分发
       if (msg.event && messageHandlers[msg.event]) {

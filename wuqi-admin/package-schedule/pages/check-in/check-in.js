@@ -333,12 +333,23 @@ Page({
   },
 
   onCloseProfileModal() {
+    // 关闭弹窗时通知服务端清理扫码状态（推送 view_only 事件给会员端）
+    if (this.data.encryptedToken) {
+      request({
+        url: '/qrcode/clear-scan',
+        method: 'POST',
+        data: { token: this.data.encryptedToken },
+        silent: true
+      }).catch(() => {});
+    }
     this.setData({
       showProfileModal: false,
       profileData: null,
       checkedBookingIds: [],
       isOnsiteMode: false,
       showOnsiteConfirm: false,
+      encryptedToken: '',
+      memberCode: '',
     });
   },
 

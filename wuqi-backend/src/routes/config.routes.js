@@ -310,7 +310,7 @@ router.put('/message-templates', auth, checkPermission(['super_admin']), async (
       await Config.findOneAndUpdate(
         { key: config.key },
         { $set: { value: config.value, description: config.description } },
-        { upsert: true, new: true }
+        { upsert: true, returnDocument: 'after' }
       );
     }
 
@@ -367,7 +367,7 @@ router.put('/reminder-settings', auth, checkPermission(['super_admin']), async (
       await Config.findOneAndUpdate(
         { key: config.key },
         { $set: { value: config.value, description: config.description } },
-        { upsert: true, new: true }
+        { upsert: true, returnDocument: 'after' }
       );
     }
 

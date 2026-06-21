@@ -117,7 +117,7 @@
     <view class="profile-modal" catchtap="onProfileModalTap">
 
       <view class="modal-warning" wx:if="{{isOnsiteMode}}">
-        <text class="warning-icon">⚠️</text>
+        <text class="warning-icon">!</text>
         <text class="warning-text">该会员未预约当前课程，可进行临时签到</text>
       </view>
 
@@ -136,7 +136,7 @@
       </view>
 
       <view class="profile-section" wx:if="{{profileData.packages && profileData.packages.length > 0}}">
-        <text class="section-title">📦 当前套餐</text>
+        <text class="section-title">当前套餐</text>
         <view class="pkg-item" wx:for="{{profileData.packages}}" wx:key="id">
           <view class="pkg-main">
             <text class="pkg-name">{{item.name}}</text>
@@ -160,12 +160,12 @@
       </view>
 
       <view class="profile-section" wx:if="{{!isOnsiteMode && profileData.today_bookings && profileData.today_bookings.length > 0}}">
-        <text class="section-title">📋 当天预约课程（勾选需签到的）</text>
+        <text class="section-title">当天预约课程（勾选需签到的）</text>
         <view class="booking-check-item {{item.checked ? 'checked' : ''}}"
               wx:for="{{profileData.today_bookings}}" wx:key="booking_id"
               data-id="{{item.booking_id}}" bindtap="onToggleBookingCheck">
           <view class="check-box {{item.checked ? 'checked' : ''}}">
-            <text wx:if="{{item.checked}}">✓</text>
+            <text wx:if="{{item.checked}}">√</text>
           </view>
           <view class="booking-check-info">
             <text class="booking-check-time">{{item.start_time}} - {{item.end_time}}</text>
@@ -196,7 +196,7 @@
   <!-- 临时签到二次确认 -->
   <view class="modal-mask" wx:if="{{showOnsiteConfirm}}" bindtap="onCancelOnsiteConfirm" catchtouchmove="preventTouchMove">
     <view class="onsite-confirm-modal" catchtap="onProfileModalTap">
-      <view class="onsite-confirm-icon">⚠️</view>
+      <view class="onsite-confirm-icon">!</view>
       <text class="onsite-confirm-title">确认临时签到</text>
       <text class="onsite-confirm-desc">该会员未预约当前课程，确认后系统将：</text>
       <view class="onsite-confirm-steps">

@@ -40,7 +40,7 @@
 
     <!-- 空状态 -->
     <view class="empty-state" wx:if="{{!loading && reviews.length === 0}}">
-      <text class="empty-icon">📝</text>
+      <text class="empty-icon"></text>
       <text class="empty-text">暂无待审核的申请</text>
     </view>
   </view>

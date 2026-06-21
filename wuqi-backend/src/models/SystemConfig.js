@@ -7,7 +7,6 @@ const systemConfigSchema = new mongoose.Schema({
   group: { type: String, default: 'general' },
 }, { timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' } });
 
-systemConfigSchema.index({ key: 1 }, { unique: true });
 systemConfigSchema.index({ group: 1 });
 
 module.exports = mongoose.model('SystemConfig', systemConfigSchema);

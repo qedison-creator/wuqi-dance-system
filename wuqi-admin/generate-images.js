@@ -77,9 +77,9 @@ async function downloadImage(imageInfo) {
     try {
         const buffer = await downloadWithRedirect(url);
         fs.writeFileSync(filePath, buffer);
-        console.log(`✓ 已保存: ${imageInfo.filename}`);
+        console.log(`√ 已保存: ${imageInfo.filename}`);
     } catch (error) {
-        console.error(`✗ 生成失败: ${imageInfo.name}`, error.message);
+        console.error(`× 生成失败: ${imageInfo.name}`, error.message);
         throw error;
     }
 }
@@ -92,7 +92,7 @@ async function main() {
             await downloadImage(image);
             await new Promise(resolve => setTimeout(resolve, 3000));
         } catch (error) {
-            console.error(`✗ 生成失败: ${image.name}`, error.message);
+            console.error(`× 生成失败: ${image.name}`, error.message);
         }
     }
     

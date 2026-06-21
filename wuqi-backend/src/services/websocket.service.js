@@ -12,12 +12,56 @@
  */
 const jwt = require('jsonwebtoken');
 const config = require('../config');
+const crypto = require('crypto');
 
 // 全局连接池：userId -> Set<WebSocket>
 const connectionPool = new Map();
 
 // 心跳超时时间（毫秒）：超过此时间未收到心跳则判定连接断开
 const HEARTBEAT_TIMEOUT = 60000;
+
+// 每个用户的最新状态版本号：userId -> number（单调递增）
+const userVersionMap = new Map();
+
+// 每个用户最近推送的事件ID集合：userId -> Set<event_id>（用于重连后去重）
+const userEventIdsMap = new Map();
+const MAX_EVENT_ID_CACHE = 50;
+
+/**
+ * 生成全局唯一事件ID
+ */
+function generateEventId() {
+  return Date.now().toString(36) + crypto.randomBytes(4).toString('hex');
+}
+
+/**
+ * 获取用户下一个版本号（单调递增）
+ */
+function nextVersion(userId) {
+  const key = String(userId);
+  const current = userVersionMap.get(key) || 0;
+  const next = current + 1;
+  userVersionMap.set(key, next);
+  return next;
+}
+
+/**
+ * 记录已推送的事件ID（用于重连后去重）
+ */
+function recordEventId(userId, eventId) {
+  const key = String(userId);
+  if (!userEventIdsMap.has(key)) {
+    userEventIdsMap.set(key, new Set());
+  }
+  const set = userEventIdsMap.get(key);
+  set.add(eventId);
+  // 超过缓存上限时清空最早的（Set 保持插入顺序，直接清空重建）
+  if (set.size > MAX_EVENT_ID_CACHE) {
+    const arr = Array.from(set).slice(-Math.floor(MAX_EVENT_ID_CACHE / 2));
+    set.clear();
+    arr.forEach(id => set.add(id));
+  }
+}
 
 /**
  * 初始化 WebSocket 服务，挂载到已有的 HTTP Server 上
@@ -42,7 +86,7 @@ function initWebSocketServer(server) {
 
     try {
       const decoded = jwt.verify(token, config.jwtSecret);
-      userId = decoded.id;
+      userId = String(decoded.id);  // 统一转为字符串，避免 ObjectId/字符串类型不匹配
       // 记录用户类型（admin / member），用于按身份定向广播
       ws._userType = decoded.user_type || (decoded.role ? 'admin' : 'member');
       ws._role = decoded.role || '';
@@ -81,6 +125,35 @@ function initWebSocketServer(server) {
           // 响应心跳
           if (ws.readyState === 1) {
             ws.send(JSON.stringify({ type: 'pong', timestamp: Date.now() }));
+          }
+          return;
+        }
+
+        // 处理重连后状态同步请求
+        if (data.type === 'sync') {
+          const clientLastVersion = data.last_version || 0;
+          const serverVersion = userVersionMap.get(userId) || 0;
+          // 服务端版本号大于客户端版本号时，推送 sync_ack 让客户端主动拉取最新状态
+          if (serverVersion > clientLastVersion) {
+            if (ws.readyState === 1) {
+              ws.send(JSON.stringify({
+                type: 'sync_ack',
+                server_version: serverVersion,
+                client_version: clientLastVersion,
+                need_refresh: true,
+                timestamp: Date.now()
+              }));
+            }
+          } else {
+            if (ws.readyState === 1) {
+              ws.send(JSON.stringify({
+                type: 'sync_ack',
+                server_version: serverVersion,
+                client_version: clientLastVersion,
+                need_refresh: false,
+                timestamp: Date.now()
+              }));
+            }
           }
           return;
         }
@@ -208,17 +281,25 @@ function broadcastToAdmins(event, data = {}) {
 }
 
 /**
- * 向指定用户推送消息
+ * 向指定用户推送消息（自动注入 version + event_id，保证幂等防乱序）
  * @param {string} userId - 用户ID
  * @param {string} event - 事件类型
  * @param {Object} data - 消息数据
  */
 function sendToUser(userId, event, data = {}) {
-  const conns = connectionPool.get(userId);
+  const key = String(userId);  // 统一转为字符串，确保与连接池 key 类型一致
+  const conns = connectionPool.get(key);
   if (!conns || conns.size === 0) return false;
+
+  // 自动注入版本号和事件ID
+  const version = nextVersion(key);
+  const event_id = generateEventId();
+  recordEventId(key, event_id);
 
   const message = JSON.stringify({
     event,
+    version,
+    event_id,
     updateTime: new Date().toISOString(),
     data
   });
@@ -233,10 +314,26 @@ function sendToUser(userId, event, data = {}) {
   return sent;
 }
 
+/**
+ * 获取用户当前最新版本号（用于重连后状态同步）
+ */
+function getUserVersion(userId) {
+  return userVersionMap.get(String(userId)) || 0;
+}
+
+/**
+ * 获取用户最近推送的事件ID列表（用于重连后去重）
+ */
+function getUserEventIds(userId) {
+  return Array.from(userEventIdsMap.get(String(userId)) || []);
+}
+
 module.exports = {
   initWebSocketServer,
   broadcastCourseUpdate,
   broadcastToAdmins,
   sendToUser,
-  getOnlineCount
+  getOnlineCount,
+  getUserVersion,
+  getUserEventIds
 };

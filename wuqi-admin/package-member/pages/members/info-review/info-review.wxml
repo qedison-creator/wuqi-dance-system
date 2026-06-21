@@ -36,7 +36,7 @@
   </view>
 
   <view class="empty-state" wx:if="{{!loading && reviews.length === 0}}">
-    <text class="empty-icon">📋</text>
+    <text class="empty-icon"></text>
     <text class="empty-text">暂无待审核的信息修改申请</text>
   </view>
 

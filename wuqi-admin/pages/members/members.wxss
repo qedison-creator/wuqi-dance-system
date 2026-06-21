@@ -267,6 +267,15 @@
   background: rgba(82, 125, 170, 0.08);
 }
 
+.stats-chip-premember {
+  border-color: rgba(196, 102, 62, 0.2);
+  background: #FFF4E8;
+}
+
+.stats-chip-premember .stats-chip-val {
+  color: #C4663E;
+}
+
 .stats-chip-val {
   font-size: 40rpx;
   font-weight: 700;

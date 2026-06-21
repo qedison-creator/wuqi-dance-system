@@ -93,7 +93,7 @@ router.put('/:templateKey', auth, async (req, res, next) => {
           example_value: m.example_value || ''
         }))
       },
-      { upsert: true, new: true, runValidators: true }
+      { upsert: true, returnDocument: 'after', runValidators: true }
     );
 
     res.json(success(doc, '保存成功'));

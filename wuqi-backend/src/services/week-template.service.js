@@ -42,7 +42,7 @@ exports.saveWeekTemplate = async (storeId, templateData, operatorId) => {
         template: validTemplate,
         updated_at: new Date()
       },
-      { upsert: true, new: true }
+      { upsert: true, returnDocument: 'after' }
     );
 
     try {

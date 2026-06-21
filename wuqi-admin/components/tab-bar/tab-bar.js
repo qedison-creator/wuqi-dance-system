@@ -7,10 +7,10 @@ Component({
   },
   data: {
     tabs: [
-      { name: '数据首页', icon: '📊', key: 'dashboard' },
-      { name: '课程排课', icon: '📅', key: 'schedule' },
-      { name: '会员管理', icon: '👥', key: 'members' },
-      { name: '个人中心', icon: '👤', key: 'profile' }
+      { name: '数据首页', icon: '', key: 'dashboard' },
+      { name: '课程排课', icon: '', key: 'schedule' },
+      { name: '会员管理', icon: '', key: 'members' },
+      { name: '个人中心', icon: '', key: 'profile' }
     ]
   },
   methods: {

@@ -72,7 +72,7 @@ exports.createAttendance = async (data) => {
   const attendance = await Attendance.findOneAndUpdate(
     { schedule_id: data.schedule_id, user_id: data.user_id },
     { $setOnInsert: data },
-    { upsert: true, new: true }
+    { upsert: true, returnDocument: 'after' }
   );
 
   // 仅在实际新建时写日志（通过判断 createdAt 是否接近当前时间）

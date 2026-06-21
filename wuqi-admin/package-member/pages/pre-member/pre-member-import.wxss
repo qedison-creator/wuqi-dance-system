@@ -1,0 +1,311 @@
+.import-page {
+  min-height: 100vh;
+  background: #FAF8F5;
+  padding: 28rpx;
+}
+
+/* 步骤说明 */
+.step-section {
+  background: #FFFFFF;
+  border-radius: 16rpx;
+  padding: 28rpx;
+  margin-bottom: 24rpx;
+}
+
+.step-title {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #2C2416;
+  margin-bottom: 20rpx;
+}
+
+.step-item {
+  display: flex;
+  align-items: center;
+  margin-bottom: 16rpx;
+}
+
+.step-item:last-child {
+  margin-bottom: 0;
+}
+
+.step-num {
+  width: 36rpx;
+  height: 36rpx;
+  border-radius: 50%;
+  background: #C4663E;
+  color: #FFFFFF;
+  font-size: 24rpx;
+  text-align: center;
+  line-height: 36rpx;
+  margin-right: 16rpx;
+  flex-shrink: 0;
+}
+
+.step-text {
+  font-size: 26rpx;
+  color: #5C5246;
+  flex: 1;
+}
+
+/* 操作区 */
+.action-section {
+  margin-bottom: 24rpx;
+}
+
+.btn-download {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 28rpx 0;
+  border-radius: 16rpx;
+  background: #FFFFFF;
+  border: 1rpx dashed #C4663E;
+}
+
+.btn-download-text {
+  font-size: 28rpx;
+  color: #C4663E;
+}
+
+/* button 元素重置样式 */
+.btn-upload {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 28rpx 0;
+  border-radius: 16rpx;
+  background: #C4663E;
+  width: 100%;
+  margin: 0;
+  border: none;
+  line-height: normal;
+}
+
+.btn-upload::after {
+  border: none;
+}
+
+.btn-upload-text {
+  font-size: 28rpx;
+  color: #FFFFFF;
+}
+
+/* 两种上传渠道按钮 */
+.upload-title {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: #2C2416;
+  margin-bottom: 16rpx;
+}
+
+.upload-btns {
+  display: flex;
+  gap: 16rpx;
+}
+
+.upload-btns .btn-upload {
+  flex: 1;
+}
+
+.btn-upload-chat {
+  background: #C4663E;
+}
+
+.btn-upload-local {
+  background: #FFFFFF;
+  border: 1rpx solid #C4663E;
+}
+
+.btn-upload-local .btn-upload-text {
+  color: #C4663E;
+}
+
+.upload-file-name {
+  margin-top: 16rpx;
+  padding: 16rpx 24rpx;
+  background: #FDF2EF;
+  border-radius: 12rpx;
+}
+
+.file-name-text {
+  font-size: 26rpx;
+  color: #C4663E;
+  word-break: break-all;
+}
+
+/* 校验结果 */
+.result-section {
+  background: #FFFFFF;
+  border-radius: 16rpx;
+  padding: 28rpx;
+}
+
+.result-summary {
+  display: flex;
+  justify-content: space-around;
+  margin-bottom: 24rpx;
+  padding-bottom: 24rpx;
+  border-bottom: 1rpx solid #F0EBE2;
+}
+
+.result-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.result-num {
+  font-size: 44rpx;
+  font-weight: 700;
+  color: #2C2416;
+  margin-bottom: 8rpx;
+}
+
+.result-passed .result-num {
+  color: #4A8B4A;
+}
+
+.result-failed .result-num {
+  color: #D4786E;
+}
+
+.result-label {
+  font-size: 24rpx;
+  color: #8B7E6A;
+}
+
+/* 失败明细 */
+.error-list {
+  margin-bottom: 24rpx;
+}
+
+.error-title {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: #D4786E;
+  margin-bottom: 16rpx;
+}
+
+.error-scroll {
+  max-height: 400rpx;
+  background: #FFF8F8;
+  border-radius: 12rpx;
+  padding: 16rpx;
+}
+
+.error-item {
+  display: flex;
+  align-items: flex-start;
+  padding: 12rpx 0;
+  border-bottom: 1rpx solid #FFE8E8;
+}
+
+.error-item:last-child {
+  border-bottom: none;
+}
+
+.error-row {
+  font-size: 24rpx;
+  color: #D4786E;
+  font-weight: 600;
+  margin-right: 16rpx;
+  flex-shrink: 0;
+  min-width: 100rpx;
+}
+
+.error-reason {
+  font-size: 24rpx;
+  color: #5C5246;
+  flex: 1;
+}
+
+/* 成功提示 */
+.success-tip {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24rpx;
+  background: #E8F5E8;
+  border-radius: 12rpx;
+  margin-bottom: 24rpx;
+}
+
+.success-icon {
+  font-size: 36rpx;
+  color: #4A8B4A;
+  margin-right: 12rpx;
+}
+
+.success-text {
+  font-size: 28rpx;
+  color: #4A8B4A;
+  font-weight: 500;
+}
+
+/* 操作按钮 */
+.result-actions {
+  display: flex;
+  gap: 16rpx;
+}
+
+.btn-back,
+.btn-reupload {
+  flex: 1;
+  text-align: center;
+  padding: 20rpx 0;
+  border-radius: 12rpx;
+  font-size: 28rpx;
+}
+
+.btn-back {
+  background: #C4663E;
+  color: #FFFFFF;
+}
+
+.btn-reupload {
+  background: #F6F3F0;
+  color: #5C5246;
+}
+
+/* 上传中遮罩 */
+.uploading-mask {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.uploading-content {
+  background: #FFFFFF;
+  border-radius: 16rpx;
+  padding: 40rpx 60rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.uploading-spinner {
+  width: 60rpx;
+  height: 60rpx;
+  border: 4rpx solid #F0EBE2;
+  border-top-color: #C4663E;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin-bottom: 20rpx;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.uploading-text {
+  font-size: 28rpx;
+  color: #5C5246;
+}

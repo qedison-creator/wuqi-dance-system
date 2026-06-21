@@ -106,7 +106,7 @@
 
                       <!-- 课程详情：三区块 -->
                       <view class="course-detail" wx:if="{{course.expanded}}">
-                        <!-- 🟢 已上课 区块 -->
+                        <!-- 已上课 区块 -->
                         <view class="member-section" wx:if="{{course.completedCount > 0}}">
                           <view class="section-header">
                             <view class="section-dot dot-completed"></view>
@@ -157,7 +157,7 @@
                           </view>
                         </view>
 
-                        <!-- 🔴 已取消 区块 -->
+                        <!-- 已取消 区块 -->
                         <view class="member-section" wx:if="{{course.cancelledCount > 0}}">
                           <view class="section-header">
                             <view class="section-dot dot-cancelled"></view>
@@ -177,7 +177,7 @@
                                   <text>【{{mg._cancelTypeText || '已取消'}}】</text>
                                 </view>
                                 <view class="mc-repeat" wx:if="{{mg._hasRepeat}}">
-                                  <text>🔄 {{mg._totalBookings}}次预约·{{mg._cancelCount}}次取消</text>
+                                  <text>{{mg._totalBookings}}次预约·{{mg._cancelCount}}次取消</text>
                                 </view>
                                 <view class="mc-expand {{mg._expanded ? 'expanded' : ''}}" catchtap="onToggleMember" data-year-index="{{yearIndex}}" data-month-index="{{monthIndex}}" data-date-index="{{dateIndex}}" data-course-index="{{courseIndex}}" data-user-id="{{mg.user_id}}">
                                   <text class="mc-expand-arrow">▾</text>
@@ -210,7 +210,7 @@
                           </view>
                         </view>
 
-                        <!-- ⚪ 待上课 区块 -->
+                        <!-- 待上课 区块 -->
                         <view class="member-section" wx:if="{{course.bookedCount > 0}}">
                           <view class="section-header">
                             <view class="section-dot dot-booked"></view>
@@ -230,7 +230,7 @@
                                   <text>待上课</text>
                                 </view>
                                 <view class="mc-repeat" wx:if="{{mg._hasRepeat}}">
-                                  <text>🔄 {{mg._totalBookings}}次预约·{{mg._cancelCount}}次取消</text>
+                                  <text>{{mg._totalBookings}}次预约·{{mg._cancelCount}}次取消</text>
                                 </view>
                                 <view class="mc-actions">
                                   <view class="checkin-btn" catchtap="onCheckIn" data-schedule-id="{{course.schedule_id}}" data-user-id="{{mg.user_id}}">

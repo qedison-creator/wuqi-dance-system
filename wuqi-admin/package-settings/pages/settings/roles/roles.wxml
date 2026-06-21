@@ -62,7 +62,7 @@
         <view class="perm-module-item" wx:for="{{displayModules}}" wx:key="id">
           <view class="perm-module-check {{item.checked ? 'checked' : ''}}" data-id="{{item.id}}" bindtap="onTogglePermission">
             <view class="checkbox {{item.checked ? 'checked' : ''}}">
-              <text wx:if="{{item.checked}}">✓</text>
+              <text wx:if="{{item.checked}}">√</text>
             </view>
             <view class="perm-module-info">
               <text class="perm-module-name">{{item.name}}</text>

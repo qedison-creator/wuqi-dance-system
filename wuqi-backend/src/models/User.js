@@ -10,7 +10,7 @@ const userSchema = new mongoose.Schema({
   wechat_phone: { type: String },
   reserve_phone: { type: String },
   user_type: { type: String, enum: ['member', 'admin', 'staff'], required: true, default: 'member' },
-  member_status: { type: String, enum: ['guest', 'registered', 'official'], required: true, default: 'registered' },
+  member_status: { type: String, enum: ['guest', 'registered', 'official', 'pending_claim'], required: true, default: 'registered' },
   gender: { type: Number, default: 0 },
   real_name: { type: String },
   store_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Store' },

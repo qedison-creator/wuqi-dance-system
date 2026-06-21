@@ -42,7 +42,7 @@
 
   <!-- 空状态 -->
   <view class="empty-state" wx:else>
-    <text class="empty-icon">📋</text>
+    <text class="empty-icon"></text>
     <text class="empty-text">暂无待审核用户</text>
   </view>
 
@@ -54,7 +54,7 @@
       <view class="store-modal-header">
         <text class="store-modal-title">分配门店</text>
         <text class="store-modal-subtitle">为 {{approveMember.name || '该用户'}} 选择门店</text>
-        <text class="modal-close" bindtap="onCloseStoreModal">✕</text>
+        <text class="modal-close" bindtap="onCloseStoreModal">×</text>
       </view>
       <view class="store-modal-list">
         <view class="store-modal-item {{selectedStoreId === item._id ? 'active' : ''}}"

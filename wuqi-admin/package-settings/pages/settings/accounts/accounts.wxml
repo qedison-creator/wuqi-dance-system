@@ -16,7 +16,7 @@
     </view>
     <view class="entry-card card" bindtap="onGoToRoles" wx:if="{{currentUserRole === 'super_admin'}}">
       <view class="entry-icon perm-icon">
-        <text>🔑</text>
+        <text></text>
       </view>
       <view class="entry-info">
         <text class="entry-name">角色权限配置</text>
@@ -100,14 +100,14 @@
         <text class="form-label">所属门店</text>
         <view class="store-select-all" bindtap="onStoreToggleAll">
           <view class="checkbox {{storeSelectAll ? 'checked' : ''}}">
-            <text wx:if="{{storeSelectAll}}">✓</text>
+            <text wx:if="{{storeSelectAll}}">√</text>
           </view>
           <text class="select-all-label">全选</text>
         </view>
         <scroll-view class="store-list" scroll-y="true" style="max-height: 300rpx;">
           <view class="store-item" wx:for="{{stores}}" wx:key="_id" data-index="{{index}}" bindtap="onStoreToggle">
             <view class="checkbox {{storeCheckboxes[index] ? 'checked' : ''}}">
-              <text wx:if="{{storeCheckboxes[index]}}">✓</text>
+              <text wx:if="{{storeCheckboxes[index]}}">√</text>
             </view>
             <text class="store-name">{{item.name}}</text>
           </view>

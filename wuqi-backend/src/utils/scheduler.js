@@ -132,7 +132,7 @@ const startScheduler = () => {
         const task = await PendingTask.findOneAndUpdate(
           { trigger_at: { $lte: now }, processed: 'pending' },
           { processed: 'sending', updated_at: new Date() },
-          { new: true }
+          { returnDocument: 'after' }
         );
 
         if (!task) break; // 没有待处理的任务了

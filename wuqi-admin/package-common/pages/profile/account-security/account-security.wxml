@@ -11,7 +11,7 @@
           <text class="avatar-char">{{nickName ? nickName[0] : (username ? username[0] : '管')}}</text>
         </view>
         <view class="avatar-camera">
-          <text class="camera-icon">📷</text>
+          <text class="camera-icon"></text>
         </view>
       </view>
       <text class="avatar-tip">点击更换头像</text>

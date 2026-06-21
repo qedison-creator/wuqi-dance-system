@@ -101,7 +101,7 @@ router.post('/', auth, checkPermission(['super_admin', 'store_manager']), async 
 // PUT /api/v1/stores/:id - 编辑门店
 router.put('/:id', auth, checkPermission(['super_admin', 'store_manager']), async (req, res, next) => {
   try {
-    const store = await Store.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    const store = await Store.findByIdAndUpdate(req.params.id, req.body, { returnDocument: 'after' });
     res.json(success(store, '编辑门店成功'));
   } catch (err) {
     next(err);

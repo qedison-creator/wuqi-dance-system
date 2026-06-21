@@ -2,6 +2,7 @@ const app = getApp();
 const { request } = require('../../utils/request');
 const { requireLogin, checkLogin } = require('../../utils/auth');
 const drawQrcode = require('../../utils/weapp.qrcode');
+const wsClient = require('../../utils/websocket-client');
 
 
 Page({
@@ -51,12 +52,21 @@ Page({
     showCheckInSuccess: false,
     checkInCourses: [],
     checkInAutoCloseTimer: null,
+    // 签到状态分层反馈：二维码下方文案区域（非结果类状态）
+    checkInStatusText: '',        // 状态提示文案
+    checkInStatusType: '',        // 状态类型：scanned/view_only/timeout/checking
+    checkInStatusTimer: null,     // 状态自动消失定时器
+    // 签到失败弹窗
+    showCheckInFailed: false,
+    checkInFailedText: '',
+    checkInFailedCanRetry: true,
+    // 套餐恢复提示
+    packageResumedText: '',
+    // 版本号防乱序 + event_id 去重
+    lastCheckInVersion: 0,
+    processedEventIds: {},
     showChangePhoneModal: false,
     newPhone: '',
-    showTransferModal: false,
-    transferStoreList: [],
-    transferStoreId: '',
-    transferReason: '',
     showPackageDetail: false,
     detailPackage: null,
     sheetDragY: 0,
@@ -141,17 +151,17 @@ Page({
   onHide() {
     this.stopQRRefresh();
     this.stopCheckInPolling();
-    if (this.data.checkInAutoCloseTimer) {
-      clearTimeout(this.data.checkInAutoCloseTimer);
-    }
+    this._disconnectCheckInWebSocket();
+    this._clearCheckInStatusTimer();
+    this._clearCheckInAutoClose();
   },
 
   onUnload() {
     this.stopQRRefresh();
     this.stopCheckInPolling();
-    if (this.data.checkInAutoCloseTimer) {
-      clearTimeout(this.data.checkInAutoCloseTimer);
-    }
+    this._disconnectCheckInWebSocket();
+    this._clearCheckInStatusTimer();
+    this._clearCheckInAutoClose();
   },
 
   // 根据弹窗状态动态开关下拉刷新
@@ -1070,17 +1080,233 @@ Page({
   },
 
   onShowQRCode() {
-    this.setData({ showQRModal: true, showCheckInSuccess: false });
+    this.setData({
+      showQRModal: true,
+      showCheckInSuccess: false,
+      showCheckInFailed: false,
+      checkInScanning: false,
+      checkInStatusText: '',
+      checkInStatusType: '',
+      packageResumedText: ''
+    });
+    this._clearCheckInStatusTimer();
+    this._clearCheckInAutoClose();
     this._updatePullDownRefresh();
     this.generateDynamicToken();
+    // 优先使用 WebSocket 接收签到推送，同时保留轮询作为降级兜底
+    this._connectCheckInWebSocket();
     this.startCheckInPolling();
   },
 
   onCloseQRModal() {
-    this.setData({ showQRModal: false });
+    this.setData({
+      showQRModal: false,
+      checkInScanning: false,
+      checkInStatusText: '',
+      checkInStatusType: ''
+    });
+    this._clearCheckInStatusTimer();
     this._updatePullDownRefresh();
     this.stopQRRefresh();
     this.stopCheckInPolling();
+    this._disconnectCheckInWebSocket();
+  },
+
+  // ========== 签到 WebSocket 实时推送 ==========
+  _connectCheckInWebSocket() {
+    var self = this;
+    wsClient.connect({
+      onMessage: {
+        // 管理员已扫码（非结果类状态，二维码下方文案提示）
+        scanned: (data, msg) => {
+          if (!self._shouldProcessMessage(msg)) return;
+          self._showCheckInStatus('管理员已扫码', 'scanned', 0);
+        },
+        // 管理员仅查看信息（非结果类状态，5秒自动消失）
+        view_only: (data, msg) => {
+          if (!self._shouldProcessMessage(msg)) return;
+          self._showCheckInStatus('管理员查看了你的信息', 'view_only', 5000);
+        },
+        // 签到超时（非结果类状态，3秒后自动重置）
+        check_in_timeout: (data, msg) => {
+          if (!self._shouldProcessMessage(msg)) return;
+          self._showCheckInStatus('签到超时，请重新出示二维码', 'timeout', 3000);
+          self.stopCheckInPolling();
+          // 震动反馈
+          wx.vibrateShort({ type: 'light' });
+        },
+        // 签到成功（结果类强弹窗，3秒自动关闭）
+        check_in_success: (data, msg) => {
+          if (!self._shouldProcessMessage(msg)) return;
+          self.stopCheckInPolling();
+          self._clearCheckInStatusTimer();
+          var courses = [];
+          if (data) {
+            courses.push({
+              course_name: data.course_name || '课程',
+              time: (data.start_time || '') + (data.end_time ? ' - ' + data.end_time : ''),
+              source: data.source === 'onsite' ? '现场签到' : '正常签到'
+            });
+          }
+          self.setData({
+            showCheckInSuccess: true,
+            showCheckInFailed: false,
+            checkInScanning: false,
+            checkInCourses: courses,
+            checkInStatusText: '',
+            checkInStatusType: ''
+          });
+          self._updatePullDownRefresh();
+          // 震动反馈
+          wx.vibrateShort({ type: 'medium' });
+          // 3秒自动关闭
+          self._startCheckInAutoClose(3000);
+        },
+        // 签到失败（结果类强弹窗，手动关闭）
+        check_in_failed: (data, msg) => {
+          if (!self._shouldProcessMessage(msg)) return;
+          self.stopCheckInPolling();
+          self._clearCheckInStatusTimer();
+          var errorText = self._mapCheckInErrorText(data);
+          self.setData({
+            showCheckInFailed: true,
+            showCheckInSuccess: false,
+            checkInScanning: false,
+            checkInFailedText: errorText,
+            checkInFailedCanRetry: data && data.can_retry !== false,
+            checkInStatusText: '',
+            checkInStatusType: ''
+          });
+          self._updatePullDownRefresh();
+          // 震动反馈
+          wx.vibrateShort({ type: 'medium' });
+        },
+        // 套餐恢复提示（签到成功且套餐从停卡恢复时）
+        package_resumed: (data, msg) => {
+          if (!self._shouldProcessMessage(msg)) return;
+          self.setData({
+            packageResumedText: '您的套餐已恢复使用'
+          });
+        }
+      }
+    });
+  },
+
+  /**
+   * 版本号防乱序 + event_id 去重
+   * 规则：版本号旧的直接丢弃；event_id 重复的直接丢弃
+   */
+  _shouldProcessMessage(msg) {
+    if (!msg) return true;
+    var version = msg.version || 0;
+    var eventId = msg.event_id || '';
+    // 版本号防乱序：旧消息直接丢弃
+    if (version && this.data.lastCheckInVersion && version <= this.data.lastCheckInVersion) {
+      return false;
+    }
+    // event_id 去重：重复消息直接丢弃
+    if (eventId && this.data.processedEventIds[eventId]) {
+      return false;
+    }
+    // 更新版本号和事件ID缓存
+    if (version) {
+      this.data.lastCheckInVersion = version;
+      // 持久化版本号，供重连后 sync 使用
+      try {
+        wx.setStorageSync('ws_last_version', version);
+      } catch (e) {}
+    }
+    if (eventId) {
+      this.data.processedEventIds[eventId] = true;
+      // 缓存上限控制（保留最近50条）
+      var keys = Object.keys(this.data.processedEventIds);
+      if (keys.length > 50) {
+        // 删除最早的20条
+        for (var i = 0; i < 20; i++) {
+          delete this.data.processedEventIds[keys[i]];
+        }
+      }
+    }
+    return true;
+  },
+
+  /**
+   * 显示签到状态提示（二维码下方文案区域，不遮挡二维码）
+   * @param {string} text - 文案
+   * @param {string} type - 状态类型
+   * @param {number} duration - 自动消失时间（0表示不自动消失）
+   */
+  _showCheckInStatus(text, type, duration) {
+    this._clearCheckInStatusTimer();
+    this.setData({
+      checkInStatusText: text,
+      checkInStatusType: type,
+      checkInScanning: type === 'scanned'
+    });
+    if (duration > 0) {
+      var self = this;
+      this.data.checkInStatusTimer = setTimeout(function() {
+        // 超时状态自动重置回二维码页面
+        self.setData({
+          checkInStatusText: '',
+          checkInStatusType: '',
+          checkInScanning: false
+        });
+      }, duration);
+    }
+  },
+
+  _clearCheckInStatusTimer() {
+    if (this.data.checkInStatusTimer) {
+      clearTimeout(this.data.checkInStatusTimer);
+      this.data.checkInStatusTimer = null;
+    }
+  },
+
+  /**
+   * 签到成功弹窗自动关闭定时器
+   */
+  _startCheckInAutoClose(duration) {
+    this._clearCheckInAutoClose();
+    var self = this;
+    this.data.checkInAutoCloseTimer = setTimeout(function() {
+      self.onCloseCheckInSuccess();
+    }, duration);
+  },
+
+  _clearCheckInAutoClose() {
+    if (this.data.checkInAutoCloseTimer) {
+      clearTimeout(this.data.checkInAutoCloseTimer);
+      this.data.checkInAutoCloseTimer = null;
+    }
+  },
+
+  /**
+   * 错误码映射通俗文案
+   */
+  _mapCheckInErrorText(data) {
+    if (!data) return '签到失败，请稍后重试';
+    var code = data.error_code || '';
+    var map = {
+      'CREDITS_INSUFFICIENT': '套餐课时不足，请联系门店充值',
+      'PACKAGE_EXPIRED': '套餐已过期，请联系门店续费',
+      'PACKAGE_SUSPENDED': '套餐已停卡，请联系门店恢复',
+      'COURSE_MISMATCH': '当前套餐不适用此课程',
+      'STORE_MISMATCH': '当前套餐不适用此门店',
+      'ALREADY_CHECKED_IN': '您已签到过本节课',
+      'SCHEDULE_NOT_AVAILABLE': '课程已取消，无法签到',
+      'NO_AVAILABLE_PACKAGE': '无可用套餐，请联系门店处理',
+      'MEMBER_NOT_OFFICIAL': '会员身份未激活，请联系门店处理',
+      'BOOKING_CANCELLED': '您已取消预约，请联系管理员重新预约',
+      'UNKNOWN_ERROR': '签到失败，请稍后重试'
+    };
+    return map[code] || data.error_message || '签到失败，请稍后重试';
+  },
+
+  _disconnectCheckInWebSocket() {
+    try {
+      wsClient.disconnect();
+    } catch (e) {}
   },
 
   startCheckInPolling() {
@@ -1089,6 +1315,7 @@ Page({
     var userId = userInfo._id || '';
     if (!userId) return;
 
+    // 轮询作为降级方案：仅在 WebSocket 未推送时兜底检测
     this._checkInPollTimer = setInterval(function() {
       request({
         url: '/bookings/check-in-status/' + userId,
@@ -1106,18 +1333,12 @@ Page({
           });
           this.setData({
             showCheckInSuccess: true,
+            checkInScanning: false,
             checkInCourses: courses
           });
           this._updatePullDownRefresh();
-          if (this.data.checkInAutoCloseTimer) clearTimeout(this.data.checkInAutoCloseTimer);
-          var timer = setTimeout(function() {
-            this.onCloseCheckInSuccess();
-          }.bind(this), 3000);
-          this.setData({ checkInAutoCloseTimer: timer });
         }
-      }.bind(this)).catch(function(err) {
-        console.error('签到状态轮询失败', err);
-      });
+      }.bind(this)).catch(function(err) {});
     }.bind(this), 2000);
   },
 
@@ -1129,13 +1350,28 @@ Page({
   },
 
   onCloseCheckInSuccess() {
-    if (this.data.checkInAutoCloseTimer) {
-      clearTimeout(this.data.checkInAutoCloseTimer);
-    }
+    this._clearCheckInAutoClose();
     this.setData({
       showCheckInSuccess: false,
       checkInCourses: [],
-      checkInAutoCloseTimer: null
+      checkInScanning: false,
+      packageResumedText: ''
+    });
+    this._updatePullDownRefresh();
+    // 签到成功关闭后刷新套餐数据，让会员看到课时扣减
+    if (typeof this._refreshStatsAndPackages === 'function') {
+      this._refreshStatsAndPackages();
+    }
+  },
+
+  /**
+   * 关闭签到失败弹窗（手动关闭）
+   */
+  onCloseCheckInFailed() {
+    this.setData({
+      showCheckInFailed: false,
+      checkInFailedText: '',
+      checkInFailedCanRetry: true
     });
     this._updatePullDownRefresh();
   },

@@ -15,7 +15,7 @@
     <view class="page-header">
       <text class="page-title text-heading">套餐激活记录</text>
       <view class="hf-store" bindtap="onOpenStoreModal">
-        <text class="hfs-icon">⌂</text>
+        <text class="hfs-icon"></text>
         <text class="hfs-label">{{currentStoreName}}</text>
         <text class="hfs-arrow">▾</text>
       </view>
@@ -58,14 +58,14 @@
       </view>
     </view>
 
-    <empty-state wx:if="{{!loading && activationList.length === 0}}" icon="📋" text="暂无激活记录"></empty-state>
+    <empty-state wx:if="{{!loading && activationList.length === 0}}" icon="" text="暂无激活记录"></empty-state>
   </view>
 
   <view class="tab-content" wx:if="{{activeTab === 'extension'}}">
     <view class="page-header">
       <text class="page-title text-heading">套餐有效期延长记录</text>
       <view class="hf-store" bindtap="onOpenStoreModal">
-        <text class="hfs-icon">⌂</text>
+        <text class="hfs-icon"></text>
         <text class="hfs-label">{{currentStoreName}}</text>
         <text class="hfs-arrow">▾</text>
       </view>
@@ -116,14 +116,14 @@
       </view>
     </view>
 
-    <empty-state wx:if="{{!loading && extensionList.length === 0}}" icon="📋" text="暂无延长记录"></empty-state>
+    <empty-state wx:if="{{!loading && extensionList.length === 0}}" icon="" text="暂无延长记录"></empty-state>
   </view>
 
   <view class="tab-content" wx:if="{{activeTab === 'entry'}}">
     <view class="page-header">
       <text class="page-title text-heading">套餐录入记录</text>
       <view class="hf-store" bindtap="onOpenStoreModal">
-        <text class="hfs-icon">⌂</text>
+        <text class="hfs-icon"></text>
         <text class="hfs-label">{{currentStoreName}}</text>
         <text class="hfs-arrow">▾</text>
       </view>
@@ -166,7 +166,7 @@
       </view>
     </view>
 
-    <empty-state wx:if="{{!loading && entryList.length === 0}}" icon="📝" text="暂无录入记录"></empty-state>
+    <empty-state wx:if="{{!loading && entryList.length === 0}}" icon="" text="暂无录入记录"></empty-state>
   </view>
 
   <!-- 加载更多提示 -->

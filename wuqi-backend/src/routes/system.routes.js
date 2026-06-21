@@ -247,7 +247,7 @@ router.put('/configs', auth, checkPermission(['super_admin']), async (req, res, 
     const updated = await SystemConfig.findOneAndUpdate(
       { key },
       { value, description: description || '', group: group || 'general' },
-      { new: true, upsert: true }
+      { returnDocument: 'after', upsert: true }
     );
     await OperationLog.create({
       operator_id: req.user.id,

@@ -2,7 +2,7 @@
   <!-- 全局默认设置 -->
   <view class="section card">
     <view class="section-title">
-      <text class="title-icon">⚙️</text>
+      <text class="title-icon"></text>
       <text class="title-text">全局默认设置</text>
     </view>
     <view class="section-desc">
@@ -23,7 +23,7 @@
   <!-- 会员豁免次数设置 -->
   <view class="section card">
     <view class="section-title">
-      <text class="title-icon">👤</text>
+      <text class="title-icon"></text>
       <text class="title-text">会员豁免次数</text>
     </view>
     <view class="section-desc">
@@ -34,7 +34,7 @@
     <view class="search-box">
       <input type="text" placeholder="输入会员姓名或手机号搜索" value="{{searchKeyword}}" bindinput="onSearchInput" confirm-type="search" bindconfirm="searchMembers" />
       <view class="search-btn" bindtap="searchMembers">
-        <text>🔍</text>
+        <text></text>
       </view>
     </view>
 
@@ -63,7 +63,7 @@
 
     <!-- 提示 -->
     <view class="tips">
-      <text>💡 提示：豁免次数用于会员超时取消预约时免除扣次数</text>
+      <text>提示：豁免次数用于会员超时取消预约时免除扣次数</text>
     </view>
   </view>
 </view>

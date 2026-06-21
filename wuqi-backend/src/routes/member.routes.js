@@ -155,7 +155,7 @@ router.put('/:id/store', auth, checkPermission(['super_admin', 'store_manager'])
       return res.status(400).json({ code: 400, message: '请提供门店ID', data: null });
     }
     const User = require('../models/User');
-    const user = await User.findByIdAndUpdate(req.params.id, { store_id }, { new: true });
+    const user = await User.findByIdAndUpdate(req.params.id, { store_id }, { returnDocument: 'after' });
     if (!user) return res.status(404).json({ code: 404, message: '会员不存在', data: null });
     res.json(success(user, '修改门店成功'));
   } catch (err) {

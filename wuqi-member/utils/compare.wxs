@@ -1,10 +1,15 @@
-function contains(array, item) {
-  if (!array || !array.length) return false;
-  for (var i = 0; i < array.length; i++) {
-    var str1 = '' + array[i];
-    var str2 = '' + item;
-    if (str1 === str2) return true;
+/**
+ * 数组包含判断
+ * 用法：<view wx:if="{{cmp.contains(arr, val)}}"></view>
+ */
+var contains = function (arr, val) {
+  if (!arr || !arr.length) return false;
+  for (var i = 0; i < arr.length; i++) {
+    if (arr[i] === val) return true;
   }
   return false;
-}
-module.exports = { contains: contains };
+};
+
+module.exports = {
+  contains: contains
+};

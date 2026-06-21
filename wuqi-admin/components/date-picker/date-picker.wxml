@@ -1,0 +1,25 @@
+<!-- iPhone 风格日期选择器组件 -->
+<view class="dp-mask" wx:if="{{visible}}" bindtap="onMaskTap" catchtouchmove="noop">
+  <view class="dp-sheet" catchtap="noop">
+    <view class="dp-header">
+      <text class="dp-cancel" catchtap="onCancel">取消</text>
+      <text class="dp-title">{{title}}</text>
+      <text class="dp-confirm" catchtap="onConfirm">确定</text>
+    </view>
+    <view class="dp-body">
+      <!-- 选中指示器 -->
+      <view class="dp-indicator"></view>
+      <picker-view class="dp-picker" indicator-style="height: 56px;" value="{{pickerValue}}" bindchange="onPickerChange">
+        <picker-view-column>
+          <view class="dp-col-item" wx:for="{{years}}" wx:key="*this">{{item}}年</view>
+        </picker-view-column>
+        <picker-view-column>
+          <view class="dp-col-item" wx:for="{{months}}" wx:key="*this">{{item}}月</view>
+        </picker-view-column>
+        <picker-view-column>
+          <view class="dp-col-item" wx:for="{{days}}" wx:key="*this">{{item}}日</view>
+        </picker-view-column>
+      </picker-view>
+    </view>
+  </view>
+</view>

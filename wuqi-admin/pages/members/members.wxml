@@ -27,6 +27,10 @@
         <text class="stats-chip-val">{{pendingCount || 0}}</text>
         <text class="stats-chip-label">待审核用户</text>
       </view>
+      <view class="stats-chip stats-chip-premember" bindtap="onGoPreMember">
+        <text class="stats-chip-val">{{pendingClaimCount || 0}}</text>
+        <text class="stats-chip-label">预建档会员</text>
+      </view>
     </view>
   </view>
 

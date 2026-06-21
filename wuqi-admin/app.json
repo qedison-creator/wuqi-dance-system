@@ -48,6 +48,14 @@
   "style": "v2",
   "lazyCodeLoading": "requiredComponents",
   "resizable": false,
+  "permission": {
+    "scope.chooseMessageFile": {
+      "desc": "读取微信聊天内 Excel 表格，批量导入会员档案信息"
+    },
+    "scope.chooseFile": {
+      "desc": "读取手机本地存储的 Excel 表格，批量导入会员档案信息"
+    }
+  },
   "subPackages": [
     {
       "root": "package-schedule",
@@ -67,7 +75,9 @@
         "pages/members/booking-list/booking-list",
         "pages/members/member-review/member-review",
         "pages/members/phone-review/phone-review",
-        "pages/members/info-review/info-review"
+        "pages/members/info-review/info-review",
+        "pages/pre-member/pre-member-list",
+        "pages/pre-member/pre-member-import"
       ]
     },
     {

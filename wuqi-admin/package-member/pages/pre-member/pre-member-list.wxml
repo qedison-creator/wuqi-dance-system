@@ -1,0 +1,233 @@
+<view class="pre-member-page">
+  <!-- 门店筛选栏 -->
+  <view class="store-bar">
+    <text class="store-bar-label">门店</text>
+    <scroll-view class="store-scroll" scroll-x enhanced show-scrollbar="{{false}}" enable-flex>
+      <view class="store-chips">
+        <view class="store-chip {{currentStoreId === '' ? 'store-chip-active' : ''}}" data-id="" bindtap="onStoreFilterChange">
+          <text class="store-chip-text">全部</text>
+        </view>
+        <view class="store-chip {{currentStoreId === item._id ? 'store-chip-active' : ''}}" wx:for="{{storeList}}" wx:key="_id" data-id="{{item._id}}" bindtap="onStoreFilterChange">
+          <text class="store-chip-text">{{item.name}}</text>
+        </view>
+      </view>
+    </scroll-view>
+  </view>
+
+  <!-- 操作栏：搜索 + 批量导入 + 新建 -->
+  <view class="action-bar">
+    <view class="search-input-wrap">
+      <text class="search-icon">搜</text>
+      <input class="search-input" placeholder="搜索姓名/手机号" value="{{keyword}}" bindinput="onSearchInput" confirm-type="search" bindconfirm="onSearch" />
+      <view class="search-clear" wx:if="{{keyword}}" catchtap="onClearSearch">
+        <text>×</text>
+      </view>
+    </view>
+    <view class="action-btns">
+      <view class="btn-import" bindtap="onGoImport">
+        <text class="btn-import-text">批量导入</text>
+      </view>
+      <view class="btn-create" bindtap="onCreatePreMember">
+        <text class="btn-create-text">+ 新建</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 状态筛选标签 -->
+  <view class="status-tabs">
+    <view class="status-tab {{currentStatus === 'pending' ? 'active' : ''}}" data-status="pending" bindtap="onStatusTabChange">
+      <text>待认领</text>
+    </view>
+    <view class="status-tab {{currentStatus === 'claimed' ? 'active' : ''}}" data-status="claimed" bindtap="onStatusTabChange">
+      <text>已认领</text>
+    </view>
+    <view class="status-tab {{currentStatus === 'all' ? 'active' : ''}}" data-status="all" bindtap="onStatusTabChange">
+      <text>全部</text>
+    </view>
+  </view>
+
+  <!-- 列表 -->
+  <view class="member-list" wx:if="{{!loading && list.length > 0}}">
+    <view class="member-card" wx:for="{{list}}" wx:key="_id">
+      <view class="member-card-top">
+        <view class="member-avatar-placeholder">
+          <text class="avatar-text">{{item.real_name ? item.real_name[0] : '?'}}</text>
+        </view>
+        <view class="member-info">
+          <view class="member-name-row">
+            <text class="member-name">{{item.real_name || '未知'}}</text>
+            <view class="member-tags">
+              <view class="store-tag" wx:if="{{item.store_name}}">
+                <text class="store-tag-text">{{item.store_name}}</text>
+              </view>
+              <view class="status-tag {{item.member_status === 'pending_claim' ? 'status-pending' : 'status-claimed'}}">
+                <text class="status-tag-text">{{item.status_text}}</text>
+              </view>
+            </view>
+          </view>
+          <view class="member-phone-line">
+            <text class="phone-item">{{item.reserve_phone || '未绑定'}}</text>
+            <text class="created-time">{{item.created_at_text}}</text>
+          </view>
+          <view class="package-info" wx:if="{{item.has_package}}">
+            <text class="package-text">{{item.package_text}}</text>
+          </view>
+          <view class="package-info no-package" wx:else>
+            <text class="package-text">未录套餐</text>
+          </view>
+        </view>
+      </view>
+      <view class="member-actions">
+        <block wx:if="{{item.member_status === 'pending_claim'}}">
+          <view class="action-btn action-edit" catchtap="onEditPreMember" data-id="{{item._id}}">
+            <text>编辑</text>
+          </view>
+          <view class="action-btn action-delete" catchtap="onDeletePreMember" data-id="{{item._id}}">
+            <text>删除</text>
+          </view>
+          <view class="action-btn action-detail" catchtap="onViewDetail" data-id="{{item._id}}">
+            <text>详情</text>
+          </view>
+        </block>
+        <block wx:else>
+          <view class="action-btn action-detail" catchtap="onViewOfficialMember" data-id="{{item._id}}">
+            <text>查看正式会员</text>
+          </view>
+        </block>
+      </view>
+    </view>
+  </view>
+
+  <!-- 空状态 -->
+  <view class="empty-state" wx:if="{{!loading && list.length === 0}}">
+    <text class="empty-text">暂无预建档记录</text>
+    <text class="empty-desc">点击右上角「新建」创建预建档</text>
+  </view>
+
+  <!-- 加载状态 -->
+  <view class="loading-state" wx:if="{{loading}}">
+    <text class="loading-text">加载中...</text>
+  </view>
+</view>
+
+<!-- 新建/编辑预建档弹窗 -->
+<view class="modal-mask" wx:if="{{showFormModal}}" catchtouchmove="onModalTouchMove">
+  <view class="form-modal-content" catchtap="onModalTap" catchtouchmove="onModalTouchMove">
+    <view class="modal-header">
+      <text class="modal-title">{{editingId ? '编辑预建档' : '新建预建档'}}</text>
+      <text class="modal-close" bindtap="onCloseFormModal">×</text>
+    </view>
+    <view class="form-body">
+      <!-- 基本信息 -->
+      <view class="form-group">
+        <text class="form-label">所属门店 *</text>
+        <view class="picker-field {{form.store_id ? '' : 'placeholder'}}" bindtap="onOpenStorePicker">
+          <text>{{form.store_id ? form.store_name : '请选择门店'}}</text>
+          <text class="picker-arrow">›</text>
+        </view>
+      </view>
+      <view class="form-group">
+        <text class="form-label">会员姓名 *</text>
+        <input class="input-field" placeholder="请输入会员姓名" placeholder-class="input-placeholder" maxlength="20" value="{{form.real_name}}" bindinput="onFormInput" data-field="real_name" />
+      </view>
+      <view class="form-group">
+        <text class="form-label">性别 *</text>
+        <view class="gender-picker">
+          <view class="gp-option {{form.gender === 1 ? 'active' : ''}}" data-gender="1" bindtap="onGenderSelect">男</view>
+          <view class="gp-option {{form.gender === 2 ? 'active' : ''}}" data-gender="2" bindtap="onGenderSelect">女</view>
+        </view>
+      </view>
+      <view class="form-group">
+        <text class="form-label">预留手机号 *</text>
+        <input class="input-field" type="number" placeholder="11位手机号" placeholder-class="input-placeholder" maxlength="11" value="{{form.reserve_phone}}" bindinput="onFormInput" data-field="reserve_phone" />
+      </view>
+
+      <view class="form-divider"></view>
+      <view class="form-section-title">套餐信息（选填）</view>
+
+      <view class="form-group">
+        <text class="form-label">套餐类型</text>
+        <view class="package-type-selector">
+          <view class="type-option {{form.package_type === 'count_card' ? 'active' : ''}}" data-type="count_card" bindtap="onPackageTypeChange">
+            <text>次卡</text>
+          </view>
+          <view class="type-option {{form.package_type === 'time_card' ? 'active' : ''}}" data-type="time_card" bindtap="onPackageTypeChange">
+            <text>时间卡</text>
+          </view>
+          <view class="type-option {{form.package_type === '' ? 'active' : ''}}" data-type="" bindtap="onPackageTypeChange">
+            <text>不录套餐</text>
+          </view>
+        </view>
+      </view>
+
+      <block wx:if="{{form.package_type}}">
+        <view class="form-group">
+          <text class="form-label">有效期开始日期 *</text>
+          <view class="picker-field {{form.start_date ? '' : 'placeholder'}}" bindtap="onOpenDatePicker" data-field="start_date">
+            <text>{{form.start_date || '请选择开始日期'}}</text>
+            <text class="picker-arrow">›</text>
+          </view>
+        </view>
+        <view class="form-group">
+          <text class="form-label">有效期结束日期 *</text>
+          <view class="picker-field {{form.end_date ? '' : 'placeholder'}}" bindtap="onOpenDatePicker" data-field="end_date">
+            <text>{{form.end_date || '请选择结束日期'}}</text>
+            <text class="picker-arrow">›</text>
+          </view>
+        </view>
+
+        <block wx:if="{{form.package_type === 'count_card'}}">
+          <view class="form-group">
+            <text class="form-label">总次数 *</text>
+            <input class="input-field" type="number" placeholder="请输入总次数" placeholder-class="input-placeholder" value="{{form.total_credits}}" bindinput="onFormInput" data-field="total_credits" />
+          </view>
+        </block>
+
+        <block wx:if="{{form.package_type === 'time_card'}}">
+          <view class="form-group">
+            <text class="form-label">周期限制 *</text>
+            <view class="period-picker">
+              <view class="period-option {{form.period_type === 'weekly' ? 'active' : ''}}" data-period="weekly" bindtap="onPeriodTypeChange">每周</view>
+              <view class="period-option {{form.period_type === 'daily' ? 'active' : ''}}" data-period="daily" bindtap="onPeriodTypeChange">每天</view>
+              <view class="period-option {{form.period_type === 'unlimited' ? 'active' : ''}}" data-period="unlimited" bindtap="onPeriodTypeChange">不限</view>
+            </view>
+            <view class="period-count-row" wx:if="{{form.period_type !== 'unlimited'}}">
+              <text class="period-count-label">限制次数</text>
+              <input class="input-field period-count-input" type="number" placeholder="0" placeholder-class="input-placeholder" value="{{form.period_count}}" bindinput="onFormInput" data-field="period_count" />
+              <text class="period-count-unit">次</text>
+            </view>
+          </view>
+        </block>
+      </block>
+
+      <view class="form-group">
+        <text class="form-label">备注</text>
+        <textarea class="textarea-field" placeholder="补充说明（选填）" placeholder-class="input-placeholder" maxlength="200" value="{{form.remark}}" bindinput="onFormInput" data-field="remark"></textarea>
+      </view>
+    </view>
+
+    <view class="form-actions">
+      <view class="btn-cancel" bindtap="onCloseFormModal">取消</view>
+      <view class="btn-submit" bindtap="onSubmitForm">确认</view>
+    </view>
+  </view>
+</view>
+
+<!-- 自定义门店选择弹窗 -->
+<view class="modal-mask" wx:if="{{showStorePicker}}" catchtouchmove="onModalTouchMove">
+  <view class="store-picker-modal" catchtap="onModalTap" catchtouchmove="onModalTouchMove">
+    <view class="spm-header">
+      <text class="spm-title">选择门店</text>
+      <text class="spm-close" bindtap="onCloseStorePicker">×</text>
+    </view>
+    <scroll-view class="spm-list" scroll-y>
+      <view class="spm-item {{form.store_id === item._id ? 'spm-active' : ''}}" wx:for="{{storeList}}" wx:key="_id" data-id="{{item._id}}" data-name="{{item.name}}" bindtap="onSelectStore">
+        <text class="spm-name">{{item.name}}</text>
+        <view class="spm-check" wx:if="{{form.store_id === item._id}}"></view>
+      </view>
+    </scroll-view>
+  </view>
+</view>
+
+<!-- 自定义日期选择器 -->
+<date-picker visible="{{showDatePicker}}" value="{{datePickerValue}}" title="{{datePickerTitle}}" bind:confirm="onDatePickerConfirm" bind:cancel="onDatePickerCancel" />
