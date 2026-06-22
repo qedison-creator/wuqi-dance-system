@@ -28,43 +28,45 @@ Page({
         throw new Error('下载失败');
       }
 
-      // 直接用 tempFilePath 打开，避免复制到用户目录导致文件锁定 EBUSY
-      wx.openDocument({
-        filePath: res.tempFilePath,
-        fileType: 'xlsx',
-        showMenu: true,
-        success: () => {
+      // 复制到用户目录并指定文件名（tempFilePath 是随机 hash 名，必须复制后才能显示中文名）
+      const fs = wx.getFileSystemManager();
+      const pad = (n) => String(n).padStart(2, '0');
+      const d = new Date();
+      const dateStr = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+      const timeStr = `${pad(d.getHours())}-${pad(d.getMinutes())}-${pad(d.getSeconds())}`;
+      const savedPath = `${wx.env.USER_DATA_PATH}/舞栖Dance会员名单_${dateStr}_${timeStr}.xlsx`;
+      try {
+        fs.copyFileSync(res.tempFilePath, savedPath);
+      } catch (e) {
+        // 如果目标文件被占用（EBUSY），换一个带毫秒的文件名重试
+        const msPath = `${wx.env.USER_DATA_PATH}/舞栖Dance会员名单_${dateStr}_${timeStr}-${d.getMilliseconds()}.xlsx`;
+        try {
+          fs.copyFileSync(res.tempFilePath, msPath);
+          openWith(msPath);
+        } catch (e2) {
+          console.error('复制文件失败', e2);
           wx.hideLoading();
-          wx.showToast({ title: '模板已打开，可另存为', icon: 'none' });
-        },
-        fail: (err) => {
-          console.error('直接打开失败，尝试复制后打开', err);
-          // 回退方案：复制到用户目录（用时间戳唯一文件名）
-          const fs = wx.getFileSystemManager();
-          const timestamp = Date.now();
-          const savedPath = `${wx.env.USER_DATA_PATH}/premember-template-${timestamp}.xlsx`;
-          try {
-            fs.copyFileSync(res.tempFilePath, savedPath);
-            wx.openDocument({
-              filePath: savedPath,
-              fileType: 'xlsx',
-              showMenu: true,
-              success: () => {
-                wx.hideLoading();
-                wx.showToast({ title: '模板已打开，可另存为', icon: 'none' });
-              },
-              fail: () => {
-                wx.hideLoading();
-                wx.showToast({ title: '打开文件失败，请重试', icon: 'none' });
-              }
-            });
-          } catch (e) {
-            console.error('复制文件失败', e);
-            wx.hideLoading();
-            wx.showToast({ title: '文件处理失败，请重试', icon: 'none' });
-          }
+          wx.showToast({ title: '文件处理失败，请重试', icon: 'none' });
         }
-      });
+        return;
+      }
+      openWith(savedPath);
+
+      function openWith(filePath) {
+        wx.openDocument({
+          filePath: filePath,
+          fileType: 'xlsx',
+          showMenu: true,
+          success: () => {
+            wx.hideLoading();
+            wx.showToast({ title: '模板已打开，可另存为', icon: 'none' });
+          },
+          fail: () => {
+            wx.hideLoading();
+            wx.showToast({ title: '打开文件失败，请重试', icon: 'none' });
+          }
+        });
+      }
     } catch (err) {
       wx.hideLoading();
       console.error('下载模板失败', err);
@@ -77,63 +79,22 @@ Page({
     console.log('[Privacy] 用户同意隐私授权');
   },
 
-  // 渠道1：从聊天文件选择
-  onChooseFromChat() {
-    this.doChooseFile('chat');
-  },
-
-  // 渠道2：从本地文件选择
-  onChooseFromLocal() {
-    this.doChooseFile('local');
-  },
-
-  // 实际调用文件选择
-  doChooseFile(source) {
-    // source: 'chat' 聊天文件 | 'local' 本地文件
-    if (source === 'local') {
-      // 本地文件：wx.chooseFile（仅在 PC 端微信有效，移动端不支持）
-      // 移动端本地文件需通过 wx.chooseMessageFile 的 file 类型或 wx.getFileSystemManager
-      // 这里用 wx.chooseFile，PC 端可用；移动端会 fail，提示用户用聊天文件渠道
-      if (typeof wx.chooseFile !== 'function') {
-        wx.showModal({
-          title: '提示',
-          content: '当前微信版本不支持本地文件选择，请使用「从聊天选择」上传文件。',
-          showCancel: false,
-          confirmText: '我知道了'
-        });
-        return;
+  // 渠道1：从聊天文件选择（小程序唯一支持的文件选择方式）
+  onChooseFile() {
+    wx.chooseMessageFile({
+      count: 1,
+      type: 'file',
+      extension: ['xlsx', 'xls'],
+      success: (res) => {
+        this.handleSelectedFile(res.tempFiles[0]);
+      },
+      fail: (err) => {
+        console.log('文件选择取消或失败', err);
+        if (err.errno === 112 || (err.errMsg && err.errMsg.indexOf('privacy') !== -1)) {
+          wx.showToast({ title: '隐私授权未通过，请重试', icon: 'none' });
+        }
       }
-      wx.chooseFile({
-        count: 1,
-        type: 'file',
-        extension: ['xlsx', 'xls'],
-        success: (res) => {
-          this.handleSelectedFile(res.tempFiles[0]);
-        },
-        fail: (err) => {
-          console.log('本地文件选择取消或失败', err);
-          if (err.errno === 112 || (err.errMsg && err.errMsg.indexOf('privacy') !== -1)) {
-            wx.showToast({ title: '隐私授权未通过，请重试', icon: 'none' });
-          }
-        }
-      });
-    } else {
-      // 聊天文件：wx.chooseMessageFile
-      wx.chooseMessageFile({
-        count: 1,
-        type: 'file',
-        extension: ['xlsx', 'xls'],
-        success: (res) => {
-          this.handleSelectedFile(res.tempFiles[0]);
-        },
-        fail: (err) => {
-          console.log('聊天文件选择取消或失败', err);
-          if (err.errno === 112 || (err.errMsg && err.errMsg.indexOf('privacy') !== -1)) {
-            wx.showToast({ title: '隐私授权未通过，请重试', icon: 'none' });
-          }
-        }
-      });
-    }
+    });
   },
 
   // 处理选中的文件

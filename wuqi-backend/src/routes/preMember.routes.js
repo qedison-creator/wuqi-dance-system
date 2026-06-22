@@ -70,8 +70,16 @@ router.get('/template', auth, checkPermission(['super_admin', 'store_manager', '
     xlsx.utils.book_append_sheet(wb, ws, '预建档导入模板');
 
     const buffer = xlsx.write(wb, { type: 'buffer', bookType: 'xlsx' });
+    // 文件名：舞栖Dance会员名单_YYYY-MM-DD_HHmmss.xlsx（含时间避免同日多次下载冲突）
+    const pad = (n) => String(n).padStart(2, '0');
+    const now = new Date();
+    const dateStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+    const timeStr = `${pad(now.getHours())}-${pad(now.getMinutes())}-${pad(now.getSeconds())}`;
+    const fileName = `舞栖Dance会员名单_${dateStr}_${timeStr}.xlsx`;
+    // 中文文件名用 RFC 5987 编码，避免乱码
+    const encodedFileName = encodeURIComponent(fileName);
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-    res.setHeader('Content-Disposition', 'attachment; filename="premember-import-template.xlsx"');
+    res.setHeader('Content-Disposition', `attachment; filename="${encodedFileName}"; filename*=UTF-8''${encodedFileName}`);
     res.send(buffer);
   } catch (err) {
     next(err);

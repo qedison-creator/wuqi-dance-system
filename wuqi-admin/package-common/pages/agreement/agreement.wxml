@@ -1,8 +1,8 @@
 <view class="page">
   <view class="privacy-section">
     <view class="privacy-title">舞栖DANCE预约系统管理 - 用户服务协议</view>
-    <view class="privacy-date">更新日期：2026年6月13日</view>
-    <view class="privacy-date">生效日期：2026年6月13日</view>
+    <view class="privacy-date">更新日期：2026年6月22日</view>
+    <view class="privacy-date">生效日期：2026年6月22日</view>
 
     <view class="privacy-text">
       <text>欢迎使用舞栖舞蹈社预约管理系统（以下简称"本系统"）。本协议是您与双瑗文化艺术（深圳）有限公司之间关于使用本系统的约定。在您使用本系统之前，请务必仔细阅读并理解本协议的全部内容。</text>
@@ -18,11 +18,12 @@
       <text>本系统是舞栖舞蹈社用于内部管理的工具，主要功能包括：</text>
     </view>
     <view class="privacy-text">
-      <text>• 会员管理：会员信息录入、审核、套餐管理等\n</text>
+      <text>• 会员管理：会员信息管理、预建档、套餐管理等\n</text>
       <text>• 课程排期：课程设置、排期管理、教室管理等\n</text>
-      <text>• 预约管理：会员预约、签到、候补等\n</text>
+      <text>• 预约管理：会员预约、签到、候补管理等\n</text>
       <text>• 门店管理：门店信息、员工管理、权限配置等\n</text>
-      <text>• 财务管理：套餐销售、签到统计、工资结算等\n</text>
+      <text>• 扫码签到：扫描会员动态二维码完成签到\n</text>
+      <text>• 数据统计：课程记录、签到统计、运营报表等\n</text>
     </view>
 
     <view class="privacy-heading">二、使用权限</view>

@@ -23,19 +23,16 @@
     </view>
   </view>
 
-  <!-- 上传文件：两种渠道 -->
+  <!-- 上传文件 -->
   <view class="action-section">
     <view class="upload-title">上传 Excel 文件</view>
     <view class="upload-btns">
-      <!-- 渠道1：聊天文件（需隐私授权） -->
-      <button class="btn-upload btn-upload-chat" open-type="agreePrivacyAuthorization" bindagreeprivacyauthorization="onPrivacyAgreed" bindtap="onChooseFromChat">
-        <text class="btn-upload-text">从聊天选择</text>
-      </button>
-      <!-- 渠道2：本地文件（需隐私授权） -->
-      <button class="btn-upload btn-upload-local" open-type="agreePrivacyAuthorization" bindagreeprivacyauthorization="onPrivacyAgreed" bindtap="onChooseFromLocal">
-        <text class="btn-upload-text">从本地选择</text>
+      <!-- 从微信聊天选择文件（小程序唯一支持的文件选择方式） -->
+      <button class="btn-upload" open-type="agreePrivacyAuthorization" bindagreeprivacyauthorization="onPrivacyAgreed" bindtap="onChooseFile">
+        <text class="btn-upload-text">选择 Excel 文件上传</text>
       </button>
     </view>
+    <view class="upload-tip">请先将 Excel 文件发送到微信聊天，再从聊天中选择</view>
     <view class="upload-file-name" wx:if="{{fileName}}">
       <text class="file-name-text">已选：{{fileName}}</text>
     </view>
