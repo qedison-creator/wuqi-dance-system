@@ -1,3 +1,4 @@
+<wxs src="../../utils/distance.wxs" module="fmt"/>
 <page-meta page-style="{{showAnnounceModal ? 'overflow: hidden;' : ''}}"/>
 <view class="page">
   <!-- ===== 骨架屏 ===== -->

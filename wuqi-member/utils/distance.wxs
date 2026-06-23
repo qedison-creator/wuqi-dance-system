@@ -1,0 +1,12 @@
+// 距离格式化（输入米，输出友好显示）
+// < 1000m → "xxx m"
+// >= 1000m → "x.x km"
+function distance(m) {
+  if (m === null || m === undefined || m !== m) return '';
+  if (m < 1000) {
+    return Math.round(m) + 'm';
+  }
+  return (Math.round(m / 100) / 10) + 'km';
+}
+
+module.exports = { distance: distance };

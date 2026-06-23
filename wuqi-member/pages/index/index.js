@@ -103,6 +103,8 @@ Page({
       this.setData({ _lastStoreId: currentStoreId });
       this.loadHomeData();
       this.startAnnounceFlip();
+      // 已授权用户：静默重新定位匹配最近门店（每次进入首页都获取最新位置）
+      this.checkPendingRelocate();
       return;
     }
     // 仅首次加载或切换门店时请求数据，避免从其他页面返回时重复请求
@@ -111,6 +113,8 @@ Page({
       this.setData({ _dataLoaded: true, _lastStoreId: currentStoreId });
       this.loadHomeData();
     }
+    // 已授权用户：静默重新定位匹配最近门店（每次进入首页都获取最新位置）
+    this.checkPendingRelocate();
     this.checkLocationAuth();
     this.startAnnounceFlip();
   },
@@ -414,6 +418,34 @@ Page({
     }
   },
 
+  // 已授权用户：静默重新定位匹配最近门店（无弹窗，每次进入首页获取最新位置）
+  checkPendingRelocate() {
+    if (!app.globalData.pendingRelocate) return;
+    app.globalData.pendingRelocate = false;
+    const that = this;
+    wx.getFuzzyLocation({
+      type: 'gcj02',
+      success(res) {
+        wx.setStorageSync('userCoords', {
+          latitude: res.latitude,
+          longitude: res.longitude
+        });
+        // 匹配最近门店（优先使用候选门店列表，如套餐会员的套餐门店）
+        const candidates = app.globalData.storeMatchCandidates || app.globalData.storeList;
+        const nearest = app._findNearestStoreByCoords(res.latitude, res.longitude, candidates);
+        if (nearest && (!app.globalData.currentStore || app.globalData.currentStore._id !== nearest._id)) {
+          app.globalData.currentStore = nearest;
+          wx.setStorageSync('currentStore', nearest);
+          that.setData({ currentStore: nearest });
+          that.loadHomeData();
+        }
+      },
+      fail() {
+        // 静默失败，保持当前门店
+      }
+    });
+  },
+
   onLocationAuthCancel() {
     this.setData({ showLocationAuthModal: false });
     app.globalData.pendingLocationAuth = false;
@@ -431,8 +463,9 @@ Page({
           latitude: res.latitude,
           longitude: res.longitude
         });
-        // 匹配最近门店并自动切换
-        const nearest = app._findNearestStoreByCoords(res.latitude, res.longitude, app.globalData.storeList);
+        // 匹配最近门店并自动切换（优先使用候选门店列表，如套餐会员的套餐门店）
+        const candidates = app.globalData.storeMatchCandidates || app.globalData.storeList;
+        const nearest = app._findNearestStoreByCoords(res.latitude, res.longitude, candidates);
         if (nearest) {
           app.globalData.currentStore = nearest;
           wx.setStorageSync('currentStore', nearest);

@@ -10,6 +10,7 @@ App({
     baseUrl: config.baseUrl,
     defaultStoreSet: false,
     pendingLocationAuth: false,
+    pendingRelocate: false,  // 已授权用户需要重新定位（静默，无弹窗）
     locationAuthorized: false,  // 用户是否已授权位置
     privacyResolve: null,
     scene: null,
@@ -142,8 +143,10 @@ App({
   },
 
   // 启动时统一匹配用户门店，避免 getUserInfo 和 getStoreList 都触发 determineDefaultStore
+  // 匹配优先级：
+  // 1. 套餐会员 → 套餐所属门店（多门店则按位置匹配最近）
+  // 2. 无套餐用户/游客 → 按位置匹配最近门店
   _tryMatchStoreForUser() {
-    const userInfo = this.globalData.userInfo;
     const storeList = this.globalData.storeList;
 
     // 如果门店列表还没加载完，先标记待匹配，等 getStoreList 完成后再执行
@@ -153,31 +156,7 @@ App({
     }
     this.globalData._pendingStoreMatch = false;
 
-    // 优先使用用户信息中绑定的门店
-    if (userInfo && userInfo.store_id) {
-      const storeId = typeof userInfo.store_id === 'object' && userInfo.store_id ?
-        (userInfo.store_id._id || userInfo.store_id.id || '') :
-        (userInfo.store_id || '');
-      if (storeId) {
-        const matchedStore = storeList.find(s => s._id === storeId);
-        if (matchedStore) {
-          this.setStore(matchedStore);
-          return;
-        }
-      }
-    }
-
-    // 如果本地有保存的门店，也优先使用
-    const savedStore = wx.getStorageSync('currentStore');
-    if (savedStore && savedStore._id) {
-      const matchedStore = storeList.find(s => s._id === savedStore._id);
-      if (matchedStore) {
-        this.setStore(matchedStore);
-        return;
-      }
-    }
-
-    // 只有在上面都没找到的情况下，才执行默认选择逻辑
+    // 统一走 determineDefaultStore 进行门店匹配
     this.determineDefaultStore();
   },
 
@@ -266,29 +245,30 @@ App({
   selectNearestStore(candidateStores) {
     if (candidateStores.length === 0) return;
 
-    // 1. 优先使用上次选择的门店
-    const savedStore = wx.getStorageSync('currentStore');
-    if (savedStore && savedStore._id) {
-      const found = candidateStores.find(s => s._id === savedStore._id);
-      if (found) {
-        this.setStore(found);
-        return;
-      }
-    }
+    // 记录候选门店，供位置授权成功后匹配使用（套餐会员的候选门店可能是套餐门店子集）
+    this.globalData.storeMatchCandidates = candidateStores;
 
-    // 2. 有缓存的用户坐标（来自 wx.getFuzzyLocation 成功回调）→ 自动匹配最近门店
-    const cachedCoords = wx.getStorageSync('userCoords');
-    if (cachedCoords && cachedCoords.latitude && cachedCoords.longitude) {
-      const nearest = this._findNearestStoreByCoords(cachedCoords.latitude, cachedCoords.longitude, candidateStores);
-      if (nearest) {
-        this.setStore(nearest);
-        return;
-      }
-    }
-
-    // 3. 首次使用，无坐标缓存 → 标记待引导，回退到第一个门店
-    this.globalData.pendingLocationAuth = true;
+    // 先用第一个门店作为临时默认（避免异步等待期间无门店可用）
     this.setStore(candidateStores[0]);
+
+    // 检查位置授权状态，决定后续行为
+    const that = this;
+    wx.getSetting({
+      success(settingRes) {
+        const authStatus = settingRes.authSetting['scope.userFuzzyLocation'];
+        if (authStatus === true) {
+          // 已授权 → 标记需要重新定位（首页 onShow 时静默调用 wx.getFuzzyLocation，无弹窗）
+          that.globalData.pendingRelocate = true;
+        } else {
+          // 未授权（从未询问或拒绝过）→ 标记待引导授权
+          that.globalData.pendingLocationAuth = true;
+        }
+      },
+      fail() {
+        // getSetting 失败，回退到引导授权
+        that.globalData.pendingLocationAuth = true;
+      }
+    });
   },
 
   // 根据给定坐标从门店列表中找到最近的
