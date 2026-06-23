@@ -186,7 +186,7 @@
         <scroll-view class="gs-scroll" scroll-x enhanced show-scrollbar="{{false}}">
           <view class="gs-frame {{item.orientation === 'portrait' ? 'gs-portrait' : 'gs-landscape'}}" wx:for="{{images}}" wx:key="_id">
             <view class="gs-frame-inner">
-              <image class="gs-img" src="{{item.thumbnail_url || item.image_url}}" mode="aspectFill" lazy-load="{{true}}" binderror="onImageError" data-id="{{item._id}}" />
+              <image class="gs-img" src="{{imageErrors['gallery_'+item._id] ? '/images/default-course.svg' : (item.thumbnail_url || item.image_url)}}" mode="aspectFill" lazy-load="{{true}}" binderror="onImageError" data-id="{{item._id}}" />
             </view>
           </view>
         </scroll-view>

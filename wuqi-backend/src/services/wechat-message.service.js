@@ -260,7 +260,7 @@ exports.sendBookingSuccess = async (user, schedule, clientType = 'member') => {
     bookingTime: bookingTime,
   };
 
-  await sendByTemplateKey(user.openid, 'bookingSuccess', bizData, 'pages/records/records', clientType);
+  await sendByTemplateKey(user.openid, 'bookingSuccess', bizData, 'package-sub/pages/records/records', clientType);
 };
 
 // 取消通知（兼容两种场景：用户自行取消 / 课程被取消）
@@ -274,12 +274,12 @@ exports.sendBookingCancel = async (user, schedule, reason, clientType = 'member'
     courseName: schedule.course_name || '舞蹈课程',
     coachName: schedule.coach_id?.name || schedule.coach_name || '待定',
     cancelReason: reason || '已取消',
-    storeName: schedule.store_id?.name || '舞栖舞蹈',
+    storeName: schedule.store_id?.name || schedule.store_name || '门店信息',
     cancelTime: cancelTime,
     courseTime: `${schedule.date} ${schedule.start_time}~${schedule.end_time}`,
   };
 
-  await sendByTemplateKey(user.openid, templateKey, bizData, 'pages/records/records', clientType);
+  await sendByTemplateKey(user.openid, templateKey, bizData, 'package-sub/pages/records/records', clientType);
 };
 
 // 上课提醒
@@ -297,7 +297,7 @@ exports.sendClassReminder = async (user, schedule, clientType = 'member', remind
     classroom: schedule.classroom || '请准时到场',
   };
 
-  await sendByTemplateKey(user.openid, 'classReminder', bizData, 'pages/records/records', clientType);
+  await sendByTemplateKey(user.openid, 'classReminder', bizData, 'package-sub/pages/records/records', clientType);
 };
 
 // 候补成功通知
@@ -311,7 +311,7 @@ exports.sendWaitlistAvailable = async (user, schedule, clientType = 'member') =>
     tipMessage: '候补成功！记得准时去上课哦',
   };
 
-  await sendByTemplateKey(user.openid, 'waitlistAvailable', bizData, 'pages/records/records', clientType);
+  await sendByTemplateKey(user.openid, 'waitlistAvailable', bizData, 'package-sub/pages/records/records', clientType);
 };
 
 // 套餐即将到期通知

@@ -9,6 +9,10 @@ const Image = require('../models/Image');
 const User = require('../models/User');
 const Booking = require('../models/Booking');
 const dayjs = require('dayjs');
+const utc = require('dayjs/plugin/utc');
+const timezone = require('dayjs/plugin/timezone');
+dayjs.extend(utc);
+dayjs.extend(timezone);
 const { success } = require('../utils/response');
 const fs = require('fs');
 const path = require('path');
@@ -75,7 +79,7 @@ router.get('/admin', auth, async (req, res, next) => {
     if (store_id) storeFilter.store_id = store_id;
 
     // 统计数据
-    const totalMembers = await User.countDocuments({ user_type: 'member', ...storeFilter });
+    const totalMembers = await User.countDocuments({ user_type: 'member', member_status: 'official', ...storeFilter });
     const officialMembers = await User.countDocuments({ user_type: 'member', member_status: 'official', ...storeFilter });
     // 今日课程数：统计所有非软删除的排课（与展开列表一致）
     const todaySchedules = await Schedule.countDocuments({ ...storeFilter, date: today, status: { $ne: 'deleted' } });
@@ -116,18 +120,23 @@ router.get('/admin', auth, async (req, res, next) => {
       .sort({ start_time: 1 });
 
     // 动态状态修正（与 getScheduleList 保持一致）
-    const now = dayjs();
+    // 注意：必须使用北京时间，不能使用 dayjs() 默认的服务器本地时间
+    const now = dayjs().tz('Asia/Shanghai');
     const todayScheduleList = todayScheduleDocs.map(doc => {
       const s = doc.toObject ? doc.toObject() : doc;
       // 终态保持不变
       if (['cancelled', 'offline', 'deleted', 'completed'].includes(s.status)) {
         return s;
       }
-      // 已过结束时间 → 已完成
-      if (s.date && s.end_time) {
-        const endDateTime = dayjs(s.date + ' ' + s.end_time);
+      if (s.date && s.start_time && s.end_time) {
+        const startDateTime = dayjs.tz(s.date + ' ' + s.start_time, 'Asia/Shanghai');
+        const endDateTime = dayjs.tz(s.date + ' ' + s.end_time, 'Asia/Shanghai');
         if (endDateTime.isValid() && now.isAfter(endDateTime)) {
+          // 已过下课时间 → 已完成
           s.status = 'completed';
+        } else if (startDateTime.isValid() && now.isAfter(startDateTime) && s.status !== 'in_progress') {
+          // 已过开课时间但未过下课时间 → 进行中
+          s.status = 'in_progress';
         }
       }
       return s;
@@ -267,7 +276,7 @@ router.get('/images', async (req, res, next) => {
 router.get('/courses', async (req, res, next) => {
   try {
     const { store_id } = req.query;
-    const today = dayjs().format('YYYY-MM-DD');
+    const today = dayjs().tz('Asia/Shanghai').format('YYYY-MM-DD');
     const filter = {
       date: { $gte: today },
       status: { $in: ['available', 'full'] },

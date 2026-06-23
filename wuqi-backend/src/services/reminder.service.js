@@ -1,4 +1,9 @@
 const dayjs = require('dayjs');
+const utc = require('dayjs/plugin/utc');
+const timezone = require('dayjs/plugin/timezone');
+dayjs.extend(utc);
+dayjs.extend(timezone);
+const BEIJING_TZ = 'Asia/Shanghai';
 const Config = require('../models/Config');
 const UserPackage = require('../models/UserPackage');
 const Booking = require('../models/Booking');
@@ -91,7 +96,7 @@ async function sendInactiveReminder(user, daysInactive, packageInfo) {
 async function checkPackageExpireReminders() {
   const expireRemindDays = await getConfig('package_expire_remind_days', DEFAULT_EXPIRE_REMIND_DAYS);
   const expireRemindInterval = await getConfig('expire_remind_interval', DEFAULT_EXPIRE_REMIND_INTERVAL);
-  const today = dayjs().startOf('day');
+  const today = dayjs().tz(BEIJING_TZ).startOf('day');
   const todayDate = today.toDate();
   const expireDate = today.add(expireRemindDays, 'day').endOf('day');
 
@@ -147,7 +152,7 @@ async function checkPackageExpireReminders() {
 async function checkCountCardLowReminders() {
   const lowCount = await getConfig('count_card_low_remind', DEFAULT_LOW_COUNT_REMIND);
   const lowCountRemindInterval = await getConfig('low_count_remind_interval', DEFAULT_LOW_COUNT_REMIND_INTERVAL);
-  const today = dayjs().startOf('day');
+  const today = dayjs().tz(BEIJING_TZ).startOf('day');
 
   console.log(`[Reminder] 次卡低次数检查参数: lowCount=${lowCount}, interval=${lowCountRemindInterval}, today=${today.format('YYYY-MM-DD')}`);
 
@@ -204,8 +209,8 @@ async function checkCountCardLowReminders() {
 async function checkInactiveMemberReminders() {
   const inactiveDays = await getConfig('inactive_remind_days', DEFAULT_INACTIVE_DAYS);
   const inactiveRemindInterval = await getConfig('inactive_remind_interval', DEFAULT_INACTIVE_REMIND_INTERVAL);
-  const cutoffDate = dayjs().subtract(inactiveDays, 'day').endOf('day');
-  const today = dayjs().startOf('day');
+  const cutoffDate = dayjs().tz(BEIJING_TZ).subtract(inactiveDays, 'day').endOf('day');
+  const today = dayjs().tz(BEIJING_TZ).startOf('day');
 
   const activeUserIds = await UserPackage.find({
     status: 'active'
@@ -249,7 +254,7 @@ async function checkInactiveMemberReminders() {
 
     let daysInactive = inactiveDays;
     if (lastBooking) {
-      daysInactive = dayjs().diff(dayjs(lastBooking.created_at), 'day');
+      daysInactive = dayjs().tz(BEIJING_TZ).diff(dayjs(lastBooking.created_at), 'day');
     }
 
     if (daysInactive >= inactiveDays) {

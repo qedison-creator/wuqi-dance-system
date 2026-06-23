@@ -48,12 +48,17 @@
   margin-bottom: 30rpx;
 }
 
+.form-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8rpx;
+}
+
 .form-label {
   font-size: 28rpx;
   font-weight: 500;
   color: #333;
-  display: block;
-  margin-bottom: 8rpx;
 }
 
 .form-hint {
@@ -61,6 +66,42 @@
   color: #aaa;
   display: block;
   margin-bottom: 16rpx;
+}
+
+/* 保存状态标记 */
+.save-status {
+  display: flex;
+  align-items: center;
+  gap: 6rpx;
+  font-size: 22rpx;
+  padding: 4rpx 12rpx;
+  border-radius: 20rpx;
+}
+
+.save-status.saved {
+  color: #52c41a;
+  background: rgba(82, 196, 26, 0.1);
+}
+
+.save-status.modified {
+  color: #fa8c16;
+  background: rgba(250, 140, 22, 0.1);
+}
+
+.status-icon {
+  font-size: 24rpx;
+  font-weight: 600;
+}
+
+.status-dot {
+  width: 12rpx;
+  height: 12rpx;
+  border-radius: 50%;
+  background: #fa8c16;
+}
+
+.status-text {
+  font-size: 22rpx;
 }
 
 .input-with-unit {
@@ -114,34 +155,14 @@
   font-weight: 600;
 }
 
+/* 保存按钮 - 使用管理端全局规范 */
 .btn-row {
   display: flex;
   justify-content: center;
+  padding: 0 30rpx;
 }
 
 .btn-primary {
-  background: linear-gradient(135deg, #C5744B, #b0633a);
-  color: #fff;
-  border-radius: 40rpx;
-  padding: 24rpx 80rpx;
-  font-size: 30rpx;
-  font-weight: 500;
-  text-align: center;
-  box-shadow: 0 4rpx 16rpx rgba(197,116,75,0.3);
-}
-
-.toast {
-  position: fixed;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  background: rgba(0,0,0,0.75);
-  border-radius: 12rpx;
-  padding: 20rpx 40rpx;
-  z-index: 999;
-}
-
-.toast-text {
-  color: #fff;
-  font-size: 28rpx;
+  flex: 1;
+  max-width: 600rpx;
 }

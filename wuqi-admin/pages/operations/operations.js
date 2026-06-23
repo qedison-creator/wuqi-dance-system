@@ -22,8 +22,8 @@ Page({
     panelSchedule: null,
     activeTab: 'booked',
     bookedList: [],
+    checkedInList: [],
     cancelledList: [],
-    exemptedList: [],
     isSelectedDateHoliday: false
   },
 
@@ -33,6 +33,16 @@ Page({
       this.getTabBar().setData({ selected: 1 });
     }
     this.initDates();
+
+    // 接收首页跳转携带的门店信息
+    app.globalData = app.globalData || {};
+    const pendingStoreId = app.globalData.pendingStoreId;
+    if (pendingStoreId !== undefined) {
+      // 有待应用的门店ID（可能为空字符串表示全部门店）
+      this._pendingStoreId = pendingStoreId;
+      delete app.globalData.pendingStoreId;
+    }
+
     this.loadStores();
     this.loadHolidays();
   },
@@ -91,13 +101,26 @@ Page({
     try {
       const res = await request({ url: '/stores', method: 'GET' });
       const list = res.data && Array.isArray(res.data.list) ? res.data.list : (Array.isArray(res.data) ? res.data : []);
-      
+
+      // 优先使用首页跳转携带的门店ID
+      const pendingStoreId = this._pendingStoreId;
+      this._pendingStoreId = null;
+
       const originalStoreId = this.data.currentStoreId;
-      let storeId = originalStoreId;
-      if (!storeId || !list.find(s => s._id === storeId)) {
-        storeId = list.length > 0 ? list[0]._id : '';
+      let storeId;
+      if (pendingStoreId !== null && pendingStoreId !== undefined) {
+        // 首页跳转携带的门店ID（空字符串表示全部门店，但 operations 必须有具体门店，取第一个）
+        storeId = pendingStoreId && list.find(s => s._id === pendingStoreId)
+          ? pendingStoreId
+          : (list.length > 0 ? list[0]._id : '');
+      } else {
+        // 正常逻辑：保持原门店或选第一个
+        storeId = originalStoreId;
+        if (!storeId || !list.find(s => s._id === storeId)) {
+          storeId = list.length > 0 ? list[0]._id : '';
+        }
       }
-      
+
       this.setData({ stores: list, currentStoreId: storeId }, () => {
         if (storeId && storeId !== originalStoreId) {
           this.loadTodaySchedules();
@@ -417,8 +440,8 @@ Page({
       },
       activeTab: 'booked',
       bookedList: [],
-      cancelledList: [],
-      exemptedList: []
+      checkedInList: [],
+      cancelledList: []
     });
     await this.loadBookingList(schedule._id);
   },
@@ -433,7 +456,7 @@ Page({
     try {
       const res = await request({ url: `/schedules/${scheduleId}/bookings`, method: 'GET' });
       const all = res.data || [];
-      const bookedList = [], cancelledList = [], exemptedList = [];
+      const bookedList = [], checkedInList = [], cancelledList = [];
       let checkedInCount = 0;
 
       all.forEach(item => {
@@ -452,19 +475,26 @@ Page({
           checkedIn: item.checked_in || item.status === 'checked_in'
         };
         const status = item.status;
-        if (item.checked_in || status === 'checked_in') {
+        const isCheckedIn = item.checked_in || status === 'checked_in';
+        if (isCheckedIn) {
           checkedInCount++;
+          checkedInList.push(booking);
         }
         if (status === 'booked' || status === 'checked_in') {
           bookedList.push(booking);
-        } else if (status === 'cancelled') {
-          cancelledList.push({ ...booking, cancelTime: item.cancel_time || '', creditsRefunded: item.credits_refunded || 0 });
-        } else if (status === 'exempted' || item.is_exempted) {
-          exemptedList.push(booking);
+        } else if (status === 'cancelled' || status === 'exempted' || item.is_exempted) {
+          // 已豁免并入已取消
+          const cancelReason = status === 'exempted' || item.is_exempted ? '豁免' : (item.cancel_reason || '');
+          cancelledList.push({
+            ...booking,
+            cancelTime: item.cancel_time || '',
+            creditsRefunded: item.credits_refunded || 0,
+            cancelReason: cancelReason
+          });
         }
       });
 
-      this.setData({ bookedList, cancelledList, exemptedList, checkedInCount });
+      this.setData({ bookedList, checkedInList, cancelledList, checkedInCount });
     } catch (err) {
       console.error('加载预约名单失败', err);
     }

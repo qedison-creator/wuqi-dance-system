@@ -146,6 +146,16 @@ router.put('/:id/offline', auth, checkPermission(['super_admin', 'store_manager'
   }
 });
 
+// PUT /api/v1/schedules/:id/online - 上线排课（恢复已下线的排课）
+router.put('/:id/online', auth, checkPermission(['super_admin', 'store_manager']), async (req, res, next) => {
+  try {
+    const schedule = await scheduleService.onlineSchedule(req.params.id, req.user.id);
+    res.json(success(schedule, '上线排课成功'));
+  } catch (err) {
+    next(err);
+  }
+});
+
 // DELETE /api/v1/schedules/:id - 删除排课
 router.delete('/:id', auth, checkPermission(['super_admin', 'store_manager']), async (req, res, next) => {
   try {

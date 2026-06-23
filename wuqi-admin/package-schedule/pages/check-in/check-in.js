@@ -279,6 +279,19 @@ Page({
     const currentScheduleId = this.data.selectedSchedule
       ? this.data.selectedSchedule._id : null;
 
+    // 自动检测是否需要现场签到模式：
+    // 选中了课程 + 会员没有该课程的预约 + 会员有可用套餐 → 切换到现场签到
+    if (!isOnsiteMode && currentScheduleId) {
+      profileData.today_bookings = profileData.today_bookings || [];
+      const hasBookingForSchedule = profileData.today_bookings.some(
+        b => b.schedule_id === currentScheduleId
+      );
+      const hasPackage = profileData.packages && profileData.packages.length > 0;
+      if (!hasBookingForSchedule && hasPackage) {
+        isOnsiteMode = true;
+      }
+    }
+
     let checkedBookingIds = [];
     if (profileData.today_bookings) {
       profileData.today_bookings = profileData.today_bookings.filter(b => !b.checked_in);
@@ -292,6 +305,20 @@ Page({
       }
       if (isOnsiteMode && currentScheduleId) {
         checkedBookingIds = [currentScheduleId];
+        // 现场签到模式：构造一条虚拟的今日课程项供UI展示
+        if (!profileData.today_bookings.find(b => b.schedule_id === currentScheduleId)) {
+          const schedule = this.data.selectedSchedule;
+          profileData.today_bookings.push({
+            schedule_id: currentScheduleId,
+            booking_id: currentScheduleId,
+            course_name: schedule.course_name || '现场签到',
+            start_time: schedule.start_time,
+            end_time: schedule.end_time,
+            coach_name: schedule.coach_name || '',
+            checked: true,
+            is_onsite: true,
+          });
+        }
       }
     }
 

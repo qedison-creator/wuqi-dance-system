@@ -3,13 +3,18 @@ const User = require('../models/User');
 const Schedule = require('../models/Schedule');
 const UserPackage = require('../models/UserPackage');
 const dayjs = require('dayjs');
+const utc = require('dayjs/plugin/utc');
+const timezone = require('dayjs/plugin/timezone');
+dayjs.extend(utc);
+dayjs.extend(timezone);
+const BEIJING_TZ = 'Asia/Shanghai';
 
 // 数据概览
 exports.getOverview = async (storeId) => {
-  const today = dayjs().format('YYYY-MM-DD');
-  const weekStart = dayjs().startOf('week').add(1, 'day').format('YYYY-MM-DD');
-  const monthStart = dayjs().startOf('month').format('YYYY-MM-DD');
-  const monthEnd = dayjs().endOf('month').format('YYYY-MM-DD');
+  const today = dayjs().tz(BEIJING_TZ).format('YYYY-MM-DD');
+  const weekStart = dayjs().tz(BEIJING_TZ).startOf('week').add(1, 'day').format('YYYY-MM-DD');
+  const monthStart = dayjs().tz(BEIJING_TZ).startOf('month').format('YYYY-MM-DD');
+  const monthEnd = dayjs().tz(BEIJING_TZ).endOf('month').format('YYYY-MM-DD');
 
   // 今日预约数
   const todayBookingFilter = { booking_date: today, status: 'booked' };
@@ -73,23 +78,23 @@ exports.getBookingTrend = async (storeId, period, startDate, endDate) => {
   } else {
     switch (period) {
       case 'week':
-        start = dayjs().subtract(7, 'day');
-        end = dayjs();
+        start = dayjs().tz(BEIJING_TZ).subtract(7, 'day');
+        end = dayjs().tz(BEIJING_TZ);
         format = 'YYYY-MM-DD';
         break;
       case 'month':
-        start = dayjs().subtract(30, 'day');
-        end = dayjs();
+        start = dayjs().tz(BEIJING_TZ).subtract(30, 'day');
+        end = dayjs().tz(BEIJING_TZ);
         format = 'YYYY-MM-DD';
         break;
       case 'year':
-        start = dayjs().subtract(12, 'month').startOf('month');
-        end = dayjs().endOf('month');
+        start = dayjs().tz(BEIJING_TZ).subtract(12, 'month').startOf('month');
+        end = dayjs().tz(BEIJING_TZ).endOf('month');
         format = 'YYYY-MM';
         break;
       default:
-        start = dayjs().subtract(7, 'day');
-        end = dayjs();
+        start = dayjs().tz(BEIJING_TZ).subtract(7, 'day');
+        end = dayjs().tz(BEIJING_TZ);
         format = 'YYYY-MM-DD';
     }
   }
@@ -126,7 +131,7 @@ exports.getBookingTrend = async (storeId, period, startDate, endDate) => {
 // 课程排行(按预约数排序)
 exports.getCourseRanking = async (storeId, period, limit) => {
   let startDate;
-  const now = dayjs();
+  const now = dayjs().tz(BEIJING_TZ);
 
   switch (period) {
     case 'week':
@@ -311,9 +316,9 @@ exports.getCoachStats = async (storeId) => {
 
 // 获取数据看板数据
 exports.getDashboardData = async (storeId) => {
-  const today = dayjs().format('YYYY-MM-DD');
-  const weekStart = dayjs().subtract(6, 'day').format('YYYY-MM-DD');
-  const weekEnd = dayjs().format('YYYY-MM-DD');
+  const today = dayjs().tz(BEIJING_TZ).format('YYYY-MM-DD');
+  const weekStart = dayjs().tz(BEIJING_TZ).subtract(6, 'day').format('YYYY-MM-DD');
+  const weekEnd = dayjs().tz(BEIJING_TZ).format('YYYY-MM-DD');
 
   // 1. 今日课程预约概况
   const todayBookingFilter = { booking_date: today };
@@ -358,7 +363,7 @@ exports.getDashboardData = async (storeId) => {
     .populate('user_id', 'real_name nick_name')
     .lean();
   
-  const now = dayjs();
+  const now = dayjs().tz(BEIJING_TZ);
   const expiringTimeCardMembers = expiringTimeCards
     .map(pkg => {
       const endDate = dayjs(pkg.end_date);
@@ -439,9 +444,10 @@ exports.getDashboardData = async (storeId) => {
     })
     .slice(0, 10);
 
-  // 4. 近期课程安排（未来7天）
+  // 4. 近期课程安排（未来7天，不含今天）— 用于首页待办角标统计，不限制数量
+  // 注意：今天的课程由"今日课程"待办项单独统计，这里排除今天避免重复
   const upcomingFilter = {
-    date: { $gte: today, $lte: dayjs().add(6, 'day').format('YYYY-MM-DD') },
+    date: { $gt: today, $lte: dayjs().tz(BEIJING_TZ).add(7, 'day').format('YYYY-MM-DD') },
     status: { $in: ['available', 'full'] },
   };
   if (storeId) upcomingFilter.store_id = storeId;
@@ -451,7 +457,6 @@ exports.getDashboardData = async (storeId) => {
     .populate('dance_style_id', 'name')
     .populate('store_id', 'name')
     .sort({ date: 1, start_time: 1 })
-    .limit(10)
     .lean();
   
   const upcomingCourses = await Promise.all(
@@ -524,7 +529,7 @@ exports.getDashboardData = async (storeId) => {
   
   const weeklyBookingTrend = [];
   for (let i = 0; i < 7; i++) {
-    const date = dayjs().subtract(6 - i, 'day').format('YYYY-MM-DD');
+    const date = dayjs().tz(BEIJING_TZ).subtract(6 - i, 'day').format('YYYY-MM-DD');
     const dayData = weeklyTrendRaw.find(d => d._id === date);
     weeklyBookingTrend.push({
       date,

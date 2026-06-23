@@ -53,7 +53,12 @@ router.post('/reset/bookings', auth, checkPermission(['super_admin']), async (re
     const count = await Booking.countDocuments();
     await Booking.deleteMany({});
     await Waitlist.deleteMany({});
-    await Schedule.updateMany({}, { $set: { current_bookings: 0, status: 'available' } });
+    // 仅重置 current_bookings 为 0，并将 full 状态恢复为 available（因预约已清空）
+    // 绝不重置 completed/cancelled/offline/deleted 等终态或非可预约状态
+    await Schedule.updateMany(
+      { status: { $in: ['available', 'full'] } },
+      { $set: { current_bookings: 0, status: 'available' } }
+    );
     await OperationLog.create({
       operator_id: req.user.id,
       action: 'reset',

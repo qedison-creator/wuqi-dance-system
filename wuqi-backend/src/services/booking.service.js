@@ -224,9 +224,9 @@ exports.createBooking = async (userId, scheduleId) => {
       throw new Error(`请先完善个人信息：${missingFields}`);
     }
 
-    const classStart = dayjs(schedule.date + ' ' + schedule.start_time);
+    const classStart = dayjs.tz(schedule.date + ' ' + schedule.start_time, BEIJING_TZ);
     const bookingDeadline = classStart.subtract(schedule.booking_deadline || 120, 'minute');
-    if (dayjs().isAfter(bookingDeadline)) {
+    if (bjNow().isAfter(bookingDeadline)) {
       throw new Error('已过预约截止时间');
     }
 
@@ -389,13 +389,14 @@ exports.createBooking = async (userId, scheduleId) => {
       }
     }
 
-    // 校验4: 不冲突同时间段其他课程
+    // 校验4: 仅拦截同一门店完全重合时段的课程（放开部分重叠，满足连上课需求）
     const conflictSchedules = await Schedule.find({
       date: schedule.date,
+      store_id: schedule.store_id,
       status: { $in: ['available', 'full'] },
       _id: { $ne: scheduleId },
-      start_time: { $lt: schedule.end_time },
-      end_time: { $gt: schedule.start_time },
+      start_time: schedule.start_time,
+      end_time: schedule.end_time,
     }).distinct('_id');
 
     if (conflictSchedules.length > 0) {
@@ -1174,13 +1175,14 @@ exports.promoteWaitlist = async (waitlistId, operatorId) => {
     throw new Error('该会员套餐已过期，请联系管理员');
   }
 
-  // 检查时间冲突：该会员是否已预约同时间段其他课程
+  // 检查时间冲突：仅拦截同一门店完全重合时段
   const conflictSchedules = await Schedule.find({
     date: schedule.date,
+    store_id: schedule.store_id,
     status: { $in: ['available', 'full'] },
     _id: { $ne: schedule._id },
-    start_time: { $lt: schedule.end_time },
-    end_time: { $gt: schedule.start_time },
+    start_time: schedule.start_time,
+    end_time: schedule.end_time,
   }).distinct('_id');
 
   if (conflictSchedules.length > 0) {
@@ -1377,13 +1379,14 @@ exports.notifyWaitlistUsers = async (scheduleId) => {
 
       const user = await User.findById(userId);
 
-      // 检查时间冲突：该会员是否已预约同时间段其他课程
+      // 检查时间冲突：仅拦截同一门店完全重合时段
       const conflictSchedules = await Schedule.find({
         date: schedule.date,
+        store_id: schedule.store_id,
         status: { $in: ['available', 'full'] },
         _id: { $ne: schedule._id },
-        start_time: { $lt: schedule.end_time },
-        end_time: { $gt: schedule.start_time },
+        start_time: schedule.start_time,
+        end_time: schedule.end_time,
       }).distinct('_id');
 
       if (conflictSchedules.length > 0) {
@@ -1542,13 +1545,14 @@ exports.confirmWaitlistBooking = async (userId, waitlistId) => {
     throw new Error('剩余次数不足');
   }
 
-  // 检查时间冲突
+  // 检查时间冲突：仅拦截同一门店完全重合时段
   const conflictSchedules = await Schedule.find({
     date: schedule.date,
+    store_id: schedule.store_id,
     status: { $in: ['available', 'full'] },
     _id: { $ne: schedule._id },
-    start_time: { $lt: schedule.end_time },
-    end_time: { $gt: schedule.start_time },
+    start_time: schedule.start_time,
+    end_time: schedule.end_time,
   }).distinct('_id');
 
   if (conflictSchedules.length > 0) {
@@ -1601,83 +1605,10 @@ exports.confirmWaitlistBooking = async (userId, waitlistId) => {
 
 // ========== 自动取消低人数课程 ==========
 
-// 检查并取消低人数课程
+// 检查并取消低人数课程（委托给 schedule.service 统一逻辑）
 exports.checkAndCancelLowAttendance = async (scheduleId, operatorId = null) => {
-  const schedule = await Schedule.findById(scheduleId).populate('coach_id', 'name').populate('store_id', 'name');
-  if (!schedule) throw new Error('课程不存在');
-
-  if (schedule.status === 'cancelled' || schedule.status === 'offline') {
-    throw new Error('课程已取消或离线');
-  }
-  
-  const minAttendance = schedule.min_attendance || 3;
-  
-  if (schedule.current_bookings >= minAttendance) {
-    return { cancelled: false, reason: '人数已达最低要求' };
-  }
-  
-  // 取消课程
-  schedule.status = 'cancelled';
-  await schedule.save();
-  
-  // 获取所有预约的用户
-  const bookings = await Booking.find({
-    schedule_id: scheduleId,
-    status: 'booked'
-  });
-  
-  // 批量取消预约并退款
-  const cancelledBookings = [];
-  for (const booking of bookings) {
-    booking.status = 'cancelled';
-    booking.cancel_type = 'min_bookings_not_met';
-    booking.cancel_time = new Date();
-    booking.cancel_reason = '课程因人数不足取消';
-    booking.credits_refunded = booking.credits_deducted;
-    await booking.save();
-    
-    // 退款
-    if (booking.user_package_id) {
-      const pkg = await UserPackage.findById(booking.user_package_id);
-      if (pkg) {
-        pkg.remaining_credits += booking.credits_deducted;
-        if (pkg.status === 'exhausted' && pkg.remaining_credits > 0) {
-          pkg.status = 'active';
-        }
-        await pkg.save();
-      }
-    }
-    
-    // 发送取消通知
-    try {
-      const user = await User.findById(booking.user_id);
-      if (user && user.openid) {
-        await wechatMessageService.sendBookingCancel(user, schedule, '课程因人数不足取消');
-      }
-    } catch (err) {
-      console.error('发送课程取消通知失败:', err);
-    }
-    
-    cancelledBookings.push(booking);
-  }
-  
-  // 记录操作日志
-  if (operatorId) {
-    await logService.createLog({
-      operator_id: operatorId,
-      action: 'cancel_class',
-      module: 'schedule',
-      target_id: scheduleId,
-      detail: `课程因人数不足取消，共取消 ${cancelledBookings.length} 个预约`
-    });
-  }
-  
-  return {
-    cancelled: true,
-    schedule,
-    cancelledBookings,
-    count: cancelledBookings.length
-  };
+  const scheduleService = require('./schedule.service');
+  return scheduleService.checkAndCancelIfInsufficient(scheduleId);
 };
 
 // 批量检查即将开始的课程，自动取消低人数课程
@@ -1817,9 +1748,9 @@ exports.checkIn = async (scheduleId, userId, operatorId = null, isOnsite = false
     ...buildAttendanceSnapshot(schedule),  // 课程快照
   });
 
-  const now = new Date();
-  const scheduleEndTime = new Date(schedule.date + 'T' + schedule.end_time);
-  if (now >= scheduleEndTime) {
+  const now = bjNow();
+  const scheduleEndTime = dayjs.tz(schedule.date + ' ' + schedule.end_time, BEIJING_TZ);
+  if (now.isAfter(scheduleEndTime)) {
     schedule.status = 'completed';
     await schedule.save();
   }

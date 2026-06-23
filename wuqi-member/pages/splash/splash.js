@@ -2,71 +2,54 @@ const app = getApp();
 
 Page({
   data: {
-    particleList: [],
-    loadingProgress: 0,
-    loadingText: '正在加载...'
+    ready: false
   },
 
   onLoad() {
-    this.initParticles();
-    this.startLoading();
+    // 等待 app.js 初始化完成（getUserInfo + getStoreList）后立即跳转首页
+    // 不再使用固定时长的假进度动画，避免无谓等待
+    this.waitAppReady();
   },
 
-  initParticles() {
-    const particles = [];
-    for (let i = 0; i < 20; i++) {
-      particles.push({
-        x: Math.random() * 100,
-        y: Math.random() * 100,
-        delay: Math.random() * 5,
-        duration: 5 + Math.random() * 5
+  waitAppReady() {
+    // app.js 中 onLaunch 会设置 globalData._initPromise
+    // 无 token 时为 Promise.resolve()，有 token 时为 getUserInfo()
+    const initPromise = app.globalData._initPromise || Promise.resolve();
+
+    // 同时等待门店列表加载完成（getStoreList 未返回 Promise，需轮询检查）
+    const checkStoreList = () => {
+      return new Promise((resolve) => {
+        if (app.globalData.storeList && app.globalData.storeList.length > 0) {
+          resolve();
+          return;
+        }
+        // 最多等待 6 秒，避免门店接口异常时卡死
+        let waited = 0;
+        const timer = setInterval(() => {
+          waited += 200;
+          if ((app.globalData.storeList && app.globalData.storeList.length > 0) || waited >= 6000) {
+            clearInterval(timer);
+            resolve();
+          }
+        }, 200);
       });
-    }
-    this.setData({ particleList: particles });
-  },
+    };
 
-  startLoading() {
-    const loadingTexts = [
-      '正在加载...',
-      '连接服务器...',
-      '获取数据...',
-      '准备就绪...'
-    ];
-    
-    let progress = 0;
-    this._loadingTimer = setInterval(() => {
-      progress += Math.random() * 15 + 5;
-      if (progress >= 100) {
-        progress = 100;
-        clearInterval(this._loadingTimer);
-        this._loadingTimer = null;
-        this.setData({ 
-          loadingProgress: progress,
-          loadingText: '即将进入...'
-        });
-        setTimeout(() => {
-          this.navigateToHome();
-        }, 500);
-      } else {
-        const textIndex = Math.floor(progress / 30);
-        this.setData({ 
-          loadingProgress: progress,
-          loadingText: loadingTexts[Math.min(textIndex, loadingTexts.length - 1)]
-        });
-      }
-    }, 200);
+    Promise.all([initPromise, checkStoreList()]).then(() => {
+      // 保留极短的 logo 淡入动画（500ms），让用户感知到品牌过渡
+      this.setData({ ready: true });
+      setTimeout(() => {
+        this.navigateToHome();
+      }, 500);
+    }).catch(() => {
+      // 即使出错也跳转首页，不阻塞用户
+      this.navigateToHome();
+    });
   },
 
   navigateToHome() {
     wx.switchTab({
       url: '/pages/index/index'
     });
-  },
-
-  onUnload() {
-    if (this._loadingTimer) {
-      clearInterval(this._loadingTimer);
-      this._loadingTimer = null;
-    }
   }
 });

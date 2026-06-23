@@ -827,6 +827,10 @@
   color: var(--text-tertiary);
 }
 
+.input-field.placeholder {
+  color: var(--text-tertiary);
+}
+
 .input-field.picker-field {
   display: flex;
   align-items: center;
@@ -987,6 +991,14 @@
   display: flex;
   gap: 20rpx;
   margin-top: 24rpx;
+  flex-shrink: 0;
+}
+
+/* 固定在弹窗底部的按钮区域（移出 scroll-view，避免被遮挡） */
+.manage-confirm-footer {
+  margin-top: 0;
+  padding: 16rpx 0 0;
+  border-top: 1rpx solid var(--border-light);
 }
 
 .manage-confirm-area {
@@ -1212,16 +1224,32 @@
   padding: 24rpx;
   background-color: var(--bg-input);
   border-radius: 16rpx;
-  border: 1rpx solid var(--border);
+  border: 2rpx solid var(--border);
+  transition: all 200ms ease;
 }
 
 .copy-mode-item.active {
-  background-color: var(--bg-card);
-  border-color: var(--color-primary);
+  background-color: rgba(212, 120, 110, 0.06);
+  border-color: #D4786E;
+  box-shadow: 0 4rpx 16rpx rgba(212, 120, 110, 0.1);
+}
+
+.copy-mode-item.active .mode-name {
+  color: #D4786E;
+  font-weight: 600;
 }
 
 .mode-icon {
-  font-size: 40rpx;
+  width: 8rpx;
+  height: 36rpx;
+  border-radius: 4rpx;
+  background: var(--border);
+  flex-shrink: 0;
+  transition: all 200ms ease;
+}
+
+.copy-mode-item.active .mode-icon {
+  background: linear-gradient(180deg, #D4786E, #C05D53);
 }
 
 .mode-info {

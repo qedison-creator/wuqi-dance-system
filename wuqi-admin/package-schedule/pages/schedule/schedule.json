@@ -1,4 +1,6 @@
 {
   "navigationBarTitleText": "排课设置",
-  "usingComponents": {}
+  "usingComponents": {
+    "time-picker": "/components/time-picker/time-picker"
+  }
 }

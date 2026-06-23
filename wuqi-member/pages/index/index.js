@@ -185,8 +185,11 @@ Page({
     endDate.setDate(endDate.getDate() + 5);
     const endStr = `${endDate.getFullYear()}-${String(endDate.getMonth() + 1).padStart(2, '0')}-${String(endDate.getDate()).padStart(2, '0')}`;
 
-    // 并行加载所有数据
+    // 并行加载公告和假期信息（放在 Promise.all 之前，避免 return 后不可达）
+    this.loadAnnounces();
+    this.loadHolidays();
 
+    // 并行加载所有数据
     return Promise.all([
       request({ url: '/home/banners', data: { store_id: storeId } }),
       request({ url: '/home/coaches', data: { store_id: storeId, limit: 6 } }),
@@ -294,10 +297,6 @@ Page({
       console.error('加载首页数据失败:', err);
       this.setData({ loading: false });
     });
-
-    // 并行加载公告和假期信息
-    this.loadAnnounces();
-    this.loadHolidays();
   },
 
   async loadHolidays() {
@@ -501,6 +500,9 @@ Page({
   onImageError(e) {
     const id = e.currentTarget.dataset.id;
     console.warn('图片加载失败:', id);
+    if (id) {
+      this.setData({ ['imageErrors.gallery_' + id]: true });
+    }
   },
 
   onNavTap() {
@@ -563,7 +565,7 @@ Page({
   async loadAnnounces() {
     try {
       const storeId = this.data.currentStore ? this.data.currentStore._id : '';
-      const res = await request({ url: `/announces?store_id=${storeId}`, method: 'GET' });
+      const res = await request({ url: `/announces?store_id=${storeId}&status=active`, method: 'GET' });
       const list = res.data && res.data.list ? res.data.list : (Array.isArray(res.data) ? res.data : []);
       const announces = list.map(a => ({
         ...a,

@@ -37,15 +37,57 @@
 /* 全局默认设置 */
 .config-item {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
+  flex-direction: column;
   padding: 24rpx 0;
   border-bottom: 1rpx solid var(--border);
+}
+
+.config-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16rpx;
 }
 
 .config-label {
   font-size: 28rpx;
   color: var(--text-primary);
+}
+
+/* 保存状态标记 */
+.save-status {
+  display: flex;
+  align-items: center;
+  gap: 6rpx;
+  font-size: 22rpx;
+  padding: 4rpx 12rpx;
+  border-radius: 20rpx;
+}
+
+.save-status.saved {
+  color: #52c41a;
+  background: rgba(82, 196, 26, 0.1);
+}
+
+.save-status.modified {
+  color: #fa8c16;
+  background: rgba(250, 140, 22, 0.1);
+}
+
+.status-icon {
+  font-size: 24rpx;
+  font-weight: 600;
+}
+
+.status-dot {
+  width: 12rpx;
+  height: 12rpx;
+  border-radius: 50%;
+  background: #fa8c16;
+}
+
+.status-text {
+  font-size: 22rpx;
 }
 
 .config-value {
@@ -70,18 +112,9 @@
   color: var(--text-secondary);
 }
 
-.save-btn {
+/* 保存按钮 - 使用管理端全局规范 .btn-primary */
+.section .btn-primary {
   margin-top: 28rpx;
-  padding: 24rpx 0;
-  background: linear-gradient(135deg, var(--color-primary-hover), var(--color-primary));
-  border-radius: 16rpx;
-  text-align: center;
-}
-
-.save-btn text {
-  font-size: 30rpx;
-  color: var(--text-primary);
-  font-weight: bold;
 }
 
 /* 搜索框 */
@@ -94,7 +127,7 @@
 .search-box input {
   flex: 1;
   height: 80rpx;
-  background-color: var(--border);
+  background-color: var(--bg-input, #F6F3F0);
   border-radius: 14rpx;
   padding: 0 24rpx;
   font-size: 28rpx;
@@ -107,12 +140,13 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: var(--border);
+  background-color: var(--color-primary);
   border-radius: 14rpx;
 }
 
-.search-btn text {
-  font-size: 36rpx;
+.search-btn .search-icon {
+  font-size: 32rpx;
+  color: #fff;
 }
 
 /* 会员列表 */

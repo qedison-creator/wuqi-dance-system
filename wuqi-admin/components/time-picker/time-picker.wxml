@@ -1,0 +1,21 @@
+<!-- iPhone 风格时间选择器组件 -->
+<view class="tp-mask" wx:if="{{visible}}" bindtap="onMaskTap" catchtouchmove="noop">
+  <view class="tp-sheet" catchtap="noop">
+    <view class="tp-header">
+      <text class="tp-cancel" catchtap="onCancel">取消</text>
+      <text class="tp-title">{{title}}</text>
+      <text class="tp-confirm" catchtap="onConfirm">确定</text>
+    </view>
+    <view class="tp-body">
+      <view class="tp-indicator"></view>
+      <picker-view class="tp-picker" indicator-style="height: 96rpx;" value="{{pickerValue}}" bindchange="onPickerChange">
+        <picker-view-column>
+          <view class="tp-col-item" wx:for="{{hours}}" wx:key="*this">{{item}}时</view>
+        </picker-view-column>
+        <picker-view-column>
+          <view class="tp-col-item" wx:for="{{minutes}}" wx:key="*this">{{item}}分</view>
+        </picker-view-column>
+      </picker-view>
+    </view>
+  </view>
+</view>

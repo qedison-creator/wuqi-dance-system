@@ -65,7 +65,7 @@ const startScheduler = () => {
   cron.schedule('15 2 * * *', async () => {
     try {
       console.log('[Scheduler] 开始执行: 2个月未预约自动激活检查');
-      const sixtyDaysAgo = dayjs().subtract(60, 'day').toDate();
+      const sixtyDaysAgo = bjNow().subtract(60, 'day').toDate();
       const oldPendingPackages = await UserPackage.find({
         status: 'pending',
         is_activated: false,
@@ -338,7 +338,7 @@ const startScheduler = () => {
   cron.schedule('30 4 * * *', async () => {
     try {
       console.log('[Scheduler] 开始执行: 自动处理已过期放假');
-      const today = dayjs().format('YYYY-MM-DD');
+      const today = bjNow().format('YYYY-MM-DD');
       const expiredHolidays = await Holiday.find({
         status: 'active',
         end_date: { $lt: today },
@@ -354,14 +354,41 @@ const startScheduler = () => {
         };
         if (storeId) filter.store_id = storeId;
         const schedules = await Schedule.find(filter);
+        const now = bjNow();
         for (const s of schedules) {
-          s.status = s.current_bookings > 0 ? 'full' : 'available';
+          const endDateTime = dayjs.tz(s.date + ' ' + s.end_time, BEIJING_TZ);
+          if (!endDateTime.isValid()) continue;
+
+          if (now.isAfter(endDateTime)) {
+            // 课程已结束 → 保持 offline，不恢复为 available
+            // 状态流转由查询时兜底机制处理
+            continue;
+          }
+
+          // 课程未结束，恢复为可预约/已满
+          const currentBookings = s.current_bookings || 0;
+          const maxBookings = s.max_bookings || 20;
+          s.status = currentBookings >= maxBookings ? 'full' : 'available';
           await s.save();
           restoredCount++;
+
+          // 重建 PendingTask（封禁时已删除，解封后必须重建）
+          const startDateTime = dayjs.tz(s.date + ' ' + s.start_time, BEIJING_TZ);
+          const deadlineMins = s.booking_deadline || 120;
+          const checkTriggerAt = startDateTime.subtract(deadlineMins, 'minute').toDate();
+          const startTriggerAt = startDateTime.toDate();
+          const endTriggerAt = endDateTime.toDate();
+
+          await PendingTask.deleteMany({ schedule_id: s._id });
+          await PendingTask.insertMany([
+            { schedule_id: s._id, trigger_at: checkTriggerAt, type: 'min_bookings_check' },
+            { schedule_id: s._id, trigger_at: startTriggerAt, type: 'auto_check_in' },
+            { schedule_id: s._id, trigger_at: endTriggerAt, type: 'class_complete' },
+          ]);
         }
         holiday.status = 'disabled';
         await holiday.save();
-        console.log(`[Scheduler] 放假"${holiday.name}"已过期，解封${schedules.length}节排课`);
+        console.log(`[Scheduler] 放假"${holiday.name}"已过期，解封${restoredCount}节排课`);
       }
 
       if (expiredHolidays.length > 0) {

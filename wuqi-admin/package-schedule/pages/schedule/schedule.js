@@ -51,6 +51,8 @@ Page({
     manageConfirmInput: '',
     manageClearDate: '',
     deleting: false, // 防抖标志位
+    // 时间选择器
+    showTimePicker: false,
     manageClearAction: '',
     copyStep: 1,
     copySourceCount: 0,
@@ -68,6 +70,11 @@ Page({
     cancelScheduleId: '',
     cancelScheduleBookings: 0,
     cancelSelectedReason: '',
+    // 下线排课原因输入（可选）
+    showOfflineModal: false,
+    offlineScheduleId: '',
+    offlineBookings: 0,
+    offlineReasonInput: '',
     showCustomDuration: false,
     isCustomDuration: false,
     courseDurations: COURSE_DURATIONS,
@@ -88,7 +95,7 @@ Page({
         weekday: 1, // 添加星期字段用于模板
         bookingDeadline: 180,
         customBookingDeadline: '',
-        cancelBookingDeadline: 120,
+        cancelBookingDeadline: 180,
         customCancelBookingDeadline: '',
         creditsCost: 1,
         customCreditsCost: '',
@@ -192,13 +199,25 @@ Page({
 
     const todayMonthKey = todayStr.substring(0, 7);
     const currentMonthInfo = months.find(m => m.key === todayMonthKey);
-    
+
+    // 保留已选中的日期，避免 onShow 重新初始化时选中日期跳回今天
+    const existingCurrentDate = this.data.currentDate;
+    const newCurrentDate = existingCurrentDate
+      ? dates.find(d => d.date === existingCurrentDate)?.date || todayStr
+      : (dates.find(d => d.isToday)?.date || todayStr);
+
+    // currentMonth 跟随 currentDate，避免选中日期在其他月份时日历跳回今天所在月
+    const currentDateMonthKey = newCurrentDate.substring(0, 7);
+    const selectedMonthInfo = months.find(m => m.key === currentDateMonthKey);
+    const newCurrentMonth = selectedMonthInfo?.key || currentMonthInfo?.key || (months[0]?.key || todayMonthKey);
+    const newCurrentMonthName = selectedMonthInfo?.name || currentMonthInfo?.name || (months[0]?.name || '');
+
     this.setData({
       dateList: dates,
       monthList: months,
-      currentDate: dates.find(d => d.isToday)?.date || dates[365]?.date || todayStr,
-      currentMonth: currentMonthInfo?.key || (months[0]?.key || todayMonthKey),
-      currentMonthName: currentMonthInfo?.name || (months[0]?.name || '')
+      currentDate: newCurrentDate,
+      currentMonth: newCurrentMonth,
+      currentMonthName: newCurrentMonthName
     });
   },
 
@@ -700,9 +719,39 @@ Page({
           coachName: item.coach_id?.name || '未知教练'
         };
       });
-      
+
+      // 非历史日期下，检查是否还有未创建的模板课程（模板预览 + 已创建课程共存）
+      // 通过 教练ID + 开始时间 匹配，判断模板是否已被创建为正式课程
+      let templatePreviewList = [];
+      if (!isCurrentPast && weekTemplate && Object.keys(weekTemplate).length > 0) {
+        const dayOfWeek = current.getDay();
+        const templateSchedules = weekTemplate[dayOfWeek] || [];
+        templatePreviewList = templateSchedules
+          .filter(item => item.enabled !== false)
+          .filter(template => {
+            // 判断该模板是否已被创建为正式课程（教练 + 开始时间 匹配）
+            const exists = processedList.some(s => {
+              const sCoachId = s.coach_id && s.coach_id._id ? s.coach_id._id : s.coach_id;
+              return String(sCoachId) === String(template.coach_id) &&
+                     s.start_time === template.start_time;
+            });
+            return !exists;
+          })
+          .map(item => ({
+            ...item,
+            _id: 'template_' + item.template_id,
+            statusText: '模板预览',
+            isHistory: false,
+            isTemplatePreview: true,
+            enabled: true,
+            from_template: true,
+            danceStyleName: item.dance_style_name || '未知舞种',
+            coachName: item.coach_name || '未知教练'
+          }));
+      }
+
       this.setData({ 
-        schedules: processedList,
+        schedules: [...processedList, ...templatePreviewList],
         isCurrentDatePast: isPastDate
       });
     } catch (err) {
@@ -797,6 +846,11 @@ Page({
 
   // 新增排课
   async onAddSchedule() {
+    // 历史日期不允许新增排课
+    if (this.data.isCurrentDatePast) {
+      wx.showToast({ title: '历史日期不能新增排课', icon: 'none' });
+      return;
+    }
     const { currentWeekdayIndex, weekdayList } = this.data;
     const currentWeekday = weekdayList[currentWeekdayIndex]?.weekday;
     
@@ -823,7 +877,7 @@ Page({
         weekday: currentWeekday,
         bookingDeadline: 180,
         customBookingDeadline: '',
-        cancelBookingDeadline: 120,
+        cancelBookingDeadline: 180,
         customCancelBookingDeadline: '',
         creditsCost: 1,
         customCreditsCost: '',
@@ -869,7 +923,7 @@ Page({
         template_index: index,
         bookingDeadline: schedule.booking_deadline || 180,
         customBookingDeadline: '',
-        cancelBookingDeadline: schedule.cancel_deadline || 120,
+        cancelBookingDeadline: schedule.cancel_deadline || 180,
         customCancelBookingDeadline: '',
         creditsCost: schedule.credits_cost || 1,
         customCreditsCost: '',
@@ -1022,30 +1076,31 @@ Page({
     });
   },
 
-  // 开课时间输入变化时自动计算结束时间
+  // 开课时间选择（打开 time-picker 组件）
+  onShowTimePicker() {
+    this.setData({ showTimePicker: true });
+  },
+
+  // time-picker 确认回调
+  onTimePickerConfirm(e) {
+    const startTime = e.detail.value; // "HH:mm"
+    this.setData({
+      'formData.startTime': startTime,
+      showTimePicker: false,
+    });
+    // 自动计算结束时间
+    this.calculateEndTime(startTime, this.data.formData.duration);
+  },
+
+  // time-picker 取消回调
+  onTimePickerCancel() {
+    this.setData({ showTimePicker: false });
+  },
+
+  // 表单输入（用于非时间字段）
   onFormInput(e) {
     const { field } = e.currentTarget.dataset;
     this.setData({ [`formData.${field}`]: e.detail.value });
-    
-    // 如果是修改开课时间，自动计算结束时间
-
-    if (field === 'startTime') {
-      this.calculateEndTime(e.detail.value, this.data.formData.duration);
-    }
-  },
-
-  // 时间输入框失焦时自动补零（如 4:25 → 04:25）
-  onTimeBlur(e) {
-    const value = (e.detail.value || '').trim();
-    if (!value) return;
-    // 匹配非标准小时格式：一位小时数:两位分钟数
-
-    const match = value.match(/^(\d):(\d{2})$/);
-    if (match) {
-      const formatted = '0' + match[1] + ':' + match[2];
-      this.setData({ 'formData.startTime': formatted });
-      this.calculateEndTime(formatted, this.data.formData.duration);
-    }
   },
 
   // 选择时长
@@ -1155,7 +1210,7 @@ Page({
 
   // 提交排课
   async onSubmitSchedule() {
-    if (!app.hasPermission('schedule:edit')) {
+    if (!app.hasPermission('schedule')) {
       wx.showToast({ title: '无权限执行此操作', icon: 'none' });
       return;
     }
@@ -1221,7 +1276,7 @@ Page({
       bookingDeadline = parseInt(formData.customBookingDeadline) || 180;
     }
     if (cancelBookingDeadline === -1) {
-      cancelBookingDeadline = parseInt(formData.customCancelBookingDeadline) || 120;
+      cancelBookingDeadline = parseInt(formData.customCancelBookingDeadline) || 180;
     }
 
     let creditsCost = formData.creditsCost;
@@ -1492,7 +1547,7 @@ Page({
   },
 
   // 下线排课（管理员手动下线，自动退还已预约会员课时）
-  async onOfflineSchedule(e) {
+  onOfflineSchedule(e) {
     if (this.data.deleting) {
       wx.showToast({ title: '正在处理中，请稍候', icon: 'none' });
       return;
@@ -1504,33 +1559,87 @@ Page({
       return;
     }
 
-    const content = bookings > 0
-      ? `确定要下线该排课吗？当前有 ${bookings} 人预约，下线后将自动退还他们的课时。`
-      : '确定要下线该排课吗？当前无会员预约。';
+    // 打开自定义下线排课弹窗
+    this.setData({
+      showOfflineModal: true,
+      offlineScheduleId: id,
+      offlineBookings: bookings,
+      offlineReasonInput: ''
+    });
+  },
+
+  // 关闭下线排课弹窗
+  onCloseOfflineModal() {
+    this.setData({
+      showOfflineModal: false,
+      offlineScheduleId: '',
+      offlineBookings: 0,
+      offlineReasonInput: ''
+    });
+  },
+
+  // 输入下线原因（可选）
+  onOfflineReasonInput(e) {
+    this.setData({ offlineReasonInput: e.detail.value });
+  },
+
+  // 确认下线排课
+  async onConfirmOfflineSchedule() {
+    const { offlineScheduleId, offlineReasonInput, deleting } = this.data;
+    if (deleting) return;
+
+    this.setData({ deleting: true });
+    try {
+      await request({
+        url: `/schedules/${offlineScheduleId}/offline`,
+        method: 'PUT',
+        data: { reason: offlineReasonInput || '' }
+      });
+      wx.showToast({ title: '已下线', icon: 'success' });
+      this.onCloseOfflineModal();
+      this.loadSchedules();
+    } catch (err) {
+      console.error('下线排课失败', err);
+      wx.showToast({ title: err.message || '下线失败', icon: 'none' });
+    } finally {
+      this.setData({ deleting: false });
+    }
+  },
+
+  // 上线排课（恢复已下线的排课为可预约状态）
+  async onOnlineSchedule(e) {
+    if (this.data.deleting) {
+      wx.showToast({ title: '正在处理中，请稍候', icon: 'none' });
+      return;
+    }
+    const id = e.currentTarget.dataset.id;
+    if (!id) {
+      wx.showToast({ title: '排课ID不存在', icon: 'none' });
+      return;
+    }
 
     wx.showModal({
-      title: '确认下线排课',
-      content,
-      editable: true,
-      placeholderText: '请输入下线原因（可选）',
+      title: '确认上线排课',
+      content: '上线后课程将恢复为可预约状态，会员可以重新预约。之前已退还的课时不会自动恢复，会员需重新预约。',
+      confirmText: '确认上线',
+      cancelText: '取消',
       success: async (res) => {
-        if (res.confirm) {
-          this.setData({ deleting: true });
-          try {
-            const reason = res.content || '';
-            await request({ url: `/schedules/${id}/offline`, method: 'PUT', data: { reason } });
-            wx.showToast({ title: '已下线', icon: 'success' });
-            this.loadSchedules();
-          } catch (err) {
-            console.error('下线排课失败', err);
-            wx.showToast({ title: err.message || '下线失败', icon: 'none' });
-          } finally {
-            this.setData({ deleting: false });
-          }
+        if (!res.confirm) return;
+
+        this.setData({ deleting: true });
+        try {
+          await request({
+            url: `/schedules/${id}/online`,
+            method: 'PUT'
+          });
+          wx.showToast({ title: '已上线', icon: 'success' });
+          this.loadSchedules();
+        } catch (err) {
+          console.error('上线排课失败', err);
+          wx.showToast({ title: err.message || '上线失败', icon: 'none' });
+        } finally {
+          this.setData({ deleting: false });
         }
-      },
-      fail: () => {
-        this.setData({ deleting: false });
       }
     });
   },
@@ -1649,28 +1758,73 @@ Page({
       return;
     }
 
+    // 计算当前日期所在周的周一
+    const startDate = new Date(currentDate);
+    const dayOfWeek = startDate.getDay();
+    const monday = new Date(startDate);
+    monday.setDate(startDate.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1));
+
+    // 计算本周日期范围
+    const weekStartStr = `${monday.getFullYear()}-${String(monday.getMonth() + 1).padStart(2, '0')}-${String(monday.getDate()).padStart(2, '0')}`;
+    const weekEnd = new Date(monday);
+    weekEnd.setDate(monday.getDate() + 6);
+    const weekEndStr = `${weekEnd.getFullYear()}-${String(weekEnd.getMonth() + 1).padStart(2, '0')}-${String(weekEnd.getDate()).padStart(2, '0')}`;
+
     wx.showModal({
       title: '批量创建',
-      content: `确定要创建 ${totalCount} 节课程吗？课程将创建在 ${currentDate} 所在周的每一天。`,
+      content: `确定要创建 ${totalCount} 节课程吗？课程将创建在 ${weekStartStr} 至 ${weekEndStr} 的每一天。`,
       success: async (res) => {
         if (res.confirm) {
+          wx.showLoading({ title: '查询已有课程...', mask: true });
+          
+          // 先查询本周已有的课程，避免重复创建
+          let existingSchedules = [];
+          try {
+            const existRes = await request({
+              url: '/schedules',
+              method: 'GET',
+              data: {
+                store_id: currentStoreId,
+                start_date: weekStartStr,
+                end_date: weekEndStr,
+                status: 'all'
+              }
+            });
+            existingSchedules = existRes.data && Array.isArray(existRes.data.list)
+              ? existRes.data.list
+              : (Array.isArray(existRes.data) ? existRes.data : []);
+          } catch (err) {
+            console.error('查询已有课程失败', err);
+          }
+
           wx.showLoading({ title: '批量创建中...', mask: true });
           
           let successCount = 0;
-          const startDate = new Date(currentDate);
-          const dayOfWeek = startDate.getDay();
-          const monday = new Date(startDate);
-          monday.setDate(startDate.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1));
+          let skipCount = 0;
           
           for (let i = 0; i < 7; i++) {
             const date = new Date(monday);
             date.setDate(monday.getDate() + i);
             const dayNum = date.getDay();
             const templateSchedules = weekTemplate[dayNum] || [];
+            const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
             
             for (const template of templateSchedules) {
               if (template.enabled === false) continue;
-              const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+
+              // 查重：同日期 + 同教练 + 同开始时间 视为已存在
+              const exists = existingSchedules.some(s => {
+                const sCoachId = s.coach_id && s.coach_id._id ? s.coach_id._id : s.coach_id;
+                return s.date === dateStr &&
+                       String(sCoachId) === String(template.coach_id) &&
+                       s.start_time === template.start_time;
+              });
+
+              if (exists) {
+                skipCount++;
+                continue;
+              }
+
               try {
                 await request({
                   url: '/schedules',
@@ -1703,12 +1857,16 @@ Page({
           
           wx.hideLoading();
           
-          if (successCount > 0) {
+          if (successCount > 0 && skipCount > 0) {
+            wx.showToast({ title: `创建${successCount}节，跳过${skipCount}节已存在`, icon: 'none', duration: 3000 });
+          } else if (successCount > 0) {
             wx.showToast({ title: `成功创建 ${successCount} 节课`, icon: 'success' });
-            this.loadSchedules();
+          } else if (skipCount > 0) {
+            wx.showToast({ title: `${skipCount}节课程已存在，无需重复创建`, icon: 'none', duration: 3000 });
           } else {
             wx.showToast({ title: '创建失败', icon: 'none' });
           }
+          this.loadSchedules();
         }
       }
     });
@@ -1967,7 +2125,7 @@ Page({
       }
       
       const res = await request({
-        url: '/api/v1/schedules/batch-cancel',
+        url: '/schedules/batch-cancel',
         method: 'POST',
         data: reqData
       });
@@ -2156,6 +2314,9 @@ Page({
   async onSubmitCopy() {
     const { copyForm, currentStoreId, copySourceCount, viewMode, weekTemplate } = this.data;
 
+    // 批量排课期间暂停自动刷新，避免请求叠加触发限流
+    this._stopAutoRefresh();
+
     // 星期视图模式：逐个日期创建排课
 
     if (viewMode === 'day') {
@@ -2229,7 +2390,8 @@ Page({
       const res = await request({
         url: '/schedules/copy-week',
         method: 'POST',
-        data: submitData
+        data: submitData,
+        timeout: 60000
       });
       const result = res.data || {};
       const created = result.created_count || 0;
@@ -2259,6 +2421,7 @@ Page({
       });
     } finally {
       wx.hideLoading();
+      this._startAutoRefresh();
     }
   },
 
@@ -2298,6 +2461,14 @@ Page({
         }
       }
     }
+
+    // 预计算总课程数
+    let totalToCreate = 0;
+    for (const date of datesToProcess) {
+      const dayOfWeek = date.getDay();
+      const templates = weekTemplate[dayOfWeek] || [];
+      totalToCreate += templates.filter(t => t.enabled !== false).length;
+    }
     
     for (const date of datesToProcess) {
       const dayOfWeek = date.getDay();
@@ -2310,6 +2481,7 @@ Page({
           await request({
             url: '/schedules',
             method: 'POST',
+            timeout: 30000,
             data: {
               store_id: currentStoreId,
               date: dateStr,

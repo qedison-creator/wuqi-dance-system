@@ -798,6 +798,22 @@
 .cancel-time {
   font-size: 24rpx;
   color: #8B7E6A;
+  display: block;
+}
+
+.cancel-reason {
+  font-size: 22rpx;
+  color: #B8AF9E;
+  margin-top: 4rpx;
+  display: block;
+}
+
+.checked-in-tag {
+  font-size: 24rpx;
+  color: #5B8C5A;
+  background: #EDF5EE;
+  padding: 8rpx 20rpx;
+  border-radius: 8rpx;
 }
 
 .sheet-empty {

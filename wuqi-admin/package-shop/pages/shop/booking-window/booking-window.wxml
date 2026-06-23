@@ -9,7 +9,14 @@
 
   <view class="form-card">
     <view class="form-group">
-      <text class="form-label">开放预约天数</text>
+      <view class="form-label-row">
+        <text class="form-label">开放预约天数</text>
+        <view class="save-status {{saveStatus}}">
+          <text wx:if="{{saveStatus === 'saved'}}" class="status-icon">✓</text>
+          <text wx:elif="{{saveStatus === 'modified'}}" class="status-dot"></text>
+          <text class="status-text">{{saveStatus === 'saved' ? '已保存' : (saveStatus === 'modified' ? '未保存' : '')}}</text>
+        </view>
+      </view>
       <text class="form-hint">会员只能预约 N 天内的课程（含当天）</text>
       <view class="input-with-unit">
         <input class="input-field unit-input" type="number" placeholder="7" value="{{bookingWindowDays}}" data-field="bookingWindowDays" bindinput="onInput" />
@@ -26,12 +33,8 @@
   </view>
 
   <view class="btn-row">
-    <view class="btn-primary" bindtap="onSave">
-      <text>保存设置</text>
+    <view class="btn-primary {{saveStatus === 'saving' ? 'disabled' : ''}}" bindtap="onSave">
+      <text>{{saveStatus === 'saving' ? '保存中...' : '保存设置'}}</text>
     </view>
-  </view>
-
-  <view class="toast" wx:if="{{saved}}" bindtap="onToastTap">
-    <text class="toast-text">设置已保存</text>
   </view>
 </view>

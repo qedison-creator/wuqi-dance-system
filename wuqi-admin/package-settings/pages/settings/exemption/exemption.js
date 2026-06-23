@@ -3,6 +3,8 @@ const { request } = require('../../../../utils/request');
 Page({
   data: {
     defaultExemption: 3,
+    savedExemption: 3,   // 上次保存的值，用于判断是否已修改
+    saveStatus: '',      // '' | 'saved' | 'modified' | 'saving'
     searchKeyword: '',
     memberList: [],
     hasSearched: false
@@ -15,38 +17,46 @@ Page({
   // 加载默认豁免次数
   async loadDefaultExemption() {
     try {
-      // 直接获取指定配置
-
       const res = await request({
         url: '/config/default_exemption_count',
         method: 'GET'
       });
       const config = res.data;
       if (config && config.value !== undefined) {
+        const val = parseInt(config.value) || 3;
         this.setData({
-          defaultExemption: parseInt(config.value) || 3
+          defaultExemption: val,
+          savedExemption: val,
+          saveStatus: 'saved',
         });
       }
     } catch (err) {
-      // 如果配置不存在，使用默认值
       console.log('使用默认豁免次数:', 3);
     }
   },
 
   // 默认豁免次数输入
   onDefaultChange(e) {
+    const value = e.detail.value;
+    // 判断当前值是否与已保存值不同
+    const isModified = String(value) !== String(this.data.savedExemption);
     this.setData({
-      defaultExemption: e.detail.value
+      defaultExemption: value,
+      saveStatus: isModified ? 'modified' : 'saved',
     });
   },
 
   // 保存默认豁免次数
   async saveDefaultExemption() {
+    if (this.data.saveStatus === 'saving') return;
+
     const count = parseInt(this.data.defaultExemption);
     if (isNaN(count) || count < 0) {
       wx.showToast({ title: '请输入有效的次数', icon: 'none' });
       return;
     }
+
+    this.setData({ saveStatus: 'saving' });
 
     try {
       await request({
@@ -54,9 +64,14 @@ Page({
         method: 'PUT',
         data: { config_value: count.toString(), description: '新注册会员默认豁免次数' }
       });
+      this.setData({
+        savedExemption: count,
+        saveStatus: 'saved',
+      });
       wx.showToast({ title: '保存成功', icon: 'success' });
     } catch (err) {
       console.error('保存默认豁免次数失败', err);
+      this.setData({ saveStatus: 'modified' });
       wx.showToast({ title: '保存失败', icon: 'none' });
     }
   },

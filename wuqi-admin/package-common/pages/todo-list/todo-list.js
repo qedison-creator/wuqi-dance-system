@@ -30,19 +30,22 @@ Page({
       
       // 并行加载各项待办数据
 
-      const [homeRes, statsRes, waitlistRes] = await Promise.allSettled([
-        request({ url: '/home/admin', method: 'GET' }),
+      const results = await Promise.all([
+        request({ url: '/home/admin', method: 'GET' }).catch(() => ({ data: {} })),
         request({ 
           url: '/stats/dashboard', 
           method: 'GET',
           data: { store_id: app.globalData.currentStore ? app.globalData.currentStore._id : '' }
-        }),
+        }).catch(() => ({ data: {} })),
         request({ 
           url: '/bookings/waitlist/summary', 
           method: 'GET',
           data: { store_id: app.globalData.currentStore ? app.globalData.currentStore._id : '' }
         }).catch(() => ({ data: [] }))
       ]);
+      const homeRes = { status: 'fulfilled', value: results[0] };
+      const statsRes = { status: 'fulfilled', value: results[1] };
+      const waitlistRes = { status: 'fulfilled', value: results[2] };
 
       const todoList = [];
       

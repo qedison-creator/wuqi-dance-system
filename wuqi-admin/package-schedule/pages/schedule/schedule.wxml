@@ -1,4 +1,4 @@
-<page-meta page-style="{{showAddModal || showManageModal || showCopyModal || showCancelReasonModal ? 'overflow: hidden;' : ''}}"/>
+<page-meta page-style="{{showAddModal || showManageModal || showCopyModal || showCancelReasonModal || showOfflineModal || showTimePicker ? 'overflow: hidden;' : ''}}"/>
 <view class="schedule-page">
   <!-- 门店切换 -->
   <view class="store-tabs">
@@ -62,8 +62,8 @@
     </view>
   </view>
 
-  <!-- 月视图下方的新增排课按钮 -->
-  <view class="month-add-schedule-btn" wx:if="{{viewMode === 'month'}}" bindtap="onAddSchedule">
+  <!-- 月视图下方的新增排课按钮（历史日期不显示） -->
+  <view class="month-add-schedule-btn" wx:if="{{viewMode === 'month' && !isCurrentDatePast}}" bindtap="onAddSchedule">
     <text>+ 新增排课</text>
   </view>
 
@@ -136,8 +136,18 @@
           <view class="action-btn {{item.isHistory || item.status === 'cancelled' || item.status === 'offline' || item.status === 'completed' ? 'disabled' : ''}}" data-index="{{index}}" bindtap="{{item.isHistory || item.status === 'cancelled' || item.status === 'offline' || item.status === 'completed' ? '' : 'onEditSchedule'}}">
             <text>{{item.isHistory ? '已归档' : (item.status === 'cancelled' || item.status === 'offline') ? '已取消' : (item.status === 'completed' ? '已完成' : '编辑')}}</text>
           </view>
-          <!-- 已取消/已下线状态显示删除按钮 -->
-          <view class="action-btn danger" wx:if="{{item.status === 'cancelled' || item.status === 'offline'}}" data-id="{{item._id}}" data-bookings="{{item.current_bookings || 0}}" bindtap="onDeleteSchedule">
+          <!-- 已取消/已下线状态显示对应按钮 -->
+          <!-- 已下线状态：显示上线 + 删除按钮 -->
+          <block wx:if="{{item.status === 'offline'}}">
+            <view class="action-btn primary" data-id="{{item._id}}" bindtap="onOnlineSchedule">
+              <text>上线</text>
+            </view>
+            <view class="action-btn danger" data-id="{{item._id}}" data-bookings="{{item.current_bookings || 0}}" bindtap="onDeleteSchedule">
+              <text>删除</text>
+            </view>
+          </block>
+          <!-- 已取消状态：显示删除按钮 -->
+          <view class="action-btn danger" wx:elif="{{item.status === 'cancelled'}}" data-id="{{item._id}}" data-bookings="{{item.current_bookings || 0}}" bindtap="onDeleteSchedule">
             <text>删除</text>
           </view>
           <!-- 已结束课程：查看上课记录 -->
@@ -252,7 +262,9 @@
         <!-- 开课时间 -->
         <view class="form-group">
           <text class="form-label">开课时间 *</text>
-          <input class="input-field" placeholder="请输入开课时间（格式：HH:MM）" value="{{formData.startTime}}" data-field="startTime" bindinput="onFormInput" bindblur="onTimeBlur" />
+          <view class="input-field {{formData.startTime ? '' : 'placeholder'}}" bindtap="onShowTimePicker">
+            <text>{{formData.startTime || '请选择开课时间'}}</text>
+          </view>
         </view>
 
         <!-- 课程时长 -->
@@ -342,14 +354,14 @@
         <view class="form-group">
           <text class="form-label">取消预约截止时间（开课前）</text>
           <view class="deadtime-list">
+            <view class="deadtime-item {{formData.cancelBookingDeadline === 180 ? 'active' : ''}}" bindtap="onSelectCancelBookingDeadline" data-value="180">
+              <text>3小时</text>
+            </view>
             <view class="deadtime-item {{formData.cancelBookingDeadline === 120 ? 'active' : ''}}" bindtap="onSelectCancelBookingDeadline" data-value="120">
               <text>2小时</text>
             </view>
             <view class="deadtime-item {{formData.cancelBookingDeadline === 60 ? 'active' : ''}}" bindtap="onSelectCancelBookingDeadline" data-value="60">
               <text>1小时</text>
-            </view>
-            <view class="deadtime-item {{formData.cancelBookingDeadline === 30 ? 'active' : ''}}" bindtap="onSelectCancelBookingDeadline" data-value="30">
-              <text>30分钟</text>
             </view>
             <view class="deadtime-item {{formData.cancelBookingDeadline === -1 ? 'active' : ''}}" bindtap="onSelectCancelBookingDeadline" data-value="-1">
               <text>自定义</text>
@@ -365,6 +377,9 @@
       </view>
     </view>
   </view>
+
+  <!-- 自定义时间选择器组件（iPhone 风格底部抽屉式） -->
+  <time-picker visible="{{showTimePicker}}" value="{{formData.startTime}}" title="选择开课时间" bind:confirm="onTimePickerConfirm" bind:cancel="onTimePickerCancel" />
 
   <!-- 批量管理弹窗 -->
   <view class="modal-mask" wx:if="{{showManageModal}}" bindtap="onCloseManageModal" catchtouchmove="preventTouchMove">
@@ -449,27 +464,29 @@
             <text class="form-label">请输入"确认"以继续</text>
             <input class="input-field manage-confirm-input" placeholder='请输入"确认"' value="{{manageConfirmInput}}" bindinput="onManageConfirmInput" />
           </view>
-          <view class="manage-confirm-row">
-            <view class="btn-secondary" bindtap="onCancelManageConfirm"><text>取消</text></view>
-            <view class="btn-danger {{manageConfirmInput === '确认' ? '' : 'disabled'}}" bindtap="onExecuteManageClear"><text>执行清空</text></view>
-          </view>
         </view>
         
         <!-- 底部间距 -->
         <view class="manage-bottom-spacing"></view>
       </scroll-view>
+
+      <!-- 固定底部按钮：二次确认（移出 scroll-view，避免被遮挡） -->
+      <view class="manage-confirm-row manage-confirm-footer" wx:if="{{showManageConfirm}}">
+        <view class="btn-secondary" bindtap="onCancelManageConfirm"><text>取消</text></view>
+        <view class="btn-danger {{manageConfirmInput === '确认' ? '' : 'disabled'}}" bindtap="onExecuteManageClear"><text>执行清空</text></view>
+      </view>
     </view>
   </view>
 
   <!-- 复制周排课弹窗 -->
-  <view class="modal-mask" wx:if="{{showCopyModal}}" bindtap="onCloseCopyModal" catchtouchmove="preventTouchMove">
+  <view class="modal-mask" wx:if="{{showCopyModal}}" bindtap="onCloseCopyModal">
     <view class="modal-content copy-modal" catchtap="onModalTap">
       <view class="modal-header">
         <text class="modal-title">批量排课</text>
         <text class="modal-close" bindtap="onCloseCopyModal">×</text>
       </view>
-      
-      <scroll-view class="modal-body-scroll" scroll-y="true">
+
+      <scroll-view class="modal-body-scroll" scroll-y="true" show-scrollbar="false" enhanced="true">
         <!-- 步骤指示器：根据视图模式调整 -->
         <view class="step-bar" wx:if="{{viewMode === 'month'}}">
           <view class="step-item {{copyStep >= 1 ? 'active' : ''}}">
@@ -691,6 +708,30 @@
       <view class="modal-buttons">
         <view class="btn-secondary" bindtap="onCloseCancelReasonModal"><text>取消</text></view>
         <view class="btn-danger {{cancelSelectedReason ? '' : 'disabled'}}" bindtap="onConfirmCancelSchedule"><text>确认取消</text></view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 下线排课弹窗 -->
+  <view class="modal-mask" wx:if="{{showOfflineModal}}" bindtap="onCloseOfflineModal" catchtouchmove="preventTouchMove">
+    <view class="modal-content cancel-reason-modal" catchtap="onModalTap">
+      <view class="modal-header">
+        <text class="modal-title">下线排课</text>
+        <view class="modal-close" bindtap="onCloseOfflineModal">×</view>
+      </view>
+      <view class="modal-body-scroll">
+        <view class="warning-box">
+          <text class="warning-icon">!</text>
+          <text class="warning-text">{{offlineBookings > 0 ? '该课程已有 ' + offlineBookings + ' 人预约，下线后将自动退还课时并通知会员。' : '当前无会员预约，下线后课程将不再展示。'}}</text>
+        </view>
+        <view class="form-group" style="margin-top: 24rpx;">
+          <text class="form-label">下线原因（可选）</text>
+          <textarea class="input-field" placeholder="请输入下线原因，便于后续追溯" value="{{offlineReasonInput}}" data-field="offlineReasonInput" bindinput="onOfflineReasonInput" maxlength="50" auto-height></textarea>
+        </view>
+      </view>
+      <view class="modal-buttons">
+        <view class="btn-secondary" bindtap="onCloseOfflineModal"><text>取消</text></view>
+        <view class="btn-danger" bindtap="onConfirmOfflineSchedule"><text>确认下线</text></view>
       </view>
     </view>
   </view>

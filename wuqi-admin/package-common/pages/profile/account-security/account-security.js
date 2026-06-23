@@ -97,6 +97,12 @@ Page({
             self.uploadAvatar(tempFilePath);
           }
         });
+      },
+      fail: (err) => {
+        console.error('选择图片失败', err);
+        if (err.errMsg && err.errMsg.indexOf('cancel') === -1) {
+          wx.showToast({ title: '选择图片失败，请检查隐私权限', icon: 'none' });
+        }
       }
     });
   },

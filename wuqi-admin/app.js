@@ -37,11 +37,10 @@ App({
       'reportPerformance',
       'reportMonitor'
     ];
+    // 无条件替换为 noop，避免 API 存在但调用时报 fail not support
     for (let i = 0; i < unsupportedList.length; i++) {
       const key = unsupportedList[i];
-      if (typeof wx[key] !== 'function') {
-        try { wx[key] = noop; } catch (e) {}
-      }
+      try { wx[key] = noop; } catch (e) {}
     }
     try {
       if (typeof wx.canIUse === 'function') {

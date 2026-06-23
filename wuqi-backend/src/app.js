@@ -28,7 +28,7 @@ app.use(logger);
 
 const rateLimitStore = new Map();
 const RATE_LIMIT_WINDOW = 60 * 1000;
-const RATE_LIMIT_MAX = config.isProd ? 200 : 1000;
+const RATE_LIMIT_MAX = config.isProd ? 500 : 1000;
 
 app.use((req, res, next) => {
   if (req.path.startsWith('/uploads') || req.path === '/health') {

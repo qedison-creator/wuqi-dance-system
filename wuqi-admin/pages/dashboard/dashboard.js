@@ -359,11 +359,14 @@ Page({
 
       this.loadSystemConfigs();
 
-      const [homeRes, statsRes, bannersRes] = await Promise.allSettled([
+      const results = await Promise.all([
         request({ url: '/home/admin', method: 'GET', data: storeId ? { store_id: storeId } : {} }).catch(() => ({})),
         request({ url: '/stats/dashboard', method: 'GET', data: { store_id: storeId } }).catch(() => ({ data: {} })),
         request({ url: '/banners', method: 'GET', data: {} }).catch(() => ({ data: [] }))
       ]);
+      const homeRes = { status: 'fulfilled', value: results[0] };
+      const statsRes = { status: 'fulfilled', value: results[1] };
+      const bannersRes = { status: 'fulfilled', value: results[2] };
 
       const homeData = homeRes.status === 'fulfilled' ? (homeRes.value.data || {}) : {};
       const statsData = statsRes.status === 'fulfilled' ? (statsRes.value.data || {}) : {};
@@ -468,7 +471,10 @@ Page({
     const type = e.currentTarget.dataset.type;
     switch (type) {
       case 'today':
-        this.onGoToSchedule();
+        // 携带当前门店信息跳转到运营管理页面（switchTab 不支持 query，通过 globalData 传递）
+        app.globalData = app.globalData || {};
+        app.globalData.pendingStoreId = this.data.currentStore ? this.data.currentStore._id : '';
+        wx.switchTab({ url: '/pages/operations/operations' });
         break;
       case 'members':
         this.onGoToMembers();
@@ -887,8 +893,8 @@ Page({
     let startDate = todayStr;
     let endDate = todayStr;
     if (!isToday) {
-      // 近期课程：从明天开始，到 13 天后（排除当天，当天属于"今日课程"）
-
+      // 近期课程：从明天开始，到7天后（不含今天，今天属于"今日课程"待办项）
+      // 与后端 /stats/dashboard 统计范围保持一致
       const startD = new Date();
       startD.setDate(today.getDate() + 1);
       const sy = startD.getFullYear();
@@ -897,7 +903,7 @@ Page({
       startDate = `${sy}-${sm}-${sd}`;
 
       const endD = new Date();
-      endD.setDate(today.getDate() + 13);
+      endD.setDate(today.getDate() + 7);
       const ey = endD.getFullYear();
       const em = String(endD.getMonth() + 1).padStart(2, '0');
       const ed = String(endD.getDate()).padStart(2, '0');
@@ -986,15 +992,8 @@ Page({
 
       this.setData({ scheduleList: processed });
 
-      // 同步更新角标数量，使其与实际展开列表一致
-
-      const todoList = this.data.todoList.map(t => {
-        if (t._id === todo._id) {
-          return { ...t, count: processed.length };
-        }
-        return t;
-      });
-      this.setData({ todoList, todos: todoList });
+      // 角标数量保持后端 /stats/dashboard 返回的 upcoming_schedules.length，不再用展开列表长度覆盖
+      // 避免展开列表（含已取消/已下线课程）与角标统计口径不一致
     } catch (err) {
       console.warn('[dashboard] 拉取课程失败', err);
       this.setData({ scheduleList: [] });

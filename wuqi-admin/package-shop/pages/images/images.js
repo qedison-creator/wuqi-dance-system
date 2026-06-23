@@ -127,13 +127,20 @@ Page({
   // 选择图片
   onChooseImage() {
     const that = this;
-    wx.chooseImage({
+    wx.chooseMedia({
       count: 1,
-      sizeType: ['original'],
+      mediaType: ['image'],
       sourceType: ['album', 'camera'],
+      sizeType: ['original'],
       success: (res) => {
-        const filePath = res.tempFilePaths[0];
+        const filePath = res.tempFiles[0].tempFilePath;
         that.setData({ tempImagePath: filePath, cropMode: '' });
+      },
+      fail: (err) => {
+        console.error('选择图片失败', err);
+        if (err.errMsg && err.errMsg.indexOf('cancel') === -1) {
+          wx.showToast({ title: '选择图片失败，请检查隐私权限', icon: 'none' });
+        }
       }
     });
   },
@@ -345,7 +352,12 @@ Page({
         if (res.confirm) {
           wx.showLoading({ title: '删除中...' });
           const promises = selectedIds.map(id => api.images.delete(id));
-          Promise.allSettled(promises).then(results => {
+          Promise.all(promises.map(p =>
+            Promise.resolve(p).then(
+              value => ({ status: 'fulfilled', value }),
+              reason => ({ status: 'rejected', reason })
+            )
+          )).then(results => {
             wx.hideLoading();
             const failed = results.filter(r => r.status === 'rejected').length;
             if (failed > 0) {

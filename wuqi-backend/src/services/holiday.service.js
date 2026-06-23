@@ -3,10 +3,17 @@ const Schedule = require('../models/Schedule');
 const UserPackage = require('../models/UserPackage');
 const User = require('../models/User');
 const Booking = require('../models/Booking');
+const PendingTask = require('../models/PendingTask');
 const logService = require('./log.service');
 const packageService = require('./package.service');
 const wechatMessageService = require('./wechat-message.service');
 const dayjs = require('dayjs');
+const utc = require('dayjs/plugin/utc');
+const timezone = require('dayjs/plugin/timezone');
+dayjs.extend(utc);
+dayjs.extend(timezone);
+
+const BEIJING_TZ = 'Asia/Shanghai';
 
 // 计算放假天数
 const calculateHolidayDays = (startDate, endDate) => {
@@ -255,11 +262,23 @@ const blockSchedules = async (startDate, endDate, storeId) => {
     filter.store_id = storeId;
   }
 
+  // 先查出要封禁的排课ID，用于清理 PendingTask
+  const schedulesToBlock = await Schedule.find(filter).select('_id');
+  const scheduleIds = schedulesToBlock.map(s => s._id);
+
   const result = await Schedule.updateMany(filter, { status: 'offline' });
+
+  // 清理这些排课的 PendingTask（与 offlineSchedule 保持一致）
+  // 否则任务触发时看到 offline 状态直接返回并标记 done，解封后任务已耗尽，状态流转永久中断
+  if (scheduleIds.length > 0) {
+    await PendingTask.deleteMany({ schedule_id: { $in: scheduleIds } });
+  }
+
   return result.modifiedCount;
 };
 
-// 解除封禁排课(将放假期间offline的排课恢复为available)
+// 解除封禁排课(将放假期间offline的排课恢复)
+// 必须根据课程时间节点判断恢复后的状态，并重建 PendingTask
 const unblockSchedules = async (startDate, endDate, storeId) => {
   const filter = {
     status: 'offline',
@@ -270,17 +289,47 @@ const unblockSchedules = async (startDate, endDate, storeId) => {
     filter.store_id = storeId;
   }
 
-  // 恢复为available(仅恢复当前预约人数为0的排课)
   const schedules = await Schedule.find(filter);
+  const now = dayjs().tz(BEIJING_TZ);
   let restoredCount = 0;
+
   for (const schedule of schedules) {
-    if (schedule.current_bookings > 0) {
-      schedule.status = 'full';
-    } else {
-      schedule.status = 'available';
+    const startDateTime = dayjs.tz(schedule.date + ' ' + schedule.start_time, BEIJING_TZ);
+    const endDateTime = dayjs.tz(schedule.date + ' ' + schedule.end_time, BEIJING_TZ);
+
+    if (!startDateTime.isValid() || !endDateTime.isValid()) {
+      // 时间格式异常，保持 offline 不动
+      await schedule.save();
+      continue;
     }
+
+    if (now.isAfter(endDateTime)) {
+      // 课程已结束 → 保持 offline，不恢复为 available
+      // 状态流转由查询时兜底机制（finalizeSchedule）处理
+      // 不在这里直接改状态，避免放假撤销把已过期课程恢复成可预约
+      continue;
+    }
+
+    // 课程未结束，恢复为可预约/已满
+    const currentBookings = schedule.current_bookings || 0;
+    const maxBookings = schedule.max_bookings || 20;
+    schedule.status = currentBookings >= maxBookings ? 'full' : 'available';
     await schedule.save();
     restoredCount++;
+
+    // 重建 PendingTask（封禁时已删除，解封后必须重建，否则状态流转会中断）
+    const deadlineMins = schedule.booking_deadline || 120;
+    const checkTriggerAt = startDateTime.subtract(deadlineMins, 'minute').toDate();
+    const startTriggerAt = startDateTime.toDate();
+    const endTriggerAt = endDateTime.toDate();
+
+    // 先清理可能残留的旧任务，再重建
+    await PendingTask.deleteMany({ schedule_id: schedule._id });
+    await PendingTask.insertMany([
+      { schedule_id: schedule._id, trigger_at: checkTriggerAt, type: 'min_bookings_check' },
+      { schedule_id: schedule._id, trigger_at: startTriggerAt, type: 'auto_check_in' },
+      { schedule_id: schedule._id, trigger_at: endTriggerAt, type: 'class_complete' },
+    ]);
   }
 
   return restoredCount;
