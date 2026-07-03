@@ -15,12 +15,17 @@ const DEFAULT_ROLE_PERMISSIONS = {
   store_manager: {
     name: '店长',
     desc: '门店全权管理',
-    permissions: ['dashboard', 'schedule', 'booking', 'member', 'video', 'coach', 'salary', 'package', 'waitlist', 'checkin', 'holiday', 'banner'],
+    permissions: ['dashboard', 'schedule', 'booking', 'checkin', 'member', 'member_review', 'pre_member', 'coach', 'salary', 'package_log', 'waitlist', 'holiday', 'banner', 'image', 'announcement', 'store', 'exemption', 'account', 'config', 'log'],
   },
   staff: {
     name: '员工',
     desc: '日常运营',
-    permissions: ['dashboard', 'schedule', 'booking', 'member', 'checkin'],
+    permissions: ['dashboard', 'schedule', 'booking', 'checkin', 'member', 'member_review', 'pre_member', 'waitlist'],
+  },
+  reviewer: {
+    name: '审核员',
+    desc: '微信审核专用只读账号，可查看所有页面，数据已脱敏',
+    permissions: ['*'],
   },
 };
 
@@ -78,21 +83,26 @@ router.get('/roles', auth, checkPermission(['super_admin']), async (req, res, ne
 router.get('/permission-modules', auth, checkPermission(['super_admin']), async (req, res, next) => {
   try {
     const modules = [
-      { id: 'dashboard', name: '工作台', desc: '查看数据概览' },
-      { id: 'schedule', name: '排课管理', desc: '课程排课、模板管理' },
-      { id: 'booking', name: '预约管理', desc: '预约、取消、候补' },
-      { id: 'member', name: '会员管理', desc: '会员信息、套餐管理' },
-      { id: 'checkin', name: '签到管理', desc: '会员签到、上课记录' },
-      { id: 'coach', name: '教练管理', desc: '教练信息、薪资管理' },
-      { id: 'video', name: '视频管理', desc: '教练作品视频' },
-      { id: 'salary', name: '薪资管理', desc: '教练薪资统计' },
-      { id: 'package', name: '套餐管理', desc: '套餐模板、激活管理' },
-      { id: 'waitlist', name: '候补管理', desc: '排队等候管理' },
+      { id: 'dashboard', name: '工作台', desc: '首页数据概览、待办事项' },
+      { id: 'schedule', name: '排课管理', desc: '排课设置、模板管理、课程浏览' },
+      { id: 'booking', name: '预约管理', desc: '预约汇总、预约名单、取消预约' },
+      { id: 'checkin', name: '签到管理', desc: '会员签到、扫码签到、临时签到' },
+      { id: 'member', name: '会员管理', desc: '会员信息、套餐管理、会员详情' },
+      { id: 'member_review', name: '会员审核', desc: '待审核、手机号审核、信息修改审核' },
+      { id: 'pre_member', name: '预建档管理', desc: '预建档列表、批量导入' },
+      { id: 'coach', name: '教练管理', desc: '教练信息、舞种管理' },
+      { id: 'salary', name: '薪酬管理', desc: '课时统计、薪酬配置、薪酬统计' },
+      { id: 'package_log', name: '套餐记录', desc: '套餐激活/延长/录入记录查看' },
+      { id: 'waitlist', name: '候补管理', desc: '候补排队、转正、移除' },
       { id: 'holiday', name: '放假管理', desc: '门店放假安排' },
-      { id: 'banner', name: 'Banner管理', desc: '首页轮播图管理' },
-      { id: 'account', name: '账号管理', desc: '子账号与权限管理' },
-      { id: 'config', name: '系统配置', desc: '系统参数、消息推送配置' },
-      { id: 'log', name: '操作日志', desc: '系统操作日志查看' },
+      { id: 'banner', name: '轮播图管理', desc: '首页轮播图配置' },
+      { id: 'image', name: '画面管理', desc: '此间画面图片作品管理' },
+      { id: 'announcement', name: '公告管理', desc: '门店公告配置' },
+      { id: 'store', name: '门店管理', desc: '门店维护、预约开放设置' },
+      { id: 'exemption', name: '豁免设置', desc: '豁免次数配置' },
+      { id: 'account', name: '账号管理', desc: '子账号、角色权限配置' },
+      { id: 'config', name: '系统配置', desc: '系统参数、消息推送、首页背景' },
+      { id: 'log', name: '操作日志', desc: '操作日志查看' },
     ];
     res.json(success(modules));
   } catch (err) {
@@ -106,7 +116,7 @@ router.put('/roles/:roleId', auth, checkPermission(['super_admin']), async (req,
     const { roleId } = req.params;
     const { name, desc, permissions } = req.body;
 
-    if (!['super_admin', 'store_manager', 'staff'].includes(roleId)) {
+    if (!['super_admin', 'store_manager', 'staff', 'reviewer'].includes(roleId)) {
       throw new Error('无效的角色ID');
     }
 
@@ -157,8 +167,11 @@ router.post('/', auth, checkModulePermission('account'), async (req, res, next) 
     if (currentRole === 'store_manager' && role !== 'staff') {
       throw new Error('店长只能创建员工账号');
     }
-    if (!role || !['store_manager', 'staff'].includes(role)) {
-      throw new Error('角色必须为manager或staff');
+    if (!role || !['store_manager', 'staff', 'reviewer'].includes(role)) {
+      throw new Error('角色必须为manager、staff或reviewer');
+    }
+    if (role === 'reviewer' && currentRole !== 'super_admin') {
+      throw new Error('只有超级管理员可以创建审核账号');
     }
 
     const existing = await User.findOne({ username });
@@ -170,6 +183,8 @@ router.post('/', auth, checkModulePermission('account'), async (req, res, next) 
       let rolePermissions = config ? config.value : DEFAULT_ROLE_PERMISSIONS;
       if (rolePermissions[role]) {
         permissions = rolePermissions[role].permissions;
+      } else if (DEFAULT_ROLE_PERMISSIONS[role]) {
+        permissions = DEFAULT_ROLE_PERMISSIONS[role].permissions;
       }
     }
 
@@ -179,7 +194,7 @@ router.post('/', auth, checkModulePermission('account'), async (req, res, next) 
       nick_name: nick_name || username,
       user_type: role === 'store_manager' ? 'admin' : 'staff',
       role,
-      store_ids: store_ids || [],
+      store_ids: role === 'reviewer' ? [] : (store_ids || []),
       permissions,
       status: 'active',
     });
@@ -216,12 +231,17 @@ router.put('/:id', auth, checkModulePermission('account'), async (req, res, next
     if (currentRole === 'super_admin' && role) {
       account.role = role;
       account.user_type = role === 'store_manager' ? 'admin' : 'staff';
+      if (role === 'reviewer') {
+        account.store_ids = [];
+      }
 
       if (role !== 'super_admin') {
         let config = await Config.findOne({ key: 'role_permissions' });
         let rolePermissions = config ? config.value : DEFAULT_ROLE_PERMISSIONS;
         if (rolePermissions[role]) {
           account.permissions = rolePermissions[role].permissions;
+        } else if (DEFAULT_ROLE_PERMISSIONS[role]) {
+          account.permissions = DEFAULT_ROLE_PERMISSIONS[role].permissions;
         }
       }
     }

@@ -35,36 +35,51 @@ const fetchTemplates = (force = false) => {
 
   templatesLoading = true;
   templatesPromise = new Promise((resolve) => {
-    const app = getApp();
-    const baseUrl = (app && app.globalData && app.globalData.baseUrl) || config.baseUrl;
-    wx.request({
-      url: baseUrl + '/config/active-templates',
-      method: 'GET',
-      success: (res) => {
-        if (res.statusCode === 200 && res.data && res.data.code === 200 && res.data.data) {
-          const tpl = res.data.data;
-          
-          if (tpl.bookingSuccessTemplateId) SUBSCRIBE_TEMPLATES.BOOKING_SUCCESS = tpl.bookingSuccessTemplateId;
-          if (tpl.classReminderTemplateId) SUBSCRIBE_TEMPLATES.CLASS_REMINDER = tpl.classReminderTemplateId;
-          if (tpl.bookingCancelTemplateId) SUBSCRIBE_TEMPLATES.BOOKING_CANCEL = tpl.bookingCancelTemplateId;
-          if (tpl.bookingCancelByUserTemplateId) SUBSCRIBE_TEMPLATES.BOOKING_CANCEL_BY_USER = tpl.bookingCancelByUserTemplateId;
-          if (tpl.waitlistAvailableTemplateId) SUBSCRIBE_TEMPLATES.WAITLIST_AVAILABLE = tpl.waitlistAvailableTemplateId;
-          if (tpl.packageExpiringTemplateId) SUBSCRIBE_TEMPLATES.PACKAGE_EXPIRING = tpl.packageExpiringTemplateId;
-          if (tpl.packageActivatedTemplateId) SUBSCRIBE_TEMPLATES.PACKAGE_ACTIVATED = tpl.packageActivatedTemplateId;
-          if (tpl.countCardLowRemindTemplateId) SUBSCRIBE_TEMPLATES.COUNT_CARD_LOW_REMIND = tpl.countCardLowRemindTemplateId;
-          if (tpl.memberInactiveRemindTemplateId) SUBSCRIBE_TEMPLATES.MEMBER_INACTIVE_REMIND = tpl.memberInactiveRemindTemplateId;
-          if (tpl.phoneAuditResultTemplateId) SUBSCRIBE_TEMPLATES.PHONE_AUDIT_RESULT = tpl.phoneAuditResultTemplateId;
-        }
-        templatesLoaded = true;
-        templatesLoading = false;
-        resolve();
-      },
-      fail: () => {
-        templatesLoaded = true;
-        templatesLoading = false;
-        resolve();
-      }
-    });
+    const doFetch = (attempt = 0) => {
+      setTimeout(() => {
+        const app = getApp();
+        const baseUrl = (app && app.globalData && app.globalData.baseUrl) || config.baseUrl;
+        wx.request({
+          url: baseUrl + '/config/active-templates',
+          method: 'GET',
+          success: (res) => {
+            if (res.statusCode === 200 && res.data && res.data.code === 200 && res.data.data) {
+              const tpl = res.data.data;
+              
+              if (tpl.bookingSuccessTemplateId) SUBSCRIBE_TEMPLATES.BOOKING_SUCCESS = tpl.bookingSuccessTemplateId;
+              if (tpl.classReminderTemplateId) SUBSCRIBE_TEMPLATES.CLASS_REMINDER = tpl.classReminderTemplateId;
+              if (tpl.bookingCancelTemplateId) SUBSCRIBE_TEMPLATES.BOOKING_CANCEL = tpl.bookingCancelTemplateId;
+              if (tpl.bookingCancelByUserTemplateId) SUBSCRIBE_TEMPLATES.BOOKING_CANCEL_BY_USER = tpl.bookingCancelByUserTemplateId;
+              if (tpl.waitlistAvailableTemplateId) SUBSCRIBE_TEMPLATES.WAITLIST_AVAILABLE = tpl.waitlistAvailableTemplateId;
+              if (tpl.packageExpiringTemplateId) SUBSCRIBE_TEMPLATES.PACKAGE_EXPIRING = tpl.packageExpiringTemplateId;
+              if (tpl.packageActivatedTemplateId) SUBSCRIBE_TEMPLATES.PACKAGE_ACTIVATED = tpl.packageActivatedTemplateId;
+              if (tpl.countCardLowRemindTemplateId) SUBSCRIBE_TEMPLATES.COUNT_CARD_LOW_REMIND = tpl.countCardLowRemindTemplateId;
+              if (tpl.memberInactiveRemindTemplateId) SUBSCRIBE_TEMPLATES.MEMBER_INACTIVE_REMIND = tpl.memberInactiveRemindTemplateId;
+              if (tpl.phoneAuditResultTemplateId) SUBSCRIBE_TEMPLATES.PHONE_AUDIT_RESULT = tpl.phoneAuditResultTemplateId;
+            }
+            templatesLoaded = true;
+            templatesLoading = false;
+            resolve();
+          },
+          fail: (err) => {
+            // 冷启动网络层错误时静默重试 2 次
+            const msg = err && err.errMsg ? err.errMsg : '';
+            const retryable = msg.indexOf('ERR_CONNECTION_RESET') !== -1 ||
+                              msg.indexOf('ERR_CONNECTION_CLOSED') !== -1 ||
+                              msg.indexOf('timeout') !== -1 ||
+                              msg.indexOf('fail') !== -1;
+            if (retryable && attempt < 2) {
+              doFetch(attempt + 1);
+              return;
+            }
+            templatesLoaded = true;
+            templatesLoading = false;
+            resolve();
+          }
+        });
+      }, attempt === 0 ? 500 : 1500);
+    };
+    doFetch();
   });
   return templatesPromise;
 };
@@ -226,6 +241,7 @@ const requestSubscribeMessage = (tmplIds, sceneKey = '', skipGuide = false) => {
 
 /**
  * 预约课程时：预约成功 + 上课提醒 + 取消通知
+ * 上课提醒需要2次授权（1小时提醒 + 30分钟提醒各消耗1次）
  */
 const requestBookingSubscribe = async () => {
   await fetchTemplates(true);
@@ -237,7 +253,19 @@ const requestBookingSubscribe = async () => {
   if (ids.length === 0) {
     return Promise.resolve({});
   }
-  return requestSubscribeMessage(ids, 'booking');
+  // 第一次请求：预约成功 + 上课提醒 + 取消通知
+  const result = await requestSubscribeMessage(ids, 'booking');
+  // 为30分钟上课提醒补充请求第2次CLASS_REMINDER授权
+  // 微信一次性订阅每个模板每次授权仅能发送1条消息，1小时提醒会消耗第1次授权
+  // 已勾选"总是保持"的用户此调用静默通过不弹窗；未勾选的用户可能弹第2次窗
+  if (SUBSCRIBE_TEMPLATES.CLASS_REMINDER) {
+    try {
+      await requestSubscribeMessage([SUBSCRIBE_TEMPLATES.CLASS_REMINDER], 'booking-reminder-2', true);
+    } catch (e) {
+      // 第2次授权失败不影响预约流程
+    }
+  }
+  return result;
 };
 
 /**

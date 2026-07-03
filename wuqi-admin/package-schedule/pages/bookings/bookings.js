@@ -1,6 +1,6 @@
 const app = getApp();
 const { request } = require('../../../utils/request');
-const { getScheduleStatusText } = require('../../../utils/util');
+const { getScheduleStatusText, formatDateTime, fixImageUrl } = require('../../../utils/util');
 const wsClient = require('../../../utils/websocket-client');
 
 Page({
@@ -112,16 +112,16 @@ Page({
         url: `/schedules/${this.data.scheduleId}/bookings`,
         method: 'GET'
       });
-      
+
       const allBookings = res.data || [];
-      
-      // 分类处理
+
+      // 分类处理（列表保留每一次记录）
 
       const bookedList = [];
       const completedList = [];
       const cancelledList = [];
       const exemptedList = [];
-      
+
       allBookings.forEach(item => {
         const realName = item.user_id?.real_name;
         const nickName = item.user_id?.nick_name;
@@ -132,14 +132,16 @@ Page({
           userName: displayName,
           userNickName: nickNameDisplay,
           userPhone: item.user_id?.phone || '',
-          userAvatar: item.user_id?.avatar_url || '',
-          bookingTime: item.created_at,
+          userWechatPhone: item.user_id?.wechat_phone || '',
+          userReservePhone: item.user_id?.reserve_phone || '',
+          userAvatar: fixImageUrl(item.user_id?.avatar_url),
+          bookingTime: item.created_at ? formatDateTime(item.created_at) : '',
           creditsDeducted: item.credits_deducted || 0,
           remark: item.remark || '',
-          checkInTime: item.check_in_time,
+          checkInTime: item.check_in_time ? formatDateTime(item.check_in_time) : '',
           checkedIn: item.checked_in || false
         };
-        
+
         // 根据状态分类（没有缺勤业务，所有未签到的都自动签到）
 
         const status = item.status;
@@ -150,7 +152,7 @@ Page({
         } else if (status === 'cancelled') {
           cancelledList.push({
             ...booking,
-            cancelTime: item.cancel_time,
+            cancelTime: item.cancel_time ? formatDateTime(item.cancel_time) : '',
             cancelReason: item.cancel_reason || '',
             creditsRefunded: item.credits_refunded || 0
           });
@@ -158,12 +160,43 @@ Page({
           exemptedList.push(booking);
         }
       });
-      
+
+      // 统计按人数（同一用户多次预约只算1次，取最新状态）
+      const sortedAll = [...allBookings].sort((a, b) => {
+        const ta = a.created_at ? new Date(a.created_at).getTime() : 0;
+        const tb = b.created_at ? new Date(b.created_at).getTime() : 0;
+        return tb - ta;
+      });
+      const userLatestMap = new Map();
+      sortedAll.forEach(item => {
+        const uid = item.user_id?._id || item.user_id || 'unknown';
+        if (!userLatestMap.has(uid)) {
+          userLatestMap.set(uid, item);
+        }
+      });
+      let bookedCount = 0, completedCount = 0, cancelledCount = 0, exemptedCount = 0;
+      userLatestMap.forEach(item => {
+        const status = item.status;
+        if (status === 'booked') {
+          bookedCount++;
+        } else if (status === 'completed') {
+          completedCount++;
+        } else if (status === 'cancelled') {
+          cancelledCount++;
+        } else if (status === 'exempted' || item.is_exempted) {
+          exemptedCount++;
+        }
+      });
+
       this.setData({
         bookedList,
         completedList,
         cancelledList,
-        exemptedList
+        exemptedList,
+        bookedCount,
+        completedCount,
+        cancelledCount,
+        exemptedCount
       });
     } catch (err) {
       console.error('加载预约名单失败', err);
@@ -201,8 +234,10 @@ Page({
           userName: displayName,
           userNickName: nickNameDisplay,
           userPhone: item.user_id?.phone || '',
-          userAvatar: item.user_id?.avatar_url || '',
-          checkInTime: att ? att.check_in_time : (item.check_in_time || ''),
+          userWechatPhone: item.user_id?.wechat_phone || '',
+          userReservePhone: item.user_id?.reserve_phone || '',
+          userAvatar: fixImageUrl(item.user_id?.avatar_url),
+          checkInTime: att && att.check_in_time ? formatDateTime(att.check_in_time) : (item.check_in_time ? formatDateTime(item.check_in_time) : ''),
           checkInMethod: method,
           checkInMethodText: this.getCheckInMethodText(method),
           source: item.source,

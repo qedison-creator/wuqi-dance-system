@@ -20,6 +20,9 @@ const coachSchema = new mongoose.Schema({
   status: { type: String, enum: ['active', 'disabled'], required: true, default: 'active' },
   sort_order: { type: Number, default: 0 },
   show_on_home: { type: Boolean, default: true },
+  // 软删除标记：true 表示已删除，不再在教练列表中显示
+  // 但历史关联数据（课程/预约/签到/取消记录）通过 populate 仍能获取教练信息
+  is_deleted: { type: Boolean, default: false },
 }, { timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' } });
 
 coachSchema.index({ name: 1 });

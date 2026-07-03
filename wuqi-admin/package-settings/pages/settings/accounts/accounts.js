@@ -12,7 +12,8 @@ Page({
     roles: [
       { id: 'super_admin', name: '超级管理员' },
       { id: 'store_manager', name: '店长' },
-      { id: 'staff', name: '员工' }
+      { id: 'staff', name: '员工' },
+      { id: 'reviewer', name: '审核员' }
     ],
     formData: {
       name: '',
@@ -56,15 +57,19 @@ Page({
       const roleMap = {
         'super_admin': '超级管理员',
         'store_manager': '店长',
-        'staff': '员工'
+        'staff': '员工',
+        'reviewer': '审核员'
       };
       const processedList = list.map(item => ({
         ...item,
         roleName: roleMap[item.role] || item.role,
-        storeNames: item.store_ids && item.store_ids.length > 0
-          ? item.store_ids.map(s => s.name || '未知').join('、')
-          : (item.store_id ? (item.store_id.name || '未知') : ''),
-        permCount: item.role === 'super_admin' ? '全部'
+        storeNames: (item.role === 'super_admin' || item.role === 'reviewer')
+          ? ''
+          : (item.store_ids && item.store_ids.length > 0
+            ? item.store_ids.map(s => s.name || '未知').join('、')
+            : (item.store_id ? (item.store_id.name || '未知') : '')),
+        permCount: (item.role === 'super_admin' || item.role === 'reviewer')
+          ? '全部'
           : (item.permissions && item.permissions.length > 0
             ? (item.permissions[0] === '*' ? '全部' : item.permissions.length + '项')
             : '未配置'),
@@ -133,8 +138,8 @@ Page({
   onRoleChange(e) {
     const index = e.detail.value;
     const newRole = this.data.roles[index].id;
-    if (newRole === 'super_admin') {
-      // 超级管理员不属于任何门店
+    if (newRole === 'super_admin' || newRole === 'reviewer') {
+      // 超级管理员和审核员不绑定门店
 
       this.setData({
         roleIndex: index,
@@ -200,7 +205,7 @@ Page({
       data = {
         nick_name: formData.name
       };
-      if (formData.role !== 'super_admin') {
+      if (formData.role !== 'super_admin' && formData.role !== 'reviewer') {
         data.store_ids = formData.store_ids;
       } else {
         data.store_ids = [];
@@ -215,7 +220,7 @@ Page({
         user_type: formData.role === 'store_manager' ? 'admin' : 'staff',
         role: formData.role,
         password: formData.password,
-        store_ids: formData.role !== 'super_admin' ? formData.store_ids : []
+        store_ids: (formData.role !== 'super_admin' && formData.role !== 'reviewer') ? formData.store_ids : []
       };
     }
 
@@ -227,6 +232,8 @@ Page({
       this.setData({ showModal: false });
       this.loadAccounts();
     }).catch(err => {
+      // 审核员只读 403：request.js 已统一提示，此处不再重复弹 toast
+      if (err && err.statusCode === 403) return;
       const msg = err && err.data && err.data.message ? err.data.message : '操作失败';
       wx.showToast({ title: msg, icon: 'none' });
     });
@@ -243,6 +250,8 @@ Page({
     }).then(() => {
       this.setData({ [`accounts[${index}].status`]: newStatus });
     }).catch(err => {
+      // 审核员只读 403：request.js 已统一提示，此处不再重复弹 toast
+      if (err && err.statusCode === 403) return;
       const msg = err && err.data && err.data.message ? err.data.message : '操作失败';
       wx.showToast({ title: msg, icon: 'none' });
     });

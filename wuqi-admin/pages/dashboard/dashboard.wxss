@@ -449,7 +449,7 @@
   left: 28rpx;
   right: 28rpx;
   bottom: calc(120rpx + env(safe-area-inset-bottom));
-  height: 104rpx;
+  height: 112rpx;
   background: #FFFFFF;
   border-radius: 24rpx;
   display: flex;
@@ -463,37 +463,36 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: 8rpx;
   transition: all 150ms ease-out;
 }
 
 .bnav-item:active {
-  transform: scale(0.94);
+  transform: scale(0.92);
+  opacity: 0.65;
 }
 
-.bnav-scan {
-  margin-top: -20rpx;
+.bnav-item:active .bnav-icon,
+.bnav-item:active .bnav-label {
+  color: #D4786E;
 }
 
 .bnav-icon {
-  font-size: 36rpx;
-  color: #B8AF9E;
-  margin-bottom: 4rpx;
-}
-
-.bnav-scan-icon {
-  font-size: 44rpx;
-  color: #C5744B;
+  font-size: 40rpx;
+  width: 40rpx;
+  height: 40rpx;
+  line-height: 40rpx;
+  text-align: center;
+  color: #948284;
+  transition: color 150ms ease;
 }
 
 .bnav-label {
   font-size: 22rpx;
-  color: #B8AF9E;
+  line-height: 1;
+  color: #948284;
   font-weight: 500;
-}
-
-.bnav-scan-label {
-  color: #C5744B;
-  font-weight: 700;
+  transition: color 150ms ease;
 }
 
 /* ===== Modal ===== */

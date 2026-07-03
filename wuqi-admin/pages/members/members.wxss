@@ -726,6 +726,25 @@
   margin-right: 8rpx;
 }
 
+.phone-eye-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48rpx;
+  height: 48rpx;
+  flex-shrink: 0;
+  margin-left: 8rpx;
+}
+
+.phone-eye-btn:active {
+  opacity: 0.6;
+}
+
+.phone-eye-icon {
+  width: 36rpx;
+  height: 36rpx;
+}
+
 .review-date {
   font-size: 22rpx;
   color: #B8AF9E;

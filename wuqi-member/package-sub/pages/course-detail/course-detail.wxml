@@ -6,9 +6,7 @@
 <view class="page" wx:elif="{{course}}">
   <view class="cover-section">
     <image class="cover-img" src="{{course.cover}}" binderror="onCoverImgError" mode="aspectFill" wx:if="{{course.cover && !imageErrors.cover}}" />
-    <view class="cover-placeholder" wx:else>
-      <view class="cp-icon"></view>
-    </view>
+    <image class="cover-img" src="/images/default-course.svg" mode="aspectFill" wx:else />
     <view class="cover-gradient"></view>
   </view>
 
@@ -37,7 +35,8 @@
           <view class="ic-icon time"></view>
           <text class="ic-label">时间</text>
         </view>
-        <text class="ic-value">{{course.dateStr}} {{course.weekDayStr}} {{course.startTime}}-{{course.endTime}}</text>
+        <text class="ic-value" wx:if="{{isOfficial}}">{{course.dateStr}} {{course.weekDayStr}} {{course.startTime}}-{{course.endTime}}</text>
+        <text class="ic-value" wx:else>{{course.dateStr}} {{course.weekDayStr}} ??:??-??:??</text>
       </view>
       <view class="ic-row" wx:if="{{course.room}}">
         <view class="ic-left">
@@ -57,9 +56,10 @@
       <view class="ic-row" wx:if="{{course.minBookings}}">
         <view class="ic-left">
           <view class="ic-icon min-people"></view>
-          <text class="ic-label">最低开课</text>
+          <text class="ic-label">最低成班</text>
         </view>
-        <text class="ic-value">{{course.minBookings}}人起开课</text>
+        <text class="ic-value" wx:if="{{isOfficial}}">{{course.minBookings}}人起成班</text>
+        <text class="ic-value" wx:else>?人起成班</text>
       </view>
       <view class="ic-row" wx:if="{{isOfficial}}">
         <view class="ic-left">
@@ -67,6 +67,18 @@
           <text class="ic-label">消耗次数</text>
         </view>
         <view class="ic-value-highlight gold">{{course.creditsCost || 1}}<text class="ic-val-unit">次</text></view>
+      </view>
+      <view class="ic-row" wx:if="{{isOfficial && course.booking_deadline_text}}">
+        <view class="ic-left">
+          <text class="ic-label">截止预约</text>
+        </view>
+        <text class="ic-value">{{course.booking_deadline_text}}</text>
+      </view>
+      <view class="ic-row" wx:if="{{isOfficial && course.cancel_deadline_text}}">
+        <view class="ic-left">
+          <text class="ic-label">截止取消</text>
+        </view>
+        <text class="ic-value">{{course.cancel_deadline_text}}</text>
       </view>
     </view>
 
@@ -88,26 +100,64 @@
   </view>
 
   <view class="bottom-bar">
-    <view class="bb-btns" wx:if="{{isBooked && isOfficial}}">
-      <view class="bb-secondary {{!canCancel ? 'disabled' : ''}}" bindtap="onCancelTap">取消预约</view>
-      <view class="bb-primary state-booked">已预约</view>
-    </view>
-    <view class="bb-btns" wx:elif="{{isWaitlisted && isOfficial}}">
-      <view class="bb-secondary" bindtap="onLeaveWaitlistTap">退出候补</view>
-      <view class="bb-primary state-waitlist">候补第{{waitlistPosition}}位</view>
-    </view>
-    <view class="bb-primary {{!isLoggedIn || isPackageSuspended || !bookingWindowOpen ? 'disabled' : ''}}" wx:elif="{{isOfficial && !course.isFull}}" bindtap="onBookTap">
-      <text wx:if="{{!bookingWindowOpen}}">未开放预约</text>
-      <text wx:else>立即预约</text>
-    </view>
-    <view class="bb-primary state-waitlist-btn {{!isLoggedIn || isPackageSuspended || !bookingWindowOpen ? 'disabled' : ''}}" wx:elif="{{isOfficial && course.isFull}}" bindtap="onWaitlistTap">
-      <text wx:if="{{!bookingWindowOpen}}">未开放预约</text>
-      <text wx:else>加入候补</text>
-    </view>
-    <view class="bb-primary {{!isLoggedIn || !bookingWindowOpen ? 'disabled' : ''}}" wx:else bindtap="onBookTap">
-      <text wx:if="{{!bookingWindowOpen}}">未开放预约</text>
-      <text wx:else>立即预约</text>
-    </view>
+    <!-- 受限用户：只显示3种状态 -->
+    <block wx:if="{{isRestrictedUser}}">
+      <view class="bb-primary disabled" wx:if="{{isEnded}}">
+        <text>已结束</text>
+      </view>
+      <view class="bb-primary disabled" wx:elif="{{!bookingWindowOpen}}">
+        <text>未开放预约</text>
+      </view>
+      <view class="bb-primary disabled-clickable" wx:else bindtap="onBookTap">
+        <text>不可预约</text>
+      </view>
+    </block>
+    <!-- 正式会员：显示完整状态 -->
+    <block wx:else>
+      <!-- 已取消 -->
+      <view class="bb-primary disabled" wx:if="{{isCancelled}}">
+        <text>已取消</text>
+      </view>
+      <!-- 已完成（已结束 + 已上过该课） -->
+      <view class="bb-primary state-done" wx:elif="{{isEnded && isCompleted}}">
+        <text>已完成</text>
+      </view>
+      <!-- 已结束 -->
+      <view class="bb-primary disabled" wx:elif="{{isEnded}}">
+        <text>已结束</text>
+      </view>
+      <!-- 进行中 -->
+      <view class="bb-primary state-ongoing" wx:elif="{{isOngoing}}">
+        <text>进行中</text>
+      </view>
+      <!-- 已预约 -->
+      <view class="bb-btns" wx:elif="{{isBooked && isOfficial}}">
+        <view class="bb-secondary {{!canCancel ? 'disabled' : ''}}" bindtap="onCancelTap">取消预约</view>
+        <view class="bb-primary state-booked">已预约</view>
+      </view>
+      <!-- 已候补 -->
+      <view class="bb-btns" wx:elif="{{isWaitlisted && isOfficial}}">
+        <view class="bb-secondary" bindtap="onLeaveWaitlistTap">退出候补</view>
+        <view class="bb-primary state-waitlist">候补第{{waitlistPosition}}位</view>
+      </view>
+      <!-- 已满 + 未候补 -->
+      <view class="bb-primary state-waitlist-btn {{!isLoggedIn || isPackageSuspended || !bookingWindowOpen ? 'disabled' : ''}}" wx:elif="{{isOfficial && course.isFull}}" bindtap="onWaitlistTap">
+        <text wx:if="{{!bookingWindowOpen}}">未开放预约</text>
+        <text wx:else>加入候补</text>
+      </view>
+      <!-- 未开放预约 -->
+      <view class="bb-primary disabled" wx:elif="{{!bookingWindowOpen}}">
+        <text>未开放预约</text>
+      </view>
+      <!-- 门店不匹配 -->
+      <view class="bb-primary disabled-clickable" wx:elif="{{courseStoreMatched === false}}" bindtap="onBookTap">
+        <text>不可预约</text>
+      </view>
+      <!-- 可预约 -->
+      <view class="bb-primary {{!isLoggedIn || isPackageSuspended ? 'disabled' : ''}}" wx:else bindtap="onBookTap">
+        <text>立即预约</text>
+      </view>
+    </block>
   </view>
 
   <view class="modal-mask" wx:if="{{showActivationModal}}" bindtap="onCancelActivation">

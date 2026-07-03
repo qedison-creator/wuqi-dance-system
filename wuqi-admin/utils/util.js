@@ -210,6 +210,22 @@ const debounce = (func, wait) => {
   };
 };
 
+// 将头像/图片相对路径转为完整 URL
+// 数据库存的是 /uploads/avatars/xxx.webp 这样的相对路径，前端直接用会被当作小程序本地资源加载导致 500
+const fixImageUrl = (url) => {
+  if (!url) return '';
+  if (url.startsWith('https://') || url.startsWith('http://')) return url;
+  try {
+    const config = require('../config/index.js');
+    const serverBase = config.serverBase || '';
+    if (url.startsWith('//')) return serverBase.replace(/^https?:/, '') + url;
+    if (url.startsWith('/')) return serverBase + url;
+    return serverBase + '/' + url;
+  } catch (e) {
+    return url;
+  }
+};
+
 module.exports = {
   getBeijingDate,
   formatDate,
@@ -232,5 +248,6 @@ module.exports = {
   showLoading,
   hideLoading,
   showModal,
-  debounce
+  debounce,
+  fixImageUrl
 };

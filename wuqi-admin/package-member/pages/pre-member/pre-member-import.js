@@ -75,8 +75,11 @@ Page({
   },
 
   // 隐私授权同意回调
-  onPrivacyAgreed() {
+  onPrivacyAgreed(e) {
     console.log('[Privacy] 用户同意隐私授权');
+    const app = getApp();
+    const buttonId = e.currentTarget.id || e.target.id || 'agree-btn';
+    app.resolvePrivacyAuthorization(buttonId);
   },
 
   // 渠道1：从聊天文件选择（小程序唯一支持的文件选择方式）

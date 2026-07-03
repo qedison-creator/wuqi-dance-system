@@ -15,8 +15,11 @@
 
     <view class="form-item">
       <image class="form-icon" src="/images/icons/login-lock.svg" mode="aspectFit" />
-      <input class="form-input" type="password" placeholder="请输入密码"
+      <input class="form-input" type="{{showPassword ? 'text' : 'password'}}" placeholder="请输入密码"
              value="{{password}}" bindinput="onPasswordInput" />
+      <view class="password-eye-btn" catchtap="onTogglePassword">
+        <image class="password-eye-icon" src="{{showPassword ? '/images/icons/eye-close.svg' : '/images/icons/eye-open.svg'}}" mode="aspectFit" />
+      </view>
     </view>
 
     <!-- 隐私协议勾选 -->

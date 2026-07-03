@@ -119,8 +119,8 @@
 .year-group {
   background: #FFFFFF;
   border-radius: 24rpx;
-  padding: 28rpx;
-  box-shadow: 0 2rpx 12rpx rgba(44,36,22,0.05);
+  padding: 0;
+  box-shadow: 0 2rpx 12rpx rgba(44,36,22,0.04);
   width: 100%;
   box-sizing: border-box;
   overflow: hidden;
@@ -130,8 +130,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding-bottom: 16rpx;
-  border-bottom: 2rpx solid #F0EBE4;
+  padding: 24rpx 24rpx 12rpx;
   width: 100%;
   box-sizing: border-box;
 }
@@ -164,8 +163,8 @@
 }
 
 .month-group {
-  background: #FAF8F5;
-  border-radius: 20rpx;
+  background: transparent;
+  border-radius: 0;
   overflow: hidden;
   width: 100%;
   box-sizing: border-box;
@@ -175,7 +174,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 24rpx 28rpx;
+  padding: 20rpx 24rpx;
   width: 100%;
   box-sizing: border-box;
 }
@@ -216,7 +215,7 @@
 }
 
 .month-content {
-  padding: 0 20rpx 20rpx;
+  padding: 0 0 16rpx;
   width: 100%;
   box-sizing: border-box;
 }
@@ -225,26 +224,26 @@
 .date-list {
   display: flex;
   flex-direction: column;
-  gap: 16rpx;
+  gap: 12rpx;
   width: 100%;
   box-sizing: border-box;
 }
 
 .date-group {
   background: #FFFFFF;
-  border-radius: 20rpx;
-  padding: 24rpx;
-  box-shadow: 0 2rpx 8rpx rgba(44,36,22,0.03);
+  border-radius: 16rpx;
+  padding: 0;
+  border: 1rpx solid #F0EBE4;
   width: 100%;
   box-sizing: border-box;
+  overflow: hidden;
 }
 
 .date-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 16rpx;
-  padding-bottom: 12rpx;
+  padding: 16rpx 16rpx;
   border-bottom: 1rpx solid #F0EBE4;
   width: 100%;
   box-sizing: border-box;
@@ -289,6 +288,7 @@
   display: flex;
   flex-direction: column;
   gap: 12rpx;
+  padding: 12rpx 0;
 }
 
 .course-item {
@@ -302,7 +302,7 @@
 .course-main {
   display: flex;
   align-items: center;
-  padding: 20rpx;
+  padding: 16rpx 24rpx;
   width: 100%;
   box-sizing: border-box;
 }
@@ -420,12 +420,13 @@
 
 /* ========== 课程详情：三区块 ========== */
 .course-detail {
-  padding: 0 20rpx 20rpx;
+  padding: 0 0 16rpx;
 }
 
 /* 区块容器 */
 .member-section {
-  margin-bottom: 16rpx;
+  margin-bottom: 12rpx;
+  padding: 0 24rpx;
 }
 
 .member-section:last-child {
@@ -481,7 +482,7 @@
 .member-card {
   background: #FFFFFF;
   border-radius: 14rpx;
-  padding: 16rpx 20rpx;
+  padding: 14rpx 20rpx;
   box-shadow: 0 2rpx 6rpx rgba(44,36,22,0.03);
 }
 
@@ -519,22 +520,35 @@
   min-width: 0;
 }
 
+.mc-name-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8rpx;
+}
+
 .mc-name {
   font-size: 26rpx;
   color: #2C2416;
   font-weight: 600;
 }
 
-.mc-nick-name {
+.mc-nick {
   font-size: 20rpx;
   color: #948284;
+}
+
+.mc-phone-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16rpx;
   margin-top: 2rpx;
 }
 
-.mc-phone {
+.mc-phone-item {
   font-size: 20rpx;
   color: #B8AFA4;
-  margin-top: 2rpx;
 }
 
 /* 状态徽章 */
@@ -622,7 +636,7 @@
   margin-top: 16rpx;
   padding-top: 12rpx;
   border-top: 1rpx solid #F0EBE4;
-  padding-left: 28rpx;
+  padding-left: 0;
 }
 
 .timeline-item {
@@ -682,7 +696,7 @@
 }
 
 .tl-action {
-  font-size: 22rpx;
+  font-size: 26rpx;
   font-weight: 600;
 }
 
@@ -699,7 +713,7 @@
 }
 
 .tl-time {
-  font-size: 20rpx;
+  font-size: 24rpx;
   color: #B8AFA4;
 }
 
@@ -708,7 +722,7 @@
 }
 
 .tl-text {
-  font-size: 18rpx;
+  font-size: 24rpx;
   color: #948284;
 }
 

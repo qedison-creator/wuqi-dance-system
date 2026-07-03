@@ -19,7 +19,7 @@ router.get('/stats', auth, checkPermission(['super_admin']), async (req, res, ne
     const stats = {
       schedules: await Schedule.countDocuments(),
       bookings: await Booking.countDocuments(),
-      coaches: await Coach.countDocuments(),
+      coaches: await Coach.countDocuments({ is_deleted: { $ne: true } }),
       danceStyles: await DanceStyle.countDocuments(),
       members: await User.countDocuments({ user_type: 'member' }),
       userPackages: await UserPackage.countDocuments(),

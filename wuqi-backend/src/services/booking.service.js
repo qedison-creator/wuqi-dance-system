@@ -64,37 +64,89 @@ function bjDate(dateStr) {
 
 // 计算预约的取消相关字段（供前端展示取消按钮状态/倒计时）
 // 返回：can_cancel, cancel_phase, booking_deadline, exempt_deadline, exemption_count
-function computeCancelFields(booking, user) {
+// 补约额外返回：is_late_booking, can_quick_cancel, quick_cancel_deadline
+// 规则：
+//   正常：cancel_deadline 前 → normal；cancel_deadline 后至开课前 → exempt（需有豁免次数）；已开课 → locked
+//   补约：5 分钟内 → quick（不扣豁免）；5 分钟后至开课前 → exempt；已开课 → locked
+//   同一节课已使用过一次豁免取消后再补约，不能再豁免取消（5分钟后锁定）
+async function computeCancelFields(booking, user) {
   const schedule = booking.schedule_id;
-  if (!schedule || booking.status !== 'booked') {
-    return { can_cancel: false, cancel_phase: 'locked', booking_deadline: null, exempt_deadline: null, exemption_count: 0 };
-  }
+  const lockedResult = {
+    can_cancel: false, cancel_phase: 'locked', booking_deadline: null, exempt_deadline: null,
+    exemption_count: 0, is_late_booking: false, can_quick_cancel: false, quick_cancel_deadline: null,
+  };
+  if (!schedule || booking.status !== 'booked') return lockedResult;
+
   const now = bjNow();
   const classStart = dayjs.tz(schedule.date + ' ' + schedule.start_time, BEIJING_TZ);
   const bookingDeadlineMinutes = schedule.booking_deadline || TIME_RULES.BOOKING_DEADLINE_MINUTES;
   const bookingDeadline = classStart.subtract(bookingDeadlineMinutes, 'minute');
-  const exemptDeadline = classStart.subtract(TIME_RULES.EXEMPT_WINDOW_MINUTES, 'minute');
-  const exemptionCount = user ? (user.exemption_count || 0) : 0;
+  // 豁免取消窗口截止 = 开课前 cancel_deadline 分钟（使用排课设置值，默认60分钟）
+  const cancelDeadlineMinutes = schedule.cancel_deadline || 60;
+  const exemptDeadline = classStart.subtract(cancelDeadlineMinutes, 'minute');
+  const exemptionCount = user ? (user.exemption_count !== undefined ? user.exemption_count : 2) : 0;
+
+  const isLateBooking = !!booking.is_late_booking;
+  const quickCancelDeadline = dayjs.tz(booking.created_at, BEIJING_TZ).add(TIME_RULES.QUICK_CANCEL_MINUTES, 'minute');
+  const canQuickCancel = isLateBooking && now.isBefore(quickCancelDeadline) && now.isBefore(classStart);
+
+  // 同一节课是否已使用过豁免取消（再次补约时禁止第二次豁免取消）
+  let hasExemptCancelledSameSchedule = false;
+  if (isLateBooking && user) {
+    const userId = user._id || user.id;
+    const scheduleId = schedule._id || schedule.id;
+    if (userId && scheduleId) {
+      hasExemptCancelledSameSchedule = await Booking.exists({
+        user_id: userId,
+        schedule_id: scheduleId,
+        status: 'cancelled',
+        cancel_type: 'exempt'
+      });
+    }
+  }
 
   let canCancel = false;
   let phase = 'locked';
-  if (now.isBefore(bookingDeadline) || now.isSame(bookingDeadline)) {
+
+  if (!now.isBefore(classStart)) {
+    // 已开课 → 锁定
+    canCancel = false;
+    phase = 'locked';
+  } else if (isLateBooking && canQuickCancel) {
+    // 补约5分钟内 → 快速取消
+    canCancel = true;
+    phase = 'quick';
+  } else if (isLateBooking) {
+    // 补约5分钟后至开课前 → 豁免取消；但若同一节课已用过豁免取消，则锁定
+    if (hasExemptCancelledSameSchedule) {
+      canCancel = false;
+      phase = 'locked';
+    } else {
+      canCancel = exemptionCount > 0;
+      phase = 'exempt';
+    }
+  } else if (now.isBefore(exemptDeadline) || now.isSame(exemptDeadline)) {
+    // 正常预约在 cancel_deadline 前 → 正常取消
     canCancel = true;
     phase = 'normal';
-  } else if (now.isBefore(exemptDeadline)) {
-    // 窗口期：需有豁免次数
+  } else if (now.isBefore(classStart)) {
+    // 正常预约在 cancel_deadline 后至开课前 → 豁免取消
     canCancel = exemptionCount > 0;
     phase = 'exempt';
   } else {
     canCancel = false;
     phase = 'locked';
   }
+
   return {
     can_cancel: canCancel,
     cancel_phase: phase,
     booking_deadline: bookingDeadline.toISOString(),
     exempt_deadline: exemptDeadline.toISOString(),
     exemption_count: exemptionCount,
+    is_late_booking: isLateBooking,
+    can_quick_cancel: canQuickCancel,
+    quick_cancel_deadline: canQuickCancel ? quickCancelDeadline.toISOString() : null,
   };
 }
 
@@ -226,8 +278,18 @@ exports.createBooking = async (userId, scheduleId) => {
 
     const classStart = dayjs.tz(schedule.date + ' ' + schedule.start_time, BEIJING_TZ);
     const bookingDeadline = classStart.subtract(schedule.booking_deadline || 120, 'minute');
-    if (bjNow().isAfter(bookingDeadline)) {
-      throw new Error('已过预约截止时间');
+    const now = bjNow();
+    let isLateBooking = false;
+
+    if (now.isAfter(bookingDeadline)) {
+      // 截止预约时间后：未到开课时间且未满员才允许补约
+      if (now.isAfter(classStart) || now.isSame(classStart)) {
+        throw new Error('课程已开始，无法预约');
+      }
+      if (schedule.current_bookings >= schedule.max_bookings) {
+        throw new Error('预约名额已满，您可以加入候补名单');
+      }
+      isLateBooking = true;  // 标记为补约，取消时走5分钟快速取消规则
     }
 
     if (schedule.current_bookings >= schedule.max_bookings) {
@@ -431,6 +493,7 @@ exports.createBooking = async (userId, scheduleId) => {
       status: 'booked',
       credits_deducted: creditsCost,
       user_package_id: currentPackage._id,
+      is_late_booking: isLateBooking,  // 标记是否为补约
       ...buildBookingSnapshot(schedule),  // 课程快照
     });
 
@@ -467,6 +530,10 @@ exports.createBooking = async (userId, scheduleId) => {
       const bookingUser = await User.findById(userId);
       if (bookingUser && bookingUser.openid) {
         await wechatMessageService.sendBookingSuccess(bookingUser, schedule);
+        // 补约场景额外发送提示（订阅消息无法追加字段，通过日志记录）
+        if (isLateBooking) {
+          console.log('[Booking] 补约成功，已发送预约成功通知, userId:', userId, 'scheduleId:', scheduleId);
+        }
       }
     } catch (notifyErr) {
       console.error('[Booking] 发送预约成功通知失败:', notifyErr.message, notifyErr.stack);
@@ -495,6 +562,7 @@ exports.createBooking = async (userId, scheduleId) => {
     const result = {
       booking,
       activationNotice,
+      is_late_booking: isLateBooking,
       usedPackage: {
         _id: currentPackage._id,
         package_type: currentPackage.package_type,
@@ -528,9 +596,14 @@ exports.createBooking = async (userId, scheduleId) => {
 };
 
 // 取消预约 - 统一规则：
-// 1. 预约截止时间前（booking_deadline）：正常取消，退课时
-// 2. 窗口期内（截止时间后到开课前10分钟）：需豁免次数才能取消，退课时
-// 3. 无豁免次数或开课前10分钟内：拒绝取消
+// 补约（is_late_booking=true）：
+//   1. 预约后5分钟内（且未开课）：快速取消，退课时，不扣豁免
+//   2. 5分钟超时后：回退到豁免通道（开课前 cancel_deadline 分钟前，需有豁免次数）
+//   3. 过 cancel_deadline 或已开课：拒绝取消
+// 正常预约：
+//   1. 预约截止时间前（booking_deadline）：正常取消，退课时
+//   2. 窗口期内（截止时间后到开课前 cancel_deadline 分钟）：需豁免次数才能取消，退课时
+//   3. 无豁免次数或开课前 cancel_deadline 分钟内：拒绝取消
 exports.cancelBooking = async (userId, bookingId) => {
   const booking = await Booking.findById(bookingId).populate({
     path: 'schedule_id',
@@ -553,15 +626,45 @@ exports.cancelBooking = async (userId, bookingId) => {
   const now = bjNow();
   const classStart = dayjs.tz(schedule.date + ' ' + schedule.start_time, BEIJING_TZ);
 
-  // 预约截止时间 = 开课前 booking_deadline 分钟（默认120分钟）
-  const bookingDeadlineMinutes = schedule.booking_deadline || TIME_RULES.BOOKING_DEADLINE_MINUTES;
-  const bookingDeadline = classStart.subtract(bookingDeadlineMinutes, 'minute');
+  // 已开课或已过开课时间 → 一律拒绝
+  if (!now.isBefore(classStart)) {
+    throw new Error('课程已开始，无法取消');
+  }
 
-  // 豁免取消窗口截止 = 开课前 10 分钟
-  const exemptDeadline = classStart.subtract(TIME_RULES.EXEMPT_WINDOW_MINUTES, 'minute');
+  // === 补约快速取消通道（5分钟内）===
+  if (booking.is_late_booking) {
+    const quickCancelDeadline = dayjs.tz(booking.created_at, BEIJING_TZ).add(TIME_RULES.QUICK_CANCEL_MINUTES, 'minute');
+    if (now.isBefore(quickCancelDeadline)) {
+      // 5分钟内 → 快速取消，退课时，不扣豁免
+      booking.status = 'cancelled';
+      booking.cancel_type = CANCEL_TYPE.QUICK;
+      booking.cancel_time = new Date();
+      booking.credits_refunded = booking.credits_deducted;
+      await booking.save();
 
-  if (now.isBefore(bookingDeadline) || now.isSame(bookingDeadline)) {
-    // 正常取消 - 全额退还课时
+      // 恢复课时
+      const pkg = booking.user_package_id ? await UserPackage.findById(booking.user_package_id) : await UserPackage.findOne({ user_id: userId, status: 'active' });
+      if (pkg) {
+        pkg.remaining_credits += booking.credits_deducted;
+        if (pkg.status === 'exhausted') pkg.status = 'active';
+        await pkg.save();
+      }
+
+      // 跳过下方正常/豁免判断，直接进入人数更新与通知流程
+      return await finalizeCancel(booking, schedule, userId, now, classStart);
+    }
+    // 5分钟超时 → 回退到豁免通道（与正常预约的窗口期逻辑一致）
+  }
+
+  // === 正常预约 / 补约超时回退 共用的取消规则 ===
+
+  // 取消截止时间 = 开课前 cancel_deadline 分钟（使用排课设置值，默认60分钟）
+  // cancel_deadline 前：正常取消；cancel_deadline 后至开课前：豁免取消
+  const cancelDeadlineMinutes = schedule.cancel_deadline || 60;
+  const exemptDeadline = classStart.subtract(cancelDeadlineMinutes, 'minute');
+
+  // 非补约且在 cancel_deadline 前 → 正常取消
+  if (!booking.is_late_booking && (now.isBefore(exemptDeadline) || now.isSame(exemptDeadline))) {
     booking.status = 'cancelled';
     booking.cancel_type = CANCEL_TYPE.NORMAL;
     booking.cancel_time = new Date();
@@ -575,10 +678,25 @@ exports.cancelBooking = async (userId, bookingId) => {
       if (pkg.status === 'exhausted') pkg.status = 'active';
       await pkg.save();
     }
-  } else if (now.isBefore(exemptDeadline)) {
-    // 窗口期 - 检查豁免次数
+  } else if (now.isBefore(classStart)) {
+    // 正常预约在 cancel_deadline 后 或 补约5分钟后 → 豁免取消（直到开课前）
+
+    // 同一节课已使用过豁免取消的，禁止第二次豁免取消（补约场景）
+    if (booking.is_late_booking) {
+      const hasExemptCancelledBefore = await Booking.exists({
+        user_id: userId,
+        schedule_id: schedule._id,
+        status: 'cancelled',
+        cancel_type: 'exempt'
+      });
+      if (hasExemptCancelledBefore) {
+        throw new Error('同一节课已使用过豁免取消，不能再取消');
+      }
+    }
+
     const user = await User.findById(userId);
-    if (user.exemption_count > 0) {
+    const effectiveExemptionCount = user.exemption_count !== undefined ? user.exemption_count : 2;
+    if (effectiveExemptionCount > 0) {
       // 有豁免次数 - 豁免取消，退课时
       booking.status = 'cancelled';
       booking.cancel_type = CANCEL_TYPE.EXEMPT;
@@ -597,17 +715,22 @@ exports.cancelBooking = async (userId, bookingId) => {
       }
 
       // 扣除豁免次数
-      user.exemption_count -= 1;
+      user.exemption_count = effectiveExemptionCount - 1;
       await user.save();
     } else {
       // 无豁免次数 - 拒绝取消
-      throw new Error('已超过预约截止时间，不能取消');
+      throw new Error('已超过可取消时限，且无豁免次数可用');
     }
   } else {
-    // 开课前10分钟内 - 拒绝取消
-    throw new Error('已超过预约截止时间，不能取消');
+    // 已开课 - 拒绝取消（理论上前面已拦截）
+    throw new Error('课程已开始，无法取消');
   }
 
+  return await finalizeCancel(booking, schedule, userId, now, classStart);
+};
+
+// 取消预约的公共后置流程：更新人数、候补通知、微信推送、清理提醒任务、广播管理端
+async function finalizeCancel(booking, schedule, userId, now, classStart) {
   // 更新排课预约人数（原子操作）
   const updatedSchedule = await Schedule.findByIdAndUpdate(
     schedule._id,
@@ -623,8 +746,10 @@ exports.cancelBooking = async (userId, bookingId) => {
     await updatedSchedule.save();
   }
 
-  // 通知候补用户
-  if (updatedSchedule.status === 'available' && updatedSchedule.current_bookings < updatedSchedule.max_bookings) {
+  // 通知候补用户（截止时间前取消才触发候补转正，补约取消不触发）
+  const bookingDeadlineMinutes = schedule.booking_deadline || TIME_RULES.BOOKING_DEADLINE_MINUTES;
+  const bookingDeadline = classStart.subtract(bookingDeadlineMinutes, 'minute');
+  if (!booking.is_late_booking && now.isBefore(bookingDeadline) && updatedSchedule.status === 'available' && updatedSchedule.current_bookings < updatedSchedule.max_bookings) {
     exports.notifyWaitlistUsers(schedule._id).catch(err => {
       console.error('通知候补用户失败:', err.message);
     });
@@ -633,9 +758,14 @@ exports.cancelBooking = async (userId, bookingId) => {
   try {
     const cancelUser = await User.findById(userId);
     if (cancelUser && cancelUser.openid) {
-      const cancelReason = booking.cancel_type === CANCEL_TYPE.EXEMPT
-        ? '您已使用豁免取消预约，课时已退还'
-        : '您已取消预约，课时已退还';
+      let cancelReason;
+      if (booking.cancel_type === CANCEL_TYPE.QUICK) {
+        cancelReason = '您已取消预约（补约），课时已退还';
+      } else if (booking.cancel_type === CANCEL_TYPE.EXEMPT) {
+        cancelReason = '您已使用豁免取消预约，课时已退还';
+      } else {
+        cancelReason = '您已取消预约，课时已退还';
+      }
       await wechatMessageService.sendBookingCancel(cancelUser, schedule, cancelReason, 'member', 'bookingCancelByUser');
     }
   } catch (notifyErr) {
@@ -667,7 +797,7 @@ exports.cancelBooking = async (userId, bookingId) => {
   } catch (e) {}
 
   return booking;
-};
+}
 
 // 获取我的预约记录
 exports.getMyBookings = async (userId, type, page, pageSize, storeId) => {
@@ -692,7 +822,7 @@ exports.getMyBookings = async (userId, type, page, pageSize, storeId) => {
   const list = await Booking.find(filter)
     .populate({
       path: 'schedule_id',
-      select: 'course_name start_time end_time date store_id dance_style_id coach_id status booking_deadline min_bookings current_bookings',
+      select: 'course_name start_time end_time date store_id dance_style_id coach_id status booking_deadline cancel_deadline min_bookings current_bookings',
       populate: [
         { path: 'store_id', select: 'name' },
         { path: 'dance_style_id', select: 'name' },
@@ -712,7 +842,7 @@ exports.getMyBookings = async (userId, type, page, pageSize, storeId) => {
   if (hasBooked) {
     userDoc = await User.findById(userId).select('exemption_count');
   }
-  const resultList = list.map(b => {
+  const resultList = await Promise.all(list.map(async b => {
     const obj = b.toObject();
     if (b.status === 'booked') {
       obj.can_cancel = false;
@@ -721,14 +851,14 @@ exports.getMyBookings = async (userId, type, page, pageSize, storeId) => {
       obj.exempt_deadline = null;
       obj.exemption_count = 0;
       try {
-        const fields = computeCancelFields(b, userDoc);
+        const fields = await computeCancelFields(b, userDoc);
         Object.assign(obj, fields);
       } catch (e) {
         // schedule 已删除等异常情况，保持默认不可取消
       }
     }
     return obj;
-  });
+  }));
 
   const total = await Booking.countDocuments(filter);
   return { list: resultList, total, page: Number(page), pageSize: Number(pageSize) };
@@ -778,8 +908,10 @@ exports.getBookingList = async (query) => {
     filter.booking_date = start_date;
   }
 
+  // 使用 booking_date 降序排序，与 { booking_date: -1, created_at: -1 } 索引匹配
+  // 避免内存排序导致的性能问题
   const list = await Booking.find(filter)
-    .populate('user_id', 'real_name nick_name avatar_url phone')
+    .populate('user_id', 'real_name nick_name avatar_url phone wechat_phone reserve_phone')
     .populate({
       path: 'schedule_id',
       select: 'course_name start_time end_time date store_id',
@@ -787,7 +919,7 @@ exports.getBookingList = async (query) => {
         { path: 'store_id', select: 'name' },
       ],
     })
-    .sort({ created_at: -1 })
+    .sort({ booking_date: -1, created_at: -1 })
     .skip((page - 1) * pageSize)
     .limit(Number(pageSize));
 
@@ -813,14 +945,14 @@ exports.getBookingById = async (id) => {
   const obj = booking.toObject();
   if (booking.status === 'booked') {
     try {
-      const fields = computeCancelFields(booking, booking.user_id);
+      const fields = await computeCancelFields(booking, booking.user_id);
       Object.assign(obj, fields);
     } catch (e) {
       obj.can_cancel = false;
       obj.cancel_phase = 'locked';
       obj.booking_deadline = null;
       obj.exempt_deadline = null;
-      obj.exemption_count = booking.user_id ? (booking.user_id.exemption_count || 0) : 0;
+      obj.exemption_count = booking.user_id ? (booking.user_id.exemption_count !== undefined ? booking.user_id.exemption_count : 2) : 0;
     }
   }
   return obj;
@@ -839,6 +971,9 @@ exports.adminCancelBooking = async (bookingId, reason, operatorId) => {
   booking.cancel_time = new Date();
   booking.cancel_reason = reason;
   booking.credits_refunded = booking.credits_deducted;
+  // 清除签到状态，避免上课记录、教练课时统计仍按已签到处理
+  booking.checked_in = false;
+  booking.check_in_time = null;
   await booking.save();
 
   // 恢复课时
@@ -855,6 +990,24 @@ exports.adminCancelBooking = async (bookingId, reason, operatorId) => {
     schedule.current_bookings = Math.max(0, schedule.current_bookings - 1);
     if (schedule.status === 'full') schedule.status = 'available';
     await schedule.save();
+
+    // 若会员已签到，删除对应的上课记录
+    if (booking.checked_in) {
+      const Attendance = require('../models/Attendance');
+      await Attendance.findOneAndDelete({
+        schedule_id: schedule._id,
+        user_id: booking.user_id
+      });
+    }
+
+    // 若教练课时记录已生成，重新计算（排除本次被取消的签到）
+    const CoachAttendance = require('../models/CoachAttendance');
+    const coachAttendanceService = require('./coachAttendance.service');
+    const existingCoachAtt = await CoachAttendance.findOne({ schedule_id: schedule._id });
+    if (existingCoachAtt) {
+      await CoachAttendance.deleteMany({ schedule_id: schedule._id });
+      await coachAttendanceService.recordCoachAttendance(schedule._id);
+    }
 
     // 通知候补用户
     if (schedule.current_bookings < schedule.max_bookings) {

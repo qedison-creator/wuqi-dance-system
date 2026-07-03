@@ -13,19 +13,58 @@ App({
     baseUrl: config.baseUrl,
     serverBase: config.serverBase,
     privacyResolve: null,
-    deviceFingerprint: ''
+    deviceFingerprint: '',
+    isOnline: true
   },
   onLaunch() {
     this.silenceUnsupportedApi();
     this.registerPrivacyHandler();
+    this.registerNetworkListener();
     // 延迟初始化设备指纹，不阻塞启动
-
     setTimeout(() => this.initDeviceFingerprint(), 0);
     const token = wx.getStorageSync('admin_token');
     if (token) {
       this.globalData.token = token;
-      this.getUserInfo();
-      this.getStoreList();
+      // 启动时网络栈可能尚未就绪，延迟 500ms 发起，避免 ERR_CONNECTION_RESET
+      setTimeout(() => {
+        this.getUserInfo();
+        this.getStoreList();
+      }, 500);
+    }
+  },
+
+  // 全局网络状态监听：断网时标记 isOnline=false，request.js 据此跳过请求
+  // 网络恢复时标记 isOnline=true，页面可通过 app.globalData.isOnline 判断是否需要刷新
+  registerNetworkListener() {
+    wx.getNetworkType({
+      success: (res) => {
+        this.globalData.isOnline = res.networkType !== 'none';
+      }
+    });
+    wx.onNetworkStatusChange((res) => {
+      const wasOffline = !this.globalData.isOnline;
+      this.globalData.isOnline = res.isConnected && res.networkType !== 'none';
+      // 网络从断开恢复时，通知当前页面刷新数据
+      if (wasOffline && this.globalData.isOnline) {
+        const pages = getCurrentPages();
+        const currentPage = pages[pages.length - 1];
+        if (currentPage && typeof currentPage.onNetworkRestore === 'function') {
+          currentPage.onNetworkRestore();
+        }
+      }
+    });
+  },
+
+  // 微信隐私授权处理：保存 resolve，等待用户点击 agreePrivacyAuthorization 按钮后 resolve
+  // 注意：resolve 时必须传入触发授权的按钮 id，且与 wxml 中按钮的 id 一致，
+  // 否则报 errno:104 "buttonId is wrong"
+  resolvePrivacyAuthorization(buttonId = 'agree-btn') {
+    if (this.globalData.privacyResolve) {
+      this.globalData.privacyResolve({
+        buttonId,
+        event: 'agree'
+      });
+      this.globalData.privacyResolve = null;
     }
   },
 
@@ -56,40 +95,20 @@ App({
   registerPrivacyHandler() {
     if (typeof wx.onNeedPrivacyAuthorization === 'function') {
       wx.onNeedPrivacyAuthorization((resolve, eventInfo) => {
-        console.log('[Privacy] 触发隐私授权弹窗, eventInfo:', JSON.stringify(eventInfo));
+        console.log('[Privacy] 触发隐私授权, eventInfo:', JSON.stringify(eventInfo));
+        // 保存 resolve，等待用户点击 open-type="agreePrivacyAuthorization" 按钮后
+        // 调用 app.resolvePrivacyAuthorization() 完成授权
         this.globalData.privacyResolve = resolve;
-        wx.showModal({
-          title: '隐私政策提示',
-          content: '在使用本小程序前，需要您阅读并同意《用户协议》和《隐私政策》。我们将严格按照法律法规保护您的个人信息安全。',
-          cancelText: '暂不使用',
-          confirmText: '同意',
-          success: (res) => {
-            if (res.confirm) {
-              if (this.globalData.privacyResolve) {
-                this.globalData.privacyResolve({
-                  buttonId: 'agree',
-                  event: 'agree'
-                });
-              }
-            } else {
-              if (this.globalData.privacyResolve) {
-                this.globalData.privacyResolve({
-                  buttonId: 'disagree',
-                  event: 'disagree'
-                });
-              }
-            }
-            this.globalData.privacyResolve = null;
-          }
-        });
       });
     }
   },
-  getUserInfo() {
+  getUserInfo(retryCount) {
+    retryCount = retryCount || 0;
     const { request } = require('./utils/request');
     request({
       url: '/auth/me',
-      method: 'GET'
+      method: 'GET',
+      silent: true  // 启动请求失败由自愈机制处理，不弹 toast
     }).then(res => {
       const userInfo = res.data;
       // 规范化avatar_url
@@ -100,6 +119,10 @@ App({
       }
     }).catch(err => {
       console.error('获取管理员信息失败', err);
+      // 启动自愈：最多重试 3 次，间隔 2s
+      if (retryCount < 3) {
+        setTimeout(() => this.getUserInfo(retryCount + 1), 2000);
+      }
     });
   },
 
@@ -122,11 +145,13 @@ App({
 
     userInfo.avatar_url = serverBase + url;
   },
-  getStoreList() {
+  getStoreList(retryCount) {
+    retryCount = retryCount || 0;
     const { request } = require('./utils/request');
     request({
       url: '/stores',
-      method: 'GET'
+      method: 'GET',
+      silent: true  // 启动请求失败由自愈机制处理，不弹 toast
     }).then(res => {
       const list = res.data && res.data.list
         ? res.data.list
@@ -134,6 +159,10 @@ App({
       this.globalData.storeList = list;
     }).catch(err => {
       console.error('获取门店列表失败', err);
+      // 启动自愈：最多重试 3 次，间隔 2s
+      if (retryCount < 3) {
+        setTimeout(() => this.getStoreList(retryCount + 1), 2000);
+      }
     });
   },
   checkAuth() {

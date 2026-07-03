@@ -123,14 +123,28 @@
 
       <view class="profile-section" wx:if="{{profileData.member}}">
         <view class="profile-member">
-          <view class="profile-avatar">
-            <text>{{profileData.member.nick_initial || '?'}}</text>
-          </view>
+          <image class="profile-avatar" src="{{profileData.member.avatar_url || '/images/default-avatar.svg'}}" mode="aspectFill"></image>
           <view class="profile-member-info">
             <text class="profile-member-name">{{profileData.member.display_name || '会员'}}</text>
-            <text class="profile-member-code">编号：{{profileData.member.member_code || '-'}}</text>
-            <text class="profile-member-phone">手机：{{profileData.member.phone || '-'}}</text>
-            <text class="profile-member-store" wx:if="{{profileData.member.store_name}}">门店：{{profileData.member.store_name}}</text>
+            <view class="profile-member-meta">
+              <text class="profile-member-code" wx:if="{{profileData.member.member_code}}">编号：{{profileData.member.member_code}}</text>
+              <text class="profile-member-store" wx:if="{{profileData.member.store_name}}">门店：{{profileData.member.store_name}}</text>
+            </view>
+            <view class="profile-member-phones">
+              <view class="phone-row" wx:if="{{profileData.member.phone}}">
+                <text class="phone-label">登记手机</text>
+                <text class="phone-value">{{profileData.member.phone}}</text>
+              </view>
+              <view class="phone-row" wx:if="{{profileData.member.wechat_phone}}">
+                <text class="phone-label">微信手机</text>
+                <text class="phone-value">{{profileData.member.wechat_phone}}</text>
+              </view>
+              <view class="phone-row" wx:if="{{profileData.member.reserve_phone}}">
+                <text class="phone-label">备用手机</text>
+                <text class="phone-value">{{profileData.member.reserve_phone}}</text>
+              </view>
+              <text class="phone-empty" wx:if="{{!profileData.member.phone && !profileData.member.wechat_phone && !profileData.member.reserve_phone}}">暂无手机号</text>
+            </view>
           </view>
         </view>
       </view>
@@ -143,11 +157,17 @@
             <text class="pkg-type">{{item.type === 'count_card' ? '次卡' : (item.type === 'time_card' ? '时间卡' : '未知')}}</text>
           </view>
           <view class="pkg-detail">
-            <text wx:if="{{item.type === 'count_card'}}">剩余 {{item.credits_remaining}} 次 / 共 {{item.credits_total}} 次</text>
+            <view wx:if="{{item.type === 'count_card'}}">
+              <text>剩余 {{item.credits_remaining}} 次 / 共 {{item.credits_total}} 次</text>
+              <view class="pkg-validity" wx:if="{{item.valid_until}}">
+                <text wx:if="{{item.remaining_days}}">剩余 {{item.remaining_days}} 天，有效期至 {{item.valid_until}}</text>
+                <text wx:else>有效期至 {{item.valid_until}}</text>
+              </view>
+            </view>
             <view wx:if="{{item.type === 'time_card'}}">
               <text wx:if="{{item.remaining_days}}">剩余 {{item.remaining_days}} 天</text>
               <text wx:if="{{item.valid_until}}">，有效期至 {{item.valid_until}}</text>
-              <view wx:if="{{item.time_card_usage}}" style="margin-top: 8rpx; font-size: 24rpx; color: #666;">
+              <view class="pkg-usage" wx:if="{{item.time_card_usage}}">
                 <text wx:if="{{item.time_card_usage.daily_limit}}">今日已用 {{item.time_card_usage.daily_used}}/{{item.time_card_usage.daily_limit}} 次，剩余 {{item.time_card_usage.daily_remaining}} 次</text>
                 <text wx:if="{{item.time_card_usage.weekly_limit && !item.time_card_usage.daily_limit}}">本周已用 {{item.time_card_usage.weekly_used}}/{{item.time_card_usage.weekly_limit}} 次，剩余 {{item.time_card_usage.weekly_remaining}} 次</text>
               </view>

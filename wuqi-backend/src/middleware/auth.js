@@ -23,6 +23,12 @@ const auth = async (req, res, next) => {
     }
 
     req.user = decoded;
+
+    // 审核员只读：拦截所有非 GET 请求
+    if (decoded.role === 'reviewer' && req.method !== 'GET') {
+      return res.status(403).json(error(403, '审核账号为只读模式，无操作权限'));
+    }
+
     next();
   } catch (err) {
     if (err.name === 'TokenExpiredError') {

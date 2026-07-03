@@ -46,7 +46,19 @@
 
 .fb-row {
   display: flex;
-  gap: 16rpx;
+  align-items: center;
+}
+
+.fb-row .fb-chip.small {
+  margin-right: 16rpx;
+}
+
+.fb-row .fb-chip.small:last-child {
+  margin-right: 0;
+}
+
+.fb-row .fb-manage {
+  margin-left: 16rpx;
 }
 
 .fb-chip {
@@ -293,7 +305,12 @@
   background: #FAF7F6;
   border: 2rpx dashed #E0D8D6;
   border-radius: 16rpx;
-  margin-bottom: 24rpx;
+  margin: 0 0 24rpx;
+  line-height: inherit;
+}
+
+.form-upload::after {
+  border: none;
 }
 
 .fu-add-icon {

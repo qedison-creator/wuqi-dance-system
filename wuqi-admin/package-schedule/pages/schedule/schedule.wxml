@@ -115,7 +115,7 @@
         </view>
         <view class="info-row" wx:if="{{!item.isTemplatePreview}}">
           <text class="label">预约人数</text>
-          <text class="value">{{item.current_bookings}}/{{item.max_bookings}}人(最低{{item.min_bookings || 5}}人)</text>
+          <text class="value">{{item.current_bookings || 0}}/{{item.max_bookings}}人(最低{{item.min_bookings || 5}}人)</text>
         </view>
       </view>
       <view class="schedule-actions">
@@ -218,19 +218,19 @@
         <view class="form-group">
           <text class="form-label">课程封面</text>
           <view class="cover-upload-wrap" wx:if="{{!formData.coverUrl}}">
-            <view class="cover-upload-box" bindtap="onChooseCover">
+            <button id="agree-btn" class="cover-upload-box" open-type="agreePrivacyAuthorization" bindagreeprivacyauthorization="onPrivacyAgreed" bindtap="onChooseCover">
               <text class="cover-upload-icon"></text>
               <text class="cover-upload-text">点击上传封面</text>
               <text class="cover-upload-hint">建议 16:9 比例，最大 10MB</text>
-            </view>
+            </button>
           </view>
           <view class="cover-upload-wrap" wx:else>
             <view class="cover-preview-box">
-              <image class="cover-preview-image" src="{{formData.coverUrl}}" mode="aspectFill" bindtap="onChooseCover" />
+              <image class="cover-preview-image" src="{{formData.coverUrl}}" mode="aspectFill" />
               <view class="cover-action-row">
-                <view class="cover-action-btn cover-action-change" bindtap="onChooseCover">
+                <button id="agree-btn" class="cover-action-btn cover-action-change" open-type="agreePrivacyAuthorization" bindagreeprivacyauthorization="onPrivacyAgreed" bindtap="onChooseCover">
                   <text class="cover-action-text">更换封面</text>
-                </view>
+                </button>
                 <view class="cover-action-btn cover-action-delete" bindtap="onRemoveCover">
                   <text class="cover-action-text">删除</text>
                 </view>

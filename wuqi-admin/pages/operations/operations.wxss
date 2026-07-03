@@ -747,10 +747,16 @@
   color: #8B7E6A;
 }
 
-.booking-user-phone {
+.booking-user-phone-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16rpx;
+  margin-top: 4rpx;
+}
+.booking-user-phone-item {
   font-size: 24rpx;
   color: #8B7E6A;
-  margin-top: 4rpx;
 }
 
 .booking-actions {

@@ -12,25 +12,39 @@ App({
     pendingLocationAuth: false,
     pendingRelocate: false,  // 已授权用户需要重新定位（静默，无弹窗）
     locationAuthorized: false,  // 用户是否已授权位置
+    userManuallySelectedStore: false,  // 用户本次运行期间手动选择过门店（阻止自动定位匹配）
     privacyResolve: null,
     scene: null,
-    fromServiceAccount: false
+    fromServiceAccount: false,
+    isOnline: true
   },
   onLaunch(options) {
     this.silenceUnsupportedApi();
     this.registerPrivacyHandler();
+    this.registerNetworkListener();
     this._updateEntryScene(options);
     const { fetchTemplates } = require('./utils/subscribe-message');
-    fetchTemplates();
+    // 订阅消息模板延迟加载，避免与 getUserInfo/getStoreList 并发导致 ERR_CONNECTION_RESET
+    setTimeout(() => {
+      fetchTemplates();
+    }, 300);
     const token = wx.getStorageSync('token');
     if (token) {
       this.globalData.token = token;
-      // 记录初始化 Promise，供页面等待 getUserInfo 完成
-      this.globalData._initPromise = this.getUserInfo();
+      // 冷启动时网络栈可能尚未就绪，延迟 500ms 发起，并启用自愈重试
+      // _initPromise 同步赋值，供页面等待；实际请求延迟到 500ms 后发起
+      this.globalData._initPromise = new Promise((resolve) => {
+        setTimeout(() => {
+          this.getUserInfo(false, 0, true).then(resolve).catch(resolve);
+        }, 500);
+      });
     } else {
       this.globalData._initPromise = Promise.resolve();
     }
-    this.getStoreList();
+    // 门店列表也延迟加载，避免冷启动并发请求同时失败
+    setTimeout(() => {
+      this.getStoreList(0, true);
+    }, 500);
   },
 
   onShow(options) {
@@ -84,6 +98,27 @@ App({
     } catch (e) {}
   },
 
+  // 全局网络状态监听：断网时标记 isOnline=false，request.js 据此跳过请求
+  // 网络恢复时标记 isOnline=true，页面可通过 onNetworkRestore 钩子刷新数据
+  registerNetworkListener() {
+    wx.getNetworkType({
+      success: (res) => {
+        this.globalData.isOnline = res.networkType !== 'none';
+      }
+    });
+    wx.onNetworkStatusChange((res) => {
+      const wasOffline = !this.globalData.isOnline;
+      this.globalData.isOnline = res.isConnected && res.networkType !== 'none';
+      if (wasOffline && this.globalData.isOnline) {
+        const pages = getCurrentPages();
+        const currentPage = pages[pages.length - 1];
+        if (currentPage && typeof currentPage.onNetworkRestore === 'function') {
+          currentPage.onNetworkRestore();
+        }
+      }
+    });
+  },
+
   registerPrivacyHandler() {
     if (typeof wx.onNeedPrivacyAuthorization === 'function') {
       wx.onNeedPrivacyAuthorization((resolve, eventInfo) => {
@@ -117,7 +152,10 @@ App({
     }
   },
 
-  getUserInfo(forceRefresh = false) {
+  // forceRefresh: 强制刷新缓存
+  // coldStartRetry: 冷启动自愈重试次数（内部使用）
+  // isColdStart: 标记为冷启动调用，第一次失败静默不弹 toast
+  getUserInfo(forceRefresh = false, coldStartRetry = 0, isColdStart = false) {
     const now = Date.now();
     const cacheTimeout = 5 * 60 * 1000; // 5分钟缓存
 
@@ -129,16 +167,28 @@ App({
     }
 
     const { request } = require('./utils/request');
+    // 冷启动或自愈重试时静默（不弹 toast），由自愈机制处理
+    const silent = isColdStart || coldStartRetry > 0;
     return request({
       url: '/auth/me',
-      method: 'GET'
+      method: 'GET',
+      silent: silent
     }).then(res => {
       this.globalData.userInfo = res.data;
       this.globalData.userInfoLastFetch = Date.now(); // 更新缓存时间
       this._tryMatchStoreForUser();
-    }).catch(() => {
-      wx.removeStorageSync('token');
-      this.globalData.token = '';
+    }).catch((err) => {
+      // 认证失败（401/403）已在 request.js 中强制登出，不再重试
+      if (err && (err.code === 401 || err.code === 403)) {
+        return;
+      }
+      // 网络错误自愈：最多重试 3 次，间隔 2s
+      if (coldStartRetry < 3) {
+        console.log(`[App] getUserInfo 冷启动自愈重试 ${coldStartRetry + 1}/3`);
+        setTimeout(() => this.getUserInfo(false, coldStartRetry + 1, isColdStart), 2000);
+        return;
+      }
+      // 重试耗尽：不清除 token（避免网络波动导致用户被登出）
     });
   },
 
@@ -160,11 +210,16 @@ App({
     this.determineDefaultStore();
   },
 
-  getStoreList() {
+  // retryCount: 冷启动自愈重试次数（内部使用）
+  // isColdStart: 标记为冷启动调用，第一次失败静默不弹 toast
+  getStoreList(retryCount = 0, isColdStart = false) {
     const { request } = require('./utils/request');
+    // 冷启动或自愈重试时静默（不弹 toast）
+    const silent = isColdStart || retryCount > 0;
     request({
       url: '/stores',
-      method: 'GET'
+      method: 'GET',
+      silent: silent
     }).then(res => {
       const list = res.data && res.data.list
         ? res.data.list
@@ -177,21 +232,46 @@ App({
         this.determineDefaultStore();
       }
     }).catch(() => {
+      // 网络错误自愈：最多重试 3 次，间隔 2s
+      if (retryCount < 3) {
+        console.log(`[App] getStoreList 冷启动自愈重试 ${retryCount + 1}/3`);
+        setTimeout(() => this.getStoreList(retryCount + 1, isColdStart), 2000);
+      }
     });
   },
 
-  determineDefaultStore() {
+  // 统一匹配用户门店
+  // 匹配优先级：
+  // 1. 用户所属门店 userInfo.store_id（预建档/审核通过时写入）
+  // 2. 套餐会员 → 套餐所属门店（多门店则按位置匹配最近）
+  // 3. 无套餐用户/游客 → 按位置匹配最近门店
+  // @param force - 强制重新匹配，用于登录/认领后从游客门店切换到会员门店
+  determineDefaultStore(force = false) {
     const list = this.globalData.storeList;
     const userInfo = this.globalData.userInfo;
 
     if (list.length === 0) return;
 
-    if (this.globalData.defaultStoreSet) return;
+    // 非强制模式下，已设置过或用户手动选择过则不重新匹配
+    if (!force && (this.globalData.defaultStoreSet || this.globalData.userManuallySelectedStore)) return;
 
     if (userInfo && userInfo.member_status === 'official') {
+      // 优先使用用户所属门店（预建档用户认领后该字段即为预建档门店）
+      const userStoreId = userInfo.store_id
+        ? (typeof userInfo.store_id === 'object' ? userInfo.store_id._id : userInfo.store_id)
+        : null;
+      if (userStoreId) {
+        const matchedStore = list.find(s => String(s._id) === String(userStoreId));
+        if (matchedStore) {
+          this.setStore(matchedStore);
+          return;
+        }
+      }
+
+      // 其次按套餐门店匹配（多门店则按位置匹配最近）
       this.getActivePackageStores().then(activeStoreIds => {
         if (activeStoreIds.length === 1) {
-          const matchedStore = list.find(s => s._id === activeStoreIds[0]);
+          const matchedStore = list.find(s => String(s._id) === String(activeStoreIds[0]));
           if (matchedStore) {
             this.setStore(matchedStore);
             return;
@@ -199,7 +279,7 @@ App({
         }
 
         if (activeStoreIds.length > 1) {
-          const candidateStores = list.filter(s => activeStoreIds.includes(s._id));
+          const candidateStores = list.filter(s => activeStoreIds.includes(String(s._id)));
           this.selectNearestStore(candidateStores);
           return;
         }
@@ -211,6 +291,14 @@ App({
     } else {
       this.selectNearestStore(list);
     }
+  },
+
+  // 登录/认领成功后重置门店匹配状态，并按会员信息重新匹配门店
+  // 解决游客阶段已匹配最近门店，认领后未切换到套餐所属门店的问题
+  resetAndMatchStore() {
+    this.globalData.defaultStoreSet = false;
+    this.globalData.userManuallySelectedStore = false;
+    this.determineDefaultStore(true);
   },
 
   getActivePackageStores() {
@@ -351,5 +439,25 @@ App({
     this.globalData.currentStore = store;
     this.globalData.defaultStoreSet = true;
     wx.setStorageSync('currentStore', store);
+  },
+
+  // 认证失效（账号被删除/禁用、token 过期等）时强制登出并回到启动页
+  // 防止被删除的会员继续浏览本地缓存的会员信息
+  forceLogoutAndRedirect(message = '账号已失效，请重新登录', silent = false) {
+    // 已经登出则不再重复跳转
+    if (!wx.getStorageSync('token') && !this.globalData.token) {
+      return;
+    }
+    wx.removeStorageSync('token');
+    this.globalData.token = '';
+    this.globalData.userInfo = null;
+    this.globalData.userInfoLastFetch = 0;
+
+    if (!silent) {
+      wx.showToast({ title: message, icon: 'none', duration: 2000 });
+    }
+    setTimeout(() => {
+      wx.reLaunch({ url: '/pages/splash/splash' });
+    }, silent ? 0 : 1500);
   }
 });

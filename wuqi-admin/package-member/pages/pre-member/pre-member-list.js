@@ -1,4 +1,6 @@
 const { request } = require('../../../utils/request');
+const { fixImageUrl } = require('../../../utils/util');
+const wsClient = require('../../../utils/websocket-client');
 
 Page({
   data: {
@@ -19,12 +21,15 @@ Page({
       reserve_phone: '',
       store_id: '',
       store_name: '',
+      member_identity: 'old',
       package_type: '',
       start_date: '',
       end_date: '',
       total_credits: '',
       period_type: 'weekly',
       period_count: '',
+      duration_value: '',
+      duration_unit: 'month',
       remark: ''
     },
     // 门店选择弹窗
@@ -42,6 +47,15 @@ Page({
 
   onShow() {
     this.loadList();
+    this._connectWebSocket();
+  },
+
+  onHide() {
+    wsClient.disconnect();
+  },
+
+  onUnload() {
+    wsClient.disconnect();
   },
 
   onPullDownRefresh() {
@@ -82,6 +96,7 @@ Page({
       const formattedList = list.map(item => {
         return {
           ...item,
+          avatar_url: fixImageUrl(item.avatar_url),
           created_at_text: item.created_at ? this._formatDate(item.created_at) : '',
           package_text: this._formatPackageText(item.packages)
         };
@@ -91,6 +106,31 @@ Page({
       console.error('加载预建档列表失败', err);
       this.setData({ loading: false });
     }
+  },
+
+  // 连接 WebSocket，接收后端预建档变更推送
+  _connectWebSocket() {
+    wsClient.connect({
+      onMessage: {
+        pre_member_change: () => {
+          this._debouncedLoadList();
+        }
+      },
+      onFallback: () => {
+        this._debouncedLoadList();
+      }
+    });
+  },
+
+  // WebSocket 推送防抖：避免短时间内多次刷新列表
+  _debouncedLoadList() {
+    if (this._preMemberRefreshTimer) {
+      clearTimeout(this._preMemberRefreshTimer);
+    }
+    this._preMemberRefreshTimer = setTimeout(() => {
+      this._preMemberRefreshTimer = null;
+      this.loadList();
+    }, 500);
   },
 
   _formatDate(dateStr) {
@@ -162,12 +202,15 @@ Page({
         reserve_phone: '',
         store_id: defaultStore ? defaultStore._id : '',
         store_name: defaultStore ? defaultStore.name : '',
+        member_identity: 'old',
         package_type: '',
         start_date: '',
         end_date: '',
         total_credits: '',
         period_type: 'weekly',
         period_count: '',
+        duration_value: '',
+        duration_unit: 'month',
         remark: ''
       }
     });
@@ -189,12 +232,15 @@ Page({
           reserve_phone: data.reserve_phone || '',
           store_id: storeObj._id || '',
           store_name: storeObj.name || '',
+          member_identity: data.member_identity || 'new',
           package_type: pkg ? pkg.package_type : '',
           start_date: pkg && pkg.start_date ? this._formatDate(pkg.start_date) : '',
           end_date: pkg && pkg.end_date ? this._formatDate(pkg.end_date) : '',
           total_credits: pkg && pkg.total_credits ? String(pkg.total_credits) : '',
           period_type: pkg && pkg.weekly_limit ? 'weekly' : (pkg && pkg.daily_limit ? 'daily' : 'unlimited'),
           period_count: pkg && pkg.weekly_limit ? String(pkg.weekly_limit) : (pkg && pkg.daily_limit ? String(pkg.daily_limit) : ''),
+          duration_value: pkg && pkg.duration_value ? String(pkg.duration_value) : '',
+          duration_unit: pkg && pkg.duration_unit ? pkg.duration_unit : 'month',
           remark: data.remark || ''
         }
       });
@@ -226,6 +272,14 @@ Page({
 
   onPackageTypeChange(e) {
     this.setData({ 'form.package_type': e.currentTarget.dataset.type });
+  },
+
+  onMemberIdentityChange(e) {
+    this.setData({ 'form.member_identity': e.currentTarget.dataset.identity });
+  },
+
+  onDurationUnitChange(e) {
+    this.setData({ 'form.duration_unit': e.currentTarget.dataset.unit });
   },
 
   onPeriodTypeChange(e) {
@@ -309,9 +363,19 @@ Page({
 
     // 套餐校验
     if (form.package_type) {
-      if (!form.start_date || !form.end_date) {
-        wx.showToast({ title: '请选择有效期', icon: 'none' });
-        return;
+      if (form.member_identity === 'new') {
+        // 新会员：校验时长
+        if (!form.duration_value || Number(form.duration_value) <= 0) {
+          const tip = form.package_type === 'count_card' ? '请输入服务有效期' : '请输入有效时长';
+          wx.showToast({ title: tip, icon: 'none' });
+          return;
+        }
+      } else {
+        // 老会员：校验起止日期
+        if (!form.start_date || !form.end_date) {
+          wx.showToast({ title: '请选择有效期', icon: 'none' });
+          return;
+        }
       }
       if (form.package_type === 'count_card' && (!form.total_credits || Number(form.total_credits) <= 0)) {
         wx.showToast({ title: '请输入总次数', icon: 'none' });
@@ -329,15 +393,23 @@ Page({
       gender: form.gender,
       reserve_phone: form.reserve_phone,
       store_id: form.store_id,
+      member_identity: form.member_identity,
       remark: form.remark || ''
     };
 
     if (form.package_type) {
       const packageData = {
-        package_type: form.package_type,
-        start_date: form.start_date,
-        end_date: form.end_date
+        package_type: form.package_type
       };
+      if (form.member_identity === 'new') {
+        // 新会员：传时长，后端激活时计算起止日期
+        packageData.duration_value = Number(form.duration_value);
+        packageData.duration_unit = form.duration_unit;
+      } else {
+        // 老会员：传起止日期
+        packageData.start_date = form.start_date;
+        packageData.end_date = form.end_date;
+      }
       if (form.package_type === 'count_card') {
         packageData.total_credits = Number(form.total_credits);
       } else {
@@ -354,17 +426,16 @@ Page({
     try {
       if (editingId) {
         await request({ url: `/pre-members/${editingId}`, method: 'PUT', data: payload });
-        wx.showToast({ title: '更新成功', icon: 'success' });
       } else {
         await request({ url: '/pre-members', method: 'POST', data: payload });
-        wx.showToast({ title: '创建成功', icon: 'success' });
       }
+      wx.hideLoading();
+      wx.showToast({ title: editingId ? '更新成功' : '创建成功', icon: 'success' });
       this.setData({ showFormModal: false, editingId: '' });
       this.loadList();
     } catch (err) {
-      wx.showToast({ title: err.message || '操作失败', icon: 'none' });
-    } finally {
       wx.hideLoading();
+      wx.showToast({ title: err.message || '操作失败', icon: 'none' });
     }
   },
 

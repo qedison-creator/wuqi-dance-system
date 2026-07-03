@@ -415,8 +415,8 @@ exports.unsuspendMember = async (userId, operatorId) => {
 
 // ========== 会员编码生成 ==========
 
-// 生成会员编码（格式：FY2026051003）
-// 福永店FY, 固戍店GS + 日期8位 + 序号2位
+// 生成会员编码（格式：FY20260510001）
+// 福永店FY, 固戍店GS + 日期8位 + 序号3位
 exports.generateMemberCode = async (storeId) => {
   const Store = require('../models/Store');
   const dateStr = dayjs().format('YYYYMMDD');
@@ -444,8 +444,8 @@ exports.generateMemberCode = async (storeId) => {
     created_at: { $gte: todayStart, $lte: todayEnd }
   });
   
-  // 生成2位序号，不足补0
-  const sequence = String(count + 1).padStart(2, '0');
+  // 生成3位序号，不足补0，单日可支持最多999个新编号
+  const sequence = String(count + 1).padStart(3, '0');
   const memberCode = `${prefix}${dateStr}${sequence}`;
   
   // 验证编码是否已存在（防止并发问题）
@@ -480,34 +480,47 @@ exports.assignMemberCode = async (userId) => {
 exports.checkMemberInfoComplete = async (userId) => {
   const user = await User.findById(userId);
   if (!user) throw new Error('会员不存在');
-  
+
+  // 预建档会员（pending_claim 或已认领的 official）核心信息已齐全，
+  // 不再强制要求 phone 字段（reserve_phone 已作为联系方式），跳过完善信息拦截
+  // 用 claimed_at 识别已认领的预建档会员（仅预建档认领流程会写入该字段，自主注册不会）
+  const isPreRegistered = user.member_status === 'pending_claim' || !!user.claimed_at;
+
+  if (isPreRegistered) {
+    if (!user.info_completed) {
+      user.info_completed = true;
+      await user.save();
+    }
+    return { isComplete: true, missingFields: [], user };
+  }
+
   // 检查必填字段
   const requiredFields = [
     { key: 'real_name', name: '真实姓名' },
     { key: 'phone', name: '手机号码' },
     { key: 'gender', name: '性别' }
   ];
-  
+
   const missingFields = [];
   for (const field of requiredFields) {
     if (!user[field.key]) {
       missingFields.push(field.name);
     }
   }
-  
+
   // 验证手机号格式
   if (user.phone && !/^1[3-9]\d{9}$/.test(user.phone)) {
     missingFields.push('正确格式的手机号码');
   }
-  
+
   const isComplete = missingFields.length === 0;
-  
+
   // 更新用户状态
   if (user.info_completed !== isComplete) {
     user.info_completed = isComplete;
     await user.save();
   }
-  
+
   return {
     isComplete,
     missingFields,
@@ -655,7 +668,8 @@ exports.auditReservePhone = async (userId, action, operatorId, operatorName, rea
     throw new Error('无效的审核操作');
   }
   
-  // 清空待审核字段（保留记录）
+  // 清空待审核字段
+  user.phone_audit_pending = null;
   user.phone_audit_requested_at = null;
   
   await user.save();

@@ -28,7 +28,7 @@ function getNextDays(count = 7, holidays = []) {
       date: dateStr,
       day: dayNum,
       weekDay,
-      displayDay: i === 0 ? '今日' : (i === 1 ? '明天' : weekDay),
+      displayDay: i === 0 ? '今天' : (i === 1 ? '明天' : weekDay),
       isToday: i === 0,
       isHoliday
     });
@@ -73,7 +73,7 @@ Page({
     weekDays: [],
     weekDaysIndex: 0,
     courseCount: 0,
-    sectionTitle: '今日课程',
+    sectionTitle: '今天场次',
     imageErrors: {},
     showWaitlistModal: false,
     waitlistCourse: null,
@@ -84,7 +84,10 @@ Page({
     countCardScheduleId: '',
     isHolidayToday: false,
     showLoginModal: false,
-    bookingWindowDays: 7
+    bookingWindowDays: 7,
+    completedScheduleIds: [],
+    isRestrictedUser: false,
+    restrictedReason: ''
   },
 
   onShow() {
@@ -94,11 +97,16 @@ Page({
     const storeList = app.globalData.storeList || [];
     const currentStore = app.globalData.currentStore || (storeList.length > 0 ? storeList[0] : null);
     this.setData({ storeList, currentStore });
-    // 所有用户（含游客）都启动 30 秒自动轮询，确保课程列表实时性
-    this._startAutoRefresh();
+    // 游客无 WebSocket，启动 60s 低频轮询；登录用户的轮询由 onStatusChange 管理
+    this._startAutoRefresh(60000);
     const { checkLogin } = require('../../utils/auth');
     if (!checkLogin()) {
-      this.setData({ isLoggedIn: false, isOfficial: false });
+      this.setData({ 
+        isLoggedIn: false, 
+        isOfficial: false,
+        isRestrictedUser: true,
+        restrictedReason: '您不是正式会员，请联系门店办理'
+      });
       this.initPage();
       // 服务号跳转场景：未登录用户自动弹出登录面板，避免白屏/功能异常
       if (app.globalData.fromServiceAccount && !this._serviceLoginPrompted) {
@@ -126,6 +134,7 @@ Page({
 
   // 建立 WebSocket 连接，接收课程更新推送
   _connectWebSocket() {
+    const self = this;
     wsClient.connect({
       onMessage: {
         // 收到课程更新事件，重新加载课程列表
@@ -133,18 +142,27 @@ Page({
           this.loadCourses(true);
         }
       },
-      // WebSocket 连续重连失败后降级为 60 秒轮询
+      // WebSocket 连续重连失败后降级为轮询
       onFallback: () => {
         this.loadCourses(true);
+      },
+      // 连接状态变化：WS 连接成功时停止轮询，断开/降级时启动 60s 轮询兜底
+      onStatusChange: (status) => {
+        if (status === 'connected') {
+          self._stopAutoRefresh();
+        } else if (status === 'fallback' || status === 'disconnected') {
+          self._startAutoRefresh(60000);
+        }
       }
     });
   },
 
-  _startAutoRefresh() {
+  // 启动自动轮询。interval 默认 30s，WS 降级时传 60000
+  _startAutoRefresh(interval) {
     this._stopAutoRefresh();
     this._autoRefreshTimer = setInterval(() => {
       this.loadCourses(true);
-    }, 30000);
+    }, interval || 30000);
   },
 
   _stopAutoRefresh() {
@@ -154,15 +172,22 @@ Page({
     }
   },
 
+  // 全局网络恢复回调（由 app.js 的 onNetworkStatusChange 触发）
+  onNetworkRestore() {
+    this.loadCourses(true);
+  },
+
   refreshUserInfo() {
     Promise.all([
       request({ url: '/auth/me', silent: true }),
       request({ url: '/packages/my', silent: true })
     ]).then(([authRes, pkgRes]) => {
       let isOfficial = false;
+      let authData = null;
       if (authRes && authRes.data) {
         app.globalData.userInfo = authRes.data;
         isOfficial = authRes.data.member_status === 'official';
+        authData = authRes.data;
       }
       this.setData({ isOfficial });
       if (isOfficial && pkgRes && pkgRes.data) {
@@ -171,18 +196,92 @@ Page({
         this.setData({ isPackageSuspended: isSuspended });
         this._updatePackageStoreIds(pkgData);
         this._updateCanViewCapacity(authRes.data, pkgData);
+        // 计算受限用户状态和原因
+        const restrictedReason = this._computeRestrictedReason(authData, pkgData);
+        const isRestrictedUser = !!restrictedReason;
+        this.setData({ isRestrictedUser, restrictedReason });
       } else if (!isOfficial) {
-        this.setData({ memberPackageStoreIds: [], canBookCurrentStore: false, bookedScheduleIds: [], canViewCapacity: false });
+        this.setData({ 
+          memberPackageStoreIds: [], 
+          canBookCurrentStore: false, 
+          bookedScheduleIds: [], 
+          canViewCapacity: false,
+          isRestrictedUser: true,
+          restrictedReason: '您不是正式会员，请联系门店办理'
+        });
       }
       this.initPage();
+      this.loadCompletedBookings();
     }).catch(() => {
       const userInfo = app.globalData.userInfo || {};
       const isOfficial = userInfo.member_status === 'official';
-      this.setData({ isOfficial });
+      this.setData({ 
+        isOfficial,
+        isRestrictedUser: true,
+        restrictedReason: isOfficial ? '您暂无可用套餐，请联系门店开通' : '您不是正式会员，请联系门店办理'
+      });
       if (isOfficial) {
         this.setData({ memberPackageStoreIds: [], canBookCurrentStore: false, bookedScheduleIds: [], canViewCapacity: false });
       }
       this.initPage();
+    });
+  },
+
+  // 计算受限用户原因（空字符串表示不受限）
+  _computeRestrictedReason(authData, pkgData) {
+    if (!authData || authData.member_status !== 'official') {
+      return '您不是正式会员，请联系门店办理';
+    }
+    if (pkgData.hasSuspended && !pkgData.current) {
+      return '您的套餐暂停使用中';
+    }
+    const packages = pkgData.history || [];
+    if (packages.length === 0) {
+      return '您暂无可用套餐，请联系门店开通';
+    }
+    // 检查是否有有效套餐（active且未过期且未用完，或pending）
+    const hasValid = packages.some(pkg => {
+      if (pkg.status === 'pending') return true;
+      if (pkg.status !== 'active' || pkg.is_suspended) return false;
+      if (pkg.is_activated && pkg.end_date && new Date() > new Date(pkg.end_date)) return false;
+      if (pkg.package_type === 'count_card' && (pkg.remaining_credits || 0) === 0) return false;
+      return true;
+    });
+    if (hasValid) return '';
+    // 无有效套餐，进一步判断原因
+    const hasExpired = packages.some(pkg => {
+      if (pkg.status !== 'active') return false;
+      if (pkg.is_suspended) return false;
+      return pkg.is_activated && pkg.end_date && new Date() > new Date(pkg.end_date);
+    });
+    if (hasExpired) return '您的套餐已过期，请续费或联系门店';
+    const hasCountCardUsedUp = packages.some(pkg => {
+      if (pkg.status !== 'active') return false;
+      if (pkg.is_suspended) return false;
+      if (pkg.package_type !== 'count_card') return false;
+      return (pkg.remaining_credits || 0) === 0;
+    });
+    if (hasCountCardUsedUp) return '您的次卡次数已用完，请购买新套餐';
+    return '您暂无可用套餐，请联系门店开通';
+  },
+
+  // 加载已完成的课程记录（用于判断"已完成"状态）
+  loadCompletedBookings() {
+    if (!this.data.isOfficial) {
+      this.setData({ completedScheduleIds: [] });
+      return;
+    }
+    request({ url: '/bookings/my?type=completed&pageSize=100', silent: true }).then(res => {
+      const list = res.data && res.data.list ? res.data.list : (Array.isArray(res.data) ? res.data : []);
+      const completedScheduleIds = list.map(b => {
+        if (b.schedule_id) {
+          return String(b.schedule_id._id || b.schedule_id);
+        }
+        return null;
+      }).filter(Boolean);
+      this.setData({ completedScheduleIds });
+    }).catch(() => {
+      this.setData({ completedScheduleIds: [] });
     });
   },
 
@@ -260,9 +359,10 @@ Page({
     if (this._initPageTimer) {
       clearTimeout(this._initPageTimer);
     }
+    // 延迟到 app.js 冷启动请求高峰后再初始化，避免并发 ERR_CONNECTION_RESET
     this._initPageTimer = setTimeout(() => {
       this._doInitPage();
-    }, 300);
+    }, 600);
   },
 
   _doInitPage() {
@@ -323,7 +423,7 @@ Page({
       const selectedIndex = dates.findIndex(d => d.date === selectedDate);
       const weekDaysIndex = selectedIndex >= 0 ? selectedIndex : 0;
       const selectedDateItem = dates[selectedIndex] || dates[0];
-      const sectionTitle = selectedDateItem.isToday ? '今日课程' : (this.formatDate(selectedDateItem.date) + ' ' + selectedDateItem.weekDay + ' 课程');
+      const sectionTitle = selectedDateItem.isToday ? '今天场次' : (this.formatDate(selectedDateItem.date) + ' ' + selectedDateItem.weekDay);
       this.setData({ holidays: activeHolidays, dates, weekDays, selectedDate, weekDaysIndex, sectionTitle });
     } catch (err) {
       console.error('加载假期信息失败', err);
@@ -368,7 +468,9 @@ Page({
       return Promise.resolve();
     }
     if (!silent) {
-      this.setData({ loading: true, isHolidayToday: false });
+      // 已有数据时静默刷新，不显示 loading 动画（避免切 tab 回来一闪而过）
+      const hasExistingCourses = this.data.courses && this.data.courses.length > 0;
+      this.setData({ loading: !hasExistingCourses, isHolidayToday: false });
     }
     const storeId = this.data.currentStore ? this.data.currentStore._id : '';
     const reqData = {
@@ -376,7 +478,8 @@ Page({
       date: this.data.selectedDate
     };
 
-    return request({ url: '/schedules', data: reqData }).then(res => {
+    // silent: 冷启动网络栈未就绪时失败不弹 toast，避免游客被"网络连接失败"打扰
+    return request({ url: '/schedules', data: reqData, silent: true }).then(res => {
       const courses = res.data && res.data.list
         ? res.data.list
         : (Array.isArray(res.data) ? res.data : []);
@@ -404,14 +507,23 @@ Page({
           if (e.length >= 2) endMin = parseInt(e[0], 10) * 60 + parseInt(e[1], 10);
         }
 
-        // 课程状态：是否已经开始 / 是否已结束
+        // 课程状态：是否已经开始 / 是否已结束 / 是否进行中
         const _started = isToday && startMin !== null && currentMin >= startMin;
         const _ended = isToday && endMin !== null && currentMin >= endMin;
+        const _ongoing = _started && !_ended;
 
         // 处理教练头像URL
         const coachAvatar = (course.coach_id && course.coach_id.avatar_url)
           ? normalizeImageUrl(course.coach_id.avatar_url, SERVER_BASE)
           : '';
+
+        // 预处理已预约用户头像URL（拼接服务器域名，避免小程序当成本地资源加载失败）
+        const bookedUsers = Array.isArray(course.booked_users)
+          ? course.booked_users.map(u => ({
+              ...u,
+              avatar_url: u.avatar_url ? normalizeImageUrl(u.avatar_url, SERVER_BASE) : ''
+            }))
+          : [];
 
         return {
           ...course,
@@ -422,7 +534,9 @@ Page({
           danceTagText: tagColor.text,
           _started,
           _ended,
+          _ongoing,
           coachAvatar,
+          booked_users: bookedUsers,
           bookingOpen: this._isDateInBookingWindow(course.date)
         };
       });
@@ -541,6 +655,8 @@ Page({
       return;
     }
     app.globalData.currentStore = store;
+    app.globalData.userManuallySelectedStore = true;  // 标记本次运行期间不再自动匹配
+    app.globalData.pendingRelocate = false;
     wx.setStorageSync('currentStore', store);
     this.setData({
       currentStore: store,
@@ -783,7 +899,7 @@ Page({
     const weekDaysIndex = this.data.weekDays.findIndex(d => d.date === date);
     const idx = weekDaysIndex >= 0 ? weekDaysIndex : this.data.weekDaysIndex;
     const activeDay = this.data.weekDays[idx] || dateItem;
-    const sectionTitle = activeDay && activeDay.isToday ? '今日课程' : (this.formatDate(activeDay.date) + ' ' + activeDay.weekDay + ' 课程');
+    const sectionTitle = activeDay && activeDay.isToday ? '今天场次' : (this.formatDate(activeDay.date) + ' ' + activeDay.weekDay);
     this.setData({
       selectedDate: date,
       selectedDateItem: dateItem || null,
@@ -806,7 +922,22 @@ Page({
 
 
   onBookCourse(e) {
-    if (!auth.requireLogin(() => this.setData({ showLoginModal: true }))) return;
+    // 未登录用户：先弹引导登录弹窗，用户点"去登录"后再弹授权弹窗
+    if (!this.data.isLoggedIn) {
+      if (!auth.requireLogin(() => this.setData({ showLoginModal: true }))) return;
+    }
+
+    // 受限用户点击"不可预约"按钮，提示对应原因
+    if (this.data.isRestrictedUser) {
+      wx.showModal({
+        title: '无法预约',
+        content: this.data.restrictedReason,
+        showCancel: false,
+        confirmText: '知道了',
+        confirmColor: '#D4786E'
+      });
+      return;
+    }
 
     // 套餐停卡中，拦截预约
     if (this.data.isPackageSuspended) {
@@ -885,10 +1016,24 @@ Page({
       return;
     }
     auth.requireMember(() => {
+      // 判断是否为补约场景：当前时间已过预约截止时间（开课前 booking_deadline 分钟）
+      let isLateBooking = false;
+      if (course.date && course.start_time) {
+        const classStart = new Date(`${course.date} ${course.start_time}`.replace(/-/g, '/'));
+        const bookingDeadlineMin = course.booking_deadline || 120;
+        const deadline = new Date(classStart.getTime() - bookingDeadlineMin * 60000);
+        if (new Date() > deadline) {
+          isLateBooking = true;
+        }
+      }
+      let modalText = `确认预约「${course.course_name}」？\n时间：${course.start_time}-${course.end_time}\n教练：${course.coach_id && course.coach_id.name || '待定'}`;
+      if (isLateBooking) {
+        modalText += '\n\n本课程已过预约截止时间，属补约。预约后5分钟内可取消（退课时），超时需使用豁免权取消。';
+      }
       this.setData({
         showBookingModal: true,
         bookingModalCourse: course,
-        bookingModalText: `确认预约「${course.course_name}」？\n时间：${course.start_time}-${course.end_time}\n教练：${course.coach_id && course.coach_id.name || '待定'}`
+        bookingModalText: modalText
       });
     });
   },
@@ -901,7 +1046,7 @@ Page({
       const weekDaysIndex = weekDays.findIndex(d => d.date === selectedDate);
       const idx = weekDaysIndex >= 0 ? weekDaysIndex : 0;
       const activeDay = weekDays[idx];
-      const sectionTitle = activeDay && activeDay.isToday ? '今日课程' : (this.formatDate(activeDay.date) + ' ' + activeDay.weekDay + ' 课程');
+      const sectionTitle = activeDay && activeDay.isToday ? '今天场次' : (this.formatDate(activeDay.date) + ' ' + activeDay.weekDay);
       this.setData({
         weekDays,
         weekDaysIndex: idx,
@@ -911,7 +1056,7 @@ Page({
     } else {
       const newDates = getNextDays(7, this.data.holidays);
       const activeDay = newDates[0];
-      const sectionTitle = activeDay && activeDay.isToday ? '今日课程' : (this.formatDate(activeDay.date) + ' ' + activeDay.weekDay + ' 课程');
+      const sectionTitle = activeDay && activeDay.isToday ? '今天场次' : (this.formatDate(activeDay.date) + ' ' + activeDay.weekDay);
       this.setData({
         dates: newDates,
         weekDays: newDates,
@@ -928,7 +1073,7 @@ Page({
       const newIndex = weekDaysIndex - 1;
       const dateItem = weekDays[newIndex];
       if (dateItem) {
-        const sectionTitle = dateItem.isToday ? '今日课程' : (this.formatDate(dateItem.date) + ' ' + dateItem.weekDay + ' 课程');
+        const sectionTitle = dateItem.isToday ? '今天场次' : (this.formatDate(dateItem.date) + ' ' + dateItem.weekDay);
         this.setData({
           selectedDate: dateItem.date,
           selectedDateItem: dateItem,
@@ -947,7 +1092,7 @@ Page({
       const newIndex = weekDaysIndex + 1;
       const dateItem = weekDays[newIndex];
       if (dateItem) {
-        const sectionTitle = dateItem.isToday ? '今日课程' : (this.formatDate(dateItem.date) + ' ' + dateItem.weekDay + ' 课程');
+        const sectionTitle = dateItem.isToday ? '今天场次' : (this.formatDate(dateItem.date) + ' ' + dateItem.weekDay);
         this.setData({
           selectedDate: dateItem.date,
           selectedDateItem: dateItem,

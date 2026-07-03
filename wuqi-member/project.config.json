@@ -4,6 +4,7 @@
         "ignore": [],
         "include": []
     },
+    "__usePrivacyCheck__": true,
     "setting": {
         "bundle": false,
         "userConfirmedBundleSwitch": false,

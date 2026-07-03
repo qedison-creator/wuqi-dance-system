@@ -78,11 +78,11 @@
   <block wx:if="{{activeTab === 'attendance'}}">
     <view class="record-list" wx:if="{{records.length > 0}}">
       <view class="r-card" wx:for="{{records}}" wx:key="_id" wx:if="{{index < attendanceVisibleCount}}">
-        <view class="rc-left-line {{item.status}}"></view>
+        <view class="rc-left-line {{item.isCancelledAfterCheckin ? 'cancelled' : item.status}}"></view>
         <view class="rc-body">
           <view class="rc-top">
             <text class="rc-name">{{item.courseName || '课程名称'}}</text>
-            <view class="rc-source method-{{item.checkInMethod || item.source}}">{{item.sourceLabel}}</view>
+            <view class="rc-source method-{{item.checkInMethod || item.source}} {{item.isCancelledAfterCheckin ? 'cancelled-tag' : ''}}">{{item.sourceLabel}}</view>
           </view>
           <view class="rc-info">
             <view class="rci-row">
@@ -104,6 +104,14 @@
             <view class="rci-row">
               <view class="rci-icon store"></view>
               <text class="rci-text">{{item.storeName || '门店'}}</text>
+            </view>
+            <view class="rci-row" wx:if="{{item.isCancelledAfterCheckin}}">
+              <view class="rci-icon credit"></view>
+              <text class="rci-text">课时已退还</text>
+            </view>
+            <view class="rci-row" wx:if="{{item.isCancelledAfterCheckin && item.cancelReasonText}}">
+              <view class="rci-icon time"></view>
+              <text class="rci-text">取消原因 {{item.cancelReasonText}}</text>
             </view>
             <view class="rci-row" wx:if="{{item.creditsCost > 0}}">
               <view class="rci-icon credit"></view>

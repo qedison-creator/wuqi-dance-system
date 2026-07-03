@@ -335,14 +335,11 @@ page {
   z-index: 2;
 }
 
-.card-right .course-book-btn {
-  position: static;
-}
-
 .course-time-row {
   display: flex;
-  align-items: flex-end;
+  align-items: flex-start;
   margin-bottom: 8rpx;
+  padding-right: 180rpx;
 }
 
 .course-time {
@@ -350,9 +347,21 @@ page {
   font-weight: 700;
   color: #2A2122;
   letter-spacing: 1rpx;
-  padding-right: 20rpx;
   white-space: nowrap;
   flex-shrink: 0;
+  line-height: 1;
+}
+
+.min-capacity-text {
+  font-size: 22rpx;
+  font-weight: 500;
+  color: #948284;
+  margin-left: auto;
+  /* 突破 course-time-row 的 padding-right: 180rpx，右对齐到预约按钮右边（按钮距容器右 20rpx） */
+  margin-right: -160rpx;
+  white-space: nowrap;
+  line-height: 1;
+  margin-top: 4rpx;
 }
 
 .course-title-row {
@@ -396,6 +405,24 @@ page {
   color: #8A7775;
 }
 
+.course-deadline-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 10rpx;
+  gap: 16rpx;
+}
+
+.deadline-text {
+  font-size: 22rpx;
+  color: #948284;
+  line-height: 1;
+}
+
+.deadline-text.deadline-cancel {
+  color: #B8A0A0;
+}
+
 .card-meta-row {
   display: flex;
   align-items: center;
@@ -422,20 +449,11 @@ page {
   color: #C5B9B3;
 }
 
-.min-capacity-text {
-  font-size: 22rpx;
-  font-weight: 500;
-  color: #948284;
-  margin-left: 12rpx;
-  white-space: nowrap;
-}
-
 .booked-avatars {
   display: flex;
   align-items: center;
-  flex-direction: row-reverse;
   flex-shrink: 0;
-  max-width: 300rpx;
+  max-width: 420rpx;
   overflow: hidden;
 }
 
@@ -445,6 +463,11 @@ page {
   border-radius: 50%;
   border: 2rpx solid #FBF6F3;
   flex-shrink: 0;
+  margin-left: -16rpx;
+}
+
+.booked-avatar:first-child {
+  margin-left: 0;
 }
 
 .booked-more {
@@ -496,6 +519,51 @@ page {
   color: #948284;
 }
 
+/* 灰色可点击（不可预约但可点击查看原因） */
+.course-book-btn.disabled-clickable {
+  background: #F0ECE8;
+  box-shadow: none;
+}
+
+.course-book-btn.disabled-clickable text {
+  color: #5A4E4F;
+}
+
+.course-book-btn.disabled-clickable:active {
+  transform: scale(0.96);
+  opacity: 0.7;
+}
+
+/* 已完成（淡绿色实心，比进行中深一档） */
+.course-book-btn.state-done {
+  background: linear-gradient(135deg, #6FBFB0, #5BA89A);
+  box-shadow: 0 4rpx 16rpx rgba(91,168,154,0.3);
+}
+
+.course-book-btn.state-done text {
+  color: #FFFFFF;
+}
+
+/* 进行中（橙色实心） */
+.course-book-btn.state-ongoing {
+  background: linear-gradient(135deg, #8DD0C9, #6FC4B6);
+  box-shadow: 0 4rpx 16rpx rgba(111,196,182,0.3);
+}
+
+.course-book-btn.state-ongoing text {
+  color: #FFFFFF;
+}
+
+/* 已满（红色实心） */
+.course-book-btn.state-full {
+  background: linear-gradient(135deg, #C44B4B, #A83E3E);
+  box-shadow: 0 4rpx 16rpx rgba(196,75,75,0.3);
+}
+
+.course-book-btn.state-full text {
+  color: #FFFFFF;
+}
+
 .course-book-btn.booked {
   background: #EEF5F4;
   box-shadow: none;
@@ -524,6 +592,13 @@ page {
 
 .list-bottom-safe {
   height: 20rpx;
+}
+
+.booking-disclaimer {
+  text-align: center;
+  font-size: 24rpx;
+  color: #999999;
+  margin: 24rpx 0;
 }
 
 .empty-state {

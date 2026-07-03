@@ -83,7 +83,6 @@
         "pages/coaches/coaches",
         "pages/holidays/holidays",
         "pages/announcements/announcements",
-        "pages/transfers/transfers",
         "pages/salary/salary"
       ]
     },

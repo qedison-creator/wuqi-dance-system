@@ -1,11 +1,5 @@
 <view class="splash-container">
-  <view class="logo-wrapper">
+  <view class="logo-wrapper {{ready ? 'logo-show' : ''}}">
     <image src="/images/logo.png" mode="aspectFit" class="logo-img"></image>
-  </view>
-  
-  <view class="loading-dots">
-    <view class="dot"></view>
-    <view class="dot"></view>
-    <view class="dot"></view>
   </view>
 </view>

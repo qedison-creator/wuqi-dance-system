@@ -38,6 +38,10 @@ Page({
     this.setData({ password: e.detail.value });
   },
 
+  onTogglePassword() {
+    this.setData({ showPassword: !this.data.showPassword });
+  },
+
   onToggleRemember() {
     this.setData({ rememberMe: !this.data.rememberMe });
   },

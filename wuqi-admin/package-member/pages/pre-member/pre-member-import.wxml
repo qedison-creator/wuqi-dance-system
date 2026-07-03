@@ -28,7 +28,7 @@
     <view class="upload-title">上传 Excel 文件</view>
     <view class="upload-btns">
       <!-- 从微信聊天选择文件（小程序唯一支持的文件选择方式） -->
-      <button class="btn-upload" open-type="agreePrivacyAuthorization" bindagreeprivacyauthorization="onPrivacyAgreed" bindtap="onChooseFile">
+      <button id="agree-btn" class="btn-upload" open-type="agreePrivacyAuthorization" bindagreeprivacyauthorization="onPrivacyAgreed" bindtap="onChooseFile">
         <text class="btn-upload-text">选择 Excel 文件上传</text>
       </button>
     </view>

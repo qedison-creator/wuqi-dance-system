@@ -4,12 +4,19 @@ const checkPermission = require('../middleware/permission');
 const authService = require('../services/auth.service');
 const User = require('../models/User');
 const { success } = require('../utils/response');
+const config = require('../config');
 
 // POST /api/v1/auth/wx-login
 router.post('/wx-login', async (req, res, next) => {
   try {
     const { code, store_id, client_type, avatar_url, nick_name, phone_code } = req.body;
     const result = await authService.wxLogin(code, store_id, client_type, { avatar_url, nick_name, phone_code });
+    // nginx 反向代理后 req.protocol 可能为 http，优先使用真实协议头，生产环境兜底 https
+    if (result.user && result.user.avatar_url && !result.user.avatar_url.startsWith('http')) {
+      const protocol = req.headers['x-forwarded-proto'] || (config.isProd ? 'https' : req.protocol);
+      const host = req.get('host');
+      result.user.avatar_url = `${protocol}://${host}${result.user.avatar_url}`;
+    }
     res.json(success(result, '微信登录成功'));
   } catch (err) {
     next(err);
@@ -23,7 +30,8 @@ router.post('/admin-login', async (req, res, next) => {
     const result = await authService.adminLogin(username, password);
     // 参照banner处理方式：拼接完整头像URL
     if (result.user && result.user.avatar_url && !result.user.avatar_url.startsWith('http')) {
-      const protocol = req.protocol;
+      // nginx 反向代理后 req.protocol 可能为 http，优先使用真实协议头
+      const protocol = req.headers['x-forwarded-proto'] || req.protocol;
       const host = req.get('host');
       result.user.avatar_url = `${protocol}://${host}${result.user.avatar_url}`;
     }
@@ -40,7 +48,8 @@ router.get('/me', auth, async (req, res, next) => {
     const userObj = user.toObject ? user.toObject() : user;
     // 参照banner处理方式：拼接完整图片URL
     if (userObj.avatar_url && !userObj.avatar_url.startsWith('http')) {
-      const protocol = req.protocol;
+      // nginx 反向代理后 req.protocol 可能为 http，优先使用真实协议头
+      const protocol = req.headers['x-forwarded-proto'] || req.protocol;
       const host = req.get('host');
       userObj.avatar_url = `${protocol}://${host}${userObj.avatar_url}`;
     }

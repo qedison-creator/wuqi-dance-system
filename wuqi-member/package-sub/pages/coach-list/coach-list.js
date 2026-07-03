@@ -10,7 +10,8 @@ Page({
     coaches: [],
     loading: true,
     loadError: false,
-    imageErrors: {}
+    imageErrors: {},
+    showLoginModal: false
   },
 
   onLoad() {
@@ -51,12 +52,21 @@ Page({
   },
 
   onCoachTap(e) {
-    if (!auth.requireLogin()) return;
+    // 游客点击教练头像：静默不跳转，不弹登录窗（符合微信审核规范）
+    if (!auth.checkLogin()) return;
     const { id } = e.currentTarget.dataset;
     if (!id) return;
     wx.navigateTo({
       url: `/package-sub/pages/coach-detail/coach-detail?id=${id}`
     });
+  },
+
+  onLoginModalClose() {
+    this.setData({ showLoginModal: false });
+  },
+
+  onLoginSuccess() {
+    this.setData({ showLoginModal: false });
   },
 
   onImgError(e) {

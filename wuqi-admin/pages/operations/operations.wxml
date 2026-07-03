@@ -186,7 +186,7 @@
         </view>
         <view class="sheet-stats">
           <view class="sheet-stat">
-          <text class="sheet-stat-num">{{bookedList.length}}</text>
+          <text class="sheet-stat-num">{{bookedCount || 0}}</text>
           <text class="sheet-stat-label">已预约</text>
         </view>
         <view class="sheet-stat">
@@ -194,7 +194,7 @@
           <text class="sheet-stat-label">已签到</text>
         </view>
         <view class="sheet-stat">
-          <text class="sheet-stat-num">{{cancelledList.length}}</text>
+          <text class="sheet-stat-num">{{cancelledCount || 0}}</text>
           <text class="sheet-stat-label">已取消</text>
         </view>
         </view>
@@ -202,13 +202,13 @@
 
       <view class="sheet-tabs">
         <view class="sheet-tab {{activeTab === 'booked' ? 'on' : ''}}" data-tab="booked" bindtap="onTabChange">
-          <text>已预约({{bookedList.length}})</text>
+          <text>已预约({{bookedCount || 0}})</text>
         </view>
         <view class="sheet-tab {{activeTab === 'checkedIn' ? 'on' : ''}}" data-tab="checkedIn" bindtap="onTabChange">
           <text>已签到({{checkedInCount || 0}})</text>
         </view>
         <view class="sheet-tab {{activeTab === 'cancelled' ? 'on' : ''}}" data-tab="cancelled" bindtap="onTabChange">
-          <text>已取消({{cancelledList.length}})</text>
+          <text>已取消({{cancelledCount || 0}})</text>
         </view>
       </view>
 
@@ -221,7 +221,10 @@
                 <text class="booking-user-name">{{item.userName}}</text>
                 <text class="booking-user-nick" wx:if="{{item.userNickName}}">（{{item.userNickName}}）</text>
               </view>
-              <text class="booking-user-phone" wx:if="{{item.userPhone}}">{{item.userPhone}}</text>
+              <view class="booking-user-phone-row" wx:if="{{item.userWechatPhone || item.userReservePhone}}">
+                <text class="booking-user-phone-item" wx:if="{{item.userWechatPhone}}">微信:{{item.userWechatPhone}}</text>
+                <text class="booking-user-phone-item" wx:if="{{item.userReservePhone}}">预留:{{item.userReservePhone}}</text>
+              </view>
             </view>
           </view>
           <view class="booking-actions">
@@ -248,7 +251,10 @@
                 <text class="booking-user-name">{{item.userName}}</text>
                 <text class="booking-user-nick" wx:if="{{item.userNickName}}">（{{item.userNickName}}）</text>
               </view>
-              <text class="booking-user-phone" wx:if="{{item.userPhone}}">{{item.userPhone}}</text>
+              <view class="booking-user-phone-row" wx:if="{{item.userWechatPhone || item.userReservePhone}}">
+                <text class="booking-user-phone-item" wx:if="{{item.userWechatPhone}}">微信:{{item.userWechatPhone}}</text>
+                <text class="booking-user-phone-item" wx:if="{{item.userReservePhone}}">预留:{{item.userReservePhone}}</text>
+              </view>
             </view>
           </view>
           <view class="booking-actions">
@@ -270,7 +276,10 @@
                 <text class="booking-user-name">{{item.userName}}</text>
                 <text class="booking-user-nick" wx:if="{{item.userNickName}}">（{{item.userNickName}}）</text>
               </view>
-              <text class="booking-user-phone" wx:if="{{item.userPhone}}">{{item.userPhone}}</text>
+              <view class="booking-user-phone-row" wx:if="{{item.userWechatPhone || item.userReservePhone}}">
+                <text class="booking-user-phone-item" wx:if="{{item.userWechatPhone}}">微信:{{item.userWechatPhone}}</text>
+                <text class="booking-user-phone-item" wx:if="{{item.userReservePhone}}">预留:{{item.userReservePhone}}</text>
+              </view>
             </view>
           </view>
           <view class="cancel-info">

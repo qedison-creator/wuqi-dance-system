@@ -360,6 +360,16 @@
   display: flex;
   align-items: center;
   gap: 20rpx;
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  line-height: inherit;
+}
+
+.avatar-upload::after {
+  border: none;
 }
 
 .avatar-preview {

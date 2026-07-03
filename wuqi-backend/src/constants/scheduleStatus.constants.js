@@ -10,6 +10,7 @@
  * available/full → cancelled（人数不足/管理员取消/放假取消）
  * available/full → in_progress（课程开始）
  * in_progress → completed（课程结束）
+ * in_progress → cancelled（管理员中途取消，签到后取消）
  * * → deleted（管理员删除）
  */
 
@@ -44,9 +45,11 @@ const BOOKING_STATUS = {
 const CANCEL_TYPE = {
   NORMAL: 'normal',                       // 正常取消（截止时间前）
   EXEMPT: 'exempt',                       // 豁免取消（窗口期内，使用豁免权）
+  QUICK: 'quick',                         // 补约快速取消（补约后5分钟内）
   ADMIN_CANCEL: 'admin_cancel',           // 管理员取消
   MIN_BOOKINGS_NOT_MET: 'min_bookings_not_met', // 人数不足自动取消
   HOLIDAY: 'holiday',                     // 放假取消
+  AFTER_CHECKIN_CANCEL: 'after_checkin_cancel', // 签到后取消（in_progress状态中途取消）
 };
 
 // 签到方式
@@ -79,17 +82,20 @@ const CANCEL_REASON_TEXT_MAP = {
 
 // 取消类型文案
 const CANCEL_TYPE_TEXT_MAP = {
-  [CANCEL_TYPE.NORMAL]: '正常取消',
+  [CANCEL_TYPE.NORMAL]: '用户取消',
   [CANCEL_TYPE.EXEMPT]: '豁免取消（不扣课时）',
+  [CANCEL_TYPE.QUICK]: '补约快速取消（5分钟内）',
   [CANCEL_TYPE.ADMIN_CANCEL]: '管理员取消',
   [CANCEL_TYPE.MIN_BOOKINGS_NOT_MET]: '人数不足取消',
   [CANCEL_TYPE.HOLIDAY]: '放假取消',
+  [CANCEL_TYPE.AFTER_CHECKIN_CANCEL]: '课程中取消',
 };
 
 // ============ 时间规则 ============
 const TIME_RULES = {
   BOOKING_DEADLINE_MINUTES: 120,   // 预约截止时间：开课前 120 分钟
   EXEMPT_WINDOW_MINUTES: 10,       // 豁免取消窗口：开课前 10 分钟内
+  QUICK_CANCEL_MINUTES: 5,         // 补约快速取消窗口：预约后 5 分钟内
   DEFAULT_EXEMPTION_COUNT: 2,      // 默认豁免次数：每人 2 次
 };
 
@@ -103,9 +109,11 @@ const ACTIVE_STATUSES = [SCHEDULE_STATUS.AVAILABLE, SCHEDULE_STATUS.FULL, SCHEDU
 const REFUND_CANCEL_TYPES = [
   CANCEL_TYPE.NORMAL,
   CANCEL_TYPE.EXEMPT,
+  CANCEL_TYPE.QUICK,
   CANCEL_TYPE.ADMIN_CANCEL,
   CANCEL_TYPE.MIN_BOOKINGS_NOT_MET,
   CANCEL_TYPE.HOLIDAY,
+  CANCEL_TYPE.AFTER_CHECKIN_CANCEL,
 ];
 
 // ============ 会员端记录分类（方案A）============

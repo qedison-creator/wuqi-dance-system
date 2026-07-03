@@ -1,5 +1,6 @@
 const { request } = require('../../../../utils/request');
 const { getBeijingDate } = require('../../../../utils/helpers');
+const { fixImageUrl } = require('../../../../utils/util');
 
 // 预约状态文案映射（booking 专属状态，与课程状态不同）
 // 统一分类：待上课 / 已完成 / 已取消
@@ -84,6 +85,7 @@ Page({
     }).then(res => {
       const data = res.data || {};
       const member = { ...data };
+      member.avatar_url = fixImageUrl(member.avatar_url);
 
       // 性别显示映射
 

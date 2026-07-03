@@ -330,6 +330,14 @@ Page({
       const displayName = profileData.member.real_name || profileData.member.nick_name || '';
       profileData.member.display_name = displayName;
       profileData.member.nick_initial = displayName ? displayName[0] : '?';
+      // 规范化头像 URL：相对路径拼接 serverBase
+      if (profileData.member.avatar_url) {
+        const url = profileData.member.avatar_url;
+        if (url.indexOf('http') !== 0) {
+          const config = require('../../../config/index.js');
+          profileData.member.avatar_url = (config.serverBase || '') + url;
+        }
+      }
     }
 
     this.setData({

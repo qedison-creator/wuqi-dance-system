@@ -875,6 +875,10 @@
   gap: 16rpx;
 }
 
+.deadtime-list {
+  margin-bottom: 16rpx;
+}
+
 .duration-item,
 .credit-cost-item,
 .deadtime-item {
@@ -1528,6 +1532,14 @@
   justify-content: center;
   border-radius: var(--radius-md);
   transition: all 0.2s ease;
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  line-height: inherit;
+}
+
+.cover-action-btn::after {
+  border: none;
 }
 
 .cover-action-btn:active {

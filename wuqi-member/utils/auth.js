@@ -17,7 +17,12 @@ const wxLogin = (storeId) => {
           wx.setStorageSync('token', token);
           getApp().globalData.token = token;
           getApp().globalData.userInfo = userInfo;
-          
+
+          // 登录/认领成功后，根据用户信息重新匹配门店（从游客最近门店切换到会员所属门店）
+          if (getApp().resetAndMatchStore) {
+            getApp().resetAndMatchStore();
+          }
+
           // 登录成功后，如果选择了门店，记住这个门店
           if (storeId && getApp().globalData.storeList && getApp().globalData.storeList.length > 0) {
             const selectedStore = getApp().globalData.storeList.find(s => s._id === storeId);
@@ -25,7 +30,7 @@ const wxLogin = (storeId) => {
               getApp().setStore(selectedStore);
             }
           }
-          
+
           resolve(userInfo);
         }).catch(reject);
       },

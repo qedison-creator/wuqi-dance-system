@@ -1,6 +1,6 @@
 const app = getApp();
 const { request } = require('../../utils/request');
-const { getScheduleStatusText } = require('../../utils/util');
+const { getScheduleStatusText, formatDateTime, fixImageUrl } = require('../../utils/util');
 
 Page({
   data: {
@@ -202,12 +202,33 @@ Page({
         method: 'GET'
       });
       const all = res.data || [];
-      return {
-        booked: all.filter(b => b.status === 'booked').length,
-        checkedIn: all.filter(b => b.checked_in || b.status === 'checked_in').length,
-        cancelled: all.filter(b => b.status === 'cancelled').length,
-        exempted: all.filter(b => b.status === 'exempted' || b.is_exempted).length
-      };
+      // 按人数统计（同一用户多次预约只算1次，取最新状态）
+      const sortedAll = [...all].sort((a, b) => {
+        const ta = a.created_at ? new Date(a.created_at).getTime() : 0;
+        const tb = b.created_at ? new Date(b.created_at).getTime() : 0;
+        return tb - ta;
+      });
+      const userLatestMap = new Map();
+      sortedAll.forEach(item => {
+        const uid = item.user_id?._id || item.user_id || 'unknown';
+        if (!userLatestMap.has(uid)) {
+          userLatestMap.set(uid, item);
+        }
+      });
+      let booked = 0, checkedIn = 0, cancelled = 0, exempted = 0;
+      userLatestMap.forEach(item => {
+        const status = item.status;
+        const isCheckedIn = item.checked_in || status === 'checked_in';
+        if (isCheckedIn) checkedIn++;
+        if (status === 'booked' || status === 'checked_in') {
+          booked++;
+        } else if (status === 'exempted' || item.is_exempted) {
+          exempted++;
+        } else if (status === 'cancelled') {
+          cancelled++;
+        }
+      });
+      return { booked, checkedIn, cancelled, exempted };
     } catch (err) {
       return { booked: 0, checkedIn: 0, cancelled: 0, exempted: 0 };
     }
@@ -457,8 +478,8 @@ Page({
       const res = await request({ url: `/schedules/${scheduleId}/bookings`, method: 'GET' });
       const all = res.data || [];
       const bookedList = [], checkedInList = [], cancelledList = [];
-      let checkedInCount = 0;
 
+      // 列表保留每一次记录（按时间正序）
       all.forEach(item => {
         const realName = item.user_id?.real_name;
         const nickName = item.user_id?.nick_name;
@@ -469,32 +490,73 @@ Page({
           userName: displayName,
           userNickName: nickNameDisplay,
           userPhone: item.user_id?.phone || '',
-          userAvatar: item.user_id?.avatar_url || '',
-          bookingTime: item.created_at,
+          userWechatPhone: item.user_id?.wechat_phone || '',
+          userReservePhone: item.user_id?.reserve_phone || '',
+          userAvatar: fixImageUrl(item.user_id?.avatar_url),
+          bookingTime: item.created_at ? formatDateTime(item.created_at) : '',
           creditsDeducted: item.credits_deducted || 0,
           checkedIn: item.checked_in || item.status === 'checked_in'
         };
         const status = item.status;
         const isCheckedIn = item.checked_in || status === 'checked_in';
         if (isCheckedIn) {
-          checkedInCount++;
           checkedInList.push(booking);
         }
         if (status === 'booked' || status === 'checked_in') {
           bookedList.push(booking);
         } else if (status === 'cancelled' || status === 'exempted' || item.is_exempted) {
           // 已豁免并入已取消
-          const cancelReason = status === 'exempted' || item.is_exempted ? '豁免' : (item.cancel_reason || '');
+          let cancelReason = '';
+          if (status === 'exempted' || item.is_exempted) {
+            cancelReason = '豁免';
+          } else if (item.cancel_type === 'after_checkin_cancel') {
+            // 课程中取消：显示管理员勾选的具体原因
+            const reason = item.cancel_reason || '';
+            cancelReason = reason ? ('课程中因' + reason + '取消') : '课程中取消';
+          } else {
+            cancelReason = item.cancel_reason || '';
+          }
           cancelledList.push({
             ...booking,
-            cancelTime: item.cancel_time || '',
+            cancelTime: item.cancel_time ? formatDateTime(item.cancel_time) : '',
             creditsRefunded: item.credits_refunded || 0,
             cancelReason: cancelReason
           });
         }
       });
 
-      this.setData({ bookedList, checkedInList, cancelledList, checkedInCount });
+      // 统计按人数（同一用户多次预约只算1次，取最新状态）
+      // 按创建时间倒序，后出现的覆盖先出现的（最新状态优先）
+      const sortedAll = [...all].sort((a, b) => {
+        const ta = a.created_at ? new Date(a.created_at).getTime() : 0;
+        const tb = b.created_at ? new Date(b.created_at).getTime() : 0;
+        return tb - ta;
+      });
+      const userLatestMap = new Map();
+      sortedAll.forEach(item => {
+        const uid = item.user_id?._id || item.user_id || 'unknown';
+        if (!userLatestMap.has(uid)) {
+          userLatestMap.set(uid, item);
+        }
+      });
+      let bookedCount = 0, checkedInCount = 0, cancelledCount = 0;
+      userLatestMap.forEach(item => {
+        const status = item.status;
+        const isCheckedIn = item.checked_in || status === 'checked_in';
+        if (isCheckedIn) {
+          checkedInCount++;
+        }
+        if (status === 'booked' || status === 'checked_in') {
+          bookedCount++;
+        } else if (status === 'cancelled' || status === 'exempted' || item.is_exempted) {
+          cancelledCount++;
+        }
+      });
+
+      this.setData({
+        bookedList, checkedInList, cancelledList,
+        bookedCount, checkedInCount, cancelledCount
+      });
     } catch (err) {
       console.error('加载预约名单失败', err);
     }

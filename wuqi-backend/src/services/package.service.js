@@ -50,6 +50,26 @@ exports.getMyPackage = async (userId) => {
       pkg.status = 'expired';
       toSave.push(pkg.save());
     }
+    // 兜底：老会员预建档套餐可能未存 duration_value/duration_unit，由起止日期临时计算（仅展示用，不写库）
+    if ((!pkg.duration_value || Number(pkg.duration_value) <= 0) && pkg.start_date && pkg.end_date) {
+      try {
+        const sD = new Date(pkg.start_date);
+        const eD = new Date(pkg.end_date);
+        if (!isNaN(sD.getTime()) && !isNaN(eD.getTime()) && eD > sD) {
+          const totalDays = Math.round((eD - sD) / (1000 * 60 * 60 * 24));
+          const months = Math.round(totalDays / 30.44);
+          if (months >= 1) {
+            pkg.duration_value = months;
+            pkg.duration_unit = 'month';
+          } else if (totalDays > 0) {
+            pkg.duration_value = totalDays;
+            pkg.duration_unit = 'day';
+          }
+        }
+      } catch (e) {
+        // 计算失败静默忽略，不影响主流程
+      }
+    }
     return pkg;
   });
   if (toSave.length > 0) {

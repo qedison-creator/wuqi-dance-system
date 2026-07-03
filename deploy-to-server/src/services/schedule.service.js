@@ -60,18 +60,29 @@ exports.getScheduleList = async (query) => {
 
   if (list.length > 0) {
     const scheduleIds = list.map(s => s._id);
+    // 当前有效预约（booked + completed），用于头像列表
     const bookings = await Booking.find({
       schedule_id: { $in: scheduleIds },
-      $or: [{ status: 'booked' }, { booking_status: 'booked' }]
+      status: { $in: ['booked', 'completed'] }
     }).populate('user_id', 'avatar_url').lean();
 
+    // 查询所有状态的预约，按user_id去重统计真实预约人数
+    const allBookingsForCount = await Booking.find({
+      schedule_id: { $in: scheduleIds }
+    }).select('schedule_id user_id').lean();
+
+    const uniqueUserBySchedule = {};
+    for (const b of allBookingsForCount) {
+      const sid = String(b.schedule_id);
+      if (!uniqueUserBySchedule[sid]) uniqueUserBySchedule[sid] = new Set();
+      const uid = b.user_id ? String(b.user_id) : '';
+      if (uid) uniqueUserBySchedule[sid].add(uid);
+    }
+
     const bookingsBySchedule = {};
-    const bookingCountBySchedule = {};
     for (const b of bookings) {
       const sid = String(b.schedule_id);
       if (!bookingsBySchedule[sid]) bookingsBySchedule[sid] = [];
-      if (!bookingCountBySchedule[sid]) bookingCountBySchedule[sid] = 0;
-      bookingCountBySchedule[sid]++;
       if (b.user_id && b.user_id.avatar_url) {
         bookingsBySchedule[sid].push({
           user_id: String(b.user_id._id || b.user_id),
@@ -84,7 +95,8 @@ exports.getScheduleList = async (query) => {
       const sid = String(schedule._id);
       schedule._doc = schedule._doc || schedule;
       schedule._doc.booked_users = bookingsBySchedule[sid] || [];
-      schedule._doc.current_bookings = bookingCountBySchedule[sid] || 0;
+      // current_bookings = 曾经预约过的不同用户数（反映真实预约情况，含已取消）
+      schedule._doc.current_bookings = uniqueUserBySchedule[sid]?.size || 0;
     }
   }
 

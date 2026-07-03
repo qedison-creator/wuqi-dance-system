@@ -28,7 +28,7 @@ router.get('/member', async (req, res, next) => {
       .limit(5);
 
     // 热门教练（按排序，只展示开启首页可见的，不限制数量）
-    const hotCoaches = await Coach.find({ status: 'active', show_on_home: { $ne: false } })
+    const hotCoaches = await Coach.find({ status: 'active', show_on_home: { $ne: false }, is_deleted: { $ne: true } })
       .populate('dance_styles', 'name')
       .sort({ sort_order: 1, created_at: -1 });
 
@@ -220,7 +220,7 @@ router.get('/dance-styles', async (req, res, next) => {
 router.get('/coaches', async (req, res, next) => {
   try {
     const { store_id, limit = 10 } = req.query;
-    let filter = { status: 'active' };
+    let filter = { status: 'active', is_deleted: { $ne: true } };
 
     let coaches = [];
     
@@ -233,7 +233,7 @@ router.get('/coaches', async (req, res, next) => {
     }
     
     if (coaches.length === 0) {
-      filter = { status: 'active' };
+      filter = { status: 'active', is_deleted: { $ne: true } };
       coaches = await Coach.find(filter)
         .populate('dance_styles', 'name')
         .sort({ sort_order: 1, created_at: -1 })
@@ -261,11 +261,14 @@ router.get('/packages', async (req, res, next) => {
 // GET /api/v1/home/images - 获取首页图片列表
 router.get('/images', async (req, res, next) => {
   try {
-    const { limit = 10 } = req.query;
-    const images = await Image.find({ show_on_home: true })
+    const { limit } = req.query;
+    let query = Image.find({ show_on_home: true })
       .populate('coach_ids', 'name avatar_url')
-      .sort({ sort_order: -1, created_at: -1 })
-      .limit(Number(limit));
+      .sort({ sort_order: -1, created_at: -1 });
+    if (limit && Number(limit) > 0) {
+      query = query.limit(Number(limit));
+    }
+    const images = await query.exec();
     res.json(success(images));
   } catch (err) {
     next(err);

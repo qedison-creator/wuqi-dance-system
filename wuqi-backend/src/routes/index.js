@@ -1,4 +1,8 @@
 const router = require('express').Router();
+const dataMasking = require('../middleware/dataMasking');
+
+// 审核员数据脱敏：对所有响应拦截 res.json 进行敏感字段处理
+router.use(dataMasking);
 
 const authRoutes = require('./auth.routes');
 const scheduleRoutes = require('./schedule.routes');
@@ -22,7 +26,6 @@ const weekTemplateRoutes = require('./week-template.routes');
 const qrcodeRoutes = require('./qrcode.routes');
 const systemRoutes = require('./system.routes');
 const attendanceRoutes = require('./attendance.routes');
-const transferRoutes = require('./transfer.routes');
 const preMemberRoutes = require('./preMember.routes');
 
 router.use('/auth', authRoutes);
@@ -50,7 +53,6 @@ router.use('/week-template', weekTemplateRoutes);
 router.use('/qrcode', qrcodeRoutes);
 router.use('/system', systemRoutes);
 router.use('/attendance', attendanceRoutes);
-router.use('/transfers', transferRoutes);
 router.use('/pre-members', preMemberRoutes);
 router.use('/template-mappings', require('./template-mapping.routes'));
 

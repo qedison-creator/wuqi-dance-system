@@ -253,6 +253,15 @@
   color: #9A8C8D;
 }
 
+.method-cancelled_after_checkin {
+  background: rgba(181,165,165,0.12);
+  color: #9A8C8D;
+}
+
+.cancelled-tag {
+  opacity: 0.85;
+}
+
 .rc-position-tag {
   padding: 6rpx 18rpx;
   border-radius: 18rpx;

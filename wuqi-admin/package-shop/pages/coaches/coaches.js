@@ -348,6 +348,13 @@ Page({
 
   // ==================== 教练相册管理（在编辑弹窗中） ====================
 
+  // 隐私授权同意回调
+  onPrivacyAgreed(e) {
+    console.log('[Privacy] 用户点击同意隐私授权');
+    const buttonId = e.currentTarget.id || e.target.id || 'agree-btn';
+    app.resolvePrivacyAuthorization(buttonId);
+  },
+
   // 编辑弹窗中选择头像
   onChooseAvatar() {
     const that = this;
@@ -404,10 +411,37 @@ Page({
         }
       },
       fail: (err) => {
-        console.error('选择图片失败', err);
-        if (err.errMsg && err.errMsg.indexOf('cancel') === -1) {
-          wx.showToast({ title: '选择图片失败，请检查隐私权限', icon: 'none' });
+        // 用户取消 - 静默处理
+        if (err.errMsg && err.errMsg.indexOf('cancel') !== -1) return;
+        console.error('选择图片失败:', err);
+        const errLower = (err.errMsg || '').toLowerCase();
+        // 隐私授权问题：onNeedPrivacyAuthorization 已自动 agree，提示用户重新点击即可
+        if (errLower.indexOf('privacy') !== -1) {
+          wx.showToast({ title: '请重新点击上传按钮重试', icon: 'none' });
+          return;
         }
+        // 相机权限拒绝 - 引导去设置开启（相册选择不需要 scope 授权）
+        wx.getSetting({
+          success: (res) => {
+            const authSetting = res.authSetting || {};
+            if (authSetting['scope.camera'] === false) {
+              wx.showModal({
+                title: '权限提示',
+                content: '拍照需要相机权限，请在设置中开启后重试',
+                confirmText: '去设置',
+                cancelText: '取消',
+                success: (modalRes) => {
+                  if (modalRes.confirm) wx.openSetting();
+                }
+              });
+            } else {
+              wx.showToast({ title: '选择图片失败，请重试', icon: 'none' });
+            }
+          },
+          fail: () => {
+            wx.showToast({ title: '选择图片失败，请重试', icon: 'none' });
+          }
+        });
       }
     });
   },

@@ -69,9 +69,15 @@ async function calcTimeCardUsage(userPackage) {
 
 exports.createAttendance = async (data) => {
   // 原子 upsert：存在则返回，不存在则创建，消除 TOCTOU 竞态
+  // 快照字段（coach_id/coach_name/store_id/store_name/start_time/end_time/duration/course_name/date）
+  // 使用 $set 而非 $setOnInsert，确保旧记录的缺失快照能被修复
+  const { schedule_id, user_id, check_in_time, check_in_by, source, check_in_method, credits_cost, booking_id, ...snapshotFields } = data;
   const attendance = await Attendance.findOneAndUpdate(
     { schedule_id: data.schedule_id, user_id: data.user_id },
-    { $setOnInsert: data },
+    {
+      $setOnInsert: { schedule_id, user_id, check_in_time, check_in_by, source, check_in_method, credits_cost, booking_id },
+      $set: snapshotFields,
+    },
     { upsert: true, returnDocument: 'after' }
   );
 
@@ -166,6 +172,8 @@ exports.getMyAttendance = async (userId, page, pageSize) => {
 
   // 2. 过滤掉已取消的、schedule不存在的、schedule已被取消的
   const validBookings = completedBookings.filter(b => {
+    // 已取消的预约不应出现在上课记录中
+    if (b.status === 'cancelled') return false;
     if (!b.schedule_id) return false;
     const s = b.schedule_id;
     if (['cancelled', 'offline', 'deleted'].includes(s.status)) {
@@ -270,7 +278,7 @@ exports.getMemberCheckinProfile = async (userId) => {
   }
   
   const user = await User.findById(userId)
-    .select('nick_name real_name phone member_code avatar_url store_id')
+    .select('nick_name real_name phone wechat_phone reserve_phone member_code avatar_url store_id')
     .populate('store_id', 'name');
 
   if (!user) throw new Error('会员不存在');
@@ -330,7 +338,8 @@ exports.getMemberCheckinProfile = async (userId) => {
     }).sort({ activated_at: -1 });
 
     let remainingDays = null;
-    if (up.package_type === 'time_card' && up.end_date && up.is_activated && !up.is_suspended) {
+    // 时间卡和次卡都计算剩余天数（需已激活、未暂停、有到期日）
+    if (up.end_date && up.is_activated && !up.is_suspended) {
       const now = dayjs().tz(BEIJING_TZ);
       const end = dayjs(up.end_date).tz(BEIJING_TZ);
       remainingDays = end.diff(now, 'day') + 1;
@@ -364,6 +373,8 @@ exports.getMemberCheckinProfile = async (userId) => {
       nick_name: user.nick_name,
       real_name: user.real_name,
       phone: user.phone,
+      wechat_phone: user.wechat_phone,
+      reserve_phone: user.reserve_phone,
       member_code: user.member_code,
       avatar_url: user.avatar_url,
       store_name: user.store_id ? user.store_id.name : '',

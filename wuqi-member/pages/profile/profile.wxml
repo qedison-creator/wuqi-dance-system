@@ -3,13 +3,16 @@
   <block wx:if="{{isLoggedIn}}">
     <view class="hero-card">
       <view class="hero-top">
-        <view class="hero-avatar-wrap">
+        <view class="hero-avatar-wrap" bindtap="onHeroAvatarTap">
           <image class="hero-avatar" src="{{avatarSrc}}" binderror="onImgError" data-type="avatar" data-id="user" mode="aspectFill"></image>
           <view class="hero-avatar-ring"></view>
+          <view class="hero-avatar-tip" wx:if="{{isOfficialMember && (!userInfo.avatar && !userInfo.avatar_url || avatarImageError)}}">
+            <text class="hero-avatar-tip-text">点击更换</text>
+          </view>
         </view>
         <view class="hero-info">
           <view class="hero-name-row">
-            <text class="hero-name">{{userInfo.real_name || userInfo.nickname || '舞栖会员'}}</text>
+            <text class="hero-name">{{userInfo.real_name || userInfo.nickname || (isOfficialMember ? '舞栖会员' : '注册用户')}}</text>
             <view class="hero-gender male" wx:if="{{userInfo.gender === 1}}">
               <view class="hero-gender-icon-m"></view>
             </view>
@@ -47,7 +50,7 @@
       </view>
     </view>
 
-    <view class="setup-guide-section" wx:if="{{userInfo.member_status === 'official' && !userInfo.info_completed}}">
+    <view class="setup-guide-section" wx:if="{{userInfo.member_status === 'official' && !userInfo.info_completed && !isPreRegistered}}">
       <view class="setup-guide-card" bindtap="onGoSetup">
         <view class="setup-guide-icon-wrap">
           <view class="setup-guide-icon"></view>
@@ -64,12 +67,12 @@
 
     <view class="stats-section" wx:if="{{userInfo.member_status === 'official'}}">
       <view class="stats-row">
-        <view class="stat-card">
+        <view class="stat-card stat-clickable" bindtap="onStatTap" data-tab="booking">
           <text class="stat-num">{{stats.totalBookings}}</text>
-          <text class="stat-label">总预约</text>
+          <text class="stat-label">待上课</text>
         </view>
         <view class="stat-divider"></view>
-        <view class="stat-card">
+        <view class="stat-card stat-clickable" bindtap="onStatTap" data-tab="attendance">
           <text class="stat-num">{{stats.completedClasses}}</text>
           <text class="stat-label">已上课</text>
         </view>
@@ -85,7 +88,7 @@
       <view class="stats-row">
         <view class="stat-card guest-stat">
           <text class="stat-num">--</text>
-          <text class="stat-label">总预约</text>
+          <text class="stat-label">待上课</text>
         </view>
         <view class="stat-divider"></view>
         <view class="stat-card guest-stat">
@@ -185,7 +188,7 @@
         </view>
         </block>
 
-        <!-- 待激活套餐卡片 -->
+        <!-- 待激活套餐卡片（仅新会员会出现，老会员套餐创建时已直接 active） -->
         <view class="pkg-card-new pending {{item.package_type}}" wx:for="{{pendingPackages}}" wx:key="_id" wx:if="{{pendingPackages.length > 0}}" bindtap="onPackageTap" data-id="{{item._id}}">
           <view class="pkg-new-decorate-circle"></view>
           <view class="pkg-new-content">
@@ -200,38 +203,35 @@
               </view>
             </view>
             <view class="pkg-new-main">
-              <view class="pkg-new-main-left">
-                <view class="pkg-new-main-value-wrap">
-                  <block wx:if="{{item.package_type === 'count_card'}}">
-                    <text class="pkg-new-main-value">{{item.total_credits || item.remaining_credits || 0}}</text>
-                    <text class="pkg-new-main-unit">次</text>
-                  </block>
-                  <block wx:elif="{{item.package_type === 'time_card'}}">
-                    <text class="pkg-new-main-value">{{item.duration_value || '-'}}</text>
-                  </block>
+              <view class="pkg-new-main-left pkg-new-pending-main">
+                <!-- 套餐类型图标 + 静待开启状态 -->
+                <view class="pkg-new-pending-hero">
+                  <view class="pkg-new-pending-icon pkg-new-pending-icon-{{item.package_type}}"></view>
                 </view>
-                <text class="pkg-new-main-label">
-                  {{item.package_type === 'count_card' ? '待激活课次' : '待激活天数'}}
-                </text>
                 <view class="pkg-new-status-dot-wrap pending">
                   <view class="pkg-new-status-dot"></view>
                   <text class="pkg-new-status-label">静待开启</text>
                 </view>
               </view>
               <view class="pkg-new-main-right">
+                <view class="pkg-new-info-capsule" wx:if="{{item.package_type === 'count_card'}}">
+                  <text class="pkg-new-info-capsule-label">套餐次数</text>
+                  <text class="pkg-new-info-capsule-value">{{item.total_credits || item.remaining_credits || 0}} 次</text>
+                </view>
                 <view class="pkg-new-info-capsule">
                   <text class="pkg-new-info-capsule-label">服务有效期</text>
                   <text class="pkg-new-info-capsule-value">{{item.duration_value || '-'}}{{item.duration_unit === 'month' ? '个月' : '天'}}</text>
                 </view>
               </view>
             </view>
-            <!-- 自动激活提示 -->
+            <!-- 强制激活倒计时 -->
             <view class="pkg-new-auto-activate" wx:if="{{item._autoActivateDate}}">
-              <text class="pkg-new-auto-text">套餐将于{{item._autoActivateDate}}自动激活，有效期开始计算</text>
-              <text class="pkg-new-auto-countdown" wx:if="{{item._autoActivateDays <= 30}}">距自动激活还有 {{item._autoActivateDays}} 天</text>
+              <text class="pkg-new-auto-text">距强制激活还剩 {{item._autoActivateDays}} 天</text>
+              <text class="pkg-new-auto-countdown">将于 {{item._autoActivateDate}} 自动激活，服务有效期开始计算</text>
             </view>
             <view class="pkg-new-footer">
               <text class="pkg-new-date-text">服务有效期：激活后开始计算</text>
+              <text class="pkg-new-date-text pkg-new-footer-hint">录入后2个月未激活将自动强制激活</text>
             </view>
           </view>
         </view>
@@ -447,12 +447,6 @@
           </view>
           <text class="hero-since">登录解锁会员特权</text>
         </view>
-        <view class="hero-action">
-          <view class="qr-btn" bindtap="handleGuestTap">
-            <view class="qr-btn-icon"></view>
-            <text class="qr-btn-text">会员码</text>
-          </view>
-        </view>
       </view>
       <view class="guest-login-btn-row">
         <view class="guest-login-btn-small" bindtap="onLogin">
@@ -465,7 +459,7 @@
       <view class="stats-row">
         <view class="stat-card guest-stat">
           <text class="stat-num">--</text>
-          <text class="stat-label">总预约</text>
+          <text class="stat-label">待上课</text>
         </view>
         <view class="stat-divider"></view>
         <view class="stat-card guest-stat">
@@ -647,7 +641,7 @@
     <view class="modal-content qr" catchtap="onModalTap">
       <view class="modal-title-text">会员码</view>
       <view class="qr-user">
-        <text class="qr-name">{{userInfo.real_name || userInfo.nickname || '会员'}}</text>
+        <text class="qr-name">{{userInfo.real_name || userInfo.nickname || (isOfficialMember ? '会员' : '注册用户')}}</text>
         <text class="qr-code-txt" wx:if="{{userInfo.member_code}}">{{userInfo.member_code}}</text>
       </view>
       <view class="qr-img-area">
@@ -710,14 +704,43 @@
         <text class="form-label">当前预留手机号</text>
         <text class="current-phone">{{userInfo.reserve_phone || userInfo.phone || '未设置'}}</text>
       </view>
+      <view class="audit-status-box audit-pending" wx:if="{{phoneAuditStatus === 'pending'}}">
+        <text class="audit-badge audit-badge-pending">审核中</text>
+        <text class="audit-text">待审核新号码：{{phoneAuditPendingPhone || '未设置'}}</text>
+      </view>
+      <view class="audit-status-box audit-rejected" wx:if="{{phoneAuditStatus === 'rejected'}}">
+        <text class="audit-badge audit-badge-rejected">审核未通过</text>
+        <text class="audit-text">上次申请未通过，可重新提交</text>
+      </view>
       <view class="form-group">
         <text class="form-label">新手机号</text>
-        <input class="form-input" type="number" maxlength="11" placeholder="请输入新的手机号" placeholder-class="ph" value="{{newPhone}}" bindinput="onNewPhoneInput"></input>
+        <input class="form-input" type="number" maxlength="11" placeholder="请输入新的手机号" placeholder-class="ph" value="{{newPhone}}" bindinput="onNewPhoneInput" disabled="{{phoneAuditStatus === 'pending'}}"></input>
       </view>
       <view class="tip-box">修改手机号需要管理员审核通过后生效</view>
-      <view class="btn-primary" bindtap="onSubmitChangePhone">提交审核</view>
+      <view class="btn-primary {{phoneAuditStatus === 'pending' ? 'btn-primary-disabled' : ''}}" bindtap="onSubmitChangePhone">提交审核</view>
     </view>
   </view>
 
   <!-- 微信授权登录弹窗 -->
   <login-modal visible="{{showLoginModal}}" bind:close="onLoginModalClose" bind:success="onLoginSuccess"></login-modal>
+
+<!-- 头像选择面板 -->
+<view class="avatar-sheet-mask" wx:if="{{showAvatarSheet}}" bindtap="onCloseAvatarSheet">
+  <view class="avatar-sheet" catchtap="onSheetTap">
+    <view class="as-header">
+      <text class="as-title">更换头像</text>
+    </view>
+    <button class="as-item" open-type="chooseAvatar" bindchooseavatar="onChooseAvatar">
+      <text>获取微信头像</text>
+    </button>
+    <view class="as-item" bindtap="onChooseFromCamera">
+      <text>拍照</text>
+    </view>
+    <view class="as-item" bindtap="onChooseFromAlbum">
+      <text>本地上传</text>
+    </view>
+    <view class="as-cancel" bindtap="onCloseAvatarSheet">
+      <text>取消</text>
+    </view>
+  </view>
+</view>

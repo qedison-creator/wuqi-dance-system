@@ -3,100 +3,49 @@ const { request } = require('../../utils/request');
 
 Page({
   data: {
-    particleList: [],
-    loadingProgress: 0,
-    loadingText: '正在加载...'
+    ready: false
   },
-
-  _loadingTimer: null,
-  _destroyed: false,
 
   onLoad() {
-    this._destroyed = false;
-    this.initParticles();
-    this.startLoading();
+    // 等待 app.js 初始化完成后立即跳转首页（与会员端一致）
+    // 不再使用固定时长的假进度动画，避免无谓等待
+    this.waitAppReady();
   },
 
-  initParticles() {
-    const particles = [];
-    for (let i = 0; i < 20; i++) {
-      particles.push({
-        x: Math.random() * 100,
-        y: Math.random() * 100,
-        delay: Math.random() * 5,
-        duration: 5 + Math.random() * 5
-      });
-    }
-    this.setData({ particleList: particles });
-  },
+  waitAppReady() {
+    // app.js 中 onLaunch 会设置 globalData._initPromise
+    const initPromise = app.globalData._initPromise || Promise.resolve();
 
-  startLoading() {
-    const loadingTexts = [
-      '正在加载...',
-      '连接服务器...',
-      '获取数据...',
-      '准备就绪...'
-    ];
-
-    let progress = 0;
-    this._loadingTimer = setInterval(() => {
-      if (this._destroyed) {
-        clearInterval(this._loadingTimer);
-        this._loadingTimer = null;
-        return;
-      }
-      progress += Math.random() * 15 + 5;
-      if (progress >= 100) {
-        progress = 100;
-        clearInterval(this._loadingTimer);
-        this._loadingTimer = null;
-        this.setData({
-          loadingProgress: progress,
-          loadingText: '即将进入...'
-        });
-        setTimeout(() => {
-          if (!this._destroyed) {
-            this.navigateToTarget();
-          }
-        }, 500);
-      } else {
-        const textIndex = Math.floor(progress / 30);
-        this.setData({
-          loadingProgress: progress,
-          loadingText: loadingTexts[Math.min(textIndex, loadingTexts.length - 1)]
-        });
-      }
-    }, 200);
-  },
-
-  async navigateToTarget() {
+    // 验证 token 有效性（有 token 时）
     const token = wx.getStorageSync('admin_token');
-    if (!token) {
+    const verifyToken = token
+      ? request({ url: '/auth/me', method: 'GET' }).then(() => true).catch(() => false)
+      : Promise.resolve(false);
+
+    Promise.all([initPromise, verifyToken]).then(([, hasValidToken]) => {
+      // 保留极短的 logo 淡入动画（500ms），让用户感知到品牌过渡
+      this.setData({ ready: true });
+      setTimeout(() => {
+        this.navigateToTarget(hasValidToken);
+      }, 500);
+    }).catch(() => {
+      this.navigateToTarget(false);
+    });
+  },
+
+  navigateToTarget(hasValidToken) {
+    const token = wx.getStorageSync('admin_token');
+    if (!token || !hasValidToken) {
+      // 无 token 或 token 失效，清除并跳转登录
+      wx.removeStorageSync('admin_token');
+      if (app.globalData) {
+        app.globalData.token = '';
+        app.globalData.userInfo = null;
+      }
       wx.redirectTo({ url: '/pages/login/login' });
       return;
     }
-
-    // 有token，验证是否有效
-    try {
-      await request({ url: '/auth/me', method: 'GET' });
-      // token有效，直接进入首页
-
-      wx.switchTab({ url: '/pages/dashboard/dashboard' });
-    } catch (err) {
-      // token无效，清除并跳转登录
-
-      wx.removeStorageSync('admin_token');
-      app.globalData.token = '';
-      app.globalData.userInfo = null;
-      wx.redirectTo({ url: '/pages/login/login' });
-    }
-  },
-
-  onUnload() {
-    this._destroyed = true;
-    if (this._loadingTimer) {
-      clearInterval(this._loadingTimer);
-      this._loadingTimer = null;
-    }
+    // token 有效，直接进入首页
+    wx.switchTab({ url: '/pages/dashboard/dashboard' });
   }
 });

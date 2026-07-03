@@ -13,15 +13,17 @@ const SOURCE_LABEL_MAP = {
 
 const CHECK_IN_METHOD_LABEL_MAP = {
   scan: '扫码签到',
-  auto: '自动签到'
+  auto: '自动签到',
+  cancelled_after_checkin: '课程中取消'
 };
 
 const CANCEL_TYPE_MAP = {
-  normal: '正常取消',
+  normal: '用户取消',
   exempt: '豁免取消',
   admin_cancel: '管理员取消',
   min_bookings_not_met: '人数不足取消',
-  holiday: '放假取消'
+  holiday: '放假取消',
+  after_checkin_cancel: '课程中取消'
 };
 
 // 预约记录状态文案映射（统一分类）
@@ -131,13 +133,28 @@ Page({
           base.sourceLabel = CHECK_IN_METHOD_LABEL_MAP[base.checkInMethod] || SOURCE_LABEL_MAP[item.source] || '签到';
           base.checkInTime = item.check_in_time ? formatDate(item.check_in_time, 'HH:mm') : '';
           base.creditsCost = item.credits_cost || 0;
+          // 签到后取消的记录：课时已退还，不显示消耗课时，显示管理员勾选的取消原因
+          if (base.checkInMethod === 'cancelled_after_checkin') {
+            base.creditsCost = 0;
+            base.isCancelledAfterCheckin = true;
+            // 显示"课程中因XX原因取消"（XX为管理员勾选的具体原因）
+            // 后端将取消原因存储在 attendance.remark 字段中
+            const reason = item.remark || '';
+            base.cancelReasonText = reason ? ('课程中因' + reason + '取消') : '课程中取消';
+          }
         }
 
         if (tab === 'booking') {
           // 预约记录页：统一状态分类标签
           base.statusLabel = BOOKING_STATUS_LABEL_MAP[item.status] || item.status || '';
           if (item.status === 'cancelled') {
-            base.cancelTypeLabel = item.cancel_type ? (CANCEL_TYPE_MAP[item.cancel_type] || '已取消') : '已取消';
+            // 签到后取消：显示管理员勾选的具体原因 + "（签到后取消）"
+            if (item.cancel_type === 'after_checkin_cancel') {
+              const reason = item.cancel_reason || '';
+              base.cancelTypeLabel = reason ? ('课程中因' + reason + '取消') : '课程中取消';
+            } else {
+              base.cancelTypeLabel = item.cancel_type ? (CANCEL_TYPE_MAP[item.cancel_type] || '已取消') : '已取消';
+            }
             base.cancelTime = item.cancelled_at ? formatDate(item.cancelled_at, 'YYYY-MM-DD HH:mm') : (item.cancel_time ? formatDate(item.cancel_time, 'YYYY-MM-DD HH:mm') : (item.updated_at ? formatDate(item.updated_at, 'YYYY-MM-DD HH:mm') : ''));
           } else if (item.status === 'completed') {
             // 已完成：注明签到方式

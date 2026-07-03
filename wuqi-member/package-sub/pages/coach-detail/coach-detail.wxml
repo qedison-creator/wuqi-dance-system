@@ -60,14 +60,14 @@
     <view class="cd-course-section">
       <view class="cd-section-header">
         <view class="cd-section-dot"></view>
-        <text class="cd-section-title">相关课程</text>
+        <text class="cd-section-title">相关场次</text>
       </view>
       <view wx:if="{{courses.length > 0}}">
         <view class="cd-course-card" wx:for="{{courses}}" wx:key="_id" data-id="{{item._id}}" bindtap="onCourseTap">
           <view class="cd-course-accent"></view>
           <view class="cd-course-body">
-            <view class="cd-course-tag" wx:if="{{item.danceStyleName}}" style="background: {{item.danceTagBg}}; color: {{item.danceTagText}}">{{item.danceStyleName}}</view>
             <text class="cd-course-name">{{item.course_name || '课程名称'}}</text>
+            <view class="cd-course-tag" wx:if="{{item.danceStyleName}}" style="background: {{item.danceTagBg}}; color: {{item.danceTagText}}">{{item.danceStyleName}}</view>
             <view class="cd-course-meta">
               <view class="cd-course-meta-dot"></view>
               <text>{{item.date}} {{item.weekday}} {{item.start_time}}-{{item.end_time}}</text>
@@ -76,40 +76,83 @@
               <view class="cd-course-meta-dot room"></view>
               <text>{{item.classroom}}</text>
             </view>
-            <view class="card-meta-row">
+            <view class="cd-course-deadline" wx:if="{{isOfficial && item.booking_deadline_text}}">
+              <text class="cd-deadline-text">截止预约：{{item.booking_deadline_text}}</text>
+              <text class="cd-deadline-text cancel">截止取消：{{item.cancel_deadline_text}}</text>
+            </view>
+            <view class="cd-card-meta-row">
               <view class="cd-course-count" wx:if="{{isOfficial && canViewCapacity}}">
-                <text class="cdc-label">已预约</text>
+                <text class="cdc-label">已约</text>
                 <text class="cdc-num">{{item.current_bookings || 0}}</text>
                 <text class="cdc-total">/{{item.max_bookings || 20}}人</text>
               </view>
               <view class="cd-course-count" wx:elif="{{isOfficial && !canViewCapacity}}">
-                <text class="cdc-label">已预约</text>
+                <text class="cdc-label">已约</text>
                 <text class="cdc-num">?</text>
                 <text class="cdc-total">/?人</text>
               </view>
-              <text class="cdc-min-capacity" wx:if="{{item.min_bookings}}">最低{{item.min_bookings}}人开课</text>
-              <view class="booked-avatars" wx:if="{{canViewCapacity && item.booked_users && item.booked_users.length > 0}}">
-                <block wx:for="{{item.booked_users}}" wx:for-index="ui" wx:key="user_id" wx:if="{{ui < 10}}">
-                  <image class="booked-avatar" src="{{item.avatar_url}}" mode="aspectFill" style="margin-left: {{ui === 0 ? 0 : -16}}rpx; z-index: {{10 - ui}};" />
+              <text class="cdc-min-capacity" wx:if="{{item.min_bookings}}">最低{{item.min_bookings}}人成班</text>
+              <view class="cd-booked-avatars" wx:if="{{canViewCapacity && item.booked_users && item.booked_users.length > 0}}">
+                <block wx:for="{{item.booked_users}}" wx:for-item="bu" wx:for-index="bui" wx:key="user_id" wx:if="{{bui < 10}}">
+                  <image class="cd-booked-avatar" src="{{bu.avatar_url}}" mode="aspectFill" style="z-index: {{bui + 1}};" />
                 </block>
-                <view class="booked-more" wx:if="{{item.booked_users.length > 10}}">
+                <view class="cd-booked-more" wx:if="{{item.booked_users.length > 10}}">
                   <text>+{{item.booked_users.length - 10}}</text>
                 </view>
               </view>
             </view>
           </view>
           <view class="cd-course-action">
-            <view class="cd-book-btn {{cmpContains(bookedScheduleIds, item._id) ? 'booked' : ''}} {{item.status === 'full' || !isOfficial || isPackageSuspended || !item.bookingOpen ? 'disabled' : ''}}" data-course="{{item}}" catchtap="onBookTap">
-              <text wx:if="{{cmpContains(bookedScheduleIds, item._id)}}">已预约</text>
-              <text wx:elif="{{item.status === 'full'}}">已满</text>
-              <text wx:elif="{{!item.bookingOpen}}">未开放预约</text>
-              <text wx:elif="{{!isOfficial}}">预约</text>
-              <text wx:else>预约</text>
-            </view>
-            <view class="cd-book-btn waitlist-btn {{cmpContains(waitlistedScheduleIds, item._id) ? 'waitlisted' : ''}}" wx:if="{{item.status === 'full' && !cmpContains(bookedScheduleIds, item._id)}}" data-course="{{item}}" catchtap="onBookTap">
-              <text wx:if="{{cmpContains(waitlistedScheduleIds, item._id)}}">候补中</text>
-              <text wx:else>加入候补</text>
-            </view>
+            <!-- 受限用户：只显示3种状态 -->
+            <block wx:if="{{isRestrictedUser}}">
+              <view class="cd-book-btn disabled" wx:if="{{item._ended}}">
+                <text>已结束</text>
+              </view>
+              <view class="cd-book-btn disabled-clickable" wx:elif="{{!item.bookingOpen}}">
+                <text>未开放预约</text>
+              </view>
+              <view class="cd-book-btn disabled-clickable" wx:else data-course="{{item}}" catchtap="onBookTap">
+                <text>不可预约</text>
+              </view>
+            </block>
+            <!-- 正式会员：显示完整状态 -->
+            <block wx:else>
+              <view class="cd-book-btn disabled" wx:if="{{item.status === 'cancelled'}}">
+                <text>已取消</text>
+              </view>
+              <view class="cd-book-btn state-done" wx:elif="{{item._ended && cmp.contains(completedScheduleIds, item._id)}}">
+                <text>已完成</text>
+              </view>
+              <view class="cd-book-btn disabled" wx:elif="{{item._ended}}">
+                <text>已结束</text>
+              </view>
+              <view class="cd-book-btn state-ongoing" wx:elif="{{item._ongoing}}">
+                <text>进行中</text>
+              </view>
+              <view class="cd-book-btn booked" wx:elif="{{cmp.contains(bookedScheduleIds, item._id)}}" data-course="{{item}}" catchtap="onBookTap">
+                <text>已预约</text>
+              </view>
+              <view class="cd-book-btn waitlist-btn waitlisted" wx:elif="{{cmp.contains(waitlistedScheduleIds, item._id)}}">
+                <text>候补中</text>
+              </view>
+              <block wx:elif="{{item.status === 'full'}}">
+                <view class="cd-book-btn state-full">
+                  <text>已满</text>
+                </view>
+                <view class="cd-book-btn waitlist-btn" wx:if="{{!cmp.contains(waitlistedScheduleIds, item._id)}}" data-course="{{item}}" catchtap="onBookTap">
+                  <text>加入候补</text>
+                </view>
+              </block>
+              <view class="cd-book-btn disabled-clickable" wx:elif="{{!item.bookingOpen}}">
+                <text>未开放预约</text>
+              </view>
+              <view class="cd-book-btn disabled-clickable" wx:elif="{{item.courseStoreMatched === false}}" data-course="{{item}}" catchtap="onBookTap">
+                <text>不可预约</text>
+              </view>
+              <view class="cd-book-btn" wx:else data-course="{{item}}" catchtap="onBookTap">
+                <text>预约</text>
+              </view>
+            </block>
           </view>
         </view>
       </view>

@@ -166,18 +166,29 @@
   display: block;
 }
 
-.user-nick-name {
-  font-size: 22rpx;
-  color: var(--text-tertiary);
-  margin-top: 2rpx;
-  display: block;
+.user-name-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8rpx;
 }
 
-.user-phone {
+.user-nick {
+  font-size: 22rpx;
+  color: var(--text-tertiary);
+}
+
+.user-phone-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16rpx;
+  margin-top: 2rpx;
+}
+
+.user-phone-item {
   font-size: 22rpx;
   color: #B8AFA4;
-  display: block;
-  margin-top: 2rpx;
 }
 
 .booking-time {

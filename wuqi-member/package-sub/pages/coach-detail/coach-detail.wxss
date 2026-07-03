@@ -264,11 +264,38 @@
   color: #6B5D5E;
 }
 
+.cd-course-deadline {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-top: 8rpx;
+  gap: 16rpx;
+}
+
+.cd-deadline-text {
+  font-size: 22rpx;
+  color: #948284;
+  line-height: 1;
+}
+
+.cd-deadline-text.cancel {
+  color: #B8A0A0;
+}
+
 .card-meta-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
   margin-top: 12rpx;
+}
+
+.cd-card-meta-row {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  margin-top: 12rpx;
+  flex-wrap: wrap;
+  gap: 8rpx 16rpx;
 }
 
 .cd-course-count {
@@ -307,24 +334,29 @@
   white-space: nowrap;
 }
 
-.booked-avatars {
+.cd-booked-avatars {
   display: flex;
   align-items: center;
-  flex-direction: row-reverse;
   flex-shrink: 0;
-  max-width: 300rpx;
+  max-width: 420rpx;
   overflow: hidden;
+  margin-left: auto;
 }
 
-.booked-avatar {
+.cd-booked-avatar {
   width: 44rpx;
   height: 44rpx;
   border-radius: 50%;
   border: 2rpx solid #FDF2EF;
   flex-shrink: 0;
+  margin-left: -16rpx;
 }
 
-.booked-more {
+.cd-booked-avatar:first-child {
+  margin-left: 0;
+}
+
+.cd-booked-more {
   width: 44rpx;
   height: 44rpx;
   border-radius: 50%;
@@ -334,9 +366,10 @@
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  margin-left: -16rpx;
 }
 
-.booked-more text {
+.cd-booked-more text {
   font-size: 20rpx;
   color: #8B7A77;
   font-weight: 600;
@@ -376,6 +409,51 @@
 
 .cd-book-btn.disabled text {
   color: #948284;
+}
+
+/* 灰色可点击（不可预约但可点击查看原因） */
+.cd-book-btn.disabled-clickable {
+  background: #F0ECE8;
+  box-shadow: none;
+}
+
+.cd-book-btn.disabled-clickable text {
+  color: #5A4E4F;
+}
+
+.cd-book-btn.disabled-clickable:active {
+  transform: scale(0.96);
+  opacity: 0.7;
+}
+
+/* 已完成（淡绿色实心，比进行中深一档） */
+.cd-book-btn.state-done {
+  background: linear-gradient(135deg, #6FBFB0, #5BA89A);
+  box-shadow: 0 4rpx 16rpx rgba(91,168,154,0.3);
+}
+
+.cd-book-btn.state-done text {
+  color: #FFFFFF;
+}
+
+/* 进行中（橙色实心） */
+.cd-book-btn.state-ongoing {
+  background: linear-gradient(135deg, #8DD0C9, #6FC4B6);
+  box-shadow: 0 4rpx 16rpx rgba(111,196,182,0.3);
+}
+
+.cd-book-btn.state-ongoing text {
+  color: #FFFFFF;
+}
+
+/* 已满（红色实心） */
+.cd-book-btn.state-full {
+  background: linear-gradient(135deg, #C44B4B, #A83E3E);
+  box-shadow: 0 4rpx 16rpx rgba(196,75,75,0.3);
+}
+
+.cd-book-btn.state-full text {
+  color: #FFFFFF;
 }
 
 .cd-book-btn.booked {
@@ -423,7 +501,7 @@
   margin-bottom: 12rpx;
 }
 
-.cd-empty-inline text {
+.cd-empty-inline-text {
   font-size: 26rpx;
   color: #948284;
 }

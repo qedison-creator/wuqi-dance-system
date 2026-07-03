@@ -71,14 +71,14 @@
 
       <scroll-view class="modal-body" scroll-y enhanced show-scrollbar="{{false}}">
       <view class="upload-section">
-        <view class="upload-area" bindtap="onChooseImage">
+        <button id="agree-btn" class="upload-area" open-type="agreePrivacyAuthorization" bindagreeprivacyauthorization="onPrivacyAgreed" bindtap="onChooseImage">
           <image wx:if="{{formData.image_url}}" class="preview-image" src="{{formData.image_url}}" mode="aspectFill" />
           <view wx:else class="upload-placeholder">
             <text class="upload-icon"></text>
             <text class="upload-text">点击上传图片</text>
             <text class="upload-tip">建议尺寸: 750×320px</text>
           </view>
-        </view>
+        </button>
         <view class="upload-status" wx:if="{{uploading}}">
           <text>上传中...</text>
         </view>

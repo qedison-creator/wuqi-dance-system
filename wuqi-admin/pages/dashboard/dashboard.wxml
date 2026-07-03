@@ -149,10 +149,10 @@
                     <view class="schedule-status {{sch.status}}">
                       <text>{{sch.statusText}}</text>
                     </view>
-                    <text class="card-progress-text" wx:if="{{sch.status !== 'cancelled' && sch.status !== 'offline'}}">{{sch.bookedCount}}/{{sch.capacity}} 已预约</text>
+                    <text class="card-progress-text">{{sch.bookedCount}}/{{sch.capacity}} 已预约</text>
                   </view>
                 </view>
-                <view class="card-stats" wx:if="{{sch.status !== 'cancelled' && sch.status !== 'offline'}}">
+                <view class="card-stats">
                   <view class="stat-item">
                     <text class="stat-num stat-booked">{{sch.bookedCount}}</text>
                     <text class="stat-label">已预约</text>
@@ -220,13 +220,17 @@
       <text class="bnav-icon">◷</text>
       <text class="bnav-label">排课</text>
     </view>
-    <view class="bnav-item bnav-scan" bindtap="onScanSignIn">
-      <text class="bnav-icon bnav-scan-icon">◎</text>
-      <text class="bnav-label bnav-scan-label">扫码签到</text>
+    <view class="bnav-item" bindtap="onScanSignIn">
+      <text class="bnav-icon">◉</text>
+      <text class="bnav-label">扫码签到</text>
     </view>
     <view class="bnav-item" bindtap="onGoToBookings">
       <text class="bnav-icon">☰</text>
       <text class="bnav-label">预约记录</text>
+    </view>
+    <view class="bnav-item" bindtap="onGoToWaitlist">
+      <text class="bnav-icon">▤</text>
+      <text class="bnav-label">候补排队</text>
     </view>
   </view>
 

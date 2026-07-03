@@ -1,6 +1,16 @@
 const app = getApp();
 const { request } = require('../../utils/request');
 
+// 规范化头像 URL：相对路径补全 serverBase，完整 URL 直接返回
+const normalizeAvatarUrl = (url) => {
+  if (!url) return '';
+  if (url.startsWith('http://') || url.startsWith('https://')) return url;
+  const config = require('../../config/index.js');
+  const serverBase = config.serverBase || '';
+  const path = url.startsWith('/') ? url : '/' + url;
+  return serverBase + path;
+};
+
 // 格式化日期为 YYYY-MM-DD
 
 const formatDate = (dateStr) => {
@@ -31,6 +41,8 @@ Page({
   data: {
     activeFilter: 'active',
     members: [],
+    showPhone: false,
+    isReviewer: false,
     keyword: '',
     page: 1,
     hasMore: true,
@@ -74,6 +86,8 @@ Page({
     if (typeof this.getTabBar === 'function' && this.getTabBar()) {
       this.getTabBar().setData({ selected: 2 });
     }
+    const userInfo = app.globalData.userInfo || {};
+    const isReviewer = userInfo.role === 'reviewer';
     const currentStore = app.globalData.currentStore;
     const currentStoreId = currentStore ? currentStore._id : '';
     const currentStoreName = currentStore ? currentStore.name : '';
@@ -255,6 +269,16 @@ Page({
     this.loadMembers();
   },
 
+  // ========== 手机号显示切换 ==========
+  // 使用 catchtouchstart 既阻止事件冒泡（防止卡片 :active 动画），又触发号码切换
+  onTogglePhone(e) {
+    const index = e.currentTarget.dataset.index;
+    const key = `members[${index}]._showPhone`;
+    this.setData({
+      [key]: !this.data.members[index]._showPhone
+    });
+  },
+
   // ========== 搜索 ==========
   onSearchInput(e) {
     this.setData({ keyword: e.detail.value });
@@ -316,8 +340,10 @@ Page({
           }
           return p;
         };
-        const reservePhone = maskPhone(member.reserve_phone || member.phone || '');
-        const wechatPhone = maskPhone(member.wechat_phone || '');
+        const reservePhoneRaw = member.reserve_phone || member.phone || '';
+        const wechatPhoneRaw = member.wechat_phone || '';
+        const reservePhone = maskPhone(reservePhoneRaw);
+        const wechatPhone = maskPhone(wechatPhoneRaw);
 
         // 构建套餐信息文本
 
@@ -423,10 +449,12 @@ Page({
         return {
           ...member,
           nickname: member.nick_name,
-          avatar: member.avatar_url,
+          avatar: normalizeAvatarUrl(member.avatar_url),
           phone: reservePhone,
           reserve_phone: reservePhone,
+          reserve_phone_raw: reservePhoneRaw,
           wechat_phone_display: wechatPhone,
+          wechat_phone_raw: wechatPhoneRaw,
           created_at: formatDate(member.created_at),
           reviewed_at: formatReviewDate(member.updated_at || member.created_at),
           status: displayStatus,
@@ -455,6 +483,15 @@ Page({
 
   onReachBottom() {
     this.loadMembers();
+  },
+
+  onAvatarError(e) {
+    const index = e.currentTarget.dataset.index;
+    const members = this.data.members;
+    if (members[index]) {
+      members[index].avatar = '/images/default-avatar.svg';
+      this.setData({ members });
+    }
   },
 
   // ========== 审核 ==========
@@ -505,7 +542,7 @@ Page({
   onModalTap() {},
 
   async onSubmitReview() {
-    if (!app.hasPermission('member:review')) {
+    if (!app.hasPermission('member_review')) {
       wx.showToast({ title: '无权限执行此操作', icon: 'none' });
       return;
     }

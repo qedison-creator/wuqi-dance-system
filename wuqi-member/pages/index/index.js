@@ -72,7 +72,8 @@ Page({
     returnCardVisible: false,
     returnCardOffsetX: 0,
     _dataLoaded: false,
-    _lastStoreId: ''
+    _lastStoreId: '',
+    isOfficial: false
   },
 
   onLoad() {
@@ -86,7 +87,10 @@ Page({
     if (typeof this.getTabBar === 'function' && this.getTabBar()) {
       this.getTabBar().setData({ selected: 0, active: 'index' });
     }
+    // 更新正式会员状态（控制课程时间等敏感信息显示）
+    const userInfo = app.globalData.userInfo || {};
     this.setData({
+      isOfficial: userInfo.member_status === 'official',
       storeList: app.globalData.storeList,
       currentStore: app.globalData.currentStore
     });
@@ -160,7 +164,7 @@ Page({
   updateGreeting() {
     const hour = new Date().getHours();
     let greeting;
-    if (hour >= 5 && hour < 9)   greeting = { text: '晨间好', emoji: '🌤', sub: '今天也要元气满满' };
+    if (hour >= 5 && hour < 9)   greeting = { text: '晨间好', emoji: '🌤️', sub: '今天也要元气满满' };
     else if (hour >= 9 && hour < 11)  greeting = { text: '上午好', emoji: '☀️', sub: '舒展身体，准备起舞' };
     else if (hour >= 11 && hour < 14) greeting = { text: '午后好', emoji: '🌞', sub: '午后的舞蹈时光' };
     else if (hour >= 14 && hour < 18) greeting = { text: '下午好', emoji: '🌈', sub: '喝杯茶，再来跳舞' };
@@ -180,7 +184,13 @@ Page({
   },
 
   loadHomeData() {
-    this.setData({ loading: true });
+    // 已有数据时静默刷新，不再显示加载动画（避免切 tab 回来一闪而过的 loading）
+    const hasExistingData = (this.data.banners && this.data.banners.length > 0) ||
+                            (this.data.hotCoaches && this.data.hotCoaches.length > 0) ||
+                            (this.data.recentCourses && this.data.recentCourses.length > 0);
+    if (!hasExistingData) {
+      this.setData({ loading: true });
+    }
     const storeId = this.data.currentStore ? this.data.currentStore._id : '';
     const weekdays = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
     const today = getBeijingDate();
@@ -189,16 +199,18 @@ Page({
     endDate.setDate(endDate.getDate() + 5);
     const endStr = `${endDate.getFullYear()}-${String(endDate.getMonth() + 1).padStart(2, '0')}-${String(endDate.getDate()).padStart(2, '0')}`;
 
-    // 并行加载公告和假期信息（放在 Promise.all 之前，避免 return 后不可达）
-    this.loadAnnounces();
-    this.loadHolidays();
+    // 错峰加载：公告和假期延迟 300ms，避免与 Promise.all 中首页核心数据并发
+    setTimeout(() => {
+      this.loadAnnounces();
+      this.loadHolidays();
+    }, 300);
 
-    // 并行加载所有数据
+    // 并行加载首页核心数据（silent: 冷启动失败不弹 toast，避免游客被"网络连接失败"打扰；loading 动画仍由页面控制）
     return Promise.all([
-      request({ url: '/home/banners', data: { store_id: storeId } }),
-      request({ url: '/home/coaches', data: { store_id: storeId, limit: 6 } }),
-      request({ url: '/schedules', data: { store_id: storeId, limit: 10 } }),
-      request({ url: '/home/images', data: { limit: 6 } })
+      request({ url: '/home/banners', data: { store_id: storeId }, silent: true }),
+      request({ url: '/home/coaches', data: { store_id: storeId, limit: 6 }, silent: true }),
+      request({ url: '/schedules', data: { store_id: storeId, limit: 10 }, silent: true }),
+      request({ url: '/home/images', silent: true })
     ]).then(([bannerRes, coachRes, scheduleRes, imageRes]) => {
       // 处理轮播图/ 教练头像 / 课程封面 / 视频封面：统一使用 SERVER_BASE
       // 注意：服务器返回的 URL 可能是 http 或完整 https 地址，这里统一规范化为 /uploads/xxx 格式
@@ -306,7 +318,7 @@ Page({
   async loadHolidays() {
     try {
       const storeId = this.data.currentStore ? this.data.currentStore._id : '';
-      const res = await request({ url: '/holidays', method: 'GET' });
+      const res = await request({ url: '/holidays', method: 'GET', silent: true });
       const list = res.data && Array.isArray(res.data.list) ? res.data.list : (Array.isArray(res.data) ? res.data : []);
       const today = new Date();
       const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
@@ -407,7 +419,14 @@ Page({
   },
 
   onLoginSuccess() {
-    this.setData({ showLoginModal: false });
+    // 登录/认领成功后，globalData.currentStore 已按会员门店重新匹配
+    // 先同步到页面数据，再加载首页数据
+    const userInfo = app.globalData.userInfo || {};
+    this.setData({
+      showLoginModal: false,
+      isOfficial: userInfo.member_status === 'official',
+      currentStore: app.globalData.currentStore
+    });
     // 登录成功后刷新页面数据
     this.loadHomeData();
   },
@@ -419,7 +438,9 @@ Page({
   },
 
   // 已授权用户：静默重新定位匹配最近门店（无弹窗，每次进入首页获取最新位置）
+  // 但用户手动选择门店后，本次运行期间不再自动匹配
   checkPendingRelocate() {
+    if (app.globalData.userManuallySelectedStore) return;
     if (!app.globalData.pendingRelocate) return;
     app.globalData.pendingRelocate = false;
     const that = this;
@@ -486,6 +507,8 @@ Page({
     const { store } = e.currentTarget.dataset;
     if (!store || !store._id) return;
     app.globalData.currentStore = store;
+    app.globalData.userManuallySelectedStore = true;  // 标记本次运行期间不再自动匹配
+    app.globalData.pendingRelocate = false;
     wx.setStorageSync('currentStore', store);
     this.setData({ currentStore: store, showStoreModal: false });
     this.loadHomeData();
@@ -508,7 +531,8 @@ Page({
   },
 
   onCoachTap(e) {
-    if (!auth.requireLogin(() => this.setData({ showLoginModal: true }))) return;
+    // 游客点击教练头像：静默不跳转，不弹登录窗（符合微信审核规范）
+    if (!auth.checkLogin()) return;
     const { id } = e.currentTarget.dataset;
     wx.navigateTo({
       url: `/package-sub/pages/coach-detail/coach-detail?id=${id}`
@@ -598,7 +622,7 @@ Page({
   async loadAnnounces() {
     try {
       const storeId = this.data.currentStore ? this.data.currentStore._id : '';
-      const res = await request({ url: `/announces?store_id=${storeId}&status=active`, method: 'GET' });
+      const res = await request({ url: `/announces?store_id=${storeId}&status=active`, method: 'GET', silent: true });
       const list = res.data && res.data.list ? res.data.list : (Array.isArray(res.data) ? res.data : []);
       const announces = list.map(a => ({
         ...a,

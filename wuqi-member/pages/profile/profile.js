@@ -1,6 +1,7 @@
 const app = getApp();
 const { request } = require('../../utils/request');
 const { requireLogin, checkLogin } = require('../../utils/auth');
+const config = require('../../config/index.js');
 const drawQrcode = require('../../utils/weapp.qrcode');
 const wsClient = require('../../utils/websocket-client');
 
@@ -9,6 +10,7 @@ Page({
   data: {
     userInfo: null,
     isLoggedIn: false,
+    isOfficialMember: false,
     memberSinceDays: 0,
     memberStatus: 'active',
     profileSaved: false,
@@ -77,7 +79,13 @@ Page({
     currentPackageType: '',
     avatarSrc: '/images/default-avatar.svg',
     memberStatusText: '',
-    showLoginModal: false
+    showLoginModal: false,
+    // 会员身份：'new' 新会员 / 'old' 老会员（后端 member_identity 字段，默认 'new'）
+    member_identity: 'new',
+    // 是否为预建档会员（有 reserve_phone 且无 phone），用于跳过强制完善信息提示
+    isPreRegistered: false,
+    // 头像选择面板
+    showAvatarSheet: false
   },
 
   getMemberSinceDays(userInfo, packages) {
@@ -120,7 +128,8 @@ Page({
     }
 
     if (isNaN(baseDate.getTime())) return 0;
-    return Math.max(0, diffBeijingDays(baseDate, now));
+    // 加入当天计为 1 天
+    return Math.max(1, diffBeijingDays(baseDate, now) + 1);
   },
 
   computeMemberStatus(userInfo, packages) {
@@ -193,17 +202,20 @@ Page({
   checkLoginStatus() {
     if (checkLogin()) {
           const userInfo = app.globalData && app.globalData.userInfo ? app.globalData.userInfo : {};
-          var avatarSrc = userInfo.avatar || '/images/default-avatar.svg';
+          var avatarSrc = userInfo.avatar || userInfo.avatar_url || '/images/default-avatar.svg';
+          // 是否为正式会员（已审核通过），控制头像更换、名称显示等
+          const isOfficialMember = userInfo.member_status === 'official';
           this.setData({
             isLoggedIn: true,
             userInfo: userInfo,
+            isOfficialMember: isOfficialMember,
             memberSinceDays: this.getMemberSinceDays(userInfo, this.data.packages),
             avatarSrc: avatarSrc,
             avatarImageError: false
           });
           this.loadUserData();
         } else {
-      this.setData({ isLoggedIn: false, userInfo: null, memberSinceDays: 0, avatarSrc: '/images/default-avatar.svg', avatarImageError: false });
+      this.setData({ isLoggedIn: false, userInfo: null, isOfficialMember: false, memberSinceDays: 0, avatarSrc: '/images/default-avatar.svg', avatarImageError: false });
     }
   },
 
@@ -264,13 +276,13 @@ Page({
       }
       if (pkg.end_date) {
         pkg.end_date_display = getBeijingDateStr(pkg.end_date);
-        // 仅对未过期且未暂停的激活套餐计算剩余天数，避免历史套餐出现负数
+        // 激活的套餐计算剩余天数（含停卡套餐，停卡时end_date已顺延，剩余天数保持冻结值）
 
-        if (pkg.is_activated && !pkg.is_suspended && pkg.status === 'active') {
+        if (pkg.is_activated && pkg.status === 'active') {
           var now = new Date();
           var end = new Date(pkg.end_date);
           if (now <= end) {
-            var diff = diffBeijingDays(now, end) + 1;
+            var diff = diffBeijingDays(now, end);
             pkg.remaining_days = Math.max(0, diff);
           }
         }
@@ -374,19 +386,35 @@ Page({
             var memberSinceDays = this.getMemberSinceDays(userInfo, this.data.packages);
             var memberStatus = this.computeMemberStatus(userInfo, this.data.packages);
 
+            // 会员身份（'new'/'old'，默认 'new'）
+            var memberIdentity = userInfo.member_identity === 'old' ? 'old' : 'new';
+            // 预建档会员：有 reserve_phone 且无 phone
+            var isPreRegistered = !!(userInfo.reserve_phone && !userInfo.phone);
+
+            // 同步 isOfficialMember 和 avatarSrc（/auth/me 返回的是 avatar_url）
+            var isOfficialMember = userInfo.member_status === 'official';
+            var avatarSrc = userInfo.avatar || userInfo.avatar_url || '/images/default-avatar.svg';
+
             this.setData({
               userInfo: userInfo,
+              isOfficialMember: isOfficialMember,
+              avatarSrc: avatarSrc,
+              avatarImageError: false,
               profileForm: profileForm,
               storePhone: storePhone,
               memberSinceDays: memberSinceDays,
-              memberStatus: memberStatus
+              memberStatus: memberStatus,
+              phoneAuditStatus: userInfo.phone_audit_status || 'none',
+              phoneAuditPendingPhone: userInfo.phone_audit_pending || '',
+              member_identity: memberIdentity,
+              isPreRegistered: isPreRegistered
             });
 
             if (!storePhone && storeId) {
               this.loadStorePhone(storeId);
             }
             app.globalData.userInfo = userInfo;
-            
+
             // 检查是否需要完善个人信息
             this._checkForceProfile(profileForm, userInfo);
           }
@@ -462,11 +490,11 @@ Page({
           }
           if (pkg.end_date) {
             pkg.end_date_display = getBeijingDateStr(pkg.end_date);
-            if (pkg.is_activated && pkg.status === 'active' && !pkg.is_suspended) {
+            if (pkg.is_activated && pkg.status === 'active') {
               var now = new Date();
               var end = new Date(pkg.end_date);
               if (now <= end) {
-                var diff = diffBeijingDays(now, end) + 1;
+                var diff = diffBeijingDays(now, end);
                 pkg.remaining_days = Math.max(0, diff);
               }
             }
@@ -535,6 +563,12 @@ Page({
 
   _checkForceProfile(profileForm, userInfo) {
     if (userInfo.member_status !== 'official') return;
+
+    // 预建档会员（有 reserve_phone 且无 phone）跳过强制完善信息弹窗
+    if (userInfo.reserve_phone && !userInfo.phone) {
+      this.setData({ showForceProfileModal: false });
+      return;
+    }
 
     var hasRealName = profileForm.real_name && profileForm.real_name.trim();
     var hasPhone = profileForm.phone && String(profileForm.phone).trim().length === 11;
@@ -656,8 +690,8 @@ Page({
     wxLogin(storeId).then(function() {
       wx.hideLoading();
       wx.showToast({ title: '登录成功', icon: 'success' });
-      this.setData({ isLoggedIn: true });
-      this.loadUserData();
+      // 重新检查登录状态，同步 isOfficialMember 和 userInfo
+      this.checkLoginStatus();
     }.bind(this)).catch(function() {
       wx.hideLoading();
       wx.showToast({ title: '登录失败', icon: 'none' });
@@ -836,8 +870,8 @@ Page({
         pkg._autoActivateDays = 0;
       }
 
-      // 进度条
-      if (pkg.is_activated && pkg.status === 'active' && !pkg.is_suspended) {
+      // 进度条（停卡套餐也需展示原内容，只是暂停服务，不清零数据）
+      if (pkg.is_activated && pkg.status === 'active') {
         if (pkg.package_type === 'count_card') {
           var totalC = pkg.total_credits || 0;
           var usedC = totalC - (pkg.remaining_credits || 0);
@@ -856,8 +890,8 @@ Page({
           if (pkg.start_date && pkg.is_activated) {
             var now = new Date();
             var start = new Date(pkg.start_date);
-            // 已用天数不包含今天（今天同时算入剩余天数），避免两者相加比总天数多1
-            usedDays = diffBeijingDays(start, now);
+            // 激活/生效当日计入第1天，已用天数 = 当前日期 - 激活/生效日期 + 1
+            usedDays = diffBeijingDays(start, now) + 1;
             if (usedDays < 0) usedDays = 0;
             if (usedDays > totalDays) usedDays = totalDays;
           }
@@ -910,14 +944,15 @@ Page({
       pkg._progressWidthStyle = 'width: ' + (pkg._progressPercent || 0) + '%;';
       
       // 分类：使用中 / 待激活 / 历史
-      // 使用中：status === 'active'，未暂停，且未过期，且次卡还有次数      // 过期的套餐（即使 status 仍为 active）归入历史
+      // 使用中：status === 'active'，未过期，且次卡还有次数（含停卡中的套餐，停卡仅暂停非结束）
+      // 过期的套餐（即使 status 仍为 active）归入历史
       const isActuallyExpired = isExpired || pkg.status === 'expired' || pkg.status === 'exhausted';
-      if (pkg.status === 'active' && !pkg.is_suspended && !isExpired) {
+      if (pkg.status === 'active' && !isExpired) {
         activePackages.push(pkg);
       } else if (pkg.status === 'pending') {
         pendingPackages.push(pkg);
-      } else if (isActuallyExpired || pkg.is_suspended) {
-        // 历史：expired / 过期的active / 用完的active / 暂停中 / exhausted
+      } else if (isActuallyExpired) {
+        // 历史：expired / 过期的active / 用完的active / exhausted
         historyPackages.push(pkg);
       } else {
         // 兜底：其他非常规状态也归入历史，避免丢失显示
@@ -930,13 +965,28 @@ Page({
       currentPackage = activePackages[0];
     }
 
+    // 汇总所有可用套餐类型，避免多套餐时只显示一个造成误解
+    var currentPackageType = '';
+    if (activePackages.length > 0) {
+      var typeCount = {};
+      activePackages.forEach(function(pkg) {
+        var typeName = pkg.package_type === 'time_card' ? '时间卡' : '次卡';
+        typeCount[typeName] = (typeCount[typeName] || 0) + 1;
+      });
+      var parts = Object.keys(typeCount).map(function(typeName) {
+        var count = typeCount[typeName];
+        return count > 1 ? typeName + ' ×' + count : typeName;
+      });
+      currentPackageType = parts.join('、');
+    }
+
     this.setData({
       allPackages: packages,
       currentPackage: currentPackage,
       activePackages: activePackages,
       pendingPackages: pendingPackages,
       historyPackages: historyPackages,
-      currentPackageType: currentPackage ? (currentPackage.package_type === 'time_card' ? '时间卡' : '次卡') : '',
+      currentPackageType: currentPackageType,
       memberStatusText: memberStatus === 'active' ? '正式会员' : (memberStatus === 'suspended' ? '已停卡' : '待激活')
     });
   },
@@ -1028,10 +1078,17 @@ Page({
     wx.navigateTo({ url: '/package-sub/pages/records/records' });
   },
 
+  // 数据看板点击跳转：待上课→预约记录、已上课→上课记录
+  onStatTap(e) {
+    if (!requireLogin(() => this._goLogin())) return;
+    const tab = e.currentTarget.dataset.tab || 'booking';
+    wx.navigateTo({ url: `/package-sub/pages/records/records?tab=${tab}` });
+  },
+
   onAbout() {
     wx.showModal({
       title: '关于系统',
-      content: '舞栖舞蹈社会员预约系统V1.0.0\n\n为您提供课程预约、教练查看、会员签到等一站式舞蹈学习服务。\n\n如有疑问请联系门店客服。',
+      content: '舞栖舞蹈社会员预约系统V1.1.0.3c\n\n为您提供课程预约、教练查看、会员签到等一站式舞蹈学习服务。\n\n如有疑问请联系门店客服。',
       showCancel: false,
       confirmText: '我知道了',
       confirmColor: '#D4786E'
@@ -1378,33 +1435,54 @@ Page({
 
   generateDynamicToken() {
     this.stopQRRefresh();
-    request({
-      url: '/qrcode/qrcode-token',
-      method: 'GET'
-    }).then(function(res) {
-      if (res.data && res.data.token) {
-        const encryptedToken = res.data.token;
-        this.setData({
-          qrDynamicToken: encryptedToken,
-          qrCodeToken: encryptedToken,
-          qrCountdown: this.data.qrExpireSeconds,
-          qrCodeUrl: ''
-        });
-        // 使用 Canvas 生成二维码（包含 JSON 数据，不依赖外部 URL）
-        this.drawQRCodeToCanvas(encryptedToken);
-      }
-      this.startCountdown();
-      this.qrRefreshTimer = setInterval(function() {
-        this.generateDynamicToken();
-      }.bind(this), this.data.qrExpireSeconds * 1000);
-    }.bind(this)).catch(function(err) {
-      console.error('获取二维码token失败:', err);
-      this.setData({ qrCountdown: this.data.qrExpireSeconds, qrCodeUrl: '', qrCodeToken: '' });
-      this.startCountdown();
-      this.qrRefreshTimer = setInterval(function() {
-        this.generateDynamicToken();
-      }.bind(this), this.data.qrExpireSeconds * 1000);
-    }.bind(this));
+    var self = this;
+    // 标记二维码加载中，清空旧 token 避免显示过期二维码
+    this.setData({ qrCodeUrl: '', qrCodeToken: '' });
+
+    // iPhone 网络栈偶发未就绪，采用多次重试（GET 接口安全可重试）
+    var attempt = 0;
+    var maxRetry = 4;
+
+    var doRequest = function() {
+      request({
+        url: '/qrcode/qrcode-token',
+        method: 'GET',
+        silent: true,  // 静默：由本函数自行处理失败反馈，避免与加载中状态冲突
+        retry: 0       // 关闭 request.js 默认重试，由本函数统一控制重试节奏
+      }).then(function(res) {
+        if (res.data && res.data.token) {
+          const encryptedToken = res.data.token;
+          self.setData({
+            qrDynamicToken: encryptedToken,
+            qrCodeToken: encryptedToken,
+            qrCountdown: self.data.qrExpireSeconds,
+            qrCodeUrl: ''
+          });
+          // 使用 Canvas 生成二维码（包含 JSON 数据，不依赖外部 URL）
+          self.drawQRCodeToCanvas(encryptedToken);
+        }
+        self.startCountdown();
+        self.qrRefreshTimer = setInterval(function() {
+          self.generateDynamicToken();
+        }, self.data.qrExpireSeconds * 1000);
+      }).catch(function(err) {
+        console.error('获取二维码token失败:', err);
+        attempt++;
+        if (attempt < maxRetry) {
+          // 短延迟后重试，应对 iPhone 网络栈偶发未就绪
+          setTimeout(doRequest, 1500);
+          return;
+        }
+        // 重试耗尽：保留加载中状态，等待下一次定时刷新自动重试
+        self.setData({ qrCountdown: self.data.qrExpireSeconds, qrCodeUrl: '', qrCodeToken: '' });
+        self.startCountdown();
+        self.qrRefreshTimer = setInterval(function() {
+          self.generateDynamicToken();
+        }, self.data.qrExpireSeconds * 1000);
+      });
+    };
+
+    doRequest();
   },
 
   // 使用 Canvas 2D API 绘制二维码（weapp-qrcode-canvas-2d 库）
@@ -1486,6 +1564,12 @@ Page({
   onSubmitChangePhone() {
     var newPhone = this.data.newPhone;
 
+    // 审核中禁止重复提交
+    if (this.data.phoneAuditStatus === 'pending') {
+      wx.showToast({ title: '您已有一个待审核的申请', icon: 'none' });
+      return;
+    }
+
     if (!newPhone || newPhone.length !== 11) {
       wx.showToast({ title: '请输入正确的手机号', icon: 'none' });
       return;
@@ -1517,7 +1601,11 @@ Page({
     }).then(function() {
       wx.hideLoading();
       wx.showToast({ title: '已提交审核，请等待', icon: 'success' });
-      this.setData({ showChangePhoneModal: false });
+      this.setData({
+        showChangePhoneModal: false,
+        phoneAuditStatus: 'pending',
+        phoneAuditPendingPhone: newPhone
+      });
       this._updatePullDownRefresh();
     }.bind(this)).catch(function(err) {
       wx.hideLoading();
@@ -1538,6 +1626,201 @@ Page({
       updates.avatarSrc = '/images/default-avatar.svg';
     }
     this.setData(updates);
+  },
+
+  // ========== 头像更换 ==========
+  onHeroAvatarTap() {
+    // 游客：静默，不弹任何提示
+    if (!checkLogin()) return;
+    // 已登录但未审核通过（非正式会员）：静默，不弹头像选择面板
+    if (!this.data.isOfficialMember) return;
+    this.setData({ showAvatarSheet: true });
+  },
+
+  onCloseAvatarSheet() {
+    this.setData({ showAvatarSheet: false });
+  },
+
+  onSheetTap() {},
+
+  onChooseFromCamera() {
+    this.setData({ showAvatarSheet: false });
+    var self = this;
+    wx.chooseMedia({
+      count: 1,
+      mediaType: ['image'],
+      sourceType: ['camera'],
+      sizeType: ['compressed'],
+      success: (res) => {
+        if (res.tempFiles && res.tempFiles[0]) {
+          self._processAndUploadAvatar(res.tempFiles[0].tempFilePath);
+        }
+      },
+      fail: (err) => {
+        if (err.errMsg && err.errMsg.indexOf('cancel') !== -1) return;
+        console.error('选择图片失败:', err);
+        wx.getSetting({
+          success: (res) => {
+            const authSetting = res.authSetting || {};
+            const denied = authSetting['scope.album'] === false || authSetting['scope.camera'] === false;
+            const isPrivacy = err.errMsg && err.errMsg.toLowerCase().indexOf('privacy') !== -1;
+            if (denied || isPrivacy) {
+              wx.showModal({
+                title: '权限提示',
+                content: denied ? '选择图片需要相册/相机权限，请在设置中开启后重试' : '选择图片需要您同意隐私授权，请前往设置完成授权后重试',
+                confirmText: '去设置',
+                cancelText: '取消',
+                success: (modalRes) => { if (modalRes.confirm) wx.openSetting(); }
+              });
+            } else {
+              wx.showToast({ title: '选择图片失败，请重试', icon: 'none' });
+            }
+          },
+          fail: () => { wx.showToast({ title: '选择图片失败，请检查权限设置', icon: 'none' }); }
+        });
+      }
+    });
+  },
+
+  onChooseFromAlbum() {
+    this.setData({ showAvatarSheet: false });
+    var self = this;
+    wx.chooseMedia({
+      count: 1,
+      mediaType: ['image'],
+      sourceType: ['album'],
+      sizeType: ['compressed'],
+      success: (res) => {
+        if (res.tempFiles && res.tempFiles[0]) {
+          self._processAndUploadAvatar(res.tempFiles[0].tempFilePath);
+        }
+      },
+      fail: (err) => {
+        if (err.errMsg && err.errMsg.indexOf('cancel') !== -1) return;
+        console.error('选择图片失败:', err);
+        wx.getSetting({
+          success: (res) => {
+            const authSetting = res.authSetting || {};
+            const denied = authSetting['scope.album'] === false || authSetting['scope.camera'] === false;
+            const isPrivacy = err.errMsg && err.errMsg.toLowerCase().indexOf('privacy') !== -1;
+            if (denied || isPrivacy) {
+              wx.showModal({
+                title: '权限提示',
+                content: denied ? '选择图片需要相册/相机权限，请在设置中开启后重试' : '选择图片需要您同意隐私授权，请前往设置完成授权后重试',
+                confirmText: '去设置',
+                cancelText: '取消',
+                success: (modalRes) => { if (modalRes.confirm) wx.openSetting(); }
+              });
+            } else {
+              wx.showToast({ title: '选择图片失败，请重试', icon: 'none' });
+            }
+          },
+          fail: () => { wx.showToast({ title: '选择图片失败，请检查权限设置', icon: 'none' }); }
+        });
+      }
+    });
+  },
+
+  _processAndUploadAvatar(filePath) {
+    wx.showLoading({ title: '裁剪中...' });
+    var self = this;
+    wx.cropImage({
+      src: filePath,
+      cropScale: '1:1',
+      success: (cropRes) => {
+        wx.hideLoading();
+        self._uploadAvatar(cropRes.tempFilePath);
+      },
+      fail: () => {
+        wx.hideLoading();
+        self._uploadAvatar(filePath);
+      }
+    });
+  },
+
+  onChooseAvatar(e) {
+    const avatarUrl = e.detail.avatarUrl;
+    if (!avatarUrl) return;
+    this.setData({ showAvatarSheet: false });
+    var self = this;
+    wx.showLoading({ title: '裁剪中...' });
+    wx.cropImage({
+      src: avatarUrl,
+      cropScale: '1:1',
+      success: (cropRes) => {
+        wx.hideLoading();
+        self._uploadAvatar(cropRes.tempFilePath);
+      },
+      fail: (err) => {
+        wx.hideLoading();
+        console.warn('[profile] cropImage 失败，使用原图上传:', err);
+        self._uploadAvatar(avatarUrl);
+      }
+    });
+  },
+
+  _uploadAvatar(filePath) {
+    wx.showLoading({ title: '上传中...' });
+    const baseUrl = (app && app.globalData && app.globalData.baseUrl) || config.baseUrl;
+    const serverBase = config.serverBase;
+    const token = app.globalData.token || wx.getStorageSync('token');
+    var self = this;
+    var attempt = 0;
+    var maxRetry = 2;
+
+    var doUpload = function() {
+      wx.uploadFile({
+        url: baseUrl + '/auth/avatar',
+        filePath: filePath,
+        name: 'avatar',
+        timeout: 30000,
+        header: { 'Authorization': 'Bearer ' + token },
+        success: (uploadRes) => {
+          wx.hideLoading();
+          try {
+            const data = JSON.parse(uploadRes.data);
+            if (data.code === 200 && data.data && data.data.url) {
+              let fullAvatarUrl = data.data.url;
+              if (fullAvatarUrl.startsWith('/')) {
+                fullAvatarUrl = serverBase + fullAvatarUrl;
+              }
+              // 同步到本地状态（同时更新 avatar 和 avatar_url，保持一致）
+              if (app.globalData.userInfo) {
+                app.globalData.userInfo.avatar = fullAvatarUrl;
+                app.globalData.userInfo.avatar_url = fullAvatarUrl;
+              }
+              self.setData({
+                avatarSrc: fullAvatarUrl,
+                avatarImageError: false,
+                'userInfo.avatar': fullAvatarUrl,
+                'userInfo.avatar_url': fullAvatarUrl
+              });
+              wx.showToast({ title: '头像已更新', icon: 'success' });
+            } else {
+              wx.showToast({ title: '上传失败', icon: 'none' });
+            }
+          } catch (e) {
+            wx.showToast({ title: '上传失败', icon: 'none' });
+          }
+        },
+        fail: (err) => {
+          attempt++;
+          if (attempt < maxRetry) {
+            setTimeout(doUpload, 1500);
+            return;
+          }
+          wx.hideLoading();
+          const errMsg = err && err.errMsg ? err.errMsg : '';
+          const isTimeout = errMsg.indexOf('timeout') !== -1;
+          wx.showToast({
+            title: isTimeout ? '上传超时，请重试' : '上传失败，请检查网络后重试',
+            icon: 'none'
+          });
+        }
+      });
+    };
+
+    doUpload();
   },
 
   onHandleTouchStart(e) {

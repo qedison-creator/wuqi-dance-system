@@ -6,14 +6,6 @@
       <view class="ic-pending" wx:if="{{changeRequestStatus === 'pending'}}">审核中</view>
     </view>
 
-    <view class="ic-row-avatar">
-      <text class="ic-label">头像</text>
-      <image class="ic-avatar" src="{{userInfo.avatar || '/images/default-avatar.svg'}}" mode="aspectFill"></image>
-    </view>
-    <view class="ic-row">
-      <text class="ic-label">昵称</text>
-      <text class="ic-val">{{userInfo.nickname || '未设置'}}</text>
-    </view>
     <view class="ic-row">
       <text class="ic-label">姓名</text>
       <text class="ic-val">{{userInfo.real_name || '未填写'}}</text>
@@ -48,19 +40,6 @@
     </view>
 
     <view class="form-group">
-      <text class="form-label">头像</text>
-      <view class="avatar-edit-row">
-        <view class="avatar-btn" bindtap="onAvatarTap">
-          <image class="avatar-preview" src="{{editForm.avatar || '/images/default-avatar.svg'}}" mode="aspectFill"></image>
-          <text class="avatar-tip">点击更换</text>
-        </view>
-      </view>
-    </view>
-    <view class="form-group">
-      <text class="form-label">昵称</text>
-      <input class="form-input" type="nickname" value="{{editForm.nickname}}" placeholder="点击右侧键盘图标自动填入微信昵称" placeholder-class="ph" bindinput="onNicknameInput" />
-    </view>
-    <view class="form-group">
       <text class="form-label">姓名</text>
       <input class="form-input" value="{{editForm.real_name}}" placeholder="请输入真实姓名" placeholder-class="ph" bindinput="onRealNameInput" />
     </view>
@@ -85,27 +64,6 @@
       <view class="fa-submit {{submitting ? 'disabled' : ''}}" bindtap="onSubmitChange">{{submitting ? '提交中...' : '提交修改'}}</view>
     </view>
 
-    <view class="form-tip">头像和昵称即时生效，姓名、手机号需管理端审核</view>
-  </view>
-</view>
-
-<!-- 头像选择面板 -->
-<view class="avatar-sheet-mask" wx:if="{{showAvatarSheet}}" bindtap="onCloseAvatarSheet">
-  <view class="avatar-sheet" catchtap="onSheetTap">
-    <view class="as-header">
-      <text class="as-title">更换头像</text>
-    </view>
-    <button class="as-item" open-type="chooseAvatar" bindchooseavatar="onChooseAvatar">
-      <text>获取微信头像</text>
-    </button>
-    <view class="as-item" bindtap="onChooseFromCamera">
-      <text>拍照</text>
-    </view>
-    <view class="as-item" bindtap="onChooseFromAlbum">
-      <text>本地上传</text>
-    </view>
-    <view class="as-cancel" bindtap="onCloseAvatarSheet">
-      <text>取消</text>
-    </view>
+    <view class="form-tip">姓名、手机号需管理端审核后生效</view>
   </view>
 </view>

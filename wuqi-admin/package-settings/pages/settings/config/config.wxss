@@ -147,6 +147,14 @@
 .hero-btn.upload-btn {
   background: linear-gradient(135deg, #C5744B, #A85D3A);
   color: #FFFFFF;
+  margin: 0;
+  padding: 16rpx 32rpx;
+  border: none;
+  line-height: inherit;
+}
+
+.hero-btn.upload-btn::after {
+  border: none;
 }
 
 .hero-btn.reset-btn {

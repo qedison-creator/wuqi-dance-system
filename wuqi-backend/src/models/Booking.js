@@ -13,7 +13,7 @@ const bookingSchema = new mongoose.Schema({
   cancelled_at: { type: Date },
   is_exempt: { type: Boolean, default: false },
   remark: { type: String },
-  cancel_type: { type: String, enum: ['normal', 'exempt', 'admin_cancel', 'min_bookings_not_met', 'holiday'] },
+  cancel_type: { type: String, enum: ['normal', 'exempt', 'quick', 'admin_cancel', 'min_bookings_not_met', 'holiday', 'after_checkin_cancel'] },
   cancel_time: { type: Date },
   credits_deducted: { type: Number, default: 1 },
   credits_refunded: { type: Number, default: 0 },
@@ -25,6 +25,8 @@ const bookingSchema = new mongoose.Schema({
   // 关联套餐
   user_package_id: { type: mongoose.Schema.Types.ObjectId, ref: 'UserPackage' },
   source: { type: String, enum: ['member', 'onsite', 'admin'], default: 'member' },
+  // 是否为截止预约时间后的补约（true 时适用5分钟快速取消规则）
+  is_late_booking: { type: Boolean, default: false },
   // 上课提醒发送状态
   reminder_1h_sent: { type: Boolean, default: false },
   reminder_30m_sent: { type: Boolean, default: false },
@@ -50,5 +52,7 @@ bookingSchema.index({ coach_id: 1, booking_date: 1 });
 bookingSchema.index({ store_id: 1, booking_date: 1 });
 bookingSchema.index({ status: 1 });
 bookingSchema.index({ created_at: -1 });
+// 独立索引：管理端按日期查询预约记录（无 user_id/store_id 前缀时使用）
+bookingSchema.index({ booking_date: -1, created_at: -1 });
 
 module.exports = mongoose.model('Booking', bookingSchema);

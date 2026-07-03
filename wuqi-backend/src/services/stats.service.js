@@ -273,7 +273,7 @@ exports.getRevenueStats = async (query) => {
 // 获取教练统计
 exports.getCoachStats = async (storeId) => {
   const Coach = require('../models/Coach');
-  const filter = {};
+  const filter = { is_deleted: { $ne: true } };
   if (storeId) filter.store_id = storeId;
 
   const coaches = await Coach.find(filter).select('name avatar_url');

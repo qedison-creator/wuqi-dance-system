@@ -53,6 +53,10 @@ let heartbeatTimer = null;
 let heartbeatTimeoutTimer = null;
 let reconnectTimer = null;
 let fallbackPollTimer = null;
+// 主动断开标志：disconnect 时置 true，阻止异步 onClose/onError 触发的重连
+let isManualDisconnect = false;
+// 连接代际：每次新建连接递增，回调中校验此值以忽略旧连接的回调
+let connectionEpoch = 0;
 
 // 事件处理器映射：{ event: handler }
 let messageHandlers = {};
@@ -80,12 +84,22 @@ function connect(options = {}) {
   const token = wx.getStorageSync('admin_token');
   if (!token) return;
 
+  // 清理旧连接：关闭旧 socketTask，避免"未完成的操作"错误
+  if (socketTask) {
+    try { socketTask.close({ code: 1000 }); } catch (e) {}
+    socketTask = null;
+  }
+
+  isManualDisconnect = false;  // 主动连接时重置标志
   isConnecting = true;
+  const myEpoch = ++connectionEpoch;  // 本次连接的代际
   const url = getWsUrl();
 
   socketTask = wx.connectSocket({
     url,
     fail: (err) => {
+      // 代际不匹配，忽略旧回调
+      if (myEpoch !== connectionEpoch) return;
       console.error('[Admin WebSocket] 连接请求失败:', err);
       isConnecting = false;
       _handleDisconnect();
@@ -94,6 +108,7 @@ function connect(options = {}) {
 
   // 连接打开
   socketTask.onOpen(() => {
+    if (myEpoch !== connectionEpoch) return;  // 忽略旧连接回调
     isConnecting = false;
     isConnected = true;
     reconnectCount = 0;
@@ -107,6 +122,7 @@ function connect(options = {}) {
 
   // 接收消息
   socketTask.onMessage((res) => {
+    if (myEpoch !== connectionEpoch) return;  // 忽略旧连接回调
     try {
       const msg = JSON.parse(res.data);
 
@@ -130,11 +146,15 @@ function connect(options = {}) {
 
   // 连接关闭
   socketTask.onClose(() => {
+    if (myEpoch !== connectionEpoch) return;  // 忽略旧连接回调
     _handleDisconnect();
   });
 
   // 连接错误
   socketTask.onError((err) => {
+    if (myEpoch !== connectionEpoch) return;  // 忽略旧连接回调
+    // 主动断开时连接未建立会触发 onError，属正常情况，不打印错误
+    if (isManualDisconnect) return;
     console.error('[Admin WebSocket] 连接错误:', err);
     _handleDisconnect();
   });
@@ -144,6 +164,9 @@ function connect(options = {}) {
  * 主动断开连接，清理所有定时器
  */
 function disconnect() {
+  // 标记为主动断开，阻止异步 onClose/onError 回调触发的重连
+  isManualDisconnect = true;
+  connectionEpoch++;  // 递增代际，让当前连接的所有回调立即失效
   _stopHeartbeat();
   _stopReconnect();
   _stopFallbackPoll();
@@ -217,6 +240,9 @@ function _handleDisconnect() {
   isConnected = false;
   isConnecting = false;
 
+  // 主动断开时不重连、不降级
+  if (isManualDisconnect) return;
+
   // 尝试重连
   if (reconnectCount < MAX_RECONNECT) {
     _reconnect();
@@ -238,6 +264,8 @@ function _reconnect() {
 
   reconnectTimer = setTimeout(() => {
     reconnectTimer = null;
+    // 主动断开后不再重连
+    if (isManualDisconnect) return;
     // 递归调用 connect，复用已注册的 handlers
     connect({
       onMessage: messageHandlers,

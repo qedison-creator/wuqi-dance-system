@@ -1,5 +1,6 @@
 const { request } = require('../../../utils/request');
 const { getBeijingDate } = require('../../../utils/helpers');
+const { fixImageUrl } = require('../../../utils/util');
 const config = require('../../../config/index.js');
 
 function getDateStr(d) {
@@ -206,7 +207,9 @@ Page({
         nick_name: userObj.nick_name || userObj.name || '未知会员',
         real_name: userObj.real_name || '',
         phone: userObj.phone || '',
-        avatar_url: userObj.avatar_url || ''
+        wechat_phone: userObj.wechat_phone || '',
+        reserve_phone: userObj.reserve_phone || '',
+        avatar_url: fixImageUrl(userObj.avatar_url) || ''
       },
       created_at_display: this.formatDateTime(item.created_at),
       cancel_time_display: item.cancel_time ? this.formatDateTime(item.cancel_time) : '',

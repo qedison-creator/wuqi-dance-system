@@ -7,6 +7,9 @@ exports.getCoachList = async (query) => {
   const { status, keyword, include_disabled, page = 1, pageSize = 20 } = query;
   const filter = {};
 
+  // 默认排除已软删除的教练
+  filter.is_deleted = { $ne: true };
+
   // 默认只返回active状态的教练，除非include_disabled为true
   if (!include_disabled) {
     filter.status = 'active';
@@ -97,17 +100,22 @@ exports.toggleCoachStatus = async (id, status) => {
   return coach.toObject();
 };
 
-// 删除教练
+// 删除教练（软删除：保留记录，标记为已删除，不影响历史关联数据）
 exports.deleteCoach = async (id) => {
   const coach = await Coach.findById(id);
   if (!coach) {
     throw new Error('教练不存在');
   }
 
-  // 检查关联的排课
-  const hasSchedules = await Schedule.countDocuments({ coach_id: id });
-  if (hasSchedules > 0) throw new Error('该教练有排课记录，无法删除');
+  // 检查关联的排课（仅检查未来课程，已完成的课程不受影响）
+  const Schedule = require('../models/Schedule');
+  const hasUpcomingSchedules = await Schedule.countDocuments({
+    coach_id: id,
+    status: { $in: ['available', 'full'] }
+  });
+  if (hasUpcomingSchedules > 0) throw new Error('该教练有未开始的排课记录，无法删除');
 
+  // 清理星期模板中的教练引用
   const templates = await WeekTemplate.find({});
   const affectedStores = [];
   for (const wt of templates) {
@@ -133,7 +141,12 @@ exports.deleteCoach = async (id) => {
     console.log(`[Coach] 删除教练时清理了${affectedStores.length}个门店的星期模板`);
   }
 
-  await Coach.findByIdAndDelete(id);
+  // 软删除：标记为已删除，不真正删除记录
+  // 历史关联数据（课程/预约/签到/取消记录）通过 populate 仍能获取教练信息
+  coach.is_deleted = true;
+  coach.status = 'disabled';
+  await coach.save();
+
   return { success: true };
 };
 

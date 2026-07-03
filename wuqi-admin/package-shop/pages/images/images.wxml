@@ -81,14 +81,14 @@
     <view class="modal-title">{{editingId ? '编辑图片' : '上传图片'}}</view>
     <scroll-view class="modal-body" scroll-y="true">
       <!-- 上传区域 -->
-      <view class="form-upload" wx:if="{{!editingId}}" bindtap="onChooseImage">
+      <button id="agree-btn" class="form-upload" wx:if="{{!editingId}}" open-type="agreePrivacyAuthorization" bindagreeprivacyauthorization="onPrivacyAgreed" bindtap="onChooseImage">
         <block wx:if="{{!tempImagePath}}">
           <text class="fu-add-icon">+</text>
           <text class="fu-text">点击上传图片</text>
           <text class="fu-hint">支持 jpg / png / webp 格式</text>
         </block>
         <image wx:else class="fu-preview" src="{{tempImagePath}}" mode="widthFix" />
-      </view>
+      </button>
 
       <!-- 裁剪模式选择 -->
       <view class="crop-mode-bar" wx:if="{{tempImagePath && !editingId}}">

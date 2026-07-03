@@ -31,8 +31,16 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  margin-bottom: 32rpx;
+  margin: 0 0 32rpx;
   padding: 16rpx 0;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  line-height: inherit;
+}
+
+.avatar-section::after {
+  border: none;
 }
 
 .avatar-wrapper {

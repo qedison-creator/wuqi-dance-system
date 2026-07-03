@@ -118,10 +118,12 @@ Component({
                       const fullUserInfo = meRes.data.data;
                       app.globalData.userInfo = fullUserInfo;
                       wx.setStorageSync('userInfo', fullUserInfo);
+                      app.resetAndMatchStore();
                       self.triggerEvent('success', { userInfo: fullUserInfo });
                     } else if (respUser) {
                       app.globalData.userInfo = respUser;
                       wx.setStorageSync('userInfo', respUser);
+                      app.resetAndMatchStore();
                       self.triggerEvent('success', { userInfo: respUser });
                     }
                     self.triggerEvent('close');
@@ -132,6 +134,7 @@ Component({
                     if (respUser) {
                       app.globalData.userInfo = respUser;
                       wx.setStorageSync('userInfo', respUser);
+                      app.resetAndMatchStore();
                     }
                     self.triggerEvent('success', { userInfo: respUser });
                     self.triggerEvent('close');

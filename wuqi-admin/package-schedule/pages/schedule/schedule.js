@@ -93,9 +93,9 @@ Page({
         max_bookings: 20,
         min_bookings: 5,
         weekday: 1, // 添加星期字段用于模板
-        bookingDeadline: 180,
+        bookingDeadline: '',
         customBookingDeadline: '',
-        cancelBookingDeadline: 180,
+        cancelBookingDeadline: '',
         customCancelBookingDeadline: '',
         creditsCost: 1,
         customCreditsCost: '',
@@ -137,6 +137,11 @@ Page({
       clearInterval(this._autoRefreshTimer);
       this._autoRefreshTimer = null;
     }
+  },
+
+  // 全局网络恢复回调（由 app.js 的 onNetworkStatusChange 触发）
+  onNetworkRestore() {
+    this.loadStores();
   },
 
   // 初始化日期列表（历史1年 + 未来3个月）
@@ -921,9 +926,9 @@ Page({
         min_bookings: schedule.min_bookings || 5,
         weekday: currentWeekday,
         template_index: index,
-        bookingDeadline: schedule.booking_deadline || 180,
+        bookingDeadline: schedule.booking_deadline || '',
         customBookingDeadline: '',
-        cancelBookingDeadline: schedule.cancel_deadline || 180,
+        cancelBookingDeadline: schedule.cancel_deadline || '',
         customCancelBookingDeadline: '',
         creditsCost: schedule.credits_cost || 1,
         customCreditsCost: '',
@@ -964,6 +969,13 @@ Page({
       return match ? match[1] : url;
     }
     return url;
+  },
+
+  // 隐私授权同意回调
+  onPrivacyAgreed(e) {
+    console.log('[Privacy] 用户点击同意隐私授权');
+    const buttonId = e.currentTarget.id || e.target.id || 'agree-btn';
+    app.resolvePrivacyAuthorization(buttonId);
   },
 
   // 选择课程封面
@@ -1035,10 +1047,37 @@ Page({
         }
       },
       fail: (err) => {
-        console.error('选择图片失败', err);
-        if (err.errMsg && err.errMsg.indexOf('cancel') === -1) {
-          wx.showToast({ title: '选择图片失败，请检查隐私权限', icon: 'none' });
+        // 用户取消 - 静默处理
+        if (err.errMsg && err.errMsg.indexOf('cancel') !== -1) return;
+        console.error('选择图片失败:', err);
+        const errLower = (err.errMsg || '').toLowerCase();
+        // 隐私授权问题：onNeedPrivacyAuthorization 已自动 agree，提示用户重新点击即可
+        if (errLower.indexOf('privacy') !== -1) {
+          wx.showToast({ title: '请重新点击上传按钮重试', icon: 'none' });
+          return;
         }
+        // 相机权限拒绝 - 引导去设置开启（相册选择不需要 scope 授权）
+        wx.getSetting({
+          success: (res) => {
+            const authSetting = res.authSetting || {};
+            if (authSetting['scope.camera'] === false) {
+              wx.showModal({
+                title: '权限提示',
+                content: '拍照需要相机权限，请在设置中开启后重试',
+                confirmText: '去设置',
+                cancelText: '取消',
+                success: (modalRes) => {
+                  if (modalRes.confirm) wx.openSetting();
+                }
+              });
+            } else {
+              wx.showToast({ title: '选择图片失败，请重试', icon: 'none' });
+            }
+          },
+          fail: () => {
+            wx.showToast({ title: '选择图片失败，请重试', icon: 'none' });
+          }
+        });
       }
     });
   },
@@ -1271,12 +1310,37 @@ Page({
 
     let bookingDeadline = formData.bookingDeadline;
     let cancelBookingDeadline = formData.cancelBookingDeadline;
-    
+
+    if (bookingDeadline === '' || bookingDeadline === null || bookingDeadline === undefined) {
+      wx.showToast({ title: '请选择预约截止时间', icon: 'none' });
+      return;
+    }
+    if (cancelBookingDeadline === '' || cancelBookingDeadline === null || cancelBookingDeadline === undefined) {
+      wx.showToast({ title: '请选择取消预约截止时间', icon: 'none' });
+      return;
+    }
+
     if (bookingDeadline === -1) {
-      bookingDeadline = parseInt(formData.customBookingDeadline) || 180;
+      if (!formData.customBookingDeadline) {
+        wx.showToast({ title: '请输入预约截止自定义分钟数', icon: 'none' });
+        return;
+      }
+      bookingDeadline = parseInt(formData.customBookingDeadline);
+      if (isNaN(bookingDeadline) || bookingDeadline <= 0) {
+        wx.showToast({ title: '预约截止自定义分钟数需大于0', icon: 'none' });
+        return;
+      }
     }
     if (cancelBookingDeadline === -1) {
-      cancelBookingDeadline = parseInt(formData.customCancelBookingDeadline) || 180;
+      if (!formData.customCancelBookingDeadline) {
+        wx.showToast({ title: '请输入取消预约截止自定义分钟数', icon: 'none' });
+        return;
+      }
+      cancelBookingDeadline = parseInt(formData.customCancelBookingDeadline);
+      if (isNaN(cancelBookingDeadline) || cancelBookingDeadline <= 0) {
+        wx.showToast({ title: '取消预约截止自定义分钟数需大于0', icon: 'none' });
+        return;
+      }
     }
 
     let creditsCost = formData.creditsCost;

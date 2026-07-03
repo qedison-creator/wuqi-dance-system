@@ -3,17 +3,6 @@
   <view class="menu-section">
     <view class="menu-section-title">运营管理</view>
     <view class="menu-card">
-      <view class="menu-item" bindtap="onGoToStoreMaintenance">
-        <view class="menu-icon-wrap" style="background:rgba(197,116,75,0.10)">
-          <image class="menu-icon" src="/images/icons/shop-store.svg" mode="aspectFit"></image>
-        </view>
-        <view class="menu-text">
-          <text class="menu-label">门店维护</text>
-          <text class="menu-desc">管理门店信息</text>
-        </view>
-        <image class="menu-arrow" src="/images/icons/chevron-right.svg" mode="aspectFit"></image>
-      </view>
-
       <view class="menu-item" wx:if="{{permSchedule}}" bindtap="onGoToSchedule">
         <view class="menu-icon-wrap" style="background:rgba(93,155,155,0.10)">
           <image class="menu-icon" src="/images/icons/shop-calendar.svg" mode="aspectFit"></image>
@@ -25,28 +14,6 @@
         <image class="menu-arrow" src="/images/icons/chevron-right.svg" mode="aspectFit"></image>
       </view>
 
-      <view class="menu-item" wx:if="{{permSchedule}}" bindtap="onGoToBookingWindow">
-        <view class="menu-icon-wrap" style="background:rgba(107,163,190,0.10)">
-          <image class="menu-icon" src="/images/icons/shop-calendar.svg" mode="aspectFit"></image>
-        </view>
-        <view class="menu-text">
-          <text class="menu-label">预约开放设置</text>
-          <text class="menu-desc">预约时间窗口配置</text>
-        </view>
-        <image class="menu-arrow" src="/images/icons/chevron-right.svg" mode="aspectFit"></image>
-      </view>
-
-      <view class="menu-item" wx:if="{{permWaitlist}}" bindtap="onGoToWaitlist">
-        <view class="menu-icon-wrap" style="background:rgba(124,142,184,0.10)">
-          <image class="menu-icon" src="/images/icons/shop-clipboard.svg" mode="aspectFit"></image>
-        </view>
-        <view class="menu-text">
-          <text class="menu-label">候补排队</text>
-          <text class="menu-desc">等待队列管理</text>
-        </view>
-        <image class="menu-arrow" src="/images/icons/chevron-right.svg" mode="aspectFit"></image>
-      </view>
-
       <view class="menu-item" wx:if="{{permHoliday}}" bindtap="onGoToHolidays">
         <view class="menu-icon-wrap" style="background:rgba(196,136,90,0.10)">
           <image class="menu-icon" src="/images/icons/shop-calendar-off.svg" mode="aspectFit"></image>
@@ -54,6 +21,28 @@
         <view class="menu-text">
           <text class="menu-label">放假管理</text>
           <text class="menu-desc">节假日与停课</text>
+        </view>
+        <image class="menu-arrow" src="/images/icons/chevron-right.svg" mode="aspectFit"></image>
+      </view>
+
+      <view class="menu-item" wx:if="{{permPackageLog}}" bindtap="onGoToPackageLogs">
+        <view class="menu-icon-wrap" style="background:rgba(184,125,184,0.10)">
+          <image class="menu-icon" src="/images/icons/shop-package.svg" mode="aspectFit"></image>
+        </view>
+        <view class="menu-text">
+          <text class="menu-label">套餐记录</text>
+          <text class="menu-desc">会员套餐明细</text>
+        </view>
+        <image class="menu-arrow" src="/images/icons/chevron-right.svg" mode="aspectFit"></image>
+      </view>
+
+      <view class="menu-item" wx:if="{{permExemption}}" bindtap="onGoToExemption">
+        <view class="menu-icon-wrap" style="background:rgba(123,143,161,0.10)">
+          <image class="menu-icon" src="/images/icons/shop-shield.svg" mode="aspectFit"></image>
+        </view>
+        <view class="menu-text">
+          <text class="menu-label">豁免设置</text>
+          <text class="menu-desc">特殊权限配置</text>
         </view>
         <image class="menu-arrow" src="/images/icons/chevron-right.svg" mode="aspectFit"></image>
       </view>
@@ -71,17 +60,6 @@
         <view class="menu-text">
           <text class="menu-label">教练管理</text>
           <text class="menu-desc">师资团队维护</text>
-        </view>
-        <image class="menu-arrow" src="/images/icons/chevron-right.svg" mode="aspectFit"></image>
-      </view>
-
-      <view class="menu-item" wx:if="{{permImage}}" bindtap="onGoToImages">
-        <view class="menu-icon-wrap" style="background:rgba(107,163,190,0.10)">
-          <image class="menu-icon" src="/images/icons/shop-image.svg" mode="aspectFit"></image>
-        </view>
-        <view class="menu-text">
-          <text class="menu-label">此间画面</text>
-          <text class="menu-desc">图片作品管理</text>
         </view>
         <image class="menu-arrow" src="/images/icons/chevron-right.svg" mode="aspectFit"></image>
       </view>
@@ -114,7 +92,7 @@
         <image class="menu-arrow" src="/images/icons/chevron-right.svg" mode="aspectFit"></image>
       </view>
 
-      <view class="menu-item" bindtap="onGoToAnnouncements">
+      <view class="menu-item" wx:if="{{permAnnouncement}}" bindtap="onGoToAnnouncements">
         <view class="menu-icon-wrap" style="background:rgba(212,107,107,0.10)">
           <image class="menu-icon" src="/images/icons/shop-megaphone.svg" mode="aspectFit"></image>
         </view>
@@ -125,13 +103,13 @@
         <image class="menu-arrow" src="/images/icons/chevron-right.svg" mode="aspectFit"></image>
       </view>
 
-      <view class="menu-item" wx:if="{{permPackage}}" bindtap="onGoToPackageLogs">
-        <view class="menu-icon-wrap" style="background:rgba(184,125,184,0.10)">
-          <image class="menu-icon" src="/images/icons/shop-package.svg" mode="aspectFit"></image>
+      <view class="menu-item" wx:if="{{permImage}}" bindtap="onGoToImages">
+        <view class="menu-icon-wrap" style="background:rgba(107,163,190,0.10)">
+          <image class="menu-icon" src="/images/icons/shop-image.svg" mode="aspectFit"></image>
         </view>
         <view class="menu-text">
-          <text class="menu-label">套餐记录</text>
-          <text class="menu-desc">会员套餐明细</text>
+          <text class="menu-label">此间画面</text>
+          <text class="menu-desc">图片作品管理</text>
         </view>
         <image class="menu-arrow" src="/images/icons/chevron-right.svg" mode="aspectFit"></image>
       </view>
@@ -142,13 +120,24 @@
   <view class="menu-section">
     <view class="menu-section-title">系统设置</view>
     <view class="menu-card">
-      <view class="menu-item" wx:if="{{isAdmin}}" bindtap="onGoToExemption">
-        <view class="menu-icon-wrap" style="background:rgba(123,143,161,0.10)">
-          <image class="menu-icon" src="/images/icons/shop-shield.svg" mode="aspectFit"></image>
+      <view class="menu-item" wx:if="{{permStore}}" bindtap="onGoToStoreMaintenance">
+        <view class="menu-icon-wrap" style="background:rgba(197,116,75,0.10)">
+          <image class="menu-icon" src="/images/icons/shop-store.svg" mode="aspectFit"></image>
         </view>
         <view class="menu-text">
-          <text class="menu-label">豁免设置</text>
-          <text class="menu-desc">特殊权限配置</text>
+          <text class="menu-label">门店维护</text>
+          <text class="menu-desc">管理门店信息</text>
+        </view>
+        <image class="menu-arrow" src="/images/icons/chevron-right.svg" mode="aspectFit"></image>
+      </view>
+
+      <view class="menu-item" wx:if="{{permSchedule}}" bindtap="onGoToBookingWindow">
+        <view class="menu-icon-wrap" style="background:rgba(107,163,190,0.10)">
+          <image class="menu-icon" src="/images/icons/shop-calendar.svg" mode="aspectFit"></image>
+        </view>
+        <view class="menu-text">
+          <text class="menu-label">预约开放设置</text>
+          <text class="menu-desc">预约时间窗口配置</text>
         </view>
         <image class="menu-arrow" src="/images/icons/chevron-right.svg" mode="aspectFit"></image>
       </view>

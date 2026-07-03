@@ -227,7 +227,7 @@ exports.createSalaryStat = async (scheduleId, operatorId) => {
   const Attendance = require('../models/Attendance');
   const attendanceCount = await Attendance.countDocuments({
     schedule_id: scheduleId,
-    check_in_method: { $ne: 'exempt_cancel' },  // 豁免取消不计入课时
+    check_in_method: { $nin: ['exempt_cancel', 'cancelled_after_checkin'] },  // 豁免取消和签到后取消不计入课时
   });
 
   const duration = schedule.duration || 75;
@@ -401,7 +401,7 @@ exports.generateSalaryBill = async (startDate, endDate, preview = false, operato
       $gte: startDate,
       $lte: endDate
     },
-    check_in_method: { $ne: 'exempt_cancel' },
+    check_in_method: { $nin: ['exempt_cancel', 'cancelled_after_checkin'] },
   }).select('schedule_id');
   
   const attendedScheduleIds = [...new Set(attendanceRecords.map(a => a.schedule_id.toString()))];
@@ -519,7 +519,7 @@ exports.generateSalaryBill = async (startDate, endDate, preview = false, operato
               const Attendance = require('../models/Attendance');
               const realAttendance = await Attendance.countDocuments({
                 schedule_id: scheduleId,
-                check_in_method: { $ne: 'exempt_cancel' },  // 豁免取消不计入课时
+                check_in_method: { $nin: ['exempt_cancel', 'cancelled_after_checkin'] },  // 豁免取消和签到后取消不计入课时
               });
               
               await CoachSalaryStat.create({
@@ -630,7 +630,7 @@ exports.getMonthlySalaryBreakdown = async (query) => {
   const attendanceFilter = {};
   if (coach_id) attendanceFilter.coach_id = coach_id;
   if (store_id) attendanceFilter.store_id = store_id;
-  attendanceFilter.check_in_method = { $ne: 'exempt_cancel' };
+  attendanceFilter.check_in_method = { $nin: ['exempt_cancel', 'cancelled_after_checkin'] };
 
   const attendances = await Attendance.find(attendanceFilter)
     .select('schedule_id coach_id store_id date course_name start_time end_time duration coach_name store_name check_in_time');
@@ -789,13 +789,15 @@ exports.getMonthlySalaryBreakdown = async (query) => {
 exports.getClassHoursStats = async (query) => {
   const { coach_id, store_id } = query;
   const Attendance = require('../models/Attendance');
+  const Coach = require('../models/Coach');
+  const Schedule = require('../models/Schedule');
 
-  // 步骤1：查所有实际上课的签到记录（排除豁免取消的签到），并带出快照字段
+  // 课时统计基于 Attendance 表，快照字段优先，缺失时通过 coach_id 回退查询
   const attendanceFilter = {};
   if (coach_id) attendanceFilter.coach_id = coach_id;
   if (store_id) attendanceFilter.store_id = store_id;
-  // 豁免取消的签到不计入课时统计
-  attendanceFilter.check_in_method = { $ne: 'exempt_cancel' };
+  // 豁免取消和签到后取消的签到不计入课时统计
+  attendanceFilter.check_in_method = { $nin: ['exempt_cancel', 'cancelled_after_checkin'] };
 
   const attendances = await Attendance.find(attendanceFilter)
     .select('schedule_id coach_id store_id date course_name start_time end_time duration coach_name store_name check_in_time');
@@ -804,37 +806,69 @@ exports.getClassHoursStats = async (query) => {
     return { years: [], summary: { total_years: 0, total_classes: 0 } };
   }
 
-  // 步骤2：查询关联的排课作为补充（部分课程可能已被删除，但Attendance快照仍可溯源）
-  const scheduleIds = [...new Set(attendances.map(a => a.schedule_id && a.schedule_id.toString()).filter(Boolean))];
-  const schedules = await Schedule.find({ _id: { $in: scheduleIds } })
-    .populate('coach_id', 'name avatar_url')
-    .populate('store_id', 'name')
-    .lean();
-  const scheduleMap = new Map(schedules.map(s => [s._id.toString(), s]));
+  // 预加载所有涉及的 Coach（通过 coach_id 批量查询，Coach 软删除后仍存在）
+  // 用于补全 coach_name 快照缺失的记录
+  const coachIdsInAttendance = [...new Set(
+    attendances.filter(a => a.coach_id).map(a => a.coach_id.toString())
+  )];
+  const coachMap = new Map();
+  if (coachIdsInAttendance.length > 0) {
+    const coaches = await Coach.find({ _id: { $in: coachIdsInAttendance } }).select('name avatar_url').lean();
+    coaches.forEach(c => coachMap.set(c._id.toString(), c));
+  }
 
-  // 步骤3：按 schedule_id 统计签到人数
+  // 预加载所有涉及的 Schedule（用于补全 store_id/date/time 等快照缺失的记录）
+  const scheduleIds = [...new Set(
+    attendances.filter(a => a.schedule_id).map(a => a.schedule_id.toString())
+  )];
+  const scheduleMap = new Map();
+  if (scheduleIds.length > 0) {
+    const schedules = await Schedule.find({ _id: { $in: scheduleIds } })
+      .populate('coach_id', 'name avatar_url')
+      .populate('store_id', 'name')
+      .lean();
+    schedules.forEach(s => scheduleMap.set(s._id.toString(), s));
+  }
+
+  // 按 schedule_id 统计签到人数（同一节课的签到人数）
   const attendanceCountMap = {};
   attendances.forEach(a => {
     const sid = a.schedule_id ? a.schedule_id.toString() : null;
     if (sid) attendanceCountMap[sid] = (attendanceCountMap[sid] || 0) + 1;
   });
 
-  // 步骤4：去重课次。同一 schedule_id 只算一节课；若 schedule 已删除，每条 attendance 独立成一节课
+  // 去重课次：同一 schedule_id 只算一节课；无 schedule_id 的每条独立成一节课
   const classMap = new Map();
   attendances.forEach(a => {
     const sid = a.schedule_id ? a.schedule_id.toString() : null;
     const schedule = sid ? scheduleMap.get(sid) : null;
 
-    // 优先使用 Attendance 快照字段；若快照缺失则回退到 Schedule 关联数据
-    const coachId = a.coach_id ? a.coach_id.toString() : (schedule && schedule.coach_id ? schedule.coach_id._id.toString() : '_unknown');
-    const coachName = a.coach_name || (schedule && schedule.coach_id ? schedule.coach_id.name : '未知教练');
-    const avatarUrl = schedule && schedule.coach_id ? schedule.coach_id.avatar_url || '' : '';
-    const storeId = a.store_id ? a.store_id.toString() : (schedule && schedule.store_id ? schedule.store_id._id.toString() : '_none');
-    const storeName = a.store_name || (schedule && schedule.store_id ? schedule.store_id.name : '未知门店');
+    // 教练信息：Attendance 快照 → Coach 表直接查询 → Schedule populate → "未知教练"
+    const coachId = a.coach_id ? a.coach_id.toString()
+      : (schedule && schedule.coach_id ? schedule.coach_id._id.toString() : '_unknown');
+    let coachName = a.coach_name || '';
+    if (!coachName) {
+      // 快照缺失，从 Coach 表直接查询（Coach 软删除后仍存在）
+      const coachDoc = a.coach_id ? coachMap.get(a.coach_id.toString()) : null;
+      if (coachDoc) {
+        coachName = coachDoc.name || '';
+      } else if (schedule && schedule.coach_id) {
+        // Coach 表也没有，从 Schedule populate 获取
+        coachName = schedule.coach_id.name || '';
+      }
+      if (!coachName) coachName = '未知教练';
+    }
+
+    // 门店信息：Attendance 快照 → Schedule populate → "未知门店"
+    const storeId = a.store_id ? a.store_id.toString()
+      : (schedule && schedule.store_id ? schedule.store_id._id.toString() : '_none');
+    const storeName = a.store_name || (schedule && schedule.store_id ? schedule.store_id.name : '') || '未知门店';
+
+    // 时间信息：Attendance 快照 → Schedule
     const dateStr = a.date || (schedule ? schedule.date : null);
-    const startTime = a.start_time || (schedule ? schedule.start_time : '');
-    const endTime = a.end_time || (schedule ? schedule.end_time : '');
-    const duration = a.duration || (schedule ? schedule.duration : 75) || 75;
+    const startTime = a.start_time || (schedule ? schedule.start_time : '') || '';
+    const endTime = a.end_time || (schedule ? schedule.end_time : '') || '';
+    const duration = a.duration || (schedule ? schedule.duration : 0) || 75;
 
     if (!dateStr) return;
 
@@ -852,7 +886,6 @@ exports.getClassHoursStats = async (query) => {
         monthLabel,
         coachId,
         coachName,
-        avatar_url: avatarUrl,
         storeId,
         storeName,
         date: dateStr,
@@ -865,7 +898,7 @@ exports.getClassHoursStats = async (query) => {
     }
   });
 
-  // 步骤5：按年份 → 月份 → 教练 → 门店分组
+  // 按年份 → 月份 → 教练 → 门店分组
   const yearsMap = {};
   classMap.forEach(cls => {
     if (!yearsMap[cls.year]) yearsMap[cls.year] = { year: cls.year, yearLabel: `${cls.year}年`, monthsMap: {} };
@@ -876,7 +909,6 @@ exports.getClassHoursStats = async (query) => {
       yearsMap[cls.year].monthsMap[cls.monthKey].coachesMap[cls.coachId] = {
         coach_id: cls.coachId,
         coach_name: cls.coachName,
-        avatar_url: cls.avatar_url || '',
         storesMap: {}
       };
     }

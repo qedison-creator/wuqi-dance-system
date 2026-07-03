@@ -8,13 +8,15 @@ Page({
     isStoreManager: false,
     permSchedule: false,
     permCoach: false,
-    permImage: app.hasPermission('image'),
+    permImage: false,
     permSalary: false,
-    permPackage: false,
-    permWaitlist: false,
+    permPackageLog: false,
     permBanner: false,
     permHoliday: false,
     permCheckin: false,
+    permAnnouncement: false,
+    permStore: false,
+    permExemption: false,
   },
 
   onShow() {
@@ -44,12 +46,15 @@ Page({
         isStoreManager,
         permSchedule: app.hasPermission('schedule'),
         permCoach: app.hasPermission('coach'),
+        permImage: app.hasPermission('image'),
         permSalary: app.hasPermission('salary'),
-        permPackage: app.hasPermission('package'),
-        permWaitlist: app.hasPermission('waitlist'),
+        permPackageLog: app.hasPermission('package_log'),
         permBanner: app.hasPermission('banner'),
         permHoliday: app.hasPermission('holiday'),
         permCheckin: app.hasPermission('checkin'),
+        permAnnouncement: app.hasPermission('announcement'),
+        permStore: app.hasPermission('store'),
+        permExemption: app.hasPermission('exemption'),
       });
     } catch (err) {
       console.error('加载用户信息失败', err);
@@ -66,10 +71,6 @@ Page({
 
   onGoToBookingWindow() {
     wx.navigateTo({ url: '/package-shop/pages/shop/booking-window/booking-window' });
-  },
-
-  onGoToWaitlist() {
-    wx.navigateTo({ url: '/package-schedule/pages/waitlist/waitlist' });
   },
 
   onGoToSalary() {

@@ -47,7 +47,7 @@ const AttendanceSchema = new mongoose.Schema({
   },
   check_in_method: {
     type: String,
-    enum: ['scan', 'auto', 'exempt_cancel'],
+    enum: ['scan', 'auto', 'onsite', 'admin', 'exempt_cancel', 'cancelled_after_checkin'],
     default: 'scan',
   },
   credits_cost: {

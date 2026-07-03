@@ -67,6 +67,80 @@ page {
   border: 3rpx solid #D4786E;
 }
 
+.hero-avatar-tip {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border-radius: 50%;
+  background-color: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.hero-avatar-tip-text {
+  color: #ffffff;
+  font-size: 18rpx;
+  line-height: 1.2;
+}
+
+/* 头像选择面板 */
+.avatar-sheet-mask {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  z-index: 9999;
+  display: flex;
+  align-items: flex-end;
+}
+
+.avatar-sheet {
+  width: 100%;
+  background-color: #ffffff;
+  border-top-left-radius: 24rpx;
+  border-top-right-radius: 24rpx;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.as-header {
+  padding: 32rpx 0 16rpx;
+  text-align: center;
+}
+
+.as-title {
+  font-size: 28rpx;
+  color: #999999;
+}
+
+.as-item {
+  padding: 28rpx 0;
+  text-align: center;
+  font-size: 30rpx;
+  color: #333333;
+  border-top: 1rpx solid #f0f0f0;
+  background-color: #ffffff;
+  line-height: 1.4;
+}
+
+.as-item::after {
+  border: none;
+}
+
+.as-cancel {
+  margin-top: 16rpx;
+  padding: 28rpx 0;
+  text-align: center;
+  font-size: 30rpx;
+  color: #999999;
+  border-top: 1rpx solid #f0f0f0;
+}
+
 @keyframes heroRingRotate {
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
@@ -352,6 +426,14 @@ page {
   flex-direction: column;
   align-items: center;
   flex: 1;
+}
+
+.stat-card.stat-clickable {
+  position: relative;
+}
+
+.stat-card.stat-clickable:active {
+  opacity: 0.6;
 }
 
 .stat-num {
@@ -747,6 +829,40 @@ page {
   color: #8B7EAC;
 }
 
+/* ========== 待激活套餐：套餐类型图标 + 静待开启状态 ========== */
+.pkg-new-pending-main {
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  padding-right: 24rpx;
+}
+
+.pkg-new-pending-hero {
+  width: 120rpx;
+  height: 120rpx;
+  border-radius: 50%;
+  background: linear-gradient(135deg, rgba(184, 156, 218, 0.18), rgba(139, 126, 172, 0.12));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 16rpx;
+}
+
+.pkg-new-pending-icon {
+  width: 56rpx;
+  height: 56rpx;
+}
+
+/* 次卡：图层/堆叠图标 */
+.pkg-new-pending-icon-count_card {
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238B7EAC' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolygon points='12 2 2 7 12 12 22 7 12 2'%3E%3C/polygon%3E%3Cpolyline points='2 17 12 22 22 17'%3E%3C/polyline%3E%3Cpolyline points='2 12 12 17 22 12'%3E%3C/polyline%3E%3C/svg%3E") center/contain no-repeat;
+}
+
+/* 时间卡：时钟图标 */
+.pkg-new-pending-icon-time_card {
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238B7EAC' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='10'%3E%3C/circle%3E%3Cpolyline points='12 6 12 12 16 14'%3E%3C/polyline%3E%3C/svg%3E") center/contain no-repeat;
+}
+
 /* 暂停中 - 暖橙 */
 .pkg-card-new.suspended .pkg-new-status-dot-wrap .pkg-new-status-dot {
   background: #E8985E;
@@ -933,7 +1049,13 @@ page {
   line-height: 1.5;
 }
 
-/* ========== 自动激活提示 ========== */
+/* 待激活卡片底部说明文字（强制激活提示） */
+.pkg-new-footer-hint {
+  color: #A69294;
+  margin-top: 4rpx;
+}
+
+/* ========== 强制激活倒计时 ========== */
 .pkg-new-auto-activate {
   background: rgba(139, 126, 172, 0.06);
   border-radius: 16rpx;
@@ -941,16 +1063,19 @@ page {
   margin-bottom: 16rpx;
 }
 
+/* 主倒计时文案：距强制激活还剩 XX 天（暖橙强调紧迫感） */
 .pkg-new-auto-text {
-  font-size: 24rpx;
-  color: #6B5E8A;
+  font-size: 26rpx;
+  color: #C5744B;
+  font-weight: 500;
   line-height: 1.6;
   display: block;
 }
 
+/* 次要说明：将于 XX 自动激活，服务有效期开始计算 */
 .pkg-new-auto-countdown {
   font-size: 24rpx;
-  color: #C5744B;
+  color: #6B5E8A;
   margin-top: 6rpx;
   display: block;
 }
@@ -1797,6 +1922,50 @@ page {
 .btn-primary[disabled] {
   background: linear-gradient(135deg, #C4B5B7, #D4C8CA);
   box-shadow: none;
+}
+
+.btn-primary-disabled {
+  background: linear-gradient(135deg, #C4B5B7, #D4C8CA) !important;
+  box-shadow: none !important;
+}
+
+.audit-status-box {
+  display: flex;
+  align-items: center;
+  padding: 16rpx 20rpx;
+  border-radius: 12rpx;
+  margin-bottom: 20rpx;
+}
+
+.audit-pending {
+  background: rgba(212, 120, 110, 0.08);
+}
+
+.audit-rejected {
+  background: rgba(196, 87, 87, 0.08);
+}
+
+.audit-badge {
+  flex-shrink: 0;
+  font-size: 22rpx;
+  padding: 4rpx 16rpx;
+  border-radius: 20rpx;
+  color: #FFFFFF;
+  margin-right: 16rpx;
+}
+
+.audit-badge-pending {
+  background: #D4786E;
+}
+
+.audit-badge-rejected {
+  background: #C45757;
+}
+
+.audit-text {
+  flex: 1;
+  font-size: 24rpx;
+  color: #6B5D5E;
 }
 
 .tip-box {

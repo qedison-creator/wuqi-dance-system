@@ -28,9 +28,11 @@
     </view>
   </view>
 
-  <empty-state 
-    wx:elif="{{!loading && coaches.length === 0}}" 
-    text="暂无教练信息" 
+  <empty-state
+    wx:elif="{{!loading && coaches.length === 0}}"
+    text="暂无教练信息"
     hint="敬请期待更多优秀教练加入">
   </empty-state>
+
+  <login-modal visible="{{showLoginModal}}" bind:close="onLoginModalClose" bind:success="onLoginSuccess"></login-modal>
 </view>

@@ -4,8 +4,16 @@ page {
   font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Helvetica Neue', sans-serif;
 }
 
+.booking-disclaimer {
+  text-align: center;
+  font-size: 24rpx;
+  color: #999999;
+  margin: 24rpx 0;
+}
+
 .page {
   min-height: 100vh;
+  padding-bottom: calc(100rpx + env(safe-area-inset-bottom) + 20rpx);
   background: #FBFAF8;
 }
 
@@ -351,7 +359,7 @@ page {
 .content-section {
   position: relative;
   z-index: 3;
-  padding: 0 28rpx 200rpx;
+  padding: 0 28rpx 0;
 }
 
 .hero-card {

@@ -96,7 +96,7 @@
         </picker>
         <text class="form-tip" wx:if="{{editingAccount && currentUserRole !== 'super_admin'}}">只有超级管理员可以修改角色</text>
       </view>
-      <view class="form-group" wx:if="{{formData.role !== 'super_admin'}}">
+      <view class="form-group" wx:if="{{formData.role !== 'super_admin' && formData.role !== 'reviewer'}}">
         <text class="form-label">所属门店</text>
         <view class="store-select-all" bindtap="onStoreToggleAll">
           <view class="checkbox {{storeSelectAll ? 'checked' : ''}}">

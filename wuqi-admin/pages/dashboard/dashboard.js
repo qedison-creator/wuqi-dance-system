@@ -101,6 +101,7 @@ Page({
       this.getTabBar().setData({ selected: 0 });
     }
     this.setData({ greeting: getGreeting(), theme: getTheme() });
+    this._failCount = 0;  // 页面恢复可见时重置失败计数
     this.loadUserInfo();
     this.loadAllData();
     this._startAutoRefresh();
@@ -147,15 +148,35 @@ Page({
 
   _startAutoRefresh() {
     this._stopAutoRefresh();
+    this._pageVisible = true;
+    this._failCount = 0;
     this._autoRefreshTimer = setInterval(() => {
+      // 页面不可见时跳过自动刷新
+      if (!this._pageVisible) return;
+      // 连续失败 2 次后暂停自动刷新 2 分钟，避免无效请求堆积
+      if (this._failCount >= 2) {
+        console.log('[dashboard] 连续失败，暂停自动刷新 2 分钟');
+        clearTimeout(this._resumeTimer);
+        this._resumeTimer = setTimeout(() => {
+          console.log('[dashboard] 恢复自动刷新');
+          this._failCount = 0;
+          this.loadAllData();
+        }, 120000);
+        return;
+      }
       this.loadAllData();
     }, 30000);
   },
 
   _stopAutoRefresh() {
+    this._pageVisible = false;
     if (this._autoRefreshTimer) {
       clearInterval(this._autoRefreshTimer);
       this._autoRefreshTimer = null;
+    }
+    if (this._resumeTimer) {
+      clearTimeout(this._resumeTimer);
+      this._resumeTimer = null;
     }
   },
 
@@ -354,16 +375,24 @@ Page({
   },
 
   async loadAllData() {
+    let success = false;
     try {
       const storeId = this.data.currentStore ? this.data.currentStore._id : '';
 
       this.loadSystemConfigs();
 
       const results = await Promise.all([
-        request({ url: '/home/admin', method: 'GET', data: storeId ? { store_id: storeId } : {} }).catch(() => ({})),
-        request({ url: '/stats/dashboard', method: 'GET', data: { store_id: storeId } }).catch(() => ({ data: {} })),
-        request({ url: '/banners', method: 'GET', data: {} }).catch(() => ({ data: [] }))
+        request({ url: '/home/admin', method: 'GET', data: storeId ? { store_id: storeId } : {} }).catch((e) => { this._failCount = (this._failCount || 0) + 1; return {}; }),
+        request({ url: '/stats/dashboard', method: 'GET', data: { store_id: storeId } }).catch((e) => { return {}; }),
+        request({ url: '/banners', method: 'GET', data: {} }).catch((e) => { return {}; })
       ]);
+      // 如果第一个关键请求返回空对象，说明网络失败
+      if (results[0] && results[0].code === 200) {
+        success = true;
+        this._failCount = 0;
+      } else {
+        this._failCount = (this._failCount || 0) + 1;
+      }
       const homeRes = { status: 'fulfilled', value: results[0] };
       const statsRes = { status: 'fulfilled', value: results[1] };
       const bannersRes = { status: 'fulfilled', value: results[2] };
@@ -410,8 +439,10 @@ Page({
 
     } catch (err) {
       console.error('加载数据失败', err);
+      this._failCount = (this._failCount || 0) + 1;
     }
     this.setData({ loadingSkeleton: false });
+    return success;
   },
 
   onRefresh() {
@@ -1011,12 +1042,33 @@ Page({
         method: 'GET'
       });
       const all = res.data || [];
-      return {
-        booked: all.filter(b => b.status === 'booked').length,
-        checkedIn: all.filter(b => b.checked_in || b.status === 'completed' || b.status === 'checked_in').length,
-        cancelled: all.filter(b => b.status === 'cancelled').length,
-        exempted: all.filter(b => b.status === 'exempted' || b.is_exempted).length
-      };
+      // 按人数统计（同一用户多次预约只算1次，取最新状态）
+      const sortedAll = [...all].sort((a, b) => {
+        const ta = a.created_at ? new Date(a.created_at).getTime() : 0;
+        const tb = b.created_at ? new Date(b.created_at).getTime() : 0;
+        return tb - ta;
+      });
+      const userLatestMap = new Map();
+      sortedAll.forEach(item => {
+        const uid = item.user_id?._id || item.user_id || 'unknown';
+        if (!userLatestMap.has(uid)) {
+          userLatestMap.set(uid, item);
+        }
+      });
+      let booked = 0, checkedIn = 0, cancelled = 0, exempted = 0;
+      userLatestMap.forEach(item => {
+        const status = item.status;
+        const isCheckedIn = item.checked_in || status === 'completed' || status === 'checked_in';
+        if (isCheckedIn) checkedIn++;
+        if (status === 'booked' || status === 'checked_in' || status === 'completed') {
+          booked++;
+        } else if (status === 'exempted' || item.is_exempted) {
+          exempted++;
+        } else if (status === 'cancelled') {
+          cancelled++;
+        }
+      });
+      return { booked, checkedIn, cancelled, exempted };
     } catch (err) {
       return { booked: 0, checkedIn: 0, cancelled: 0, exempted: 0 };
     }
@@ -1048,6 +1100,10 @@ Page({
 
   onGoToBookings() {
     wx.navigateTo({ url: '/package-schedule/pages/booking-summary/booking-summary' });
+  },
+
+  onGoToWaitlist() {
+    wx.navigateTo({ url: '/package-schedule/pages/waitlist/waitlist' });
   },
 
   onGoToCheckIn() {

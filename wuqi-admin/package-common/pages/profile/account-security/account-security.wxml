@@ -4,7 +4,7 @@
     <view class="section-title">个人信息</view>
 
     <!-- 头像区域 -->
-    <view class="avatar-section" bindtap="onChangeAvatar">
+    <button id="agree-btn" class="avatar-section" open-type="agreePrivacyAuthorization" bindagreeprivacyauthorization="onPrivacyAgreed" bindtap="onChangeAvatar">
       <view class="avatar-wrapper">
         <image class="avatar-img" src="{{avatarUrl || '/images/default-avatar.svg'}}" mode="aspectFill" wx:if="{{avatarUrl}}"></image>
         <view class="avatar-placeholder" wx:else>
@@ -15,7 +15,7 @@
         </view>
       </view>
       <text class="avatar-tip">点击更换头像</text>
-    </view>
+    </button>
 
     <view class="form-group">
       <text class="form-label">姓名</text>

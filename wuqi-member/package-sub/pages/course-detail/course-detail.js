@@ -64,15 +64,27 @@ Page({
     bookingWindowOpen: true,
     canCancel: true,
     cancelPhase: '',
-    exemptionCount: 0
+    exemptionCount: 0,
+    completedScheduleIds: [],
+    isRestrictedUser: false,
+    restrictedReason: '',
+    memberPackageStoreIds: [],
+    courseStoreMatched: true,
+    isCompleted: false,
+    isEnded: false,
+    isOngoing: false,
+    isCancelled: false
   },
 
   async onLoad(options) {
     if (options.id) {
       const courseId = options.id;
       this.setData({ courseId });
+      // 首次加载标记，跳过紧随其后的 onShow 重复请求
+      this._firstLoad = true;
+      // 先加载课程详情（最优先），再串行加载用户数据，避免冷启动并发请求过多导致 ERR_CONNECTION_RESET
+      await this.loadCourseDetail(courseId);
       await this.loadUserBookingsInit();
-      this.loadCourseDetail(courseId);
       this.loadUserPackages();
       this.loadWaitlistStatus();
     }
@@ -80,7 +92,9 @@ Page({
 
   onShow() {
     const { checkLogin } = require('../../../utils/auth');
-    if (checkLogin()) {
+    const isLoggedIn = checkLogin();
+    this.setData({ isLoggedIn });
+    if (isLoggedIn) {
       request({ url: '/auth/me', silent: true }).then(res => {
         if (res.data) {
           app.globalData.userInfo = res.data;
@@ -91,7 +105,16 @@ Page({
         this.setData({ isOfficial: userInfo.member_status === 'official' });
       });
     } else {
-      this.setData({ isOfficial: false });
+      this.setData({ 
+        isOfficial: false,
+        isRestrictedUser: true,
+        restrictedReason: '您不是正式会员，请联系门店办理'
+      });
+    }
+    // 跳过 onLoad 后的首次 onShow，避免重复请求
+    if (this._firstLoad) {
+      this._firstLoad = false;
+      return;
     }
     this.loadUserPackages();
     this.loadUserBookings();
@@ -124,18 +147,42 @@ Page({
       // 标记课程是否已开始（用于按钮状态）
       const now = new Date();
       const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+      const currentMin = now.getHours() * 60 + now.getMinutes();
       let _started = false;
       if (course.dateStr === todayStr && course.start_time) {
         const s = String(course.start_time).split(':');
         if (s.length >= 2) {
           const startMin = parseInt(s[0], 10) * 60 + parseInt(s[1], 10);
-          const currentMin = now.getHours() * 60 + now.getMinutes();
           _started = currentMin >= startMin;
         }
       }
       course._started = _started;
-      this.setData({ course, loading: false });
+      // 计算课程结束/进行中/已取消状态
+      let _ended = false;
+      let _ongoing = false;
+      if (course.dateStr === todayStr && course.end_time) {
+        const e = String(course.end_time).split(':');
+        if (e.length >= 2) {
+          const endMin = parseInt(e[0], 10) * 60 + parseInt(e[1], 10);
+          _ended = currentMin >= endMin;
+        }
+        _ongoing = _started && !_ended;
+      }
+      // 课程日期 < 今日也算已结束
+      if (course.dateStr < todayStr) {
+        _ended = true;
+      }
+      const _cancelled = course.status === 'cancelled';
+      this.setData({ 
+        course, 
+        loading: false,
+        isEnded: _ended,
+        isOngoing: _ongoing,
+        isCancelled: _cancelled
+      });
       this._checkBookingWindow(course.dateStr);
+      this._updateCourseStoreMatched();
+      this._updateCompletedStatus();
     }).catch(() => {
       this.setData({ loading: false });
     });
@@ -159,10 +206,19 @@ Page({
   loadUserPackages() {
     const { checkLogin } = require('../../../utils/auth');
     if (!checkLogin()) {
+      this.setData({
+        isLoggedIn: false,
+        isRestrictedUser: true,
+        restrictedReason: '您不是正式会员，请联系门店办理'
+      });
       return;
     }
-    request({ url: '/packages/my' }).then(res => {
-      const data = res.data || {};
+    this.setData({ isLoggedIn: true });
+    Promise.all([
+      request({ url: '/packages/my' }),
+      request({ url: '/auth/me', silent: true })
+    ]).then(([pkgRes, authRes]) => {
+      const data = pkgRes.data || {};
       const hasActive = data.current;
       const hasPending = data.pending && data.pending.length > 0;
       this.setData({ 
@@ -170,9 +226,105 @@ Page({
         isPackageSuspended: data.hasSuspended && !hasActive,
         canViewCapacity: hasActive || hasPending
       });
+      // 计算受限用户状态和原因
+      const authData = authRes && authRes.data ? authRes.data : app.globalData.userInfo;
+      const isOfficial = authData && authData.member_status === 'official';
+      this.setData({ isOfficial });
+      const restrictedReason = this._computeRestrictedReason(authData, data);
+      const isRestrictedUser = !!restrictedReason;
+      this.setData({ isRestrictedUser, restrictedReason });
+      // 保存套餐门店列表
+      const packages = data.history || [];
+      const storeIds = new Set();
+      packages.forEach(pkg => {
+        if (pkg.store_id) {
+          const sid = typeof pkg.store_id === 'string' ? pkg.store_id : (pkg.store_id._id || pkg.store_id);
+          if (sid) storeIds.add(String(sid));
+        }
+      });
+      this.setData({ memberPackageStoreIds: Array.from(storeIds) });
+      // 重新计算课程门店匹配
+      this._updateCourseStoreMatched();
+      this.loadCompletedBookings();
     }).catch((err) => {
       console.error('加载套餐信息失败:', err);
     });
+  },
+
+  // 计算受限用户原因（空字符串表示不受限）
+  _computeRestrictedReason(authData, pkgData) {
+    if (!authData || authData.member_status !== 'official') {
+      return '您不是正式会员，请联系门店办理';
+    }
+    if (pkgData.hasSuspended && !pkgData.current) {
+      return '您的套餐暂停使用中';
+    }
+    const packages = pkgData.history || [];
+    if (packages.length === 0) {
+      return '您暂无可用套餐，请联系门店开通';
+    }
+    const hasValid = packages.some(pkg => {
+      if (pkg.status === 'pending') return true;
+      if (pkg.status !== 'active' || pkg.is_suspended) return false;
+      if (pkg.is_activated && pkg.end_date && new Date() > new Date(pkg.end_date)) return false;
+      if (pkg.package_type === 'count_card' && (pkg.remaining_credits || 0) === 0) return false;
+      return true;
+    });
+    if (hasValid) return '';
+    const hasExpired = packages.some(pkg => {
+      if (pkg.status !== 'active') return false;
+      if (pkg.is_suspended) return false;
+      return pkg.is_activated && pkg.end_date && new Date() > new Date(pkg.end_date);
+    });
+    if (hasExpired) return '您的套餐已过期，请续费或联系门店';
+    const hasCountCardUsedUp = packages.some(pkg => {
+      if (pkg.status !== 'active') return false;
+      if (pkg.is_suspended) return false;
+      if (pkg.package_type !== 'count_card') return false;
+      return (pkg.remaining_credits || 0) === 0;
+    });
+    if (hasCountCardUsedUp) return '您的次卡次数已用完，请购买新套餐';
+    return '您暂无可用套餐，请联系门店开通';
+  },
+
+  // 加载已完成的课程记录
+  loadCompletedBookings() {
+    if (!this.data.isOfficial) {
+      this.setData({ completedScheduleIds: [] });
+      return;
+    }
+    request({ url: '/bookings/my?type=completed&pageSize=100', silent: true }).then(res => {
+      const list = res.data && res.data.list ? res.data.list : (Array.isArray(res.data) ? res.data : []);
+      const completedScheduleIds = list.map(b => {
+        if (b.schedule_id) {
+          return String(b.schedule_id._id || b.schedule_id);
+        }
+        return null;
+      }).filter(Boolean);
+      this.setData({ completedScheduleIds });
+      this._updateCompletedStatus();
+    }).catch(() => {
+      this.setData({ completedScheduleIds: [] });
+    });
+  },
+
+  // 更新课程门店匹配状态
+  _updateCourseStoreMatched() {
+    const { course, memberPackageStoreIds } = this.data;
+    if (!course || !memberPackageStoreIds.length) {
+      this.setData({ courseStoreMatched: true });
+      return;
+    }
+    const courseStoreId = course.store_id ? (typeof course.store_id === 'string' ? course.store_id : (course.store_id._id || course.store_id)) : '';
+    const matched = !courseStoreId || memberPackageStoreIds.includes(String(courseStoreId));
+    this.setData({ courseStoreMatched: matched });
+  },
+
+  // 更新已完成状态
+  _updateCompletedStatus() {
+    const { courseId, completedScheduleIds } = this.data;
+    const isCompleted = completedScheduleIds.indexOf(String(courseId)) !== -1;
+    this.setData({ isCompleted });
   },
 
   loadUserBookingsInit() {
@@ -421,15 +573,40 @@ Page({
   },
 
   onBookTap() {
+    // 受限用户点击"不可预约"按钮，提示对应原因
+    if (this.data.isRestrictedUser) {
+      if (!auth.requireLogin(() => this.setData({ showLoginModal: true }))) return;
+      wx.showModal({
+        title: '无法预约',
+        content: this.data.restrictedReason,
+        showCancel: false,
+        confirmText: '知道了',
+        confirmColor: '#D4786E'
+      });
+      return;
+    }
+
     if (!auth.requireLogin(() => this.setData({ showLoginModal: true }))) return;
     auth.requireMember(() => {
-      const { course, isPackageSuspended } = this.data;
+      const { course, isPackageSuspended, courseStoreMatched } = this.data;
       
       // 套餐停卡中，拦截预约
       if (isPackageSuspended) {
         wx.showModal({
           title: '无法预约',
           content: '您的套餐暂停使用中，不能进行预约课程操作。',
+          showCancel: false,
+          confirmText: '知道了',
+          confirmColor: '#D4786E'
+        });
+        return;
+      }
+
+      // 门店不匹配
+      if (courseStoreMatched === false) {
+        wx.showModal({
+          title: '提示',
+          content: '您未办理该门店的套餐，无法预约此课程。',
           showCancel: false,
           confirmText: '知道了',
           confirmColor: '#D4786E'
@@ -468,23 +645,28 @@ Page({
       }
 
       const creditsCost = course.creditsCost || 1;
-      let packageInfo = '';
-      if (userPackages && userPackages.current) {
-        const pkg = userPackages.current;
-        const pkgType = pkg.package_type === 'time_card' ? '时间卡' : '次卡';
-        const storeName = pkg.store_id && pkg.store_id.name ? pkg.store_id.name : '';
-        const storeLabel = storeName ? `（${storeName}）` : '';
-        if (pkg.package_type === 'count_card') {
-          packageInfo = `\n套餐：${storeLabel}${pkgType} 剩余${pkg.remaining_credits}次`;
-        } else {
-          packageInfo = `\n套餐：${storeLabel}${pkgType}`;
+
+      // 判断是否为补约场景：当前时间已过预约截止时间（开课前 booking_deadline 分钟）
+      let lateBookingTip = '';
+      if (course.dateStr && course.start_time) {
+        const classStart = new Date(`${course.dateStr} ${course.start_time}`.replace(/-/g, '/'));
+        const bookingDeadlineMin = course.booking_deadline || 120;
+        const deadline = new Date(classStart.getTime() - bookingDeadlineMin * 60000);
+        if (new Date() > deadline) {
+          lateBookingTip = '本课程已过预约截止时间，属补约。预约后5分钟内可取消（退课时），超时需使用豁免取消权益。';
         }
       }
-
-      const storeLine = course.storeName ? `\n门店：${course.storeName}` : '';
+      const bookingSections = [
+        `确认预约「${course.course_name}」？`,
+        `时间：${course.dateStr} ${course.weekDayStr} ${course.start_time}-${course.end_time}`,
+        `教练：${course.coach_id ? course.coach_id.name : '未指定'}`,
+        course.classroom ? `教室：${course.classroom}` : '',
+        `消耗次数：${creditsCost}次`,
+        lateBookingTip
+      ].filter(s => s);
       this.setData({
         showBookingModal: true,
-        bookingModalText: `确认预约「${course.course_name}」？${storeLine}\n时间：${course.dateStr} ${course.weekDayStr} ${course.start_time}-${course.end_time}\n教练：${course.coach_id ? course.coach_id.name : '未指定'}\n教室：${course.classroom || '未指定'}\n消耗次数：${creditsCost}次${packageInfo}`
+        bookingModalText: bookingSections.join('\n')
       });
     });
   },
@@ -493,18 +675,31 @@ Page({
     const { course, canCancel, cancelPhase, exemptionCount } = this.data;
     // 后端判定不可取消，直接提示，不弹出确认框
     if (canCancel === false) {
-      wx.showToast({ title: '已超过预约截止时间，不能取消', icon: 'none' });
+      let lockTip = '已超过可取消时限，不能取消';
+      if (cancelPhase === 'locked') {
+        // 补约5分钟超时且无豁免次数，或过 cancel_deadline
+        lockTip = '已超过可取消时限，无法取消';
+      }
+      wx.showToast({ title: lockTip, icon: 'none' });
       return;
     }
     let phaseTip = '';
-    if (cancelPhase === 'exempt') {
-      phaseTip = `\n\n当前处于豁免取消窗口期，取消将消耗 1 次豁免次数（剩余 ${exemptionCount} 次）`;
+    if (cancelPhase === 'quick') {
+      // 补约5分钟内快速取消：退课时，不扣豁免
+      phaseTip = '本次为补约快速取消（5分钟内），将退还课时，不消耗豁免次数';
+    } else if (cancelPhase === 'exempt') {
+      phaseTip = `您正在使用豁免取消权益（退课时），取消将消耗 1 次豁免次数，剩余 ${exemptionCount} 次，请珍惜使用`;
     } else if (cancelPhase === 'normal') {
-      phaseTip = '\n\n取消预约将退还课时';
+      phaseTip = '取消预约将退还课时';
     }
+    const cancelSections = [
+      `确认取消预约「${course.course_name}」？`,
+      `时间：${course.dateStr} ${course.weekDayStr} ${course.start_time}-${course.end_time}`,
+      phaseTip
+    ].filter(s => s);
     this.setData({
       showCancelModal: true,
-      bookingModalText: `确认取消预约「${course.course_name}」？\n时间：${course.dateStr} ${course.weekDayStr} ${course.start_time}-${course.end_time}${phaseTip}`
+      bookingModalText: cancelSections.join('\n')
     });
   },
 
@@ -558,7 +753,7 @@ Page({
     const { course } = this.data;
     this.setData({
       showBookingModal: true,
-      bookingModalText: `预约将自动激活您的套餐\n确认预约「${course.course_name}」？\n时间：${course.dateStr} ${course.weekDayStr} ${course.start_time}-${course.end_time}`
+      bookingModalText: `预约将自动激活您的套餐\n\n确认预约「${course.course_name}」？\n时间：${course.dateStr} ${course.weekDayStr} ${course.start_time}-${course.end_time}`
     });
   },
 
@@ -661,7 +856,7 @@ Page({
   onShareAppMessage() {
     const { course } = this.data;
     return {
-      title: course ? course.course_name : '课程详情',
+      title: course ? course.course_name : '场次详情',
       path: `/package-sub/pages/course-detail/course-detail?id=${this.data.courseId}`
     };
   },

@@ -2,18 +2,21 @@
   padding: 20rpx;
   min-height: 100vh;
   padding-bottom: calc(120rpx + env(safe-area-inset-bottom));
+  background: #F6F3F0;
 }
 
+/* ========== 页面头部 ========== */
 .page-header {
   margin-bottom: 20rpx;
 }
 
 .page-title {
   font-size: 36rpx;
-  font-weight: 600;
-  color: var(--text-primary);
+  font-weight: 700;
+  color: #2C2416;
 }
 
+/* ========== 课程选择滚动条 ========== */
 .top-bar {
   display: flex;
   align-items: center;
@@ -30,70 +33,51 @@
   display: inline-flex;
   flex-direction: column;
   padding: 16rpx 24rpx;
-  background-color: rgba(44, 36, 22, 0.04);
-  border-radius: 10rpx;
+  background: #FFFFFF;
+  border-radius: 16rpx;
   margin-right: 12rpx;
-  min-width: 160rpx;
-  border: 2rpx solid transparent;
-  transition: all var(--transition-normal);
+  min-width: 180rpx;
+  border: 1rpx solid #F0EBE4;
+  transition: all 200ms ease;
 }
 
 .schedule-item.active {
-  background-color: var(--color-primary-bg);
-  border-color: rgba(197, 116, 75, 0.4);
+  background: #FFFFFF;
+  border-color: #D4786E;
 }
 
 .schedule-time {
   font-size: 24rpx;
-  color: var(--color-primary);
+  color: #948284;
   font-weight: 500;
 }
 
+.schedule-item.active .schedule-time {
+  color: #D4786E;
+}
+
 .schedule-name {
-  font-size: 26rpx;
-  color: var(--text-primary);
-  margin-top: 4rpx;
+  font-size: 28rpx;
+  color: #2C2416;
+  font-weight: 600;
+  margin-top: 6rpx;
+}
+
+.schedule-item.active .schedule-name {
+  color: #2C2416;
 }
 
 .schedule-coach {
   font-size: 22rpx;
-  color: var(--text-secondary);
-  margin-top: 2rpx;
+  color: #948284;
+  margin-top: 4rpx;
 }
 
-.bottom-scan-btn {
-  position: fixed;
-  bottom: calc(20rpx + env(safe-area-inset-bottom));
-  left: 32rpx;
-  right: 32rpx;
-  height: 96rpx;
-  background: var(--color-primary);
-  border-radius: 48rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 12rpx;
-  box-shadow: 0 8rpx 32rpx rgba(197, 116, 75, 0.4);
-  z-index: 999;
+.schedule-item.active .schedule-coach {
+  color: #948284;
 }
 
-.bottom-scan-btn:active {
-  background: var(--color-primary);
-  transform: scale(0.98);
-}
-
-.scan-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.scan-text {
-  font-size: 32rpx;
-  color: var(--bg-card);
-  font-weight: 700;
-}
-
+/* ========== 搜索栏 ========== */
 .search-bar {
   display: flex;
   gap: 12rpx;
@@ -106,63 +90,91 @@
 
 .search-input {
   width: 100%;
-  height: 72rpx;
-  background-color: rgba(44, 36, 22, 0.04);
-  border-radius: 10rpx;
-  padding: 0 20rpx;
-  color: var(--text-primary);
-  font-size: 26rpx;
+  height: 80rpx;
+  background: #FFFFFF;
+  border-radius: 16rpx;
+  padding: 0 24rpx;
+  color: #2C2416;
+  font-size: 28rpx;
   box-sizing: border-box;
+  border: 1rpx solid #F0EBE4;
 }
 
 .search-btn {
-  width: 120rpx;
-  height: 72rpx;
-  background-color: var(--color-primary-bg);
-  border-radius: 10rpx;
+  width: 140rpx;
+  height: 80rpx;
+  background: #D4786E;
+  border-radius: 16rpx;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 26rpx;
-  color: var(--color-primary);
+  font-size: 28rpx;
+  color: #FFFFFF;
+  font-weight: 600;
+  box-shadow: 0 4rpx 12rpx rgba(212,120,110,0.25);
 }
 
+.search-btn:active {
+  opacity: 0.85;
+  transform: scale(0.96);
+}
+
+/* ========== 统计栏 ========== */
 .stats-bar {
   display: flex;
-  padding: 20rpx 24rpx;
+  padding: 24rpx 0;
   margin-bottom: 16rpx;
+  background: #FFFFFF;
+  border-radius: 16rpx;
+  border: 1rpx solid #F0EBE4;
 }
 
 .stat-item {
   flex: 1;
   text-align: center;
+  position: relative;
+}
+
+.stat-item:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 1rpx;
+  height: 48rpx;
+  background: #F0EBE4;
 }
 
 .stat-num {
-  font-size: 40rpx;
+  font-size: 44rpx;
   font-weight: 700;
-  color: var(--text-primary);
+  color: #2C2416;
   display: block;
 }
 
 .stat-label {
   font-size: 22rpx;
-  color: var(--text-secondary);
+  color: #948284;
   display: block;
-  margin-top: 4rpx;
+  margin-top: 6rpx;
 }
 
-.stat-item.checked .stat-num { color: var(--color-success); }
-.stat-item.pending .stat-num { color: var(--color-primary); }
+.stat-item.checked .stat-num { color: #5B8C5A; }
+.stat-item.pending .stat-num { color: #D4786E; }
 
+/* ========== 预约记录列表 ========== */
 .record-list {
-  max-height: calc(100vh - 420rpx);
+  max-height: calc(100vh - 440rpx);
 }
 
 .record-card {
   margin-bottom: 12rpx;
   padding: 0;
   overflow: hidden;
+  background: #FFFFFF;
+  border-radius: 16rpx;
+  border: 1rpx solid #F0EBE4;
 }
 
 .record-main {
@@ -185,23 +197,23 @@
 }
 
 .record-avatar.pending {
-  background-color: var(--color-primary-bg);
-  color: var(--color-primary);
+  background: rgba(212,120,110,0.1);
+  color: #D4786E;
 }
 
 .record-avatar.checked {
-  background-color: var(--color-success-bg);
-  color: var(--color-success);
+  background: rgba(91,140,90,0.1);
+  color: #5B8C5A;
 }
 
 .record-avatar.onsite {
-  background-color: var(--color-warning-bg);
-  color: var(--color-warning);
+  background: rgba(232,168,124,0.15);
+  color: #E8A87C;
 }
 
 .record-avatar.cancelled {
-  background-color: rgba(44, 36, 22, 0.04);
-  color: var(--text-tertiary);
+  background: #F6F3F0;
+  color: #B8AFA4;
 }
 
 .record-info {
@@ -217,82 +229,83 @@
 
 .record-name {
   font-size: 28rpx;
-  color: var(--text-primary);
-  font-weight: 500;
+  color: #2C2416;
+  font-weight: 600;
 }
 
 .record-nick {
-  font-size: 24rpx;
-  color: var(--text-secondary);
+  font-size: 22rpx;
+  color: #948284;
 }
 
 .source-tag {
-  padding: 2rpx 10rpx;
-  border-radius: 4rpx;
+  padding: 2rpx 12rpx;
+  border-radius: 8rpx;
   font-size: 20rpx;
 }
 
 .source-tag.checked {
-  background-color: var(--color-success-bg);
-  color: var(--color-success);
+  background: rgba(91,140,90,0.1);
+  color: #5B8C5A;
 }
 
 .source-tag.onsite {
-  background-color: var(--color-warning-bg);
-  color: var(--color-warning);
+  background: rgba(232,168,124,0.15);
+  color: #E8A87C;
 }
 
 .record-phone {
   font-size: 22rpx;
-  color: var(--text-secondary);
+  color: #948284;
   display: block;
-  margin-top: 4rpx;
+  margin-top: 6rpx;
 }
 
 .record-status {
   font-size: 22rpx;
   padding: 6rpx 16rpx;
-  border-radius: 6rpx;
+  border-radius: 8rpx;
   flex-shrink: 0;
+  font-weight: 500;
 }
 
 .record-status.pending {
-  color: var(--color-primary);
-  background-color: var(--color-primary-bg);
+  color: #D4786E;
+  background: rgba(212,120,110,0.1);
 }
 
 .record-status.checked {
-  color: var(--color-success);
-  background-color: var(--color-success-bg);
+  color: #5B8C5A;
+  background: rgba(91,140,90,0.1);
 }
 
 .record-status.onsite {
-  color: var(--color-warning);
-  background-color: var(--color-warning-bg);
+  color: #E8A87C;
+  background: rgba(232,168,124,0.15);
 }
 
 .record-status.cancelled {
-  color: var(--text-secondary);
-  background-color: rgba(44, 36, 22, 0.04);
+  color: #948284;
+  background: #F6F3F0;
 }
 
 .record-arrow {
   font-size: 20rpx;
-  color: var(--text-tertiary);
+  color: #B8AFA4;
   flex-shrink: 0;
 }
 
+/* 展开详情 */
 .record-detail {
-  padding: 0 24rpx 24rpx 24rpx;
-  border-top: 1rpx solid var(--border);
-  margin-top: 0;
-  padding-top: 20rpx;
+  padding: 20rpx 24rpx 24rpx;
+  border-top: 1rpx solid #F0EBE4;
+  background: #FAF8F5;
 }
 
 .detail-section-title {
-  font-size: 26rpx;
-  color: var(--color-primary);
-  font-weight: 500;
+  font-size: 24rpx;
+  color: #D4786E;
+  font-weight: 600;
   display: block;
   margin-bottom: 12rpx;
 }
@@ -305,46 +318,86 @@
 
 .detail-label {
   font-size: 24rpx;
-  color: var(--text-secondary);
+  color: #948284;
 }
 
 .detail-value {
   font-size: 24rpx;
-  color: var(--text-primary);
+  color: #2C2416;
 }
 
 .load-profile-btn {
   margin-top: 16rpx;
   padding: 14rpx;
-  background-color: var(--color-primary-light);
-  color: var(--color-primary);
+  background: rgba(212,120,110,0.08);
+  color: #D4786E;
   font-size: 24rpx;
-  border-radius: var(--radius-sm);
+  border-radius: 12rpx;
   text-align: center;
-  border: none;
+  border: 1rpx solid rgba(212,120,110,0.2);
 }
+
+.load-profile-btn::after { border: none; }
 
 .empty-state {
   padding: 80rpx 20rpx;
   text-align: center;
-  color: var(--text-secondary);
+  color: #948284;
   font-size: 28rpx;
+  background: #FFFFFF;
+  border-radius: 16rpx;
+  border: 1rpx solid #F0EBE4;
 }
 
 .loading {
   text-align: center;
   padding: 40rpx;
-  color: var(--text-secondary);
+  color: #948284;
   font-size: 26rpx;
 }
 
+/* ========== 底部扫码按钮 ========== */
+.bottom-scan-btn {
+  position: fixed;
+  bottom: calc(20rpx + env(safe-area-inset-bottom));
+  left: 32rpx;
+  right: 32rpx;
+  height: 96rpx;
+  background: #D4786E;
+  border-radius: 48rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12rpx;
+  box-shadow: 0 8rpx 32rpx rgba(212,120,110,0.4);
+  z-index: 999;
+}
+
+.bottom-scan-btn:active {
+  background: #C05D53;
+  transform: scale(0.98);
+}
+
+.scan-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.scan-text {
+  font-size: 32rpx;
+  color: #FFFFFF;
+  font-weight: 700;
+}
+
+/* ========== 弹窗遮罩 ========== */
 .modal-mask {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: rgba(44, 36, 22, 0.45);
+  background: rgba(44,36,22,0.5);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -354,30 +407,41 @@
 .profile-modal {
   width: 660rpx;
   max-height: 85vh;
-  background-color: var(--bg-card);
-  border-radius: var(--radius-lg);
-  padding: 30rpx;
+  background: #FFFFFF;
+  border-radius: 24rpx;
+  padding: 32rpx;
   overflow-y: auto;
 }
 
+/* 现场签到警告 */
 .modal-warning {
   display: flex;
   align-items: center;
-  gap: 10rpx;
+  gap: 12rpx;
   padding: 16rpx 20rpx;
-  background-color: var(--color-warning-bg);
-  border: 1rpx solid rgba(196, 102, 62, 0.3);
-  border-radius: var(--radius-sm);
+  background: rgba(232,168,124,0.12);
+  border: 1rpx solid rgba(232,168,124,0.3);
+  border-radius: 12rpx;
   margin-bottom: 20rpx;
 }
 
-.warning-icon { font-size: 32rpx; }
-.warning-text { font-size: 26rpx; color: var(--color-warning); flex: 1; }
+.warning-icon {
+  font-size: 32rpx;
+  color: #E8A87C;
+  font-weight: 700;
+}
 
+.warning-text {
+  font-size: 26rpx;
+  color: #E8A87C;
+  flex: 1;
+}
+
+/* ========== 弹窗内分区 ========== */
 .profile-section {
   margin-bottom: 20rpx;
   padding-bottom: 20rpx;
-  border-bottom: 1rpx solid var(--border);
+  border-bottom: 1rpx solid #F0EBE4;
 }
 
 .profile-section:last-of-type {
@@ -386,58 +450,99 @@
   padding-bottom: 0;
 }
 
+/* 会员信息区 */
 .profile-member {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 20rpx;
 }
 
 .profile-avatar {
-  width: 80rpx;
-  height: 80rpx;
+  width: 96rpx;
+  height: 96rpx;
   border-radius: 50%;
-  background-color: var(--color-primary-bg);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 34rpx;
-  color: var(--color-primary);
+  background: #F6F3F0;
   flex-shrink: 0;
 }
 
 .profile-member-info {
   flex: 1;
+  min-width: 0;
 }
 
 .profile-member-name {
   font-size: 32rpx;
-  font-weight: 600;
-  color: var(--text-primary);
+  font-weight: 700;
+  color: #2C2416;
   display: block;
+}
+
+.profile-member-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8rpx 16rpx;
+  margin-top: 6rpx;
 }
 
 .profile-member-code,
-.profile-member-phone,
 .profile-member-store {
-  font-size: 24rpx;
-  color: var(--text-secondary);
-  display: block;
-  margin-top: 4rpx;
+  font-size: 22rpx;
+  color: #948284;
 }
 
+/* 手机号列表 */
+.profile-member-phones {
+  margin-top: 12rpx;
+  display: flex;
+  flex-direction: column;
+  gap: 6rpx;
+}
+
+.phone-row {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+}
+
+.phone-label {
+  font-size: 20rpx;
+  color: #948284;
+  background: #FAF8F5;
+  padding: 2rpx 12rpx;
+  border-radius: 6rpx;
+  flex-shrink: 0;
+}
+
+.phone-value {
+  font-size: 24rpx;
+  color: #2C2416;
+  font-weight: 500;
+}
+
+.phone-empty {
+  font-size: 22rpx;
+  color: #B8AFA4;
+}
+
+/* 套餐区标题 */
 .section-title {
   font-size: 26rpx;
-  color: var(--text-primary);
-  font-weight: 500;
+  color: #2C2416;
+  font-weight: 600;
   display: block;
   margin-bottom: 12rpx;
 }
 
+/* 套餐项 */
 .pkg-item {
-  padding: 14rpx 16rpx;
-  background-color: rgba(44, 36, 22, 0.04);
-  border-radius: var(--radius-sm);
+  padding: 16rpx;
+  background: #FAF8F5;
+  border-radius: 12rpx;
   margin-bottom: 10rpx;
+}
+
+.pkg-item:last-child {
+  margin-bottom: 0;
 }
 
 .pkg-main {
@@ -447,138 +552,191 @@
   margin-bottom: 6rpx;
 }
 
-.pkg-name { font-size: 26rpx; color: var(--text-primary); }
-.pkg-type { font-size: 22rpx; color: var(--color-primary); padding: 2rpx 10rpx; background-color: var(--color-primary-light); border-radius: 4rpx; }
-.pkg-detail { font-size: 22rpx; color: var(--text-secondary); }
+.pkg-name {
+  font-size: 26rpx;
+  color: #2C2416;
+  font-weight: 600;
+}
+
+.pkg-type {
+  font-size: 20rpx;
+  color: #D4786E;
+  padding: 4rpx 12rpx;
+  background: rgba(212,120,110,0.1);
+  border-radius: 8rpx;
+  font-weight: 500;
+}
+
+.pkg-detail {
+  font-size: 22rpx;
+  color: #948284;
+}
+
+.pkg-usage {
+  margin-top: 8rpx;
+}
+
+.pkg-usage text {
+  font-size: 22rpx;
+  color: #948284;
+}
+
+.pkg-validity {
+  margin-top: 6rpx;
+}
+
+.pkg-validity text {
+  font-size: 22rpx;
+  color: #948284;
+}
 
 .no-pkg-text {
   font-size: 24rpx;
-  color: var(--color-danger);
+  color: #D4786E;
 }
 
+/* 当天预约勾选 */
 .booking-check-item {
   display: flex;
   align-items: center;
-  padding: 14rpx 12rpx;
-  border-radius: var(--radius-sm);
+  padding: 16rpx 12rpx;
+  border-radius: 12rpx;
   margin-bottom: 8rpx;
   gap: 14rpx;
+  border: 1rpx solid #F0EBE4;
 }
 
 .booking-check-item.checked {
-  background-color: var(--color-primary-light);
+  background: rgba(212,120,110,0.06);
+  border-color: rgba(212,120,110,0.3);
 }
 
 .check-box {
   width: 40rpx;
   height: 40rpx;
-  border: 2rpx solid var(--text-tertiary);
-  border-radius: 6rpx;
+  border: 2rpx solid #D9CFC4;
+  border-radius: 8rpx;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 24rpx;
-  color: var(--bg-card);
+  color: #FFFFFF;
   flex-shrink: 0;
 }
 
 .check-box.checked {
-  background-color: var(--color-primary);
-  border-color: var(--color-primary);
+  background: #D4786E;
+  border-color: #D4786E;
 }
 
 .booking-check-info {
   flex: 1;
+  min-width: 0;
 }
 
 .booking-check-time {
   font-size: 26rpx;
-  color: var(--color-primary);
+  color: #D4786E;
+  font-weight: 600;
   display: block;
 }
 
 .booking-check-course {
   font-size: 24rpx;
-  color: var(--text-primary);
+  color: #2C2416;
   display: block;
-  margin-top: 2rpx;
+  margin-top: 4rpx;
 }
 
 .booking-check-coach {
   font-size: 22rpx;
-  color: var(--text-secondary);
+  color: #948284;
   display: block;
   margin-top: 2rpx;
 }
 
+/* 弹窗按钮 */
 .modal-buttons {
   display: flex;
-  gap: 20rpx;
+  gap: 16rpx;
   margin-top: 24rpx;
 }
 
 .btn-cancel {
   flex: 1;
   padding: 20rpx;
-  background-color: rgba(44, 36, 22, 0.04);
-  border-radius: var(--radius-sm);
+  background: #F6F3F0;
+  border-radius: 12rpx;
   text-align: center;
   font-size: 28rpx;
-  color: var(--text-primary);
+  color: #6B5D5E;
+  font-weight: 500;
 }
 
 .btn-confirm {
   flex: 1;
   padding: 20rpx;
-  background-color: var(--color-primary);
-  border-radius: var(--radius-sm);
+  background: #D4786E;
+  border-radius: 12rpx;
   text-align: center;
   font-size: 28rpx;
-  color: var(--bg-card);
-  font-weight: 500;
+  color: #FFFFFF;
+  font-weight: 600;
+  box-shadow: 0 4rpx 12rpx rgba(212,120,110,0.25);
+}
+
+.btn-confirm:active {
+  opacity: 0.85;
+  transform: scale(0.98);
 }
 
 .btn-confirm.onsite {
-  background-color: var(--color-warning);
-  color: var(--bg-card);
+  background: #E8A87C;
+  box-shadow: 0 4rpx 12rpx rgba(232,168,124,0.3);
 }
 
+/* ========== 临时签到二次确认弹窗 ========== */
 .onsite-confirm-modal {
   width: 560rpx;
-  background-color: var(--bg-card);
-  border-radius: var(--radius-lg);
-  padding: 40rpx 30rpx 30rpx;
+  background: #FFFFFF;
+  border-radius: 24rpx;
+  padding: 40rpx 32rpx 32rpx;
   text-align: center;
 }
 
-.onsite-confirm-icon { font-size: 56rpx; margin-bottom: 16rpx; }
+.onsite-confirm-icon {
+  font-size: 56rpx;
+  color: #E8A87C;
+  font-weight: 700;
+  margin-bottom: 16rpx;
+}
 
 .onsite-confirm-title {
   font-size: 32rpx;
-  font-weight: 600;
-  color: var(--color-warning);
+  font-weight: 700;
+  color: #E8A87C;
   display: block;
   margin-bottom: 12rpx;
 }
 
 .onsite-confirm-desc {
   font-size: 26rpx;
-  color: var(--text-primary);
+  color: #2C2416;
   display: block;
   margin-bottom: 16rpx;
 }
 
 .onsite-confirm-steps {
   text-align: left;
-  padding: 16rpx 24rpx;
-  background-color: rgba(44, 36, 22, 0.04);
-  border-radius: var(--radius-sm);
+  padding: 16rpx 20rpx;
+  background: #FAF8F5;
+  border-radius: 12rpx;
   margin-bottom: 16rpx;
 }
 
 .onsite-confirm-steps text {
-  font-size: 26rpx;
-  color: var(--text-primary);
+  font-size: 24rpx;
+  color: #2C2416;
   display: block;
   padding: 6rpx 0;
 }
@@ -586,12 +744,12 @@
 .onsite-confirm-info {
   text-align: left;
   padding: 12rpx 16rpx;
-  background-color: rgba(44, 36, 22, 0.04);
-  border-radius: var(--radius-sm);
+  background: #FAF8F5;
+  border-radius: 12rpx;
   margin-bottom: 8rpx;
 }
 
 .onsite-confirm-info text {
   font-size: 24rpx;
-  color: var(--text-secondary);
+  color: #948284;
 }

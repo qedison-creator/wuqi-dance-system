@@ -29,10 +29,10 @@
         <image class="hero-preview" src="{{item.config_value}}" mode="aspectFill"></image>
       </view>
       <view class="hero-actions">
-        <view class="hero-btn upload-btn" bindtap="onChooseHeroImage" data-index="{{index}}">
+        <button id="agree-btn" class="hero-btn upload-btn" open-type="agreePrivacyAuthorization" bindagreeprivacyauthorization="onPrivacyAgreed" bindtap="onChooseHeroImage" data-index="{{index}}">
           <text wx:if="{{!item.uploading}}">选择图片</text>
           <text wx:else>上传中...</text>
-        </view>
+        </button>
         <view class="hero-btn reset-btn" bindtap="onResetHeroImage" data-index="{{index}}" wx:if="{{item.config_value}}">
           <text>重置</text>
         </view>
