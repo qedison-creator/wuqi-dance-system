@@ -1111,6 +1111,10 @@ Page({
     wx.navigateTo({ url: '/package-sub/pages/agreement/agreement' });
   },
 
+  onAbout() {
+    wx.navigateTo({ url: '/package-sub/pages/about/about' });
+  },
+
   onContactStore() {
     var phoneNumber = this.data.storePhone;
     if (phoneNumber) {

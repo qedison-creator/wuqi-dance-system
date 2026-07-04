@@ -384,6 +384,13 @@
           <text class="menu-item-title">联系门店</text>
           <view class="menu-item-arrow"></view>
         </view>
+        <view class="menu-item" bindtap="onAbout">
+          <view class="menu-icon-wrap muted">
+            <image class="menu-icon" src="/images/icons/info.svg" mode="aspectFit"></image>
+          </view>
+          <text class="menu-item-title">关于系统</text>
+          <view class="menu-item-arrow"></view>
+        </view>
       </view>
     </view>
 
@@ -495,6 +502,13 @@
             <image class="menu-icon" src="/images/icons/phone.svg" mode="aspectFit"></image>
           </view>
           <text class="menu-item-title">联系门店</text>
+          <view class="menu-item-arrow"></view>
+        </view>
+        <view class="menu-item" bindtap="onAbout">
+          <view class="menu-icon-wrap muted">
+            <image class="menu-icon" src="/images/icons/info.svg" mode="aspectFit"></image>
+          </view>
+          <text class="menu-item-title">关于系统</text>
           <view class="menu-item-arrow"></view>
         </view>
       </view>
