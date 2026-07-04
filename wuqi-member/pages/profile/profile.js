@@ -1103,26 +1103,12 @@ Page({
     wx.navigateTo({ url: `/package-sub/pages/records/records?tab=${tab}` });
   },
 
-  onAbout() {
-    wx.showModal({
-      title: '关于系统',
-      content: '舞栖舞蹈社会员预约系统V1.1.0.5\n\n为您提供课程预约、教练查看、会员签到等一站式舞蹈学习服务。\n\n如有疑问请联系门店客服。',
-      showCancel: false,
-      confirmText: '我知道了',
-      confirmColor: '#D4786E'
-    });
-  },
-
   onPrivacy() {
     wx.navigateTo({ url: '/package-sub/pages/privacy/privacy' });
   },
 
   onAgreement() {
     wx.navigateTo({ url: '/package-sub/pages/agreement/agreement' });
-  },
-
-  onAbout() {
-    wx.navigateTo({ url: '/package-sub/pages/about/about' });
   },
 
   onContactStore() {
