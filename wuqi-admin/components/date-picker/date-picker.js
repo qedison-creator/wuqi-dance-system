@@ -4,6 +4,9 @@
  * <date-picker visible="{{visible}}" value="{{date}}" bind:confirm="onConfirm" bind:cancel="onCancel" />
  */
 Component({
+  options: {
+    pureDataPattern: /^_/
+  },
   properties: {
     visible: { type: Boolean, value: false },
     value: { type: String, value: '' }, // YYYY-MM-DD

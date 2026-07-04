@@ -117,14 +117,20 @@ Page({
       this.setData({ _dataLoaded: true, _lastStoreId: currentStoreId });
       this.loadHomeData();
     }
-    // 已授权用户：静默重新定位匹配最近门店（每次进入首页都获取最新位置）
-    this.checkPendingRelocate();
     this.checkLocationAuth();
     this.startAnnounceFlip();
   },
 
   onHide() {
     this.stopAnnounceFlip();
+  },
+
+  onReady() {
+    this._onReadyFired = true;
+    // 页面首帧渲染完成后，再加载非首屏的画廊数据
+    if (this.data._dataLoaded) {
+      this.loadGalleryImages();
+    }
   },
 
   onUnload() {
@@ -209,9 +215,8 @@ Page({
     return Promise.all([
       request({ url: '/home/banners', data: { store_id: storeId }, silent: true }),
       request({ url: '/home/coaches', data: { store_id: storeId, limit: 6 }, silent: true }),
-      request({ url: '/schedules', data: { store_id: storeId, limit: 10 }, silent: true }),
-      request({ url: '/home/images', silent: true })
-    ]).then(([bannerRes, coachRes, scheduleRes, imageRes]) => {
+      request({ url: '/schedules', data: { store_id: storeId, limit: 10 }, silent: true })
+    ]).then(([bannerRes, coachRes, scheduleRes]) => {
       // 处理轮播图/ 教练头像 / 课程封面 / 视频封面：统一使用 SERVER_BASE
       // 注意：服务器返回的 URL 可能是 http 或完整 https 地址，这里统一规范化为 /uploads/xxx 格式
       // 当图片加载失败时，binderror 会触发 fallback 到本地默认图
@@ -275,39 +280,22 @@ Page({
             danceStyleName,
             danceTagBg: tagColor.bg,
             danceTagText: tagColor.text,
-            cover: fixImageUrl(course.cover) || ''
+            cover: fixImageUrl(course.cover) || '',
+            timeDisplay: this.data.isOfficial
+              ? `${course.start_time || ''} - ${course.end_time || ''}`
+              : '??:?? - ??:??'
           };
         });
 
-      // 处理图片
-
-      const rawImages = imageRes.data || [];
-      const imageList = Array.isArray(rawImages) ? rawImages : (rawImages.data || rawImages.list || []);
-      const images = imageList.map(img => {
-        const width = Number(img.width) || 0;
-        const height = Number(img.height) || 0;
-        let orientation = 'square';
-        let ratio = 1;
-        if (width > 0 && height > 0) {
-          ratio = width / height;
-          if (ratio > 1.1) orientation = 'landscape';
-          else if (ratio < 0.9) orientation = 'portrait';
-          else orientation = 'square';
+      // 先渲染首屏核心数据，画廊数据在 onReady 中延迟加载，降低首屏 LCP
+      this.setData({ banners, hotCoaches: coaches, recentCourses, loading: false }, () => {
+        // 核心数据渲染完成后，异步加载画廊（如 onReady 尚未触发，由 onReady 负责调度）
+        if (this._onReadyFired) {
+          this.loadGalleryImages();
         }
-        return {
-          ...img,
-          image_url: fixImageUrl(img.image_url),
-          thumbnail_url: fixImageUrl(img.thumbnail_url),
-          orientation,
-          ratio,
-          coachName: img.coach_ids && img.coach_ids.length > 0 ? img.coach_ids[0].name : ''
-        };
+        // 首屏数据返回后再静默重新定位，避免与核心请求竞争网络/系统资源
+        this.checkPendingRelocate();
       });
-      const imageUrls = images.map(img => img.image_url);
-
-      // 合并为一次 setData，减少渲染次数
-
-      this.setData({ banners, hotCoaches: coaches, recentCourses, images, imageUrls, loading: false });
 
     }).catch((err) => {
       console.error('加载首页数据失败:', err);
@@ -330,6 +318,58 @@ Page({
       this.setData({ activeHolidays });
     } catch (err) {
       console.error('加载假期信息失败', err);
+    }
+  },
+
+  // 画廊图片非首屏核心数据，延迟到 onReady 后加载，避免阻塞首屏渲染
+  async loadGalleryImages() {
+    if (this._galleryLoading || this._galleryLoaded) return;
+    this._galleryLoading = true;
+    try {
+      const res = await request({ url: '/home/images', silent: true });
+      const rawImages = res.data || [];
+      const imageList = Array.isArray(rawImages) ? rawImages : (rawImages.data || rawImages.list || []);
+      const fixImageUrl = (url) => {
+        if (!url) return '';
+        if (url.startsWith('/')) return SERVER_BASE + url;
+        const serverHosts = ['101.33.203.22:3000', 'localhost:3000', 'api.yuekeme.cn', 'admin-api.yuekeme.cn'];
+        const match = url.match(/^https?:\/\/([^/]+)(\/.*)/);
+        if (match) {
+          const host = match[1];
+          if (serverHosts.some(h => host === h || host.endsWith('.' + h))) {
+            return SERVER_BASE + match[2];
+          }
+          return url;
+        }
+        return url;
+      };
+      const images = imageList.map(img => {
+        const width = Number(img.width) || 0;
+        const height = Number(img.height) || 0;
+        let orientation = 'square';
+        let ratio = 1;
+        if (width > 0 && height > 0) {
+          ratio = width / height;
+          if (ratio > 1.1) orientation = 'landscape';
+          else if (ratio < 0.9) orientation = 'portrait';
+          else orientation = 'square';
+        }
+        return {
+          ...img,
+          image_url: fixImageUrl(img.image_url),
+          thumbnail_url: fixImageUrl(img.thumbnail_url),
+          orientation,
+          ratio,
+          coachName: img.coach_ids && img.coach_ids.length > 0 ? img.coach_ids[0].name : ''
+        };
+      });
+      const imageUrls = images.map(img => img.image_url);
+      this.setData({ images, imageUrls });
+      this._galleryLoaded = true;
+    } catch (err) {
+      console.error('加载画廊数据失败', err);
+    } finally {
+      this._galleryLoading = false;
     }
   },
 

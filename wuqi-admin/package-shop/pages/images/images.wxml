@@ -48,7 +48,7 @@
       </view>
       <view class="ic-row">
         <view class="ic-thumb-wrap">
-          <image class="ic-thumb" src="{{item.thumbnail_url || item.image_url}}" mode="aspectFill" />
+          <image class="ic-thumb" src="{{item.thumbnail_url || item.image_url}}" mode="aspectFill" decoding="async" />
         </view>
         <view class="ic-info">
           <text class="ic-title">{{item.title || '未命名'}}</text>
@@ -87,7 +87,7 @@
           <text class="fu-text">点击上传图片</text>
           <text class="fu-hint">支持 jpg / png / webp 格式</text>
         </block>
-        <image wx:else class="fu-preview" src="{{tempImagePath}}" mode="widthFix" />
+        <image wx:else class="fu-preview" src="{{tempImagePath}}" mode="widthFix" decoding="async" />
       </button>
 
       <!-- 裁剪模式选择 -->

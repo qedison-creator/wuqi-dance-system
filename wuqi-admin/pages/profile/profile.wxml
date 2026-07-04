@@ -1,11 +1,11 @@
 <view class="profile-page">
   <view class="profile-card">
     <view class="avatar-wrapper">
-      <image class="avatar-ring-img" src="{{avatarSrc}}" mode="aspectFill" wx:if="{{avatarSrc && !avatarLoadFailed}}" binderror="onAvatarError"></image>
+      <image class="avatar-ring-img" src="{{avatarSrc}}" mode="aspectFill" wx:if="{{avatarSrc && !avatarLoadFailed}}" binderror="onAvatarError" decoding="async"></image>
       <view class="avatar-ring" wx:else>
         <view class="avatar-inner">
           <!-- 本地默认管理员头像兜底 -->
-          <image class="avatar-fallback-img" src="/images/default-admin-avatar.svg" mode="aspectFit"></image>
+          <image class="avatar-fallback-img" src="/images/default-admin-avatar.svg" mode="aspectFit" decoding="async"></image>
         </view>
       </view>
     </view>
@@ -26,18 +26,18 @@
     <view class="menu-card">
       <view class="menu-item" wx:if="{{permAccount}}" bindtap="onManageAccounts">
         <view class="menu-icon-wrap warm">
-          <image class="menu-icon" src="/images/icons/menu-users.svg" mode="aspectFit"></image>
+          <image class="menu-icon" src="/images/icons/menu-users.svg" mode="aspectFit" decoding="async"></image>
         </view>
         <text class="menu-label">账号及权限管理</text>
-        <image class="menu-arrow" src="/images/icons/chevron-right.svg" mode="aspectFit"></image>
+        <image class="menu-arrow" src="/images/icons/chevron-right.svg" mode="aspectFit" decoding="async"></image>
       </view>
 
       <view class="menu-item" bindtap="onAccountSecurity">
         <view class="menu-icon-wrap warm">
-          <image class="menu-icon" src="/images/icons/menu-user.svg" mode="aspectFit"></image>
+          <image class="menu-icon" src="/images/icons/menu-user.svg" mode="aspectFit" decoding="async"></image>
         </view>
         <text class="menu-label">个人资料及账号安全</text>
-        <image class="menu-arrow" src="/images/icons/chevron-right.svg" mode="aspectFit"></image>
+        <image class="menu-arrow" src="/images/icons/chevron-right.svg" mode="aspectFit" decoding="async"></image>
       </view>
     </view>
   </view>
@@ -48,34 +48,34 @@
     <view class="menu-card">
       <view class="menu-item" wx:if="{{permConfig}}" bindtap="onGoToConfig">
         <view class="menu-icon-wrap teal">
-          <image class="menu-icon" src="/images/icons/menu-settings.svg" mode="aspectFit"></image>
+          <image class="menu-icon" src="/images/icons/menu-settings.svg" mode="aspectFit" decoding="async"></image>
         </view>
         <text class="menu-label">系统参数配置</text>
-        <image class="menu-arrow" src="/images/icons/chevron-right.svg" mode="aspectFit"></image>
+        <image class="menu-arrow" src="/images/icons/chevron-right.svg" mode="aspectFit" decoding="async"></image>
       </view>
 
       <view class="menu-item" wx:if="{{permConfig}}" bindtap="onGoToSettings">
         <view class="menu-icon-wrap teal">
-          <image class="menu-icon" src="/images/icons/menu-bell.svg" mode="aspectFit"></image>
+          <image class="menu-icon" src="/images/icons/menu-bell.svg" mode="aspectFit" decoding="async"></image>
         </view>
         <text class="menu-label">消息推送设置</text>
-        <image class="menu-arrow" src="/images/icons/chevron-right.svg" mode="aspectFit"></image>
+        <image class="menu-arrow" src="/images/icons/chevron-right.svg" mode="aspectFit" decoding="async"></image>
       </view>
 
       <view class="menu-item" wx:if="{{isAdmin}}" bindtap="onSystemReset">
         <view class="menu-icon-wrap teal">
-          <image class="menu-icon" src="/images/icons/menu-database.svg" mode="aspectFit"></image>
+          <image class="menu-icon" src="/images/icons/menu-database.svg" mode="aspectFit" decoding="async"></image>
         </view>
         <text class="menu-label">系统数据设置</text>
-        <image class="menu-arrow" src="/images/icons/chevron-right.svg" mode="aspectFit"></image>
+        <image class="menu-arrow" src="/images/icons/chevron-right.svg" mode="aspectFit" decoding="async"></image>
       </view>
 
       <view class="menu-item" wx:if="{{permLog}}" bindtap="onOperationLog">
         <view class="menu-icon-wrap muted">
-          <image class="menu-icon" src="/images/icons/menu-file-text.svg" mode="aspectFit"></image>
+          <image class="menu-icon" src="/images/icons/menu-file-text.svg" mode="aspectFit" decoding="async"></image>
         </view>
         <text class="menu-label">操作日志</text>
-        <image class="menu-arrow" src="/images/icons/chevron-right.svg" mode="aspectFit"></image>
+        <image class="menu-arrow" src="/images/icons/chevron-right.svg" mode="aspectFit" decoding="async"></image>
       </view>
     </view>
   </view>
@@ -86,26 +86,26 @@
     <view class="menu-card">
       <view class="menu-item" bindtap="onPrivacy">
         <view class="menu-icon-wrap muted">
-          <image class="menu-icon" src="/images/icons/menu-shield.svg" mode="aspectFit"></image>
+          <image class="menu-icon" src="/images/icons/menu-shield.svg" mode="aspectFit" decoding="async"></image>
         </view>
         <text class="menu-label">隐私保护指引</text>
-        <image class="menu-arrow" src="/images/icons/chevron-right.svg" mode="aspectFit"></image>
+        <image class="menu-arrow" src="/images/icons/chevron-right.svg" mode="aspectFit" decoding="async"></image>
       </view>
 
       <view class="menu-item" bindtap="onAgreement">
         <view class="menu-icon-wrap muted">
-          <image class="menu-icon" src="/images/icons/menu-document.svg" mode="aspectFit"></image>
+          <image class="menu-icon" src="/images/icons/menu-document.svg" mode="aspectFit" decoding="async"></image>
         </view>
         <text class="menu-label">用户服务协议</text>
-        <image class="menu-arrow" src="/images/icons/chevron-right.svg" mode="aspectFit"></image>
+        <image class="menu-arrow" src="/images/icons/chevron-right.svg" mode="aspectFit" decoding="async"></image>
       </view>
 
       <view class="menu-item" bindtap="onAbout">
         <view class="menu-icon-wrap muted">
-          <image class="menu-icon" src="/images/icons/menu-info.svg" mode="aspectFit"></image>
+          <image class="menu-icon" src="/images/icons/menu-info.svg" mode="aspectFit" decoding="async"></image>
         </view>
         <text class="menu-label">关于系统</text>
-        <image class="menu-arrow" src="/images/icons/chevron-right.svg" mode="aspectFit"></image>
+        <image class="menu-arrow" src="/images/icons/chevron-right.svg" mode="aspectFit" decoding="async"></image>
       </view>
     </view>
   </view>

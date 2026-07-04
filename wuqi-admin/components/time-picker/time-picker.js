@@ -5,6 +5,9 @@
  * confirm 事件返回 { value: "HH:mm" }
  */
 Component({
+  options: {
+    pureDataPattern: /^_/
+  },
   properties: {
     visible: { type: Boolean, value: false },
     value: { type: String, value: '' }, // HH:mm

@@ -641,9 +641,6 @@ page {
 /* ========== 头部：门店 + 套餐类型 ========== */
 .pkg-new-header {
   margin-bottom: 24rpx;
-}
-
-.pkg-new-header-left {
   display: flex;
   align-items: center;
   gap: 12rpx;

@@ -36,7 +36,7 @@
 
     <!-- 当日汇总 + 导出 -->
     <view class="summary-row">
-      <text class="summary-text">汇总：总课程<text class="summary-num">{{summary.totalCourses}}</text>节｜总预约<text class="summary-num">{{summary.totalBookings}}</text>单｜已上课<text class="summary-num summary-green">{{summary.checkedIn}}</text>人｜已取消<text class="summary-num summary-red">{{summary.cancelled}}</text>人</text>
+      <text class="summary-text">汇总：总课程<text class="summary-num">{{summary.totalCourses}}</text>节｜总预约<text class="summary-num">{{summary.totalBookings}}</text>单｜已签到<text class="summary-num summary-green">{{summary.checkedIn}}</text>人｜已取消<text class="summary-num summary-red">{{summary.cancelled}}</text>人</text>
       <view class="export-btn-global" bindtap="onExport">
         <text>导出Excel</text>
       </view>
@@ -86,17 +86,17 @@
                           </view>
                         </view>
                         <view class="course-stats">
+                          <view class="stat-item booked">
+                            <text class="stat-num">{{course.totalBookedDisplay || 0}}</text>
+                            <text class="stat-label">已预约</text>
+                          </view>
                           <view class="stat-item completed">
-                            <text class="stat-num">{{course.completedCount}}</text>
-                            <text class="stat-label">已上课</text>
+                            <text class="stat-num">{{course.checkedInCount || 0}}</text>
+                            <text class="stat-label">已签到</text>
                           </view>
                           <view class="stat-item cancelled">
                             <text class="stat-num">{{course.cancelledCount}}</text>
                             <text class="stat-label">已取消</text>
-                          </view>
-                          <view class="stat-item booked">
-                            <text class="stat-num">{{course.bookedCount}}</text>
-                            <text class="stat-label">待上课</text>
                           </view>
                         </view>
                         <view class="course-right">
@@ -106,17 +106,17 @@
 
                       <!-- 课程详情：三区块 -->
                       <view class="course-detail" wx:if="{{course.expanded}}">
-                        <!-- 已上课 区块 -->
-                        <view class="member-section" wx:if="{{course.completedCount > 0}}">
+                        <!-- 已签到 区块（含已完成） -->
+                        <view class="member-section" wx:if="{{course.checkedInCount > 0}}">
                           <view class="section-header">
                             <view class="section-dot dot-completed"></view>
-                            <text class="section-title">已上课</text>
-                            <text class="section-count">{{course.completedCount}}人</text>
+                            <text class="section-title">已签到</text>
+                            <text class="section-count">{{course.checkedInCount}}人</text>
                           </view>
                           <view class="member-cards">
-                            <view class="member-card status-completed" wx:for="{{course._sortedMemberGroups}}" wx:for-item="mg" wx:key="user_id" wx:if="{{mg.latestStatus === 'completed'}}">
+                            <view class="member-card status-completed" wx:for="{{course._sortedMemberGroups}}" wx:for-item="mg" wx:key="user_id" wx:if="{{mg.latestStatus === 'checkedIn'}}">
                               <view class="mc-header">
-                                <image class="mc-avatar" src="{{mg.user_info.avatar_url || '/images/default-avatar.svg'}}" mode="aspectFill"></image>
+                                <image class="mc-avatar" src="{{mg.user_info.avatar_url || '/images/default-avatar.svg'}}" mode="aspectFill" decoding="async"></image>
                                 <view class="mc-info">
                                   <view class="mc-name-row">
                                     <text class="mc-name">{{mg.user_info.real_name || mg.user_info.nick_name || '未知会员'}}</text>
@@ -127,8 +127,11 @@
                                     <text class="mc-phone-item" wx:if="{{mg.user_info.reserve_phone}}">预留:{{mg.user_info.reserve_phone}}</text>
                                   </view>
                                 </view>
-                                <view class="mc-status-badge badge-completed">
+                                <view class="mc-status-badge badge-completed" wx:if="{{mg._isCompleted}}">
                                   <text>已完成</text>
+                                </view>
+                                <view class="mc-status-badge badge-checked-in" wx:else>
+                                  <text>已签到</text>
                                 </view>
                                 <view class="mc-expand {{mg._expanded ? 'expanded' : ''}}" catchtap="onToggleMember" data-year-index="{{yearIndex}}" data-month-index="{{monthIndex}}" data-date-index="{{dateIndex}}" data-course-index="{{courseIndex}}" data-user-id="{{mg.user_id}}">
                                   <text class="mc-expand-arrow">▾</text>
@@ -172,7 +175,7 @@
                           <view class="member-cards">
                             <view class="member-card status-cancelled" wx:for="{{course._sortedMemberGroups}}" wx:for-item="mg" wx:key="user_id" wx:if="{{mg.latestStatus === 'cancelled'}}">
                               <view class="mc-header">
-                                <image class="mc-avatar" src="{{mg.user_info.avatar_url || '/images/default-avatar.svg'}}" mode="aspectFill"></image>
+                                <image class="mc-avatar" src="{{mg.user_info.avatar_url || '/images/default-avatar.svg'}}" mode="aspectFill" decoding="async"></image>
                                 <view class="mc-info">
                                   <view class="mc-name-row">
                                     <text class="mc-name">{{mg.user_info.real_name || mg.user_info.nick_name || '未知会员'}}</text>
@@ -184,7 +187,8 @@
                                   </view>
                                 </view>
                                 <view class="mc-cancel-tag">
-                                  <text>【{{mg._cancelTypeText || '已取消'}}】</text>
+                                  <text wx:if="{{mg._isExempted}}">【豁免取消】</text>
+                                  <text wx:else>【{{mg._cancelTypeText || '已取消'}}】</text>
                                 </view>
                                 <view class="mc-repeat" wx:if="{{mg._hasRepeat}}">
                                   <text>{{mg._totalBookings}}次预约·{{mg._cancelCount}}次取消</text>
@@ -224,13 +228,13 @@
                         <view class="member-section" wx:if="{{course.bookedCount > 0}}">
                           <view class="section-header">
                             <view class="section-dot dot-booked"></view>
-                            <text class="section-title">待上课</text>
+                            <text class="section-title">已预约</text>
                             <text class="section-count">{{course.bookedCount}}人</text>
                           </view>
                           <view class="member-cards">
                             <view class="member-card status-booked" wx:for="{{course._sortedMemberGroups}}" wx:for-item="mg" wx:key="user_id" wx:if="{{mg.latestStatus === 'booked'}}">
                               <view class="mc-header">
-                                <image class="mc-avatar" src="{{mg.user_info.avatar_url || '/images/default-avatar.svg'}}" mode="aspectFill"></image>
+                                <image class="mc-avatar" src="{{mg.user_info.avatar_url || '/images/default-avatar.svg'}}" mode="aspectFill" decoding="async"></image>
                                 <view class="mc-info">
                                   <view class="mc-name-row">
                                     <text class="mc-name">{{mg.user_info.real_name || mg.user_info.nick_name || '未知会员'}}</text>
@@ -241,14 +245,17 @@
                                     <text class="mc-phone-item" wx:if="{{mg.user_info.reserve_phone}}">预留:{{mg.user_info.reserve_phone}}</text>
                                   </view>
                                 </view>
-                                <view class="mc-status-badge badge-booked">
-                                  <text>待上课</text>
+                                <view class="mc-status-badge badge-booked" wx:if="{{!mg._isCourseCancel}}">
+                                  <text>已预约</text>
+                                </view>
+                                <view class="mc-status-badge badge-course-cancel" wx:if="{{mg._isCourseCancel}}">
+                                  <text>课程已取消</text>
                                 </view>
                                 <view class="mc-repeat" wx:if="{{mg._hasRepeat}}">
                                   <text>{{mg._totalBookings}}次预约·{{mg._cancelCount}}次取消</text>
                                 </view>
                                 <view class="mc-actions">
-                                  <view class="checkin-btn" catchtap="onCheckIn" data-schedule-id="{{course.schedule_id}}" data-user-id="{{mg.user_id}}">
+                                  <view class="checkin-btn" wx:if="{{!mg._isCourseCancel}}" catchtap="onCheckIn" data-schedule-id="{{course.schedule_id}}" data-user-id="{{mg.user_id}}">
                                     <text>签到</text>
                                   </view>
                                   <view class="mc-expand {{mg._expanded ? 'expanded' : ''}}" catchtap="onToggleMember" data-year-index="{{yearIndex}}" data-month-index="{{monthIndex}}" data-date-index="{{dateIndex}}" data-course-index="{{courseIndex}}" data-user-id="{{mg.user_id}}">
@@ -284,7 +291,7 @@
                         </view>
 
                         <!-- 空状态 -->
-                        <view class="empty-section" wx:if="{{course.completedCount === 0 && course.cancelledCount === 0 && course.bookedCount === 0}}">
+                        <view class="empty-section" wx:if="{{course.checkedInCount === 0 && course.cancelledCount === 0 && course.bookedCount === 0}}">
                           <text>暂无预约记录</text>
                         </view>
                       </view>

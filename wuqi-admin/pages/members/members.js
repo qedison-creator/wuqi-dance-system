@@ -105,14 +105,16 @@ Page({
       activeFilter,
       members: [],
       page: 1,
-      hasMore: true
+      hasMore: true,
+      loading: true
     });
-    
-    // 独立加载门店列表，不依赖全局数据
 
-    this.loadStoreList();
-    this.loadInfoChangeCount();
-    this.loadPendingClaimCount();
+    // 独立加载门店列表，不依赖全局数据；统计请求并行，减少串行等待
+    Promise.all([
+      this.loadStoreList(true),
+      this.loadInfoChangeCount(),
+      this.loadPendingClaimCount()
+    ]);
     this._startAutoRefresh();
   },
 
@@ -137,7 +139,7 @@ Page({
   },
   
   // 加载门店列表
-  async loadStoreList() {
+  async loadStoreList(forceLoadMembers = false) {
     try {
       const res = await request({
         url: '/stores',
@@ -152,20 +154,20 @@ Page({
       app.globalData.storeList = list;
       // 加载会员列表需要在门店列表加载完成后进行
 
-      this.loadMembers();
+      this.loadMembers(forceLoadMembers);
     } catch (err) {
       console.error('获取门店列表失败', err);
       wx.showToast({ title: '加载门店失败', icon: 'none' });
       // 即使获取门店列表失败，也尝试加载会员列表
 
-      this.loadMembers();
+      this.loadMembers(forceLoadMembers);
     }
   },
 
   onRefresh() {
     this.setData({ page: 1, hasMore: true });
     return Promise.all([
-      this.loadStoreList(),
+      this.loadStoreList(true),
       this.loadInfoChangeCount(),
       this.loadPendingClaimCount()
     ]);
@@ -295,8 +297,8 @@ Page({
   },
 
   // ========== 加载会员列表 ==========
-  async loadMembers() {
-    if (this.data.loading || !this.data.hasMore) return;
+  async loadMembers(force = false) {
+    if ((!force && this.data.loading) || !this.data.hasMore) return;
     this.setData({ loading: true });
 
     try {
@@ -487,10 +489,8 @@ Page({
 
   onAvatarError(e) {
     const index = e.currentTarget.dataset.index;
-    const members = this.data.members;
-    if (members[index]) {
-      members[index].avatar = '/images/default-avatar.svg';
-      this.setData({ members });
+    if (this.data.members[index]) {
+      this.setData({ [`members[${index}].avatar`]: '/images/default-avatar.svg' });
     }
   },
 

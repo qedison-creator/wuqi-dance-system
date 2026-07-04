@@ -71,7 +71,7 @@
   <view class="member-list" wx:if="{{!loading && members.length > 0}}">
     <view class="member-card" wx:for="{{members}}" wx:key="_id" data-member="{{item}}" bindtap="onViewDetail">
       <view class="member-card-top">
-          <image class="member-avatar" src="{{item.avatar || '/images/default-avatar.svg'}}" mode="aspectFill" binderror="onAvatarError" data-index="{{index}}"></image>
+          <image class="member-avatar" src="{{item.avatar || '/images/default-avatar.svg'}}" mode="aspectFill" binderror="onAvatarError" data-index="{{index}}" decoding="async"></image>
           <view class="member-info">
             <view class="member-name-row">
               <text class="member-name">{{item.real_name || item.nickname || '未知'}}</text>
@@ -90,7 +90,7 @@
               <text class="phone-item"><text class="phone-label">预留</text>{{(item._showPhone && !isReviewer) ? (item.reserve_phone_raw || '未绑定') : (item.reserve_phone || '未绑定')}}</text>
               <text class="phone-item" wx:if="{{item.wechat_phone_display}}"><text class="phone-label">微信</text>{{(item._showPhone && !isReviewer) ? (item.wechat_phone_raw || '') : item.wechat_phone_display}}</text>
               <view class="phone-eye-btn" wx:if="{{!isReviewer}}" catchtouchstart="onTogglePhone" data-index="{{index}}">
-                <image class="phone-eye-icon" src="{{item._showPhone ? '/images/icons/eye-close.svg' : '/images/icons/eye-open.svg'}}" mode="aspectFit" />
+                <image class="phone-eye-icon" src="{{item._showPhone ? '/images/icons/eye-close.svg' : '/images/icons/eye-open.svg'}}" mode="aspectFit" decoding="async" />
               </view>
             </view>
             <!-- 未录入套餐的显示审核通过日期 -->

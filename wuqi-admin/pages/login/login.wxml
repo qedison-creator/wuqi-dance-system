@@ -1,24 +1,24 @@
 <view class="login-page">
   <!-- Logo区域 -->
   <view class="logo-section">
-    <image class="logo-img" src="/images/logo.png" mode="aspectFit" />
+    <image class="logo-img" src="/images/logo.png" mode="aspectFit" decoding="async" />
     <text class="logo-subtitle">会员预约系统管理后台</text>
   </view>
 
   <!-- 登录表单 -->
   <view class="login-form">
     <view class="form-item">
-      <image class="form-icon" src="/images/icons/login-user.svg" mode="aspectFit" />
+      <image class="form-icon" src="/images/icons/login-user.svg" mode="aspectFit" decoding="async" />
       <input class="form-input" type="text" placeholder="请输入管理员账号"
              value="{{username}}" bindinput="onUsernameInput" />
     </view>
 
     <view class="form-item">
-      <image class="form-icon" src="/images/icons/login-lock.svg" mode="aspectFit" />
+      <image class="form-icon" src="/images/icons/login-lock.svg" mode="aspectFit" decoding="async" />
       <input class="form-input" type="{{showPassword ? 'text' : 'password'}}" placeholder="请输入密码"
              value="{{password}}" bindinput="onPasswordInput" />
       <view class="password-eye-btn" catchtap="onTogglePassword">
-        <image class="password-eye-icon" src="{{showPassword ? '/images/icons/eye-close.svg' : '/images/icons/eye-open.svg'}}" mode="aspectFit" />
+        <image class="password-eye-icon" src="{{showPassword ? '/images/icons/eye-close.svg' : '/images/icons/eye-open.svg'}}" mode="aspectFit" decoding="async" />
       </view>
     </view>
 

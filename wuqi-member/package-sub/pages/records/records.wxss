@@ -15,6 +15,15 @@
   box-shadow: 0 4rpx 16rpx rgba(61,44,46,0.04);
 }
 
+.tab-bar-sticky {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  margin-top: 0;
+  margin-bottom: 20rpx;
+  border-radius: 0 0 24rpx 24rpx;
+}
+
 .tb-item {
   flex: 1;
   text-align: center;
@@ -475,4 +484,35 @@
 .load-more.loading text {
   font-size: 24rpx;
   color: #7A6B6D;
+}
+
+/* 返回顶部按钮 */
+.back-to-top {
+  position: fixed;
+  right: 32rpx;
+  bottom: calc(48rpx + env(safe-area-inset-bottom));
+  width: 88rpx;
+  height: 88rpx;
+  border-radius: 50%;
+  background: #FFFFFF;
+  box-shadow: 0 8rpx 24rpx rgba(61,44,46,0.12);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 99;
+  opacity: 0;
+  transform: translateY(20rpx);
+  transition: all 0.3s ease;
+}
+
+.back-to-top.show {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.btt-icon {
+  font-size: 36rpx;
+  color: #D4786E;
+  font-weight: 600;
+  line-height: 1;
 }

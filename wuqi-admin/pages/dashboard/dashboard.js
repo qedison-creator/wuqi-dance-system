@@ -103,7 +103,18 @@ Page({
     this.setData({ greeting: getGreeting(), theme: getTheme() });
     this._failCount = 0;  // 页面恢复可见时重置失败计数
     this.loadUserInfo();
-    this.loadAllData();
+
+    // 5 秒内返回首页且已有待办数据，直接复用，避免反复请求导致卡片闪烁/等待
+    const now = Date.now();
+    const hasCache = (this.data.todoList || []).length > 0 && this._lastCriticalLoadAt && (now - this._lastCriticalLoadAt < 5000);
+    if (hasCache) {
+      // 后台静默刷新统计数据即可
+      this.loadStatsData();
+    } else {
+      this.setData({ loadingSkeleton: true });
+      this.loadAllData();
+    }
+
     this._startAutoRefresh();
     this._connectWebSocket();
   },
@@ -375,37 +386,38 @@ Page({
   },
 
   async loadAllData() {
+    // 先加载首屏关键数据（今日课程、会员审核、banner），再后台加载统计待办
+    await this.loadCriticalData();
+    this.loadStatsData();
+  },
+
+  async loadCriticalData() {
     let success = false;
+    const storeId = this.data.currentStore ? this.data.currentStore._id : '';
+
+    this.loadSystemConfigs();
+
     try {
-      const storeId = this.data.currentStore ? this.data.currentStore._id : '';
-
-      this.loadSystemConfigs();
-
       const results = await Promise.all([
         request({ url: '/home/admin', method: 'GET', data: storeId ? { store_id: storeId } : {} }).catch((e) => { this._failCount = (this._failCount || 0) + 1; return {}; }),
-        request({ url: '/stats/dashboard', method: 'GET', data: { store_id: storeId } }).catch((e) => { return {}; }),
         request({ url: '/banners', method: 'GET', data: {} }).catch((e) => { return {}; })
       ]);
-      // 如果第一个关键请求返回空对象，说明网络失败
+
       if (results[0] && results[0].code === 200) {
         success = true;
         this._failCount = 0;
       } else {
         this._failCount = (this._failCount || 0) + 1;
       }
-      const homeRes = { status: 'fulfilled', value: results[0] };
-      const statsRes = { status: 'fulfilled', value: results[1] };
-      const bannersRes = { status: 'fulfilled', value: results[2] };
 
-      const homeData = homeRes.status === 'fulfilled' ? (homeRes.value.data || {}) : {};
-      const statsData = statsRes.status === 'fulfilled' ? (statsRes.value.data || {}) : {};
+      const homeRes = results[0] || {};
+      const bannersRes = results[1] || {};
+      const homeData = homeRes.data || {};
 
       // 使用后端返回的hero背景图URL（参照会员端banner方式）
-
       if (homeData.hero_background_url) {
         let heroUrl = homeData.hero_background_url;
         // 后端通过 Nginx 代理时 req.protocol 可能返回 http，需确保使用 config 中的协议
-
         if (heroUrl.startsWith('http://') && config.serverBase.startsWith('https://')) {
           heroUrl = heroUrl.replace('http://', 'https://');
         }
@@ -414,35 +426,62 @@ Page({
 
       this.loadStats(homeData);
 
-      const todoList = this.buildTodos(homeData, statsData);
-      const countCardAlerts = statsData.count_card_alerts || [];
+      // 首屏待办只包含今日课程、会员审核（来自 /home/admin）
+      const todoList = this.buildTodos(homeData, null);
       this.setData({
         todos: todoList,
-        todoList: todoList,
-        countCardAlerts: countCardAlerts,
-        expiringTimeCards: statsData.expiring_time_cards || []
+        todoList: todoList
       });
 
+      const banners = Array.isArray(bannersRes.data && bannersRes.data.list)
+        ? bannersRes.data.list
+        : (Array.isArray(bannersRes.data) ? bannersRes.data : []);
+      this.setData({ banners });
+
+    } catch (err) {
+      console.error('加载首页关键数据失败', err);
+      this._failCount = (this._failCount || 0) + 1;
+    }
+
+    this.setData({ loadingSkeleton: false });
+    this._lastCriticalLoadAt = Date.now();
+    return success;
+  },
+
+  async loadStatsData() {
+    const storeId = this.data.currentStore ? this.data.currentStore._id : '';
+    try {
+      const statsRes = await request({ url: '/stats/dashboard', method: 'GET', data: { store_id: storeId } }).catch(() => ({}));
+      const statsData = statsRes.data || {};
+
+      const countCardAlerts = statsData.count_card_alerts || [];
       const expiringCards = statsData.expiring_time_cards || [];
+
+      // 后台数据到达后，合并到现有待办列表（不覆盖首屏已渲染的今日课程、会员审核）
+      const statsTodos = this.buildTodos(null, statsData);
+      const mergedTodos = this._mergeTodos(this.data.todoList || [], statsTodos);
+
       this.setData({
+        todoList: mergedTodos,
+        todos: mergedTodos,
+        countCardAlerts: countCardAlerts,
+        expiringTimeCards: expiringCards,
         scheduleEndAlert: {
           visible: expiringCards.length > 0,
           weeksLeft: 0,
           daysLeft: expiringCards.length
         }
       });
-
-      const banners = bannersRes.status === 'fulfilled'
-        ? (Array.isArray(bannersRes.value.data.list) ? bannersRes.value.data.list : (Array.isArray(bannersRes.value.data) ? bannersRes.value.data : []))
-        : [];
-      this.setData({ banners });
-
     } catch (err) {
-      console.error('加载数据失败', err);
-      this._failCount = (this._failCount || 0) + 1;
+      console.error('加载首页统计数据失败', err);
     }
-    this.setData({ loadingSkeleton: false });
-    return success;
+  },
+
+  _mergeTodos(existing, additions) {
+    const map = new Map();
+    existing.forEach(item => { if (item && item._id) map.set(item._id, item); });
+    additions.forEach(item => { if (item && item._id && !map.has(item._id)) map.set(item._id, item); });
+    return Array.from(map.values());
   },
 
   onRefresh() {
@@ -615,33 +654,35 @@ Page({
   },
 
   /**
-   * 异步补全：并行调用 /members/{id} 拉取真实头像、套餐名、门店名
-   * 然后用 setData 做增量刷新（不影响展开状态）
+   * 异步补全：限制并发调用 /members/{id} 拉取真实头像、套餐名、门店名
+   * 每返回一个结果就路径化更新单张卡片，避免反复 setData 整个列表
    */
   async _enrichMemberCards(rawList, type) {
     if (!rawList || rawList.length === 0) return;
 
     // 先用快速映射把 UI 填充好，避免白屏
-
     const initialList = rawList.map((item) => this._quickMapCard(item, type));
     this.setData({ detailList: initialList });
 
-    const tasks = initialList.map((item) => {
+    const self = this;
+    const concurrency = 3;
+
+    // 单条会员补全请求
+    const enrichOne = async (item, idx) => {
       const memberId = item.member_id;
-      if (!memberId) return Promise.resolve(item);
-      return request({
-        url: `/members/${memberId}`,
-        method: 'GET',
-        timeout: 15000,
-        silent: true
-      }).then((res) => {
+      if (!memberId) return item;
+      try {
+        const res = await request({
+          url: `/members/${memberId}`,
+          method: 'GET',
+          timeout: 15000,
+          silent: true
+        });
         const data = res.data || {};
 
         // 头像：优先用接口返回的头像 URL
-
         let avatarUrl = data.avatar || data.avatar_url || data.head_img || data.headImg || data.headimgurl || '';
         // URL 规范化：相对路径补全
-
         if (avatarUrl && !/^https?:\/\//.test(avatarUrl)) {
           try {
             const cfg = require('../../config/index.js');
@@ -650,15 +691,12 @@ Page({
         }
 
         // 姓名
-
         let userName = data.real_name || data.nick_name || data.user_name || data.name || '';
 
         // 手机号
-
         let phone = data.phone || data.mobile || '';
 
         // 门店名：优先取 store_id.name；再从有效套餐里取
-
         let storeName = '';
         if (data.store_name) storeName = data.store_name;
         else if (data.store_id && typeof data.store_id === 'object' && data.store_id.name) {
@@ -675,7 +713,6 @@ Page({
         }
 
         // 套餐名：优先匹配当前 type，否则取第一个有效套餐
-
         let packageName = '';
         const packages = Array.isArray(data.packages) ? data.packages : [];
         if (packages.length > 0) {
@@ -693,7 +730,6 @@ Page({
         }
 
         // 剩余次数 / 天数：从详情兜底
-
         let remaining = item.remaining;
         let daysLeft = item.days_left;
         if ((remaining === undefined || remaining === null || remaining === 0) && packages.length > 0) {
@@ -705,7 +741,7 @@ Page({
 
         const avatarChar = userName && userName.length > 0 ? userName.charAt(0) : '会';
 
-        return {
+        const enrichedItem = {
           ...item,
           user_name: userName || item.user_name || '未知会员',
           avatar_char: avatarChar,
@@ -716,19 +752,33 @@ Page({
           days_left: daysLeft,
           store_name: storeName || item.store_name
         };
-      }).catch((err) => {
+
+        // 路径化更新单张卡片，避免刷新整个列表
+        if (self.data.expandedTodo) {
+          self.setData({ [`detailList[${idx}]`]: enrichedItem });
+        }
+        return enrichedItem;
+      } catch (err) {
         console.warn('[dashboard] 补全会员信息失败', err);
         return item;
-      });
-    });
+      }
+    };
 
-    const enrichedList = await Promise.all(tasks);
+    // 限制并发：同时最多 3 个请求
+    let cursor = 0;
+    const worker = async () => {
+      while (cursor < initialList.length) {
+        const idx = cursor++;
+        await enrichOne(initialList[idx], idx);
+      }
+    };
 
-    // 如果用户没关掉展开区域，就把补全后的内容刷新上去
-
-    if (this.data.expandedTodo) {
-      this.setData({ detailList: enrichedList });
+    const workers = [];
+    const workerCount = Math.min(concurrency, initialList.length);
+    for (let i = 0; i < workerCount; i++) {
+      workers.push(worker());
     }
+    await Promise.all(workers);
   },
 
   showExpiringPackagesModal(todoId) {
@@ -1004,11 +1054,12 @@ Page({
           date: s.date || '',
           date_display: dateDisplay,
           weekday_display: weekdayDisplay,
-          bookedCount: bookingStats.booked,
+          // 卡片"已预约"显示：已预约 + 已签到（所有实际预约人数）
+          bookedCount: (bookingStats.booked || 0) + (bookingStats.checkedIn || 0),
           capacity: s.max_bookings || 15,
           checkedInCount: bookingStats.checkedIn,
-          cancelledCount: bookingStats.cancelled,
-          exemptedCount: bookingStats.exempted,
+          // 已取消含豁免取消
+          cancelledCount: (bookingStats.cancelled || 0) + (bookingStats.exempted || 0),
           status: status,
           statusText: getScheduleStatusText(status),
           store_name: storeName
@@ -1058,13 +1109,22 @@ Page({
       let booked = 0, checkedIn = 0, cancelled = 0, exempted = 0;
       userLatestMap.forEach(item => {
         const status = item.status;
+        const cancelType = item.cancel_type;
+        // 因课程/admin原因取消的，仍算实际预约人数，不放入用户自行取消
+        const isCourseCancel = status === 'cancelled' && ['admin_cancel', 'min_bookings_not_met', 'holiday', 'after_checkin_cancel'].includes(cancelType);
+        const isUserCancel = status === 'cancelled' && !isCourseCancel;
+        const isExempted = status === 'exempted' || item.is_exempted;
+        // 已签到（含已完成）：checked_in + completed
         const isCheckedIn = item.checked_in || status === 'completed' || status === 'checked_in';
         if (isCheckedIn) checkedIn++;
-        if (status === 'booked' || status === 'checked_in' || status === 'completed') {
+        // 预约人数（卡片显示）：booked + checked_in + completed + 课程取消的cancelled
+        if (status === 'booked' || status === 'checked_in' || status === 'completed' || isCourseCancel) {
           booked++;
-        } else if (status === 'exempted' || item.is_exempted) {
+        } else if (isExempted) {
+          // 豁免归入已取消
           exempted++;
-        } else if (status === 'cancelled') {
+          cancelled++;
+        } else if (isUserCancel) {
           cancelled++;
         }
       });
@@ -1079,6 +1139,16 @@ Page({
     if (!scheduleId) return;
     wx.navigateTo({
       url: '/package-schedule/pages/bookings/bookings?schedule_id=' + scheduleId
+    });
+  },
+
+  // 点击课程卡片的某个分类，跳转并默认显示对应分类
+  onStatTabTap(e) {
+    const scheduleId = e.currentTarget.dataset.scheduleId;
+    const tab = e.currentTarget.dataset.tab || 'booked';
+    if (!scheduleId) return;
+    wx.navigateTo({
+      url: '/package-schedule/pages/bookings/bookings?schedule_id=' + scheduleId + '&tab=' + tab
     });
   },
 

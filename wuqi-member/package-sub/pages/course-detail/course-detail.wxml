@@ -185,7 +185,9 @@
   <view class="modal-mask" wx:if="{{showCancelModal}}" bindtap="onCancelCancel">
     <view class="modal-content" catchtap="onModalTap">
       <view class="mc-title">取消预约</view>
-      <view class="mc-body">{{bookingModalText}}</view>
+      <view class="mc-body">
+        <view class="mc-section" wx:for="{{cancelModalSections}}" wx:key="index">{{item}}</view>
+      </view>
       <view class="mc-footer">
         <view class="mcf-btn secondary" bindtap="onCancelCancel">取消</view>
         <view class="mcf-btn primary" bindtap="onConfirmCancel">确定取消</view>

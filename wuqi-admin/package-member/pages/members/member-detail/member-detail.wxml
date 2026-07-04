@@ -2,7 +2,7 @@
 <view class="member-detail-page">
   <!-- 会员头部卡片 -->
   <view class="member-header card">
-    <image class="member-avatar" src="{{member.avatar_url || '/images/default-avatar.svg'}}" mode="aspectFill"/>
+    <image class="member-avatar" src="{{member.avatar_url || '/images/default-avatar.svg'}}" mode="aspectFill" decoding="async" />
     <view class="member-info">
       <view class="member-name-row">
         <text class="member-name">{{member.real_name || member.nick_name || '未知用户'}}</text>

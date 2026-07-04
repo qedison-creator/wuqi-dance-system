@@ -4,7 +4,7 @@
     <view class="hero-card">
       <view class="hero-top">
         <view class="hero-avatar-wrap" bindtap="onHeroAvatarTap">
-          <image class="hero-avatar" src="{{avatarSrc}}" binderror="onImgError" data-type="avatar" data-id="user" mode="aspectFill"></image>
+          <image class="hero-avatar" src="{{avatarSrc}}" binderror="onImgError" data-type="avatar" data-id="user" mode="aspectFill" decoding="async"></image>
           <view class="hero-avatar-ring"></view>
           <view class="hero-avatar-tip" wx:if="{{isOfficialMember && (!userInfo.avatar && !userInfo.avatar_url || avatarImageError)}}">
             <text class="hero-avatar-tip-text">点击更换</text>
@@ -118,13 +118,11 @@
           <view class="pkg-new-decorate-circle"></view>
           <view class="pkg-new-content">
             <view class="pkg-new-header">
-              <view class="pkg-new-header-left">
-                <view class="pkg-tag pkg-tag-store" wx:if="{{item._storeName}}">
-                  <text class="pkg-tag-text">{{item._storeName}}</text>
-                </view>
-                <view class="pkg-tag pkg-tag-type-{{item.package_type}}" wx:if="{{item._typeLabel}}">
-                  <text class="pkg-tag-text">{{item._typeLabel}}</text>
-                </view>
+              <view class="pkg-tag pkg-tag-store" wx:if="{{item._storeName}}">
+                <text class="pkg-tag-text">{{item._storeName}}</text>
+              </view>
+              <view class="pkg-tag pkg-tag-type-{{item.package_type}}" wx:if="{{item._typeLabel}}">
+                <text class="pkg-tag-text">{{item._typeLabel}}</text>
               </view>
             </view>
             <view class="pkg-new-main">
@@ -160,11 +158,11 @@
               <view class="pkg-new-main-right">
                 <view class="pkg-new-info-capsule" wx:if="{{item.package_type === 'time_card'}}">
                   <text class="pkg-new-info-capsule-label">服务有效期</text>
-                  <text class="pkg-new-info-capsule-value">{{item.duration_value || '-'}}{{item.duration_unit === 'month' ? '个月' : '天'}}</text>
+                  <text class="pkg-new-info-capsule-value">{{item._durationText}}</text>
                 </view>
                 <view class="pkg-new-info-capsule" wx:if="{{item.package_type === 'count_card'}}">
-                  <text class="pkg-new-info-capsule-label">总次数</text>
-                  <text class="pkg-new-info-capsule-value">{{item.total_credits || 0}} 次</text>
+                  <text class="pkg-new-info-capsule-label">{{item._totalLabel}}</text>
+                  <text class="pkg-new-info-capsule-value">{{item._totalValue}}</text>
                 </view>
                 <view class="pkg-new-info-capsule" wx:if="{{item.package_type === 'time_card' && item._weekRemaining !== undefined}}">
                   <text class="pkg-new-info-capsule-label">{{item._periodLabel || '本周'}}剩余</text>
@@ -193,13 +191,11 @@
           <view class="pkg-new-decorate-circle"></view>
           <view class="pkg-new-content">
             <view class="pkg-new-header">
-              <view class="pkg-new-header-left">
-                <view class="pkg-tag pkg-tag-store" wx:if="{{item._storeName}}">
-                  <text class="pkg-tag-text">{{item._storeName}}</text>
-                </view>
-                <view class="pkg-tag pkg-tag-type-{{item.package_type}}" wx:if="{{item._typeLabel}}">
-                  <text class="pkg-tag-text">{{item._typeLabel}}</text>
-                </view>
+              <view class="pkg-tag pkg-tag-store" wx:if="{{item._storeName}}">
+                <text class="pkg-tag-text">{{item._storeName}}</text>
+              </view>
+              <view class="pkg-tag pkg-tag-type-{{item.package_type}}" wx:if="{{item._typeLabel}}">
+                <text class="pkg-tag-text">{{item._typeLabel}}</text>
               </view>
             </view>
             <view class="pkg-new-main">
@@ -216,11 +212,11 @@
               <view class="pkg-new-main-right">
                 <view class="pkg-new-info-capsule" wx:if="{{item.package_type === 'count_card'}}">
                   <text class="pkg-new-info-capsule-label">套餐次数</text>
-                  <text class="pkg-new-info-capsule-value">{{item.total_credits || item.remaining_credits || 0}} 次</text>
+                  <text class="pkg-new-info-capsule-value">{{item._pendingCreditsValue}}</text>
                 </view>
                 <view class="pkg-new-info-capsule">
                   <text class="pkg-new-info-capsule-label">服务有效期</text>
-                  <text class="pkg-new-info-capsule-value">{{item.duration_value || '-'}}{{item.duration_unit === 'month' ? '个月' : '天'}}</text>
+                  <text class="pkg-new-info-capsule-value">{{item._durationText}}</text>
                 </view>
               </view>
             </view>
@@ -288,8 +284,8 @@
                   </view>
                   <view class="pkg-new-main-right">
                     <view class="pkg-new-info-capsule">
-                      <text class="pkg-new-info-capsule-label">{{item.package_type === 'count_card' ? '总次数' : '服务有效期'}}</text>
-                      <text class="pkg-new-info-capsule-value">{{item.package_type === 'count_card' ? (item.total_credits || 0) + ' 次' : (item.duration_value || '-') + (item.duration_unit === 'month' ? '个月' : '天')}}</text>
+                      <text class="pkg-new-info-capsule-label">{{item._totalLabel}}</text>
+                      <text class="pkg-new-info-capsule-value">{{item._totalValue}}</text>
                     </view>
                   </view>
                 </view>
@@ -646,7 +642,7 @@
       </view>
       <view class="qr-img-area">
         <canvas type="2d" id="qrCheckInCanvas" class="qr-canvas" wx:if="{{showQRModal && qrCodeToken}}"></canvas>
-        <image class="qr-canvas" src="{{qrCodeUrl}}" mode="aspectFit" wx:elif="{{qrCodeUrl && !qrCodeToken}}"></image>
+        <image class="qr-canvas" src="{{qrCodeUrl}}" mode="aspectFit" decoding="async" wx:elif="{{qrCodeUrl && !qrCodeToken}}"></image>
         <view class="qr-loading" wx:else>
           <view class="loading-spinner"></view>
           <text class="loading-text">加载中...</text>

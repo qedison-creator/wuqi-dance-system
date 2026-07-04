@@ -1,6 +1,6 @@
 <view class="page">
   <view class="header">
-    <image class="logo" src="/images/logo.png" mode="aspectFit" />
+    <image class="logo" src="/images/logo.png" mode="aspectFit" decoding="async" />
     <view class="app-name">舞栖DANCE预约系统管理</view>
     <view class="app-version">版本 {{version}}</view>
   </view>

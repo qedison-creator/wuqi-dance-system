@@ -699,7 +699,7 @@ Page({
     ].filter(s => s);
     this.setData({
       showCancelModal: true,
-      bookingModalText: cancelSections.join('\n')
+      cancelModalSections: cancelSections
     });
   },
 

@@ -298,7 +298,7 @@ Page({
           memberGroups: [],
           expanded: false,
           // 三区块计数
-          completedCount: 0,
+          checkedInCount: 0,
           cancelledCount: 0,
           bookedCount: 0
         };
@@ -307,18 +307,35 @@ Page({
 
       const userId = item.user_id_str;
       let memberGroup = schedule.memberGroups.find(mg => mg.user_id === userId);
+      // 因课程/admin原因取消的，仍算实际预约记录，不放入用户自行取消的 已取消 区块
+      const isCourseCancelType = (type) => ['admin_cancel', 'min_bookings_not_met', 'holiday', 'after_checkin_cancel'].includes(type);
+      // 新规则3个分类：booked(已预约) / checkedIn(已签到) / cancelled(已取消)
+      const getDisplayStatus = (status, cancelType) => {
+        if (status === 'checked_in' || status === 'completed') return 'checkedIn';
+        if (status === 'cancelled' && isCourseCancelType(cancelType)) return 'booked';
+        if (status === 'exempted') return 'cancelled';
+        return status;
+      };
       if (!memberGroup) {
+        const isCourseCancel = isCourseCancelType(item.cancel_type);
+        const isExempted = item.status === 'exempted' || item.is_exempted;
         memberGroup = {
           user_id: userId,
           user_info: item.user_info,
           records: [],
-          latestStatus: item.status,
+          latestStatus: getDisplayStatus(item.status, item.cancel_type),
           latestTime: item.created_at,
           // 折叠状态
           _expanded: false,
           // 取消类型（取最新一条取消记录的cancel_type）
-          _cancelType: null,
-          _cancelTypeText: ''
+          _cancelType: item.status === 'cancelled' ? item.cancel_type : null,
+          _cancelTypeText: item.status === 'cancelled' ? item.cancel_type_text : '',
+          // 标记是否为课程/admin原因取消
+          _isCourseCancel: isCourseCancel,
+          // 标记是否为豁免取消
+          _isExempted: isExempted,
+          // 标记是否已完成（区别于已签到）
+          _isCompleted: item.status === 'completed'
         };
         schedule.memberGroups.push(memberGroup);
       }
@@ -340,12 +357,18 @@ Page({
       // 更新最新状态
 
       if (new Date(item.created_at) > new Date(memberGroup.latestTime)) {
-        memberGroup.latestStatus = item.status;
+        // checked_in 与 completed 都归入 checkedIn（已签到）
+        // 因课程/admin原因取消的归入 booked（仍算实际预约人数）
+        // 豁免和用户取消归入 cancelled
+        memberGroup.latestStatus = getDisplayStatus(item.status, item.cancel_type);
         memberGroup.latestTime = item.created_at;
         if (item.status === 'cancelled') {
           memberGroup._cancelType = item.cancel_type;
           memberGroup._cancelTypeText = item.cancel_type_text;
+          memberGroup._isCourseCancel = isCourseCancelType(item.cancel_type);
         }
+        memberGroup._isExempted = item.status === 'exempted' || item.is_exempted;
+        memberGroup._isCompleted = item.status === 'completed';
       }
 
       dateGroup.totalCount++;
@@ -369,13 +392,19 @@ Page({
               mg._hasRepeat = totalRecords > 1;
               mg._expanded = false;
             });
-            // 分类计数
-            schedule.completedCount = schedule.memberGroups.filter(mg => mg.latestStatus === 'completed').length;
+            // 分类计数（3个分类：已预约/已签到/已取消）
+            // 已预约：booked + 课程/admin取消的
+            // 已签到：checked_in + completed
+            // 已取消：用户自行取消 + 豁免
+            schedule.checkedInCount = schedule.memberGroups.filter(mg => mg.latestStatus === 'checkedIn').length;
             schedule.cancelledCount = schedule.memberGroups.filter(mg => mg.latestStatus === 'cancelled').length;
             schedule.bookedCount = schedule.memberGroups.filter(mg => mg.latestStatus === 'booked').length;
-            // 排序：completed > cancelled > booked
+            schedule.courseCancelledCount = schedule.memberGroups.filter(mg => mg._isCourseCancel).length;
+            // 卡片预约人数：已预约 + 已签到
+            schedule.totalBookedDisplay = schedule.bookedCount + schedule.checkedInCount;
+            // 排序：checkedIn > cancelled > booked
             schedule._sortedMemberGroups = [
-              ...schedule.memberGroups.filter(mg => mg.latestStatus === 'completed'),
+              ...schedule.memberGroups.filter(mg => mg.latestStatus === 'checkedIn'),
               ...schedule.memberGroups.filter(mg => mg.latestStatus === 'cancelled'),
               ...schedule.memberGroups.filter(mg => mg.latestStatus === 'booked')
             ];
@@ -408,7 +437,9 @@ Page({
             totalCourses++;
             schedule.memberGroups.forEach(mg => {
               totalBookings += mg.records.length;
-              if (mg.latestStatus === 'completed') checkedIn++;
+              // 已签到（含已完成）
+              if (mg.latestStatus === 'checkedIn') checkedIn++;
+              // 已取消（含豁免取消）
               else if (mg.latestStatus === 'cancelled') cancelled++;
             });
           });
@@ -574,7 +605,7 @@ Page({
     html += '<tr><td colspan="13" style="text-align:center;font-size:16px;font-weight:bold;">舞栖DANCE · 预约记录汇总</td></tr>';
     html += `<tr><td colspan="2">日期范围</td><td colspan="11">${startDate || ''} ~ ${endDate || ''}</td></tr>`;
     html += `<tr><td colspan="2">导出时间</td><td colspan="11">${new Date().toLocaleString('zh-CN')}</td></tr>`;
-    html += `<tr><td colspan="2">汇总</td><td colspan="11">总课程${summary.totalCourses || 0}节｜总预约${summary.totalBookings || 0}单｜已上课${summary.checkedIn || 0}人｜已取消${summary.cancelled || 0}人</td></tr>`;
+    html += `<tr><td colspan="2">汇总</td><td colspan="11">总课程${summary.totalCourses || 0}节｜总预约${summary.totalBookings || 0}单｜已签到${summary.checkedIn || 0}人｜已取消${summary.cancelled || 0}人</td></tr>`;
     html += '<tr></tr>';
 
     // 表头

@@ -1,6 +1,6 @@
 {
   "name": "wuqi-backend",
-  "version": "1.0.0",
+  "version": "1.1.0.5",
   "description": "舞栖舞蹈社后端服务",
   "main": "server.js",
   "scripts": {

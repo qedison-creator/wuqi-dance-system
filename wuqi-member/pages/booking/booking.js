@@ -331,9 +331,13 @@ Page({
     const packageStoreIds = Array.from(storeIds);
     const currentStoreId = this.data.currentStore ? String(this.data.currentStore._id) : '';
     const canBookCurrentStore = packageStoreIds.includes(currentStoreId);
-    this.setData({ memberPackageStoreIds: packageStoreIds, canBookCurrentStore });
+    this.setData({ memberPackageStoreIds: packageStoreIds, canBookCurrentStore }, () => {
+      this._updateCoursesButtonState();
+    });
     if (!canBookCurrentStore) {
-      this.setData({ bookedScheduleIds: [] });
+      this.setData({ bookedScheduleIds: [] }, () => {
+        this._updateCoursesButtonState();
+      });
     }
   },
 
@@ -344,7 +348,9 @@ Page({
     if (!canBookCurrentStore) {
       payload.bookedScheduleIds = [];
     }
-    this.setData(payload);
+    this.setData(payload, () => {
+      this._updateCoursesButtonState();
+    });
   },
 
   onLoad() {
@@ -490,6 +496,16 @@ Page({
       const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
       const isToday = this.data.selectedDate === todayStr;
 
+      const pageState = {
+        isOfficial: this.data.isOfficial,
+        isRestrictedUser: this.data.isRestrictedUser,
+        canViewCapacity: this.data.canViewCapacity,
+        canBookCurrentStore: this.data.canBookCurrentStore,
+        bookedScheduleIds: this.data.bookedScheduleIds,
+        waitlistedScheduleIds: this.data.waitlistedScheduleIds,
+        completedScheduleIds: this.data.completedScheduleIds
+      };
+
       const processedCourses = courses.map(course => {
         const styleName = course.dance_style_id && course.dance_style_id.name ? course.dance_style_id.name : '';
         const styleId = course.dance_style_id && course.dance_style_id._id ? String(course.dance_style_id._id) : (course.dance_style_id || '');
@@ -525,7 +541,7 @@ Page({
             }))
           : [];
 
-        return {
+        const baseCourse = {
           ...course,
           _id: String(course._id),
           danceStyleName: styleName,
@@ -539,6 +555,9 @@ Page({
           booked_users: bookedUsers,
           bookingOpen: this._isDateInBookingWindow(course.date)
         };
+
+        // 预计算渲染字段，减少 WXML 中的重复计算
+        return this._computeCourseRender(baseCourse, pageState);
       });
 
       // 后端已统一课程状态，已取消/已下线课程不会在列表中返回，前端无需再自行过滤
@@ -559,11 +578,15 @@ Page({
 
   loadMyBookings() {
     if (!this.data.isOfficial) {
-      this.setData({ bookedScheduleIds: [] });
+      this.setData({ bookedScheduleIds: [] }, () => {
+        this._updateCoursesButtonState();
+      });
       return;
     }
     if (!this.data.canBookCurrentStore) {
-      this.setData({ bookedScheduleIds: [] });
+      this.setData({ bookedScheduleIds: [] }, () => {
+        this._updateCoursesButtonState();
+      });
       return;
     }
     const storeId = this.data.currentStore ? this.data.currentStore._id : '';
@@ -579,15 +602,21 @@ Page({
         }
         return null;
       }).filter(Boolean);
-      this.setData({ bookedScheduleIds });
+      this.setData({ bookedScheduleIds }, () => {
+        this._updateCoursesButtonState();
+      });
     }).catch(() => {
-      this.setData({ bookedScheduleIds: [] });
+      this.setData({ bookedScheduleIds: [] }, () => {
+        this._updateCoursesButtonState();
+      });
     });
   },
 
   loadMyWaitlists() {
     if (!this.data.isOfficial) {
-      this.setData({ waitlistedScheduleIds: [] });
+      this.setData({ waitlistedScheduleIds: [] }, () => {
+        this._updateCoursesButtonState();
+      });
       return;
     }
     request({ url: '/bookings/waitlist/my', silent: true }).then(res => {
@@ -598,9 +627,13 @@ Page({
         }
         return null;
       }).filter(Boolean);
-      this.setData({ waitlistedScheduleIds });
+      this.setData({ waitlistedScheduleIds }, () => {
+        this._updateCoursesButtonState();
+      });
     }).catch(() => {
-      this.setData({ waitlistedScheduleIds: [] });
+      this.setData({ waitlistedScheduleIds: [] }, () => {
+        this._updateCoursesButtonState();
+      });
     });
   },
 
@@ -700,7 +733,17 @@ Page({
         wx.showToast({ title: '预约成功', icon: 'success' });
       }
 
-      this.loadCourses();
+      // 先本地更新预约状态，给用户即时反馈；再延迟静默刷新更新人数等后端数据
+      const sid = String(scheduleId);
+      if (this.data.bookedScheduleIds.indexOf(sid) === -1) {
+        const bookedScheduleIds = this.data.bookedScheduleIds.concat(sid);
+        this.setData({ bookedScheduleIds }, () => {
+          this._updateCoursesButtonState();
+        });
+      }
+      setTimeout(() => {
+        this.loadCourses(true);
+      }, 300);
     } catch (err) {
       if (loadingShown) {
         wx.hideLoading();
@@ -833,7 +876,17 @@ Page({
     }).then(() => {
       wx.hideLoading();
       wx.showToast({ title: '已加入候补队列', icon: 'success' });
-      this.loadMyWaitlists();
+      // 先本地更新候补状态，再延迟刷新确认
+      const sid = String(course._id);
+      if (this.data.waitlistedScheduleIds.indexOf(sid) === -1) {
+        const waitlistedScheduleIds = this.data.waitlistedScheduleIds.concat(sid);
+        this.setData({ waitlistedScheduleIds }, () => {
+          this._updateCoursesButtonState();
+        });
+      }
+      setTimeout(() => {
+        this.loadMyWaitlists();
+      }, 300);
     }).catch(err => {
       wx.hideLoading();
       const errMsg = err.message || '加入候补失败';
@@ -967,6 +1020,14 @@ Page({
     }
     const course = e.currentTarget.dataset.course;
     if (!course) return;
+
+    // WXML 中按钮统一绑定 catchtap，根据预计算类型过滤无响应的按钮，避免已结束/已满等状态触发业务逻辑
+    // 加入候补按钮通过 data-action="waitlist" 单独放行
+    const action = e.currentTarget.dataset.action;
+    const btnType = course.r && course.r.bookBtnType;
+    if (action !== 'waitlist' && ['ended', 'cancelled', 'done', 'ongoing', 'not_open', 'waitlisted', 'full'].indexOf(btnType) !== -1) {
+      return;
+    }
 
     // 未开放预约，点击无反应
     if (!course.bookingOpen) {
@@ -1103,6 +1164,132 @@ Page({
         });
       }
     }
+  },
+
+  // 预计算课程卡片的渲染字段，避免 WXML 中重复进行复杂判断和计算
+  _computeCourseRender(course, pageState) {
+    const {
+      isOfficial = false,
+      isRestrictedUser = false,
+      canViewCapacity = false,
+      canBookCurrentStore = false,
+      bookedScheduleIds = [],
+      waitlistedScheduleIds = [],
+      completedScheduleIds = []
+    } = pageState;
+
+    const id = course._id;
+    const isBooked = bookedScheduleIds.indexOf(id) !== -1;
+    const isWaitlisted = waitlistedScheduleIds.indexOf(id) !== -1;
+    const isCompleted = completedScheduleIds.indexOf(id) !== -1;
+
+    let bookBtnType = '';
+    let bookBtnText = '';
+    let bookBtnClass = '';
+    let showWaitlistBtn = false;
+
+    if (isRestrictedUser) {
+      if (course._ended) {
+        bookBtnType = 'ended';
+        bookBtnText = '已结束';
+        bookBtnClass = 'disabled';
+      } else if (!course.bookingOpen) {
+        bookBtnType = 'not_open';
+        bookBtnText = '未开放预约';
+        bookBtnClass = 'disabled-clickable';
+      } else {
+        bookBtnType = 'cannot_book';
+        bookBtnText = '不可预约';
+        bookBtnClass = 'disabled-clickable';
+      }
+    } else {
+      if (course.status === 'cancelled') {
+        bookBtnType = 'cancelled';
+        bookBtnText = '已取消';
+        bookBtnClass = 'disabled';
+      } else if (course._ended && isCompleted) {
+        bookBtnType = 'done';
+        bookBtnText = '已完成';
+        bookBtnClass = 'state-done';
+      } else if (course._ended) {
+        bookBtnType = 'ended';
+        bookBtnText = '已结束';
+        bookBtnClass = 'disabled';
+      } else if (course._ongoing) {
+        bookBtnType = 'ongoing';
+        bookBtnText = '进行中';
+        bookBtnClass = 'state-ongoing';
+      } else if (isBooked) {
+        bookBtnType = 'booked';
+        bookBtnText = '已预约';
+        bookBtnClass = 'booked';
+      } else if (isWaitlisted) {
+        bookBtnType = 'waitlisted';
+        bookBtnText = '候补中';
+        bookBtnClass = 'waitlist-btn waitlisted';
+      } else if (course.status === 'full') {
+        bookBtnType = 'full';
+        bookBtnText = '已满';
+        bookBtnClass = 'state-full';
+        showWaitlistBtn = !isWaitlisted;
+      } else if (!course.bookingOpen) {
+        bookBtnType = 'not_open';
+        bookBtnText = '未开放预约';
+        bookBtnClass = 'disabled-clickable';
+      } else if (isOfficial && !canBookCurrentStore) {
+        bookBtnType = 'cannot_book';
+        bookBtnText = '不可预约';
+        bookBtnClass = 'disabled-clickable';
+      } else {
+        bookBtnType = 'book';
+        bookBtnText = '预约';
+        bookBtnClass = '';
+      }
+    }
+
+    const bookedUsers = course.booked_users || [];
+    return {
+      ...course,
+      r: {
+        coachName: (course.coach_id && course.coach_id.name) || '待定',
+        coachAvatar: course.coachAvatar || '',
+        time: `${course.start_time || '00:00'} - ${course.end_time || '00:00'}`,
+        room: course.room || course.classroom || '',
+        danceStyle: course.danceStyleName || '',
+        danceTagBg: course.danceTagBg,
+        danceTagText: course.danceTagText,
+        minCapacity: `最低${course.min_bookings || 5}人成班`,
+        capacity: canViewCapacity ? `已约${course.current_bookings || 0}/${course.max_bookings || 20}` : '已约?/?',
+        capacityLocked: !canViewCapacity,
+        bookBtnType,
+        bookBtnText,
+        bookBtnClass,
+        showWaitlistBtn,
+        showAvatars: canViewCapacity && bookedUsers.length > 0,
+        avatarList: bookedUsers.slice(0, 10),
+        avatarMore: Math.max(0, bookedUsers.length - 10),
+        deadlineText: course.booking_deadline_text || '',
+        cancelDeadlineText: course.cancel_deadline_text || '',
+        showDeadline: isOfficial && !!course.booking_deadline_text,
+        showTime: isOfficial,
+        showMinCapacity: isOfficial,
+        showRoom: !!(course.room || course.classroom)
+      }
+    };
+  },
+
+  // 仅更新课程列表中各卡片的按钮状态（ bookedScheduleIds / waitlistedScheduleIds 变化时调用）
+  _updateCoursesButtonState() {
+    const { courses, isOfficial, isRestrictedUser, canViewCapacity, canBookCurrentStore, bookedScheduleIds, waitlistedScheduleIds, completedScheduleIds } = this.data;
+    if (!courses || courses.length === 0) return;
+
+    const pageState = { isOfficial, isRestrictedUser, canViewCapacity, canBookCurrentStore, bookedScheduleIds, waitlistedScheduleIds, completedScheduleIds };
+    const updates = {};
+    courses.forEach((course, index) => {
+      const rendered = this._computeCourseRender(course, pageState);
+      updates[`courses[${index}].r`] = rendered.r;
+    });
+    this.setData(updates);
   },
 
   _getDanceTagColor(styleName) {

@@ -25,7 +25,7 @@
     <view class="coach-list" wx:if="{{coaches.length > 0}}">
       <view class="coach-item card" wx:for="{{coaches}}" wx:key="_id">
         <view class="coach-main">
-          <image class="coach-avatar" src="{{item.avatar_url || '/images/default-avatar.svg'}}" mode="aspectFill"></image>
+          <image class="coach-avatar" src="{{item.avatar_url || '/images/default-avatar.svg'}}" mode="aspectFill" decoding="async"></image>
           <view class="coach-body">
             <view class="coach-row-top">
               <view class="coach-info">
@@ -128,7 +128,7 @@
         <view class="form-group">
           <text class="form-label">头像</text>
           <button id="agree-btn" class="avatar-upload" open-type="agreePrivacyAuthorization" bindagreeprivacyauthorization="onPrivacyAgreed" bindtap="onChooseAvatar">
-            <image class="avatar-preview" src="{{coachForm.avatar_url || '/images/default-avatar.svg'}}" mode="aspectFill"></image>
+            <image class="avatar-preview" src="{{coachForm.avatar_url || '/images/default-avatar.svg'}}" mode="aspectFill" decoding="async"></image>
             <text class="avatar-upload-text">点击上传</text>
           </button>
         </view>

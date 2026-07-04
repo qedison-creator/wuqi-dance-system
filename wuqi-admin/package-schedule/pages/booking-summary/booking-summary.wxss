@@ -566,9 +566,19 @@
   color: #5B8C5A;
 }
 
+.badge-checked-in {
+  background: rgba(91,140,90,0.08);
+  color: #5B8C5A;
+}
+
 .badge-booked {
   background: rgba(148,130,132,0.12);
   color: #6B5D5E;
+}
+
+.badge-course-cancel {
+  background: rgba(230,126,34,0.12);
+  color: #E67E22;
 }
 
 /* 取消类型标签 */

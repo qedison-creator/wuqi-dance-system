@@ -11,21 +11,22 @@ Page({
     activeTab: 'booked',
     // 已预约名单
     bookedList: [],
-    // 已签到名单
-    completedList: [],
-    // 已取消名单
+    // 已签到名单（含已完成）
+    checkedInList: [],
+    // 已取消名单（含豁免取消）
     cancelledList: [],
-    // 已豁免名单（如有）
-    exemptedList: [],
+    // 卡片预约人数（已预约+已签到）
+    totalBookedDisplay: 0,
     // 上课记录
     attendanceList: []
   },
 
   onLoad(options) {
     if (options.schedule_id) {
-      this.setData({ 
+      this.setData({
         scheduleId: options.schedule_id,
-        viewMode: options.view_mode || 'bookings'
+        viewMode: options.view_mode || 'bookings',
+        activeTab: options.tab || 'booked'
       });
       this.loadScheduleInfo();
       // 始终加载签到数据（预约视图也需要显示已签到Tab）
@@ -118,15 +119,17 @@ Page({
       // 分类处理（列表保留每一次记录）
 
       const bookedList = [];
-      const completedList = [];
+      const checkedInList = [];
       const cancelledList = [];
-      const exemptedList = [];
 
       allBookings.forEach(item => {
         const realName = item.user_id?.real_name;
         const nickName = item.user_id?.nick_name;
         const displayName = realName || nickName || '未知用户';
         const nickNameDisplay = realName && nickName && nickName !== realName ? nickName : '';
+        const status = item.status;
+        const cancelType = item.cancel_type;
+        const isExempted = status === 'exempted' || item.is_exempted;
         const booking = {
           _id: item._id,
           userName: displayName,
@@ -139,25 +142,36 @@ Page({
           creditsDeducted: item.credits_deducted || 0,
           remark: item.remark || '',
           checkInTime: item.check_in_time ? formatDateTime(item.check_in_time) : '',
-          checkedIn: item.checked_in || false
+          checkedIn: item.checked_in || status === 'checked_in' || status === 'completed',
+          isCompleted: status === 'completed',
+          cancelType: cancelType,
+          cancelReason: item.cancel_reason || '',
+          isExempted: isExempted,
+          creditsRefunded: item.credits_refunded || 0
         };
 
-        // 根据状态分类（没有缺勤业务，所有未签到的都自动签到）
-
-        const status = item.status;
-        if (status === 'booked') {
+        // 分类规则：
+        // 已预约：booked + 课程/admin取消的cancelled
+        // 已签到：checked_in + completed
+        // 已取消：用户自行取消的cancelled + 豁免取消
+        const isCourseCancel = status === 'cancelled' && ['admin_cancel', 'min_bookings_not_met', 'holiday', 'after_checkin_cancel'].includes(cancelType);
+        const isUserCancel = status === 'cancelled' && !isCourseCancel;
+        if (status === 'booked' || isCourseCancel) {
           bookedList.push(booking);
-        } else if (status === 'completed') {
-          completedList.push(booking);
-        } else if (status === 'cancelled') {
+        } else if (status === 'checked_in' || status === 'completed') {
+          checkedInList.push(booking);
+        } else if (isUserCancel || isExempted) {
+          let cancelReasonText = '';
+          if (isExempted) {
+            cancelReasonText = '豁免取消';
+          } else {
+            cancelReasonText = item.cancel_reason || '用户取消';
+          }
           cancelledList.push({
             ...booking,
             cancelTime: item.cancel_time ? formatDateTime(item.cancel_time) : '',
-            cancelReason: item.cancel_reason || '',
-            creditsRefunded: item.credits_refunded || 0
+            cancelReason: cancelReasonText
           });
-        } else if (status === 'exempted' || item.is_exempted) {
-          exemptedList.push(booking);
         }
       });
 
@@ -174,29 +188,32 @@ Page({
           userLatestMap.set(uid, item);
         }
       });
-      let bookedCount = 0, completedCount = 0, cancelledCount = 0, exemptedCount = 0;
+      let bookedCount = 0, checkedInCount = 0, cancelledCount = 0;
       userLatestMap.forEach(item => {
         const status = item.status;
-        if (status === 'booked') {
+        const cancelType = item.cancel_type;
+        const isCourseCancel = status === 'cancelled' && ['admin_cancel', 'min_bookings_not_met', 'holiday', 'after_checkin_cancel'].includes(cancelType);
+        const isUserCancel = status === 'cancelled' && !isCourseCancel;
+        const isExempted = status === 'exempted' || item.is_exempted;
+        if (status === 'booked' || isCourseCancel) {
           bookedCount++;
-        } else if (status === 'completed') {
-          completedCount++;
-        } else if (status === 'cancelled') {
+        } else if (status === 'checked_in' || status === 'completed') {
+          checkedInCount++;
+        } else if (isUserCancel || isExempted) {
           cancelledCount++;
-        } else if (status === 'exempted' || item.is_exempted) {
-          exemptedCount++;
         }
       });
+      // 卡片"预约人数"显示：已预约 + 已签到 = 所有实际预约人数
+      const totalBookedDisplay = bookedCount + checkedInCount;
 
       this.setData({
         bookedList,
-        completedList,
+        checkedInList,
         cancelledList,
-        exemptedList,
         bookedCount,
-        completedCount,
+        checkedInCount,
         cancelledCount,
-        exemptedCount
+        totalBookedDisplay
       });
     } catch (err) {
       console.error('加载预约名单失败', err);

@@ -229,199 +229,191 @@ Page({
     });
 
     try {
-      await Promise.all([
-        request({ url: '/packages/my' }).then(res => {
-          if (res.data) {
-            var packages = [];
-            var packageIds = {};
+      // 并行请求所有接口，单个失败不影响其他请求，最后统一 setData 减少渲染次数
+      const [packageRes, bookingRes, completedRes, meRes] = await Promise.all([
+        request({ url: '/packages/my' }).catch(err => { console.error('加载套餐信息失败:', err); return null; }),
+        request({ url: '/bookings/my?type=booking' }).catch(err => { console.error('加载预约统计失败:', err); return null; }),
+        request({ url: '/bookings/my?type=completed' }).catch(err => { console.error('加载上课统计失败:', err); return null; }),
+        request({ url: '/auth/me' }).catch(err => { console.error('加载用户信息失败:', err); return null; })
+      ]);
 
-            if (res.data.current) {
-              var currentPkg = {};
-              var keys = Object.keys(res.data.current);
-              for (var i = 0; i < keys.length; i++) {
-                currentPkg[keys[i]] = res.data.current[keys[i]];
+      const finalData = {};
+
+      // 处理套餐数据
+      if (packageRes && packageRes.data) {
+        var packages = [];
+        var packageIds = {};
+
+        if (packageRes.data.current) {
+          var currentPkg = {};
+          var keys = Object.keys(packageRes.data.current);
+          for (var i = 0; i < keys.length; i++) {
+            currentPkg[keys[i]] = packageRes.data.current[keys[i]];
+          }
+          packages.push(currentPkg);
+          packageIds[currentPkg._id] = true;
+        }
+
+        if (packageRes.data.history && packageRes.data.history.length > 0) {
+          packageRes.data.history.forEach(function(pkg) {
+            if (!packageIds[pkg._id]) {
+              packages.push(pkg);
+              packageIds[pkg._id] = true;
+            }
+          });
+        }
+
+        // 计算北京时区的自然日差值
+        const getBeijingDateStr = (date) => {
+          const d = new Date(date);
+          const beijingTime = d.getTime() + 8 * 60 * 60 * 1000;
+          const beijingDate = new Date(beijingTime);
+          return beijingDate.toISOString().split('T')[0];
+        };
+
+        const diffBeijingDays = (date1, date2) => {
+          const d1Str = getBeijingDateStr(date1);
+          const d2Str = getBeijingDateStr(date2);
+          const d1 = new Date(d1Str);
+          const d2 = new Date(d2Str);
+          return Math.floor((d2 - d1) / (1000 * 60 * 60 * 24));
+        };
+
+        packages.forEach(function(pkg) {
+          if (pkg.start_date) {
+            pkg.start_date_display = getBeijingDateStr(pkg.start_date);
+          }
+          if (pkg.end_date) {
+            pkg.end_date_display = getBeijingDateStr(pkg.end_date);
+            // 激活的套餐计算剩余天数（含停卡套餐，停卡时end_date已顺延，剩余天数保持冻结值）
+            if (pkg.is_activated && pkg.status === 'active') {
+              var now = new Date();
+              var end = new Date(pkg.end_date);
+              if (now <= end) {
+                var diff = diffBeijingDays(now, end);
+                pkg.remaining_days = Math.max(0, diff);
               }
-              packages.push(currentPkg);
-              packageIds[currentPkg._id] = true;
             }
+          }
+        });
 
-            if (res.data.history && res.data.history.length > 0) {
-              res.data.history.forEach(function(pkg) {
-                if (!packageIds[pkg._id]) {
-                  packages.push(pkg);
-                  packageIds[pkg._id] = true;
-                }
-              });
+        var currentPkg = packageRes.data.current;
+        var remainingClasses = 0;
+        if (currentPkg) {
+          if (currentPkg.package_type === 'count_card') {
+            remainingClasses = currentPkg.remaining_credits || 0;
+          } else if (currentPkg.package_type === 'time_card') {
+            var usage = packageRes.data.timeCardUsage;
+            if (usage) {
+              remainingClasses = usage.weekly_remaining !== null ? usage.weekly_remaining : (usage.daily_remaining !== null ? usage.daily_remaining : -1);
+            } else {
+              remainingClasses = currentPkg.daily_limit || currentPkg.weekly_limit || -1;
             }
-
-            // 计算北京时区的自然日差值
-    const getBeijingDateStr = (date) => {
-      const d = new Date(date);
-      const beijingTime = d.getTime() + 8 * 60 * 60 * 1000;
-      const beijingDate = new Date(beijingTime);
-      return beijingDate.toISOString().split('T')[0];
-    };
-
-    const diffBeijingDays = (date1, date2) => {
-      const d1Str = getBeijingDateStr(date1);
-      const d2Str = getBeijingDateStr(date2);
-      const d1 = new Date(d1Str);
-      const d2 = new Date(d2Str);
-      return Math.floor((d2 - d1) / (1000 * 60 * 60 * 24));
-    };
-
-    packages.forEach(function(pkg) {
-      if (pkg.start_date) {
-        pkg.start_date_display = getBeijingDateStr(pkg.start_date);
-      }
-      if (pkg.end_date) {
-        pkg.end_date_display = getBeijingDateStr(pkg.end_date);
-        // 激活的套餐计算剩余天数（含停卡套餐，停卡时end_date已顺延，剩余天数保持冻结值）
-
-        if (pkg.is_activated && pkg.status === 'active') {
-          var now = new Date();
-          var end = new Date(pkg.end_date);
-          if (now <= end) {
-            var diff = diffBeijingDays(now, end);
-            pkg.remaining_days = Math.max(0, diff);
           }
         }
+
+        if (packageRes.data.timeCardUsage && currentPkg && currentPkg.package_type === 'time_card') {
+          var idx = -1;
+          for (var j = 0; j < packages.length; j++) {
+            if (packages[j]._id === currentPkg._id) {
+              idx = j;
+              break;
+            }
+          }
+          if (idx >= 0) {
+            packages[idx].timeCardUsage = packageRes.data.timeCardUsage;
+          }
+        }
+
+        var hasPackage = packages && packages.length > 0;
+        var userInfo = this.data.userInfo;
+        var canChangeStore = !(hasPackage && userInfo && userInfo.member_status === 'official');
+        var memberStatus = this.computeMemberStatus(userInfo, packages);
+
+        finalData.packages = packages;
+        finalData.canChangeStore = canChangeStore;
+        finalData.stats = {
+          remainingClasses: remainingClasses,
+          totalBookings: 0,
+          completedClasses: 0
+        };
+
+        if (userInfo) {
+          finalData.memberSinceDays = this.getMemberSinceDays(userInfo, packages);
+        }
+
+        Object.assign(finalData, this._processPackageGroups(packages, memberStatus));
+      } else if (packageRes === null) {
+        finalData.packages = [];
+        finalData.allPackages = [];
+        finalData.currentPackage = null;
+        finalData.pendingPackages = [];
+        finalData.historyPackages = [];
       }
-    });
 
-            var currentPkg = res.data.current;
-            var remainingClasses = 0;
-            if (currentPkg) {
-              if (currentPkg.package_type === 'count_card') {
-                remainingClasses = currentPkg.remaining_credits || 0;
-              } else if (currentPkg.package_type === 'time_card') {
-                var usage = res.data.timeCardUsage;
-                if (usage) {
-                  remainingClasses = usage.weekly_remaining !== null ? usage.weekly_remaining : (usage.daily_remaining !== null ? usage.daily_remaining : -1);
-                } else {
-                  remainingClasses = currentPkg.daily_limit || currentPkg.weekly_limit || -1;
-                }
-              }
-            }
+      // 处理预约统计
+      finalData['stats.totalBookings'] = bookingRes && bookingRes.data && bookingRes.data.list ? bookingRes.data.list.length : 0;
+      finalData['stats.completedClasses'] = completedRes && completedRes.data && completedRes.data.list ? completedRes.data.list.length : 0;
 
-            if (res.data.timeCardUsage && currentPkg && currentPkg.package_type === 'time_card') {
-              var idx = -1;
-              for (var j = 0; j < packages.length; j++) {
-                if (packages[j]._id === currentPkg._id) {
-                  idx = j;
-                  break;
-                }
-              }
-              if (idx >= 0) {
-                packages[idx].timeCardUsage = res.data.timeCardUsage;
-              }
-            }
+      // 处理用户信息
+      if (meRes && meRes.data) {
+        var userInfo = meRes.data;
+        var storeObj = userInfo.store_id;
+        var storeId = typeof storeObj === 'object' && storeObj ? (storeObj._id || storeObj.id || '') : (storeObj || '');
+        var storeName = (storeObj && storeObj.name) || userInfo.store_name || '';
+        var storePhone = (storeObj && storeObj.phone) || '';
+        var profileForm = {
+          real_name: userInfo.real_name || '',
+          phone: userInfo.reserve_phone || userInfo.phone || '',
+          gender: userInfo.gender || 0,
+          store_id: storeId,
+          store_name: storeName
+        };
 
-            var hasPackage = packages && packages.length > 0;
-            var userInfo = this.data.userInfo;
-            var canChangeStore = !(hasPackage && userInfo && userInfo.member_status === 'official');
-            var memberStatus = this.computeMemberStatus(userInfo, packages);
+        var memberSinceDays = this.getMemberSinceDays(userInfo, this.data.packages);
+        var memberStatus = this.computeMemberStatus(userInfo, this.data.packages);
 
-            this.setData({
-              packages: packages,
-              canChangeStore: canChangeStore,
-              memberStatus: memberStatus,
-              stats: {
-                remainingClasses: remainingClasses,
-                totalBookings: this.data.stats.totalBookings,
-                completedClasses: this.data.stats.completedClasses
-              }
-            });
-            // 套餐加载完成后再按套餐开始日期校准加入天数，保持与已用天数口径一致
-            var userInfo = this.data.userInfo;
-            if (userInfo) {
-              this.setData({ memberSinceDays: this.getMemberSinceDays(userInfo, packages) });
-            }
-            this.processPackageGroups(packages, memberStatus);
-          }
-        }).catch(function(err) {
-          console.error('加载套餐信息失败:', err);
-          this.setData({
-            packages: [],
-            allPackages: [],
-            currentPackage: null,
-            pendingPackages: [],
-            historyPackages: []
-          });
-        }.bind(this)),
+        // 会员身份（'new'/'old'，默认 'new'）
+        var memberIdentity = userInfo.member_identity === 'old' ? 'old' : 'new';
+        // 预建档会员：有 reserve_phone 且无 phone
+        var isPreRegistered = !!(userInfo.reserve_phone && !userInfo.phone);
 
-        request({ url: '/bookings/my?type=booking' }).then(function(res) {
-          var totalBookings = res.data && res.data.list ? res.data.list.length : 0;
-          this.setData({
-            'stats.totalBookings': totalBookings
-          });
-        }.bind(this)).catch(function(err) {
-          console.error('加载预约统计失败:', err);
-        }),
+        // 同步 isOfficialMember 和 avatarSrc（/auth/me 返回的是 avatar_url）
+        var isOfficialMember = userInfo.member_status === 'official';
+        var avatarSrc = userInfo.avatar || userInfo.avatar_url || '/images/default-avatar.svg';
 
-        request({ url: '/bookings/my?type=completed' }).then(function(res) {
-          var completedClasses = res.data && res.data.list ? res.data.list.length : 0;
-          this.setData({
-            'stats.completedClasses': completedClasses
-          });
-        }.bind(this)).catch(function(err) {
-          console.error('加载上课统计失败:', err);
-        }),
+        Object.assign(finalData, {
+          userInfo: userInfo,
+          isOfficialMember: isOfficialMember,
+          avatarSrc: avatarSrc,
+          avatarImageError: false,
+          profileForm: profileForm,
+          storePhone: storePhone,
+          memberSinceDays: memberSinceDays,
+          memberStatus: memberStatus,
+          phoneAuditStatus: userInfo.phone_audit_status || 'none',
+          phoneAuditPendingPhone: userInfo.phone_audit_pending || '',
+          member_identity: memberIdentity,
+          isPreRegistered: isPreRegistered
+        });
 
-        request({ url: '/auth/me' }).then(function(res) {
-          if (res.data) {
-            var userInfo = res.data;
-            var storeObj = userInfo.store_id;
-            var storeId = typeof storeObj === 'object' && storeObj ? (storeObj._id || storeObj.id || '') : (storeObj || '');
-            var storeName = (storeObj && storeObj.name) || userInfo.store_name || '';
-            var storePhone = (storeObj && storeObj.phone) || '';
-            var profileForm = {
-              real_name: userInfo.real_name || '',
-              phone: userInfo.reserve_phone || userInfo.phone || '',
-              gender: userInfo.gender || 0,
-              store_id: storeId,
-              store_name: storeName
-            };
+        if (!storePhone && storeId) {
+          this.loadStorePhone(storeId);
+        }
+        app.globalData.userInfo = userInfo;
 
-            var memberSinceDays = this.getMemberSinceDays(userInfo, this.data.packages);
-            var memberStatus = this.computeMemberStatus(userInfo, this.data.packages);
+        // 检查是否需要完善个人信息
+        this._checkForceProfile(profileForm, userInfo);
+      }
 
-            // 会员身份（'new'/'old'，默认 'new'）
-            var memberIdentity = userInfo.member_identity === 'old' ? 'old' : 'new';
-            // 预建档会员：有 reserve_phone 且无 phone
-            var isPreRegistered = !!(userInfo.reserve_phone && !userInfo.phone);
+      // 合并 stats（优先使用接口返回的统计数据）
+      if (finalData.stats) {
+        finalData.stats.totalBookings = finalData['stats.totalBookings'] !== undefined ? finalData['stats.totalBookings'] : this.data.stats.totalBookings;
+        finalData.stats.completedClasses = finalData['stats.completedClasses'] !== undefined ? finalData['stats.completedClasses'] : this.data.stats.completedClasses;
+      }
 
-            // 同步 isOfficialMember 和 avatarSrc（/auth/me 返回的是 avatar_url）
-            var isOfficialMember = userInfo.member_status === 'official';
-            var avatarSrc = userInfo.avatar || userInfo.avatar_url || '/images/default-avatar.svg';
-
-            this.setData({
-              userInfo: userInfo,
-              isOfficialMember: isOfficialMember,
-              avatarSrc: avatarSrc,
-              avatarImageError: false,
-              profileForm: profileForm,
-              storePhone: storePhone,
-              memberSinceDays: memberSinceDays,
-              memberStatus: memberStatus,
-              phoneAuditStatus: userInfo.phone_audit_status || 'none',
-              phoneAuditPendingPhone: userInfo.phone_audit_pending || '',
-              member_identity: memberIdentity,
-              isPreRegistered: isPreRegistered
-            });
-
-            if (!storePhone && storeId) {
-              this.loadStorePhone(storeId);
-            }
-            app.globalData.userInfo = userInfo;
-
-            // 检查是否需要完善个人信息
-            this._checkForceProfile(profileForm, userInfo);
-          }
-        }.bind(this)).catch(function(err) {
-          console.error('加载用户信息失败:', err);
-        })
-      ]);
+      // 一次性设置所有页面数据，大幅减少渲染层通信次数
+      this.setData(finalData);
     } catch (err) {
       console.error('加载数据失败:', err);
     }
@@ -802,16 +794,19 @@ Page({
     });
   },
 
-  processPackageGroups(packages, memberStatus) {
+  // 返回套餐分组数据，由调用方统一 setData，避免多次触发渲染
+  _processPackageGroups(packages, memberStatus) {
     if (!memberStatus) memberStatus = 'disabled';
     if (!packages || !packages.length) {
-      this.setData({
+      return {
         allPackages: [],
         currentPackage: null,
+        activePackages: [],
         pendingPackages: [],
-        historyPackages: []
-      });
-      return;
+        historyPackages: [],
+        currentPackageType: '',
+        memberStatusText: memberStatus === 'active' ? '正式会员' : (memberStatus === 'suspended' ? '已停卡' : '待激活')
+      };
     }
 
     var currentPackage = null;
@@ -840,7 +835,8 @@ Page({
       // 门店名称
       pkg._storeName = (pkg.store_id && pkg.store_id.name) ? pkg.store_id.name : '';
 
-      // 套餐类型标签（简短版用于标签）      pkg._typeLabel = pkg.package_type === 'time_card' ? '时间卡' : '次卡';
+      // 套餐类型标签（简短版用于标签）
+      pkg._typeLabel = pkg.package_type === 'time_card' ? '时间卡' : '次卡';
       
       // 状态文案（情绪价值表达，无emoji）      // 动态修正：已激活但有效期已过的，标记为已过期
       var isExpired = pkg.is_activated && pkg.end_date && new Date() > new Date(pkg.end_date);
@@ -854,6 +850,18 @@ Page({
         pkg._statusText = '静待开启';
       } else {
         pkg._statusText = '已满员';
+      }
+
+      // 预计算常用展示字段，减少 WXML 渲染层重复计算
+      pkg._durationText = (pkg.duration_value || '-') + (pkg.duration_unit === 'month' ? '个月' : '天');
+      if (pkg.package_type === 'count_card') {
+        pkg._totalLabel = '总次数';
+        pkg._totalValue = (pkg.total_credits || 0) + ' 次';
+        pkg._pendingCreditsValue = (pkg.total_credits || pkg.remaining_credits || 0) + ' 次';
+      } else {
+        pkg._totalLabel = '服务有效期';
+        pkg._totalValue = pkg._durationText;
+        pkg._pendingCreditsValue = pkg._durationText;
       }
 
       // 自动激活日期
@@ -980,7 +988,7 @@ Page({
       currentPackageType = parts.join('、');
     }
 
-    this.setData({
+    return {
       allPackages: packages,
       currentPackage: currentPackage,
       activePackages: activePackages,
@@ -988,15 +996,25 @@ Page({
       historyPackages: historyPackages,
       currentPackageType: currentPackageType,
       memberStatusText: memberStatus === 'active' ? '正式会员' : (memberStatus === 'suspended' ? '已停卡' : '待激活')
-    });
+    };
+  },
+
+  // 兼容旧调用：直接 setData
+  processPackageGroups(packages, memberStatus) {
+    this.setData(this._processPackageGroups(packages, memberStatus));
   },
 
   onPackageTap(e) {
     var id = e.currentTarget.dataset.id;
     if (!id) return;
     var item = null;
-    if (this.data.currentPackage && this.data.currentPackage._id === id) {
-      item = this.data.currentPackage;
+    if (this.data.activePackages) {
+      for (var i = 0; i < this.data.activePackages.length; i++) {
+        if (this.data.activePackages[i]._id === id) {
+          item = this.data.activePackages[i];
+          break;
+        }
+      }
     }
     if (!item && this.data.pendingPackages) {
       for (var i = 0; i < this.data.pendingPackages.length; i++) {
@@ -1088,7 +1106,7 @@ Page({
   onAbout() {
     wx.showModal({
       title: '关于系统',
-      content: '舞栖舞蹈社会员预约系统V1.1.0.3c\n\n为您提供课程预约、教练查看、会员签到等一站式舞蹈学习服务。\n\n如有疑问请联系门店客服。',
+      content: '舞栖舞蹈社会员预约系统V1.1.0.5\n\n为您提供课程预约、教练查看、会员签到等一站式舞蹈学习服务。\n\n如有疑问请联系门店客服。',
       showCancel: false,
       confirmText: '我知道了',
       confirmColor: '#D4786E'

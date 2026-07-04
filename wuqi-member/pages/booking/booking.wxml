@@ -1,6 +1,5 @@
 <wxs src="../../utils/date-format.wxs" module="df" />
 <wxs src="../../utils/dance-colors.wxs" module="dc" />
-<wxs src="../../utils/compare.wxs" module="cmp" />
 
 <view class="booking-page">
     <view class="header-section">
@@ -50,93 +49,44 @@
       <view class="course-card" wx:for="{{courses}}" wx:key="_id" bindtap="onCourseTap" data-course="{{item}}">
         <view class="course-accent-bar" style="background: {{dc.getBarColor(index)}};"></view>
         <view class="card-left">
-          <image class="coach-avatar" src="{{item.coachAvatar}}" mode="aspectFill" wx:if="{{item.coachAvatar && !imageErrors['coach_' + item._id]}}" binderror="onCoachImgError" data-id="{{item._id}}" />
+          <image class="coach-avatar" src="{{item.r.coachAvatar}}" mode="aspectFill" wx:if="{{item.r.coachAvatar && !imageErrors['coach_' + item._id]}}" binderror="onCoachImgError" data-id="{{item._id}}" />
           <image class="coach-avatar" src="/images/default-avatar.svg" mode="aspectFill" wx:else />
-          <text class="coach-name-below">{{item.coach_id && item.coach_id.name || '待定'}}</text>
+          <text class="coach-name-below">{{item.r.coachName}}</text>
         </view>
         <view class="card-right">
           <view class="card-right-actions">
-            <!-- 受限用户：只显示3种状态 -->
-            <block wx:if="{{isRestrictedUser}}">
-              <view class="course-book-btn disabled" wx:if="{{item._ended}}">
-                <text>已结束</text>
-              </view>
-              <view class="course-book-btn disabled-clickable" wx:elif="{{!item.bookingOpen}}">
-                <text>未开放预约</text>
-              </view>
-              <view class="course-book-btn disabled-clickable" wx:else data-course="{{item}}" catchtap="onBookCourse">
-                <text>不可预约</text>
-              </view>
-            </block>
-            <!-- 正式会员：显示完整状态 -->
-            <block wx:else>
-              <view class="course-book-btn disabled" wx:if="{{item.status === 'cancelled'}}">
-                <text>已取消</text>
-              </view>
-              <view class="course-book-btn state-done" wx:elif="{{item._ended && cmp.contains(completedScheduleIds, item._id)}}">
-                <text>已完成</text>
-              </view>
-              <view class="course-book-btn disabled" wx:elif="{{item._ended}}">
-                <text>已结束</text>
-              </view>
-              <view class="course-book-btn state-ongoing" wx:elif="{{item._ongoing}}">
-                <text>进行中</text>
-              </view>
-              <view class="course-book-btn booked" wx:elif="{{cmp.contains(bookedScheduleIds, item._id)}}" data-course="{{item}}" catchtap="onBookCourse">
-                <text>已预约</text>
-              </view>
-              <view class="course-book-btn waitlist-btn waitlisted" wx:elif="{{cmp.contains(waitlistedScheduleIds, item._id)}}">
-                <text>候补中</text>
-              </view>
-              <block wx:elif="{{item.status === 'full'}}">
-                <view class="course-book-btn state-full">
-                  <text>已满</text>
-                </view>
-                <view class="course-book-btn waitlist-btn" wx:if="{{!cmp.contains(waitlistedScheduleIds, item._id)}}" data-course="{{item}}" catchtap="onBookCourse">
-                  <text>加入候补</text>
-                </view>
-              </block>
-              <view class="course-book-btn disabled-clickable" wx:elif="{{!item.bookingOpen}}">
-                <text>未开放预约</text>
-              </view>
-              <view class="course-book-btn disabled-clickable" wx:elif="{{isOfficial && !canBookCurrentStore}}" data-course="{{item}}" catchtap="onBookCourse">
-                <text>不可预约</text>
-              </view>
-              <view class="course-book-btn" wx:else data-course="{{item}}" catchtap="onBookCourse">
-                <text>预约</text>
-              </view>
-            </block>
+            <view class="course-book-btn {{item.r.bookBtnClass}}" data-course="{{item}}" catchtap="onBookCourse">
+              <text>{{item.r.bookBtnText}}</text>
+            </view>
+            <view class="course-book-btn waitlist-btn" wx:if="{{item.r.showWaitlistBtn}}" data-course="{{item}}" data-action="waitlist" catchtap="onBookCourse">
+              <text>加入候补</text>
+            </view>
           </view>
           <view class="course-time-row">
-            <text class="course-time" wx:if="{{isOfficial}}">{{item.start_time}} - {{item.end_time}}</text>
+            <text class="course-time" wx:if="{{item.r.showTime}}">{{item.r.time}}</text>
             <text class="course-time" wx:else>??:?? - ??:??</text>
-            <text class="min-capacity-text" wx:if="{{isOfficial}}">最低{{item.min_bookings || 5}}人成班</text>
+            <text class="min-capacity-text" wx:if="{{item.r.showMinCapacity}}">{{item.r.minCapacity}}</text>
             <text class="min-capacity-text" wx:else>最低?人成班</text>
           </view>
-          <view class="course-title-row">
-            <text class="course-title">{{item.course_name || '课程名称'}}</text>
-          </view>
+          <text class="course-title">{{item.course_name || '课程名称'}}</text>
           <view class="course-tag-row">
-            <view class="course-tag" wx:if="{{item.danceStyleName}}" style="background: {{item.danceTagBg}}; color: {{item.danceTagText}}">{{item.danceStyleName}}</view>
+            <view class="course-tag" wx:if="{{item.r.danceStyle}}" style="background: {{item.r.danceTagBg}}; color: {{item.r.danceTagText}}">{{item.r.danceStyle}}</view>
           </view>
-          <view class="course-detail-row">
-            <text class="course-room" wx:if="{{item.room || item.classroom}}">{{item.room || item.classroom}}</text>
-          </view>
-          <view class="course-deadline-row" wx:if="{{isOfficial && item.booking_deadline_text}}">
-            <text class="deadline-text">截止预约：{{item.booking_deadline_text}}</text>
-            <text class="deadline-text deadline-cancel">截止取消：{{item.cancel_deadline_text}}</text>
+          <text class="course-room" wx:if="{{item.r.showRoom}}">{{item.r.room}}</text>
+          <view class="course-deadline-row" wx:if="{{item.r.showDeadline}}">
+            <text class="deadline-text">截止预约：{{item.r.deadlineText}}</text>
+            <text class="deadline-text deadline-cancel">截止取消：{{item.r.cancelDeadlineText}}</text>
           </view>
           <view class="card-meta-row">
             <view class="card-stats">
-              <text class="capacity-text" wx:if="{{canViewCapacity}}">已约{{item.current_bookings || 0}}/{{item.max_bookings || 20}}</text>
-              <text class="capacity-text capacity-locked" wx:else>已约?/?</text>
+              <text class="capacity-text {{item.r.capacityLocked ? 'capacity-locked' : ''}}">{{item.r.capacity}}</text>
             </view>
-            <view class="booked-avatars" wx:if="{{canViewCapacity && item.booked_users && item.booked_users.length > 0}}">
-              <block wx:for="{{item.booked_users}}" wx:for-item="user" wx:for-index="ui" wx:key="user_id" wx:if="{{ui < 10}}">
+            <view class="booked-avatars" wx:if="{{item.r.showAvatars}}">
+              <block wx:for="{{item.r.avatarList}}" wx:for-item="user" wx:for-index="ui" wx:key="user_id">
                 <image class="booked-avatar" src="{{user.avatar_url}}" mode="aspectFill" style="z-index: {{ui + 1}};" lazy-load />
               </block>
-              <view class="booked-more" wx:if="{{item.booked_users.length > 10}}">
-                <text>+{{item.booked_users.length - 10}}</text>
+              <view class="booked-more" wx:if="{{item.r.avatarMore > 0}}">
+                <text>+{{item.r.avatarMore}}</text>
               </view>
             </view>
           </view>

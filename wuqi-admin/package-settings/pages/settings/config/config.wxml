@@ -26,7 +26,7 @@
     <view class="hero-item" wx:for="{{heroConfigs}}" wx:key="config_key">
       <view class="hero-left">
         <text class="hero-label">{{item.label}}</text>
-        <image class="hero-preview" src="{{item.config_value}}" mode="aspectFill"></image>
+        <image class="hero-preview" src="{{item.config_value}}" mode="aspectFill" decoding="async"></image>
       </view>
       <view class="hero-actions">
         <button id="agree-btn" class="hero-btn upload-btn" open-type="agreePrivacyAuthorization" bindagreeprivacyauthorization="onPrivacyAgreed" bindtap="onChooseHeroImage" data-index="{{index}}">

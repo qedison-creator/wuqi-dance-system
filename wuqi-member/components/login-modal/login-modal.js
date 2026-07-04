@@ -1,6 +1,10 @@
 const app = getApp();
 
 Component({
+  options: {
+    pureDataPattern: /^_/
+  },
+
   properties: {
     visible: {
       type: Boolean,

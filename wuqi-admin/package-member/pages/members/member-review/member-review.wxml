@@ -9,7 +9,7 @@
   <view class="review-list" wx:if="{{members.length > 0}}">
     <view class="review-card" wx:for="{{members}}" wx:key="_id">
       <view class="card-top">
-        <image class="card-avatar" src="{{item.avatar || '/images/default-avatar.svg'}}" mode="aspectFill"></image>
+        <image class="card-avatar" src="{{item.avatar || '/images/default-avatar.svg'}}" mode="aspectFill" decoding="async"></image>
         <view class="card-info">
           <view class="card-name-row">
             <text class="card-name">{{item.nickname || '未知'}}</text>

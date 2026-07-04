@@ -178,6 +178,28 @@
   color: var(--text-tertiary);
 }
 
+.status-tag {
+  font-size: 20rpx;
+  padding: 2rpx 10rpx;
+  border-radius: 8rpx;
+  font-weight: 500;
+}
+
+.status-tag.course-cancel {
+  background: #FFF3E0;
+  color: #E67E22;
+}
+
+.status-tag.completed-tag {
+  background: #E8F5E9;
+  color: #5B8C5A;
+}
+
+.status-tag.exempt-tag {
+  background: #F3E5F5;
+  color: #8E24AA;
+}
+
 .user-phone-row {
   display: flex;
   align-items: center;

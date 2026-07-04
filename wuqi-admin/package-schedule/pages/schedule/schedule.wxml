@@ -226,7 +226,7 @@
           </view>
           <view class="cover-upload-wrap" wx:else>
             <view class="cover-preview-box">
-              <image class="cover-preview-image" src="{{formData.coverUrl}}" mode="aspectFill" />
+              <image class="cover-preview-image" src="{{formData.coverUrl}}" mode="aspectFill" decoding="async" />
               <view class="cover-action-row">
                 <button id="agree-btn" class="cover-action-btn cover-action-change" open-type="agreePrivacyAuthorization" bindagreeprivacyauthorization="onPrivacyAgreed" bindtap="onChooseCover">
                   <text class="cover-action-text">更换封面</text>

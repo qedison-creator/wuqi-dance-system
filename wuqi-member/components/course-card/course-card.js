@@ -1,4 +1,8 @@
 Component({
+  options: {
+    pureDataPattern: /^_/
+  },
+
   properties: {
     course: {
       type: Object,

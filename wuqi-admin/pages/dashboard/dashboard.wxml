@@ -1,6 +1,6 @@
 <view class="page">
   <view class="hero">
-    <image wx:if="{{heroBackgroundUrl}}" class="hero-bg" src="{{heroBackgroundUrl}}" mode="aspectFill" binderror="onHeroImageError"></image>
+    <image wx:if="{{heroBackgroundUrl}}" class="hero-bg" src="{{heroBackgroundUrl}}" mode="aspectFill" binderror="onHeroImageError" decoding="async"></image>
     <view class="hero-content">
       <view class="hero-greet">
         <text class="hg-emoji">{{greeting.emoji}}</text>
@@ -92,7 +92,7 @@
               </view>
               <view class="audit-card" wx:for="{{pendingMembers}}" wx:key="_id" wx:for-item="pm">
                 <view class="audit-top">
-                  <image class="audit-avatar" src="{{pm.avatar_url || '/images/default-avatar.svg'}}" mode="aspectFill"/>
+                  <image class="audit-avatar" src="{{pm.avatar_url || '/images/default-avatar.svg'}}" mode="aspectFill" decoding="async" />
                   <view class="audit-info">
                     <view class="audit-name-row">
                       <text class="audit-name">{{pm.nick_name || pm.nickname || '未知'}}</text>
@@ -153,21 +153,17 @@
                   </view>
                 </view>
                 <view class="card-stats">
-                  <view class="stat-item">
+                  <view class="stat-item" catchtap="onStatTabTap" data-schedule-id="{{sch._id}}" data-tab="booked">
                     <text class="stat-num stat-booked">{{sch.bookedCount}}</text>
                     <text class="stat-label">已预约</text>
                   </view>
-                  <view class="stat-item">
+                  <view class="stat-item" catchtap="onStatTabTap" data-schedule-id="{{sch._id}}" data-tab="checkedIn">
                     <text class="stat-num stat-checked">{{sch.checkedInCount}}</text>
                     <text class="stat-label">已签到</text>
                   </view>
-                  <view class="stat-item">
+                  <view class="stat-item" catchtap="onStatTabTap" data-schedule-id="{{sch._id}}" data-tab="cancelled">
                     <text class="stat-num stat-cancelled">{{sch.cancelledCount}}</text>
                     <text class="stat-label">已取消</text>
-                  </view>
-                  <view class="stat-item">
-                    <text class="stat-num stat-exempted">{{sch.exemptedCount}}</text>
-                    <text class="stat-label">已豁免</text>
                   </view>
                 </view>
               </view>
@@ -179,7 +175,7 @@
               </view>
               <view class="member-card" wx:for="{{detailList}}" wx:key="_id" wx:for-item="member" data-member-id="{{member.member_id}}" bindtap="onMemberCardTap">
                 <view class="mc-avatar">
-                  <image wx:if="{{member.avatar_url}}" class="mc-avatar-img" src="{{member.avatar_url}}" mode="aspectFill"/>
+                  <image wx:if="{{member.avatar_url}}" class="mc-avatar-img" src="{{member.avatar_url}}" mode="aspectFill" decoding="async" />
                   <text wx:else class="mc-avatar-text">{{member.avatar_char}}</text>
                 </view>
                 <view class="mc-info">

@@ -35,6 +35,7 @@ const BOOKING_STATUS_LABEL_MAP = {
 
 // 预约记录页默认展开显示的条数
 const DEFAULT_VISIBLE_COUNT = 5;
+const PAGE_SIZE = 5;
 
 Page({
   data: {
@@ -43,12 +44,15 @@ Page({
     loading: true,
     page: 1,
     hasMore: true,
+    total: 0,
     // 预约记录页：默认展开显示最新5条，其余收起
-    bookingExpanded: false,
     bookingVisibleCount: DEFAULT_VISIBLE_COUNT,
     // 上课记录页：同样默认展开5条
-    attendanceExpanded: false,
-    attendanceVisibleCount: DEFAULT_VISIBLE_COUNT
+    attendanceVisibleCount: DEFAULT_VISIBLE_COUNT,
+    // 是否显示返回顶部按钮
+    showBackToTop: false,
+    // 第5条记录底部距离顶部的阈值
+    backToTopThreshold: 0
   },
 
   onLoad(options) {
@@ -105,7 +109,7 @@ Page({
 
     const isAttendanceTab = tab === 'attendance';
     const url = isAttendanceTab ? '/attendance/my' : '/bookings/my';
-    const params = { page: this.data.page, pageSize: 10 };
+    const params = { page: this.data.page, pageSize: PAGE_SIZE };
 
     if (tab === 'booking') {
       params.type = 'all';
@@ -175,11 +179,27 @@ Page({
         sortedRecords = newRecords.sort((a, b) => (b._sortTime || 0) - (a._sortTime || 0));
       }
 
+      const total = (res.data && res.data.total) || 0;
       const records = this.data.page === 1 ? sortedRecords : this.data.records.concat(sortedRecords);
+
+      // 每次加载后，把当前已加载的数据全部显示出来
+      const visibleCountKey = tab === 'booking' ? 'bookingVisibleCount' : 'attendanceVisibleCount';
+      const visibleCount = this.data.page === 1
+        ? Math.min(DEFAULT_VISIBLE_COUNT, records.length)
+        : records.length;
+
       this.setData({
         records,
+        total,
         loading: false,
-        hasMore: sortedRecords.length >= 10
+        hasMore: records.length < total,
+        [visibleCountKey]: visibleCount,
+        showBackToTop: false
+      }, () => {
+        // DOM 更新后再计算第5条记录位置
+        if (records.length >= DEFAULT_VISIBLE_COUNT) {
+          this._calcBackToTopThreshold();
+        }
       });
     }).catch((err) => {
       console.error('加载记录失败:', err);
@@ -251,35 +271,77 @@ Page({
 
   onTabChange(e) {
     const { tab } = e.currentTarget.dataset;
-    this.setData({ activeTab: tab, page: 1, hasMore: true });
+    this.setData({
+      activeTab: tab,
+      page: 1,
+      hasMore: true,
+      total: 0,
+      records: [],
+      bookingVisibleCount: DEFAULT_VISIBLE_COUNT,
+      attendanceVisibleCount: DEFAULT_VISIBLE_COUNT,
+      showBackToTop: false,
+      backToTopThreshold: 0
+    });
     this.loadRecords();
   },
 
-  // 展开/收起预约记录
+  // 加载更多预约记录（每次 5 条）
   onToggleBookingExpand() {
-    this.setData({
-      bookingExpanded: !this.data.bookingExpanded,
-      bookingVisibleCount: !this.data.bookingExpanded ? 9999 : DEFAULT_VISIBLE_COUNT
-    });
+    if (!this.data.hasMore || this.data.loading) return;
+    this.setData({ page: this.data.page + 1 });
+    this.loadRecords();
   },
 
-  // 展开/收起上课记录
+  // 加载更多上课记录（每次 5 条）
   onToggleAttendanceExpand() {
-    this.setData({
-      attendanceExpanded: !this.data.attendanceExpanded,
-      attendanceVisibleCount: !this.data.attendanceExpanded ? 9999 : DEFAULT_VISIBLE_COUNT
-    });
+    if (!this.data.hasMore || this.data.loading) return;
+    this.setData({ page: this.data.page + 1 });
+    this.loadRecords();
   },
 
   onReachBottom() {
-    if (this.data.hasMore && !this.data.loading && this.data.activeTab !== 'waitlist') {
-      this.setData({ page: this.data.page + 1 });
-      this.loadRecords();
+    // 不再自动加载，改为点击「查看更多」手动加载
+  },
+
+  onBackToTop() {
+    this.setData({ showBackToTop: false });
+    wx.pageScrollTo({ scrollTop: 0, duration: 300 });
+  },
+
+  onPageScroll(e) {
+    const threshold = this.data.backToTopThreshold;
+    const shouldShow = threshold > 0 && e.scrollTop > threshold;
+    if (shouldShow !== this.data.showBackToTop) {
+      this.setData({ showBackToTop: shouldShow });
     }
   },
 
+  // 计算第5条记录底部位置，作为返回顶部按钮显示阈值
+  _calcBackToTopThreshold() {
+    const query = wx.createSelectorQuery().in(this);
+    query.selectAll('.record-list .r-card').boundingClientRect();
+    query.selectViewport().scrollOffset();
+    query.exec((res) => {
+      const cards = res[0];
+      const scrollOffset = res[1];
+      if (cards && cards[4] && scrollOffset) {
+        this.setData({
+          backToTopThreshold: scrollOffset.scrollTop + cards[4].bottom
+        });
+      }
+    });
+  },
+
   onPullDownRefresh() {
-    this.setData({ page: 1, hasMore: true });
+    this.setData({
+      page: 1,
+      hasMore: true,
+      total: 0,
+      bookingVisibleCount: DEFAULT_VISIBLE_COUNT,
+      attendanceVisibleCount: DEFAULT_VISIBLE_COUNT,
+      showBackToTop: false,
+      backToTopThreshold: 0
+    });
     this.loadRecords().finally(() => {
       wx.stopPullDownRefresh();
     });

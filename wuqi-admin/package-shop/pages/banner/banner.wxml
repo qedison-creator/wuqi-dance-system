@@ -16,7 +16,7 @@
   <view class="banner-list" wx:if="{{banners.length > 0}}">
     <view class="banner-item" wx:for="{{banners}}" wx:key="_id">
       <view class="banner-preview">
-        <image class="banner-image" src="{{item.image_url}}" mode="aspectFill" />
+        <image class="banner-image" src="{{item.image_url}}" mode="aspectFill" decoding="async" />
         <view class="banner-overlay">
           <view class="banner-info">
             <text class="banner-title">{{item.title}}</text>
@@ -72,7 +72,7 @@
       <scroll-view class="modal-body" scroll-y enhanced show-scrollbar="{{false}}">
       <view class="upload-section">
         <button id="agree-btn" class="upload-area" open-type="agreePrivacyAuthorization" bindagreeprivacyauthorization="onPrivacyAgreed" bindtap="onChooseImage">
-          <image wx:if="{{formData.image_url}}" class="preview-image" src="{{formData.image_url}}" mode="aspectFill" />
+          <image wx:if="{{formData.image_url}}" class="preview-image" src="{{formData.image_url}}" mode="aspectFill" decoding="async" />
           <view wx:else class="upload-placeholder">
             <text class="upload-icon"></text>
             <text class="upload-text">点击上传图片</text>

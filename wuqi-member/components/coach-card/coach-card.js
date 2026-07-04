@@ -1,4 +1,8 @@
 Component({
+  options: {
+    pureDataPattern: /^_/
+  },
+
   properties: {
     coach: {
       type: Object,

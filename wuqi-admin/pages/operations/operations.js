@@ -62,18 +62,8 @@ Page({
     const weekdays = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
     const todayText = `${today.getFullYear()}年${today.getMonth() + 1}月${today.getDate()}日 ${weekdays[today.getDay()]}`;
 
-    const months = [];
-    const today2 = new Date();
-    for (let i = -365; i <= 90; i++) {
-      const date = new Date(today2);
-      date.setDate(today2.getDate() + i);
-      const year = date.getFullYear();
-      const month = String(date.getMonth() + 1).padStart(2, '0');
-      const monthKey = `${year}-${month}`;
-      if (!months.find(m => m.key === monthKey)) {
-        months.push({ key: monthKey, name: `${year}年${month}月`, year, month: parseInt(month) });
-      }
-    }
+    // 初始只生成当前月，用户切换月份时再动态扩展，避免一次性 setData 大量月份
+    const months = this._buildMonthRange(today, 0, 0);
 
     const todayMonthKey = todayStr.substring(0, 7);
     const currentMonthInfo = months.find(m => m.key === todayMonthKey);
@@ -95,6 +85,58 @@ Page({
     const month = String(date.getMonth() + 1).padStart(2, '0');
     const day = String(date.getDate()).padStart(2, '0');
     return `${year}-${month}-${day}`;
+  },
+
+  // 根据基准日期生成一段月份列表（relativeStart/End 为相对月数）
+  _buildMonthRange(baseDate, relativeStart, relativeEnd) {
+    const months = [];
+    for (let i = relativeStart; i <= relativeEnd; i++) {
+      const date = new Date(baseDate.getFullYear(), baseDate.getMonth() + i, 1);
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const monthKey = `${year}-${month}`;
+      if (!months.find(m => m.key === monthKey)) {
+        months.push({ key: monthKey, name: `${year}年${month}月`, year, month: parseInt(month) });
+      }
+    }
+    return months;
+  },
+
+  // 确保 monthList 在目标月份前后至少有 2 个月的缓冲，避免切换到底边界时无法继续翻页
+  _ensureMonthRange(targetMonthKey) {
+    const { monthList } = this.data;
+    if (!monthList || monthList.length === 0) return monthList;
+    const baseDate = new Date();
+    const [targetYear, targetMonth] = targetMonthKey.split('-').map(Number);
+    const targetDate = new Date(targetYear, targetMonth - 1, 1);
+    const first = monthList[0];
+    const last = monthList[monthList.length - 1];
+    const firstDate = new Date(first.year, first.month - 1, 1);
+    const lastDate = new Date(last.year, last.month - 1, 1);
+    let newMonths = monthList.slice();
+    // 向前扩展
+    let curDate = new Date(firstDate);
+    while ((curDate.getFullYear() * 12 + curDate.getMonth()) > (targetDate.getFullYear() * 12 + targetDate.getMonth() - 2)) {
+      curDate.setMonth(curDate.getMonth() - 1);
+      const year = curDate.getFullYear();
+      const month = String(curDate.getMonth() + 1).padStart(2, '0');
+      const key = `${year}-${month}`;
+      if (!newMonths.find(m => m.key === key)) {
+        newMonths.unshift({ key, name: `${year}年${month}月`, year, month: parseInt(month) });
+      }
+    }
+    // 向后扩展
+    curDate = new Date(lastDate);
+    while ((curDate.getFullYear() * 12 + curDate.getMonth()) < (targetDate.getFullYear() * 12 + targetDate.getMonth() + 2)) {
+      curDate.setMonth(curDate.getMonth() + 1);
+      const year = curDate.getFullYear();
+      const month = String(curDate.getMonth() + 1).padStart(2, '0');
+      const key = `${year}-${month}`;
+      if (!newMonths.find(m => m.key === key)) {
+        newMonths.push({ key, name: `${year}年${month}月`, year, month: parseInt(month) });
+      }
+    }
+    return newMonths;
   },
 
   async loadStores() {
@@ -182,10 +224,11 @@ Page({
           course_name: schedule.course_name || (schedule.dance_style_name || '课程'),
           dance_style_name: schedule.dance_style_name || (schedule.dance_style_id && schedule.dance_style_id.name || ''),
           coach_name: schedule.coach_name || (schedule.coach_id && schedule.coach_id.name || ''),
-          bookedCount: bookingStats.booked,
+          // 卡片"已预约"显示：已预约 + 已签到（所有实际预约人数）
+          bookedCount: (bookingStats.booked || 0) + (bookingStats.checkedIn || 0),
           checkedInCount: bookingStats.checkedIn,
-          cancelledCount: bookingStats.cancelled,
-          exemptedCount: bookingStats.exempted
+          // 已取消含豁免取消
+          cancelledCount: (bookingStats.cancelled || 0) + (bookingStats.exempted || 0)
         };
       });
 
@@ -218,13 +261,20 @@ Page({
       let booked = 0, checkedIn = 0, cancelled = 0, exempted = 0;
       userLatestMap.forEach(item => {
         const status = item.status;
-        const isCheckedIn = item.checked_in || status === 'checked_in';
+        const cancelType = item.cancel_type;
+        // 因课程/admin原因取消的，仍算实际预约人数
+        const isCourseCancel = status === 'cancelled' && ['admin_cancel', 'min_bookings_not_met', 'holiday', 'after_checkin_cancel'].includes(cancelType);
+        const isUserCancel = status === 'cancelled' && !isCourseCancel;
+        const isExempted = status === 'exempted' || item.is_exempted;
+        // 已签到 + 已完成 都归入"已签到"
+        const isCheckedIn = item.checked_in || status === 'checked_in' || status === 'completed';
         if (isCheckedIn) checkedIn++;
-        if (status === 'booked' || status === 'checked_in') {
+        // 预约人数（卡片显示）：booked + checked_in + completed + 课程取消的cancelled
+        if (status === 'booked' || status === 'checked_in' || status === 'completed' || isCourseCancel) {
           booked++;
-        } else if (status === 'exempted' || item.is_exempted) {
+        } else if (isExempted) {
           exempted++;
-        } else if (status === 'cancelled') {
+        } else if (isUserCancel) {
           cancelled++;
         }
       });
@@ -348,15 +398,42 @@ Page({
 
   onChangeMonth(e) {
     const direction = e.currentTarget.dataset.direction;
-    const { monthList, currentMonth } = this.data;
+    let { monthList, currentMonth } = this.data;
     const idx = monthList.findIndex(m => m.key === currentMonth);
-    let newIdx = idx;
-    if (direction === 'prev' && idx > 0) newIdx = idx - 1;
-    if (direction === 'next' && idx < monthList.length - 1) newIdx = idx + 1;
-    if (newIdx !== idx) {
-      const newMonth = monthList[newIdx].key;
-      this.loadMonthSchedules(newMonth);
+    let newMonth = '';
+
+    if (direction === 'prev') {
+      if (idx > 0) {
+        newMonth = monthList[idx - 1].key;
+      } else if (monthList.length > 0) {
+        // 已在最前，动态生成上一个月
+        const first = monthList[0];
+        const prevDate = new Date(first.year, first.month - 2, 1);
+        const y = prevDate.getFullYear();
+        const m = String(prevDate.getMonth() + 1).padStart(2, '0');
+        newMonth = `${y}-${m}`;
+      }
+    } else if (direction === 'next') {
+      if (idx < monthList.length - 1) {
+        newMonth = monthList[idx + 1].key;
+      } else if (monthList.length > 0) {
+        // 已在最后，动态生成下一个月
+        const last = monthList[monthList.length - 1];
+        const nextDate = new Date(last.year, last.month, 1);
+        const y = nextDate.getFullYear();
+        const m = String(nextDate.getMonth() + 1).padStart(2, '0');
+        newMonth = `${y}-${m}`;
+      }
     }
+
+    if (!newMonth) return;
+
+    // 动态扩展月份列表，保证前后都有缓冲月可翻页
+    const extendedMonths = this._ensureMonthRange(newMonth);
+    if (extendedMonths.length !== monthList.length) {
+      this.setData({ monthList: extendedMonths });
+    }
+    this.loadMonthSchedules(newMonth);
   },
 
   // 返回今日
@@ -435,10 +512,11 @@ Page({
           course_name: schedule.course_name || (schedule.dance_style_name || '课程'),
           dance_style_name: schedule.dance_style_name || '',
           coach_name: schedule.coach_name || (schedule.coach_id && schedule.coach_id.name || ''),
-          bookedCount: bookingStats.booked,
+          // 卡片"已预约"显示：已预约 + 已签到（所有实际预约人数）
+          bookedCount: (bookingStats.booked || 0) + (bookingStats.checkedIn || 0),
           checkedInCount: bookingStats.checkedIn,
-          cancelledCount: bookingStats.cancelled,
-          exemptedCount: bookingStats.exempted
+          // 已取消含豁免取消
+          cancelledCount: (bookingStats.cancelled || 0) + (bookingStats.exempted || 0)
         };
       });
 
@@ -450,6 +528,7 @@ Page({
 
   async onOpenBookingPanel(e) {
     const schedule = e.currentTarget.dataset.schedule;
+    const tab = e.currentTarget.dataset.tab || 'booked';
     this.setData({
       showBookingPanel: true,
       panelSchedule: {
@@ -459,7 +538,7 @@ Page({
         coach_name: schedule.coach_name || '',
         date: schedule.date || this.data.currentDate || this.data.todayDate
       },
-      activeTab: 'booked',
+      activeTab: tab,
       bookedList: [],
       checkedInList: [],
       cancelledList: []
@@ -485,6 +564,8 @@ Page({
         const nickName = item.user_id?.nick_name;
         const displayName = realName || nickName || '未知用户';
         const nickNameDisplay = realName && nickName && nickName !== realName ? nickName : '';
+        const status = item.status;
+        const cancelType = item.cancel_type;
         const booking = {
           _id: item._id,
           userName: displayName,
@@ -495,38 +576,40 @@ Page({
           userAvatar: fixImageUrl(item.user_id?.avatar_url),
           bookingTime: item.created_at ? formatDateTime(item.created_at) : '',
           creditsDeducted: item.credits_deducted || 0,
-          checkedIn: item.checked_in || item.status === 'checked_in'
+          checkedIn: item.checked_in || status === 'checked_in' || status === 'completed',
+          isCompleted: status === 'completed',
+          cancelType: cancelType,
+          cancelReason: item.cancel_reason || '',
+          creditsRefunded: item.credits_refunded || 0
         };
-        const status = item.status;
-        const isCheckedIn = item.checked_in || status === 'checked_in';
+        const isCourseCancel = status === 'cancelled' && ['admin_cancel', 'min_bookings_not_met', 'holiday', 'after_checkin_cancel'].includes(cancelType);
+        const isUserCancel = status === 'cancelled' && !isCourseCancel;
+        const isExempted = status === 'exempted' || item.is_exempted;
+        const isCheckedIn = item.checked_in || status === 'checked_in' || status === 'completed';
+        // 已签到（含已完成）：checked_in + completed
         if (isCheckedIn) {
           checkedInList.push(booking);
         }
-        if (status === 'booked' || status === 'checked_in') {
+        // 已预约：booked + 课程/admin取消的（不含已签到/已完成）
+        if (status === 'booked' || isCourseCancel) {
           bookedList.push(booking);
-        } else if (status === 'cancelled' || status === 'exempted' || item.is_exempted) {
-          // 已豁免并入已取消
-          let cancelReason = '';
-          if (status === 'exempted' || item.is_exempted) {
-            cancelReason = '豁免';
-          } else if (item.cancel_type === 'after_checkin_cancel') {
-            // 课程中取消：显示管理员勾选的具体原因
-            const reason = item.cancel_reason || '';
-            cancelReason = reason ? ('课程中因' + reason + '取消') : '课程中取消';
+        } else if (isUserCancel || isExempted) {
+          // 已取消：用户自行取消 + 豁免取消
+          let cancelReasonText = '';
+          if (isExempted) {
+            cancelReasonText = '豁免取消';
           } else {
-            cancelReason = item.cancel_reason || '';
+            cancelReasonText = item.cancel_reason || '用户取消';
           }
           cancelledList.push({
             ...booking,
             cancelTime: item.cancel_time ? formatDateTime(item.cancel_time) : '',
-            creditsRefunded: item.credits_refunded || 0,
-            cancelReason: cancelReason
+            cancelReason: cancelReasonText
           });
         }
       });
 
       // 统计按人数（同一用户多次预约只算1次，取最新状态）
-      // 按创建时间倒序，后出现的覆盖先出现的（最新状态优先）
       const sortedAll = [...all].sort((a, b) => {
         const ta = a.created_at ? new Date(a.created_at).getTime() : 0;
         const tb = b.created_at ? new Date(b.created_at).getTime() : 0;
@@ -542,20 +625,27 @@ Page({
       let bookedCount = 0, checkedInCount = 0, cancelledCount = 0;
       userLatestMap.forEach(item => {
         const status = item.status;
-        const isCheckedIn = item.checked_in || status === 'checked_in';
+        const cancelType = item.cancel_type;
+        const isCourseCancel = status === 'cancelled' && ['admin_cancel', 'min_bookings_not_met', 'holiday', 'after_checkin_cancel'].includes(cancelType);
+        const isUserCancel = status === 'cancelled' && !isCourseCancel;
+        const isExempted = status === 'exempted' || item.is_exempted;
+        const isCheckedIn = item.checked_in || status === 'checked_in' || status === 'completed';
         if (isCheckedIn) {
           checkedInCount++;
         }
-        if (status === 'booked' || status === 'checked_in') {
+        if (status === 'booked' || isCourseCancel) {
           bookedCount++;
-        } else if (status === 'cancelled' || status === 'exempted' || item.is_exempted) {
+        } else if (isUserCancel || isExempted) {
           cancelledCount++;
         }
       });
+      // 卡片"预约人数"显示：已预约 + 已签到 = 所有实际预约人数
+      const totalBookedDisplay = bookedCount + checkedInCount;
 
       this.setData({
         bookedList, checkedInList, cancelledList,
-        bookedCount, checkedInCount, cancelledCount
+        bookedCount, checkedInCount, cancelledCount,
+        totalBookedDisplay
       });
     } catch (err) {
       console.error('加载预约名单失败', err);

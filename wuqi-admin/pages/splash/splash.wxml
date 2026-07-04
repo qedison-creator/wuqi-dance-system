@@ -1,5 +1,5 @@
 <view class="splash-container">
   <view class="logo-wrapper {{ready ? 'logo-show' : ''}}">
-    <image src="/images/logo.png" mode="aspectFit" class="logo-img"></image>
+    <image src="/images/logo.png" mode="aspectFit" class="logo-img" decoding="async"></image>
   </view>
 </view>

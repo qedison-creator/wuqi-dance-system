@@ -1,4 +1,7 @@
 Component({
+  options: {
+    pureDataPattern: /^_/
+  },
   properties: {
     current: {
       type: Number,

@@ -51,7 +51,7 @@
     <view class="member-card" wx:for="{{list}}" wx:key="_id">
       <view class="member-card-top">
         <view class="member-avatar-placeholder">
-          <image wx:if="{{item.avatar_url}}" class="member-avatar-img" src="{{item.avatar_url}}" mode="aspectFill" lazy-load></image>
+          <image wx:if="{{item.avatar_url}}" class="member-avatar-img" src="{{item.avatar_url}}" mode="aspectFill" lazy-load decoding="async"></image>
           <text wx:else class="avatar-text">{{item.real_name ? item.real_name[0] : '?'}}</text>
         </view>
         <view class="member-info">

@@ -364,13 +364,10 @@ page {
   margin-top: 4rpx;
 }
 
-.course-title-row {
+.course-title {
   display: flex;
   align-items: center;
   margin-bottom: 8rpx;
-}
-
-.course-title {
   font-size: 32rpx;
   font-weight: 700;
   color: #2A2122;
@@ -394,13 +391,10 @@ page {
   color: #FFFFFF;
 }
 
-.course-detail-row {
+.course-room {
   display: flex;
   align-items: center;
   margin-bottom: 14rpx;
-}
-
-.course-room {
   font-size: 24rpx;
   color: #8A7775;
 }
