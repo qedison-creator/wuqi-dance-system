@@ -68,6 +68,7 @@
           <view class="package-badges">
             <text class="package-type-badge">{{item.package_type === 'time_card' ? '时间卡' : '次卡'}}</text>
             <text class="package-store-badge" wx:if="{{item.store_id && item.store_id.name}}">{{item.store_id.name}}</text>
+            <text class="package-cross-store-badge" wx:if="{{item.extra_store_ids && item.extra_store_ids.length > 0}}">可跨店</text>
             <text class="package-status-badge {{item.is_suspended ? 'suspended' : (item.is_activated ? (item._displayStatus || item.status) : 'pending')}}">{{item.is_suspended ? '已停用' : (item.is_activated ? ((item._displayStatus || item.status) === 'active' ? '使用中' : ((item._displayStatus || item.status) === 'expired' ? '已过期' : '已用完')) : '待激活')}}</text>
           </view>
           <view class="package-actions">
@@ -306,6 +307,18 @@
       </view>
 
       <view class="form-group">
+        <text class="form-label">附加门店（可跨店使用）</text>
+        <view class="extra-store-list">
+          <view class="extra-store-switch-row"
+                wx:for="{{addExtraStoreOptions}}" wx:key="_id" wx:for-item="storeItem">
+            <text class="extra-store-switch-label">{{storeItem.name}}</text>
+            <switch class="extra-store-switch" checked="{{storeItem.checked}}"
+                    data-id="{{storeItem._id}}" bindchange="onToggleAddPackageExtraStore" color="#C4663E" />
+          </view>
+        </view>
+      </view>
+
+      <view class="form-group">
         <text class="form-label">套餐类型 *</text>
         <view class="package-type-selector">
           <view class="type-option {{addPackageForm.package_type === 'count_card' ? 'active' : ''}}" data-type="count_card" bindtap="onAddPackageTypeChange">
@@ -450,6 +463,18 @@
       <view class="form-group" wx:if="{{editPackageForm.package_type === 'time_card' && editPackageForm.limit_type !== 'unlimited'}}">
         <text class="form-label">{{editPackageForm.limit_type === 'daily' ? '每日限制' : '每周限制'}} *</text>
         <input class="input-field" type="number" placeholder="{{editPackageForm.limit_type === 'daily' ? '每日限制次数' : '每周限制次数'}}" value="{{editPackageForm.limit_value}}" data-field="limit_value" bindinput="onEditPackageInput" />
+      </view>
+
+      <view class="form-group">
+        <text class="form-label">附加门店（可跨店使用）</text>
+        <view class="extra-store-list">
+          <view class="extra-store-switch-row"
+                wx:for="{{editExtraStoreOptions}}" wx:key="_id" wx:for-item="storeItem">
+            <text class="extra-store-switch-label">{{storeItem.name}}</text>
+            <switch class="extra-store-switch" checked="{{storeItem.checked}}"
+                    data-id="{{storeItem._id}}" bindchange="onToggleEditPackageExtraStore" color="#C4663E" />
+          </view>
+        </view>
       </view>
 
       <view class="form-group">

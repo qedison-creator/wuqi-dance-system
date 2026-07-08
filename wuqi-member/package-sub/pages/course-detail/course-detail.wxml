@@ -100,13 +100,17 @@
   </view>
 
   <view class="bottom-bar">
-    <!-- 受限用户：只显示3种状态 -->
+    <!-- 受限用户：已结束 / 未开放预约 / 已预约（可取消）/ 不可预约 -->
     <block wx:if="{{isRestrictedUser}}">
       <view class="bb-primary disabled" wx:if="{{isEnded}}">
         <text>已结束</text>
       </view>
       <view class="bb-primary disabled" wx:elif="{{!bookingWindowOpen}}">
         <text>未开放预约</text>
+      </view>
+      <view class="bb-btns" wx:elif="{{isBooked && isOfficial}}">
+        <view class="bb-secondary {{!canCancel ? 'disabled' : ''}}" bindtap="onCancelTap">取消预约</view>
+        <view class="bb-primary state-booked">已预约</view>
       </view>
       <view class="bb-primary disabled-clickable" wx:else bindtap="onBookTap">
         <text>不可预约</text>

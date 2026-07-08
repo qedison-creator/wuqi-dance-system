@@ -142,6 +142,13 @@ Page({
           const sid = typeof pkg.store_id === 'string' ? pkg.store_id : (pkg.store_id._id || pkg.store_id);
           if (sid) storeIds.add(String(sid));
         }
+        // 附加门店（跨店使用）
+        if (Array.isArray(pkg.extra_store_ids)) {
+          pkg.extra_store_ids.forEach(eid => {
+            const sid = typeof eid === 'string' ? eid : (eid._id || eid);
+            if (sid) storeIds.add(String(sid));
+          });
+        }
       });
       this.setData({ memberPackageStoreIds: Array.from(storeIds) });
       // 套餐门店列表加载完成后，重新校准已加载课程列表的 courseStoreMatched 字段
@@ -185,7 +192,27 @@ Page({
       if (pkg.package_type === 'count_card' && (pkg.remaining_credits || 0) === 0) return false;
       return true;
     });
-    if (hasValid) return '';
+    if (hasValid) {
+      // 时间卡周期限制检查：只有时间卡套餐且周期次数用完时阻止预约
+      const timeCardUsage = pkgData.timeCardUsage;
+      if (timeCardUsage) {
+        const hasOtherValidPackage = packages.some(pkg => {
+          if (pkg.package_type === 'time_card') return false;
+          if (pkg.status === 'pending') return true;
+          if (pkg.status !== 'active' || pkg.is_suspended) return false;
+          if (pkg.is_activated && pkg.end_date && new Date() > new Date(pkg.end_date)) return false;
+          if (pkg.package_type === 'count_card' && (pkg.remaining_credits || 0) === 0) return false;
+          return true;
+        });
+        if (!hasOtherValidPackage) {
+          const dailyExhausted = timeCardUsage.daily_remaining === 0 && timeCardUsage.daily_limit > 0;
+          const weeklyExhausted = timeCardUsage.weekly_remaining === 0 && timeCardUsage.weekly_limit > 0;
+          if (dailyExhausted) return '今日次数已用完，请明天再约';
+          if (weeklyExhausted) return '本周次数已用完，请下周再约';
+        }
+      }
+      return '';
+    }
     const hasExpired = packages.some(pkg => {
       if (pkg.status !== 'active') return false;
       if (pkg.is_suspended) return false;
@@ -433,6 +460,13 @@ Page({
         this.setData({ isLoggedInShowing: true });
         return;
       }
+      const course = e.currentTarget.dataset.course;
+      const courseId = course ? String(course._id) : '';
+      // 已预约的课程：提示用户进入课程详情页取消
+      if (courseId && this.cmpContains(this.data.bookedScheduleIds, course._id)) {
+        wx.showToast({ title: '您已预约该课程。如需取消，请在课程详情页面中操作', icon: 'none', duration: 2500 });
+        return;
+      }
       wx.showModal({
         title: '无法预约',
         content: this.data.restrictedReason,
@@ -573,22 +607,27 @@ Page({
   },
 
   async doBook(scheduleId) {
-    wx.showLoading({ title: '预约中...' });
-
     try {
-      const { fetchTemplates, requestBookingSubscribe, getAcceptedTemplates } = require('../../../utils/subscribe-message');
-      await fetchTemplates();
-      const subscribeResult = await requestBookingSubscribe();
-      const acceptedTemplates = getAcceptedTemplates(subscribeResult);
-
-      await request({
+      // 发起API请求（不等待，让后端并行处理）
+      const apiPromise = request({
         url: '/bookings',
         method: 'POST',
         data: { schedule_id: scheduleId }
       });
 
-      wx.hideLoading();
+      // 同时立即弹出消息授权弹窗
+      const { requestBookingSubscribe, getAcceptedTemplates } = require('../../../utils/subscribe-message');
+      const subscribeResult = await requestBookingSubscribe();
+      const acceptedTemplates = getAcceptedTemplates(subscribeResult);
 
+      // 等待API响应（此时通常已完成）
+      await apiPromise;
+
+      // 更新页面数据和按钮状态
+      await this.refreshCourses();
+      this.loadUserPackages();
+
+      // 最后弹成功提示
       if (acceptedTemplates.length > 0) {
         wx.showModal({
           title: '预约成功',
@@ -600,10 +639,7 @@ Page({
       } else {
         wx.showToast({ title: '预约成功', icon: 'success' });
       }
-
-      await this.refreshCourses();
     } catch (err) {
-      wx.hideLoading();
       wx.showToast({ title: err.message || '预约失败', icon: 'none' });
     }
   },

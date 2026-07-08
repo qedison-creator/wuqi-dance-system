@@ -241,6 +241,13 @@ Page({
           const sid = typeof pkg.store_id === 'string' ? pkg.store_id : (pkg.store_id._id || pkg.store_id);
           if (sid) storeIds.add(String(sid));
         }
+        // 附加门店（跨店使用）
+        if (Array.isArray(pkg.extra_store_ids)) {
+          pkg.extra_store_ids.forEach(eid => {
+            const sid = typeof eid === 'string' ? eid : (eid._id || eid);
+            if (sid) storeIds.add(String(sid));
+          });
+        }
       });
       this.setData({ memberPackageStoreIds: Array.from(storeIds) });
       // 重新计算课程门店匹配
@@ -270,7 +277,27 @@ Page({
       if (pkg.package_type === 'count_card' && (pkg.remaining_credits || 0) === 0) return false;
       return true;
     });
-    if (hasValid) return '';
+    if (hasValid) {
+      // 时间卡周期限制检查：只有时间卡套餐且周期次数用完时阻止预约
+      const timeCardUsage = pkgData.timeCardUsage;
+      if (timeCardUsage) {
+        const hasOtherValidPackage = packages.some(pkg => {
+          if (pkg.package_type === 'time_card') return false;
+          if (pkg.status === 'pending') return true;
+          if (pkg.status !== 'active' || pkg.is_suspended) return false;
+          if (pkg.is_activated && pkg.end_date && new Date() > new Date(pkg.end_date)) return false;
+          if (pkg.package_type === 'count_card' && (pkg.remaining_credits || 0) === 0) return false;
+          return true;
+        });
+        if (!hasOtherValidPackage) {
+          const dailyExhausted = timeCardUsage.daily_remaining === 0 && timeCardUsage.daily_limit > 0;
+          const weeklyExhausted = timeCardUsage.weekly_remaining === 0 && timeCardUsage.weekly_limit > 0;
+          if (dailyExhausted) return '今日次数已用完，请明天再约';
+          if (weeklyExhausted) return '本周次数已用完，请下周再约';
+        }
+      }
+      return '';
+    }
     const hasExpired = packages.some(pkg => {
       if (pkg.status !== 'active') return false;
       if (pkg.is_suspended) return false;
@@ -719,30 +746,32 @@ Page({
       return;
     }
 
-    // 请求取消通知订阅授权
     try {
-      const { fetchTemplates, requestCancelSubscribe } = require('../../../utils/subscribe-message');
-      await fetchTemplates();
-      await requestCancelSubscribe();
-    } catch (e) {
-      console.log('[CourseDetail] 请求取消通知授权失败，继续取消流程:', e.message);
-    }
-
-    wx.showLoading({ title: '取消中...' });
-    
-    try {
-      await request({
+      // 发起API请求（不等待，让后端并行处理）
+      const apiPromise = request({
         url: `/bookings/${currentBookingId}/cancel`,
         method: 'PUT'
       });
       
-      wx.hideLoading();
-      wx.showToast({ title: '已取消预约', icon: 'success' });
+      // 同时立即弹出取消通知订阅授权
+      try {
+        const { requestCancelSubscribe } = require('../../../utils/subscribe-message');
+        await requestCancelSubscribe();
+      } catch (e) {
+        console.log('[CourseDetail] 请求取消通知授权失败:', e.message);
+      }
       
+      // 等待API响应（此时通常已完成）
+      await apiPromise;
+      
+      // 更新页面数据和按钮状态
       this.loadCourseDetail(this.data.courseId);
       this.loadUserBookings();
+      this.loadUserPackages();
+      
+      // 最后弹成功提示
+      wx.showToast({ title: '已取消预约', icon: 'success' });
     } catch (err) {
-      wx.hideLoading();
       wx.showToast({ title: err.message || '取消失败，请重试', icon: 'none' });
     }
   },
@@ -771,28 +800,29 @@ Page({
   },
 
   async doBook() {
-    let loadingShown = false;
     try {
-      // 先请求订阅消息授权（在预约成功前请求）
-      const { fetchTemplates, requestBookingSubscribe, getAcceptedTemplates } = require('../../../utils/subscribe-message');
-      await fetchTemplates();
-      const subscribeResult = await requestBookingSubscribe();
-      const acceptedTemplates = getAcceptedTemplates(subscribeResult);
-
-      wx.showLoading({ title: '预约中...' });
-      loadingShown = true;
-      
-      // 执行预约
-      await request({
+      // 发起API请求（不等待，让后端并行处理）
+      const apiPromise = request({
         url: '/bookings',
         method: 'POST',
         data: { schedule_id: this.data.courseId }
       });
       
-      wx.hideLoading();
-      loadingShown = false;
+      // 同时立即弹出消息授权弹窗
+      const { fetchTemplates, requestBookingSubscribe, getAcceptedTemplates } = require('../../../utils/subscribe-message');
+      await fetchTemplates();
+      const subscribeResult = await requestBookingSubscribe();
+      const acceptedTemplates = getAcceptedTemplates(subscribeResult);
       
-      // 显示预约成功，并提示用户已开启消息提醒
+      // 等待API响应（此时通常已完成）
+      await apiPromise;
+      
+      // 更新页面数据和按钮状态
+      this.loadCourseDetail(this.data.courseId);
+      this.loadUserBookings();
+      this.loadUserPackages();
+      
+      // 最后弹成功提示
       if (acceptedTemplates.length > 0) {
         wx.showModal({
           title: '预约成功',
@@ -804,14 +834,7 @@ Page({
       } else {
         wx.showToast({ title: '预约成功', icon: 'success' });
       }
-      
-      this.loadCourseDetail(this.data.courseId);
-      this.loadUserBookings();
-      this.loadUserPackages();
     } catch (err) {
-      if (loadingShown) {
-        wx.hideLoading();
-      }
       const errMsg = err.message || '预约失败，请重试';
       if (errMsg.includes('已达上限') || errMsg.includes('套餐状态') || errMsg.includes('无可用套餐') || errMsg.includes('已过期') || errMsg.includes('已用完') || errMsg.includes('剩余次数不足')) {
         this.setData({

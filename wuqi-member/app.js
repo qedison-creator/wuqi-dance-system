@@ -319,10 +319,19 @@ App({
       });
       const storeIds = [...new Set(
         activePackages
-          .map(p => {
-            const s = p.store_id;
-            return typeof s === 'object' && s ? (s._id || s.id || '') : (s || '');
-          })
+          .reduce((acc, p) => {
+            const ids = [];
+            const mainStore = p.store_id;
+            const mainId = typeof mainStore === 'object' && mainStore ? (mainStore._id || mainStore.id || '') : (mainStore || '');
+            if (mainId) ids.push(mainId);
+            if (Array.isArray(p.extra_store_ids)) {
+              p.extra_store_ids.forEach(s => {
+                const sid = typeof s === 'object' && s ? (s._id || s.id || '') : (s || '');
+                if (sid) ids.push(sid);
+              });
+            }
+            return acc.concat(ids);
+          }, [])
           .filter(Boolean)
       )];
 

@@ -40,6 +40,7 @@ exports.getMyPackage = async (userId) => {
 
   let packages = await UserPackage.find({ user_id: userId })
     .populate('store_id', 'name')
+    .populate('extra_store_ids', 'name')
     .sort({ created_at: 1 });
 
   // 强制修正：已激活且过期的 active 套餐必须标记为 expired，避免前端/后端状态不同步
@@ -149,7 +150,7 @@ async function calcTimeCardUsage(userPackage) {
 
 // 录入套餐(为用户分配套餐) — 不自动过期旧套餐，新套餐状态为pending
 exports.createPackage = async (data, operatorId) => {
-  const { user_id, package_id, store_id, package_type, total_credits, duration_value, duration_unit, daily_limit, weekly_limit, remark } = data;
+  const { user_id, package_id, store_id, extra_store_ids, package_type, total_credits, duration_value, duration_unit, daily_limit, weekly_limit, remark } = data;
 
   if (!user_id) throw new Error('用户ID不能为空');
   if (!package_type) throw new Error('套餐类型不能为空');
@@ -163,6 +164,7 @@ exports.createPackage = async (data, operatorId) => {
     user_id,
     package_id: package_id || null,
     store_id: store_id || null,
+    extra_store_ids: extra_store_ids || [],
     package_type,
     total_credits: total_credits || 0,
     remaining_credits: total_credits || 0,
@@ -379,8 +381,8 @@ exports.updatePackage = async (id, data) => {
   // 已激活的套餐只允许修改部分字段
   const isActivated = userPackage.is_activated;
   const allowedFields = isActivated
-    ? ['remaining_credits', 'end_date', 'daily_limit', 'weekly_limit', 'status', 'remark']
-    : ['package_type', 'total_credits', 'remaining_credits', 'duration_value', 'duration_unit', 'daily_limit', 'weekly_limit', 'status', 'remark'];
+    ? ['remaining_credits', 'end_date', 'daily_limit', 'weekly_limit', 'status', 'remark', 'extra_store_ids']
+    : ['package_type', 'total_credits', 'remaining_credits', 'duration_value', 'duration_unit', 'daily_limit', 'weekly_limit', 'status', 'remark', 'extra_store_ids'];
 
   for (const key of Object.keys(data)) {
     if (allowedFields.includes(key)) {

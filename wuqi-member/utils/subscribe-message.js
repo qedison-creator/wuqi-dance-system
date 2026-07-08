@@ -77,7 +77,7 @@ const fetchTemplates = (force = false) => {
             resolve();
           }
         });
-      }, attempt === 0 ? 500 : 1500);
+      }, attempt === 0 ? 200 : 800);
     };
     doFetch();
   });
@@ -167,6 +167,15 @@ const requestSubscribeMessage = (tmplIds, sceneKey = '', skipGuide = false) => {
     if (skipGuide) {
       doRequestWechat();
       return;
+    }
+
+    // 先检查本地缓存：如果所有模板都已标记为接受，无需调 wx.getSetting
+    if (sceneKey) {
+      const allAcceptedLocally = validIds.every(id => isTemplateAcceptedLocally(id));
+      if (allAcceptedLocally) {
+        doRequestWechat();
+        return;
+      }
     }
 
     // 检查用户是否已授权所有需要的模板（已勾选"总是保持"的模板无需再弹引导窗）
@@ -272,7 +281,7 @@ const requestBookingSubscribe = async () => {
  * 取消预约时：预约取消通知 + 不活跃提醒 + 次卡低次数
  */
 const requestCancelSubscribe = async () => {
-  await fetchTemplates(true);
+  await fetchTemplates();
   const ids = [
     SUBSCRIBE_TEMPLATES.BOOKING_CANCEL_BY_USER,
     SUBSCRIBE_TEMPLATES.MEMBER_INACTIVE_REMIND,
@@ -324,7 +333,7 @@ const requestPackageSubscribe = async () => {
  * 提交手机号审核时：审核结果 + 不活跃提醒 + 次卡低次数
  */
 const requestPhoneAuditSubscribe = async () => {
-  await fetchTemplates(true);
+  await fetchTemplates();
   const ids = [
     SUBSCRIBE_TEMPLATES.PHONE_AUDIT_RESULT,
     SUBSCRIBE_TEMPLATES.MEMBER_INACTIVE_REMIND,

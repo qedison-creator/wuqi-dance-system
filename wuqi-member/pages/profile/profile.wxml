@@ -68,17 +68,17 @@
     <view class="stats-section" wx:if="{{userInfo.member_status === 'official'}}">
       <view class="stats-row">
         <view class="stat-card stat-clickable" bindtap="onStatTap" data-tab="booking">
-          <text class="stat-num">{{stats.totalBookings}}</text>
+          <text class="stat-num">{{statsReady ? stats.totalBookings : '--'}}</text>
           <text class="stat-label">待上课</text>
         </view>
         <view class="stat-divider"></view>
         <view class="stat-card stat-clickable" bindtap="onStatTap" data-tab="attendance">
-          <text class="stat-num">{{stats.completedClasses}}</text>
+          <text class="stat-num">{{statsReady ? stats.completedClasses : '--'}}</text>
           <text class="stat-label">已上课</text>
         </view>
         <view class="stat-divider"></view>
         <view class="stat-card">
-          <text class="stat-num {{stats.remainingClasses === -1 ? 'stat-infinity' : ''}}">{{stats.remainingClasses === -1 ? '∞' : stats.remainingClasses}}</text>
+          <text class="stat-num {{stats.remainingClasses === -1 ? 'stat-infinity' : ''}}">{{statsReady ? (stats.remainingClasses === -1 ? '∞' : stats.remainingClasses) : '--'}}</text>
           <text class="stat-label">{{stats.remainingClasses === -1 ? '不限次数' : '本周剩余'}}</text>
         </view>
       </view>
@@ -120,6 +120,9 @@
             <view class="pkg-new-header">
               <view class="pkg-tag pkg-tag-store" wx:if="{{item._storeName}}">
                 <text class="pkg-tag-text">{{item._storeName}}</text>
+              </view>
+              <view class="pkg-tag pkg-tag-cross-store" wx:if="{{item._crossStore}}">
+                <text class="pkg-tag-text">可跨店</text>
               </view>
               <view class="pkg-tag pkg-tag-type-{{item.package_type}}" wx:if="{{item._typeLabel}}">
                 <text class="pkg-tag-text">{{item._typeLabel}}</text>
@@ -194,6 +197,9 @@
               <view class="pkg-tag pkg-tag-store" wx:if="{{item._storeName}}">
                 <text class="pkg-tag-text">{{item._storeName}}</text>
               </view>
+              <view class="pkg-tag pkg-tag-cross-store" wx:if="{{item._crossStore}}">
+                <text class="pkg-tag-text">可跨店</text>
+              </view>
               <view class="pkg-tag pkg-tag-type-{{item.package_type}}" wx:if="{{item._typeLabel}}">
                 <text class="pkg-tag-text">{{item._typeLabel}}</text>
               </view>
@@ -246,6 +252,9 @@
                   <view class="pkg-new-header-left">
                     <view class="pkg-tag pkg-tag-store" wx:if="{{item._storeName}}">
                       <text class="pkg-tag-text">{{item._storeName}}</text>
+                    </view>
+                    <view class="pkg-tag pkg-tag-cross-store" wx:if="{{item._crossStore}}">
+                      <text class="pkg-tag-text">可跨店</text>
                     </view>
                     <view class="pkg-tag pkg-tag-type-{{item.package_type}}" wx:if="{{item._typeLabel}}">
                       <text class="pkg-tag-text">{{item._typeLabel}}</text>
@@ -352,13 +361,6 @@
           <text class="menu-item-title">联系门店</text>
           <view class="menu-item-arrow"></view>
         </view>
-        <view class="menu-item" bindtap="onAbout">
-          <view class="menu-icon-wrap muted">
-            <image class="menu-icon" src="/images/icons/info.svg" mode="aspectFit"></image>
-          </view>
-          <text class="menu-item-title">关于系统</text>
-          <view class="menu-item-arrow"></view>
-        </view>
       </view>
     </view>
 
@@ -391,13 +393,6 @@
           <text class="menu-item-title">联系门店</text>
           <view class="menu-item-arrow"></view>
         </view>
-        <view class="menu-item" bindtap="onAbout">
-          <view class="menu-icon-wrap muted">
-            <image class="menu-icon" src="/images/icons/info.svg" mode="aspectFit"></image>
-          </view>
-          <text class="menu-item-title">关于系统</text>
-          <view class="menu-item-arrow"></view>
-        </view>
       </view>
     </view>
 
@@ -421,6 +416,13 @@
             <image class="menu-icon" src="/images/icons/document.svg" mode="aspectFit"></image>
           </view>
           <text class="menu-item-title">用户协议</text>
+          <view class="menu-item-arrow"></view>
+        </view>
+        <view class="menu-item" bindtap="onAbout">
+          <view class="menu-icon-wrap muted">
+            <image class="menu-icon" src="/images/icons/info.svg" mode="aspectFit"></image>
+          </view>
+          <text class="menu-item-title">关于系统</text>
           <view class="menu-item-arrow"></view>
         </view>
       </view>
@@ -511,13 +513,6 @@
           <text class="menu-item-title">联系门店</text>
           <view class="menu-item-arrow"></view>
         </view>
-        <view class="menu-item" bindtap="onAbout">
-          <view class="menu-icon-wrap muted">
-            <image class="menu-icon" src="/images/icons/info.svg" mode="aspectFit"></image>
-          </view>
-          <text class="menu-item-title">关于系统</text>
-          <view class="menu-item-arrow"></view>
-        </view>
       </view>
     </view>
 
@@ -543,6 +538,13 @@
           <text class="menu-item-title">用户协议</text>
           <view class="menu-item-arrow"></view>
         </view>
+        <view class="menu-item" bindtap="onAbout">
+          <view class="menu-icon-wrap muted">
+            <image class="menu-icon" src="/images/icons/info.svg" mode="aspectFit"></image>
+          </view>
+          <text class="menu-item-title">关于系统</text>
+          <view class="menu-item-arrow"></view>
+        </view>
       </view>
     </view>
   </block>
@@ -559,6 +561,10 @@
       <view class="pkg-sheet-section">
         <text class="pkg-sheet-label">所属门店</text>
         <text class="pkg-sheet-value">{{detailPackage._storeName || '未指定'}}</text>
+      </view>
+      <view class="pkg-sheet-section" wx:if="{{detailPackage._crossStore}}">
+        <text class="pkg-sheet-label">跨店使用</text>
+        <text class="pkg-sheet-value">支持</text>
       </view>
       <view class="pkg-sheet-section">
         <text class="pkg-sheet-label">套餐类型</text>

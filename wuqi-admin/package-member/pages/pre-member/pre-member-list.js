@@ -2,6 +2,15 @@ const { request } = require('../../../utils/request');
 const { fixImageUrl } = require('../../../utils/util');
 const wsClient = require('../../../utils/websocket-client');
 
+// 统一把门店 ID 转成字符串，避免 ObjectId 对象与字符串比较失败
+const _normalizeStoreId = (id) => {
+  if (!id) return '';
+  if (typeof id === 'object') {
+    return id._id || id.id || (id.toString ? id.toString() : '') || '';
+  }
+  return String(id);
+};
+
 Page({
   data: {
     loading: false,
@@ -21,6 +30,7 @@ Page({
       reserve_phone: '',
       store_id: '',
       store_name: '',
+      extra_store_ids: [],
       member_identity: 'old',
       package_type: '',
       start_date: '',
@@ -38,7 +48,9 @@ Page({
     showDatePicker: false,
     datePickerField: '', // start_date / end_date
     datePickerValue: '',
-    datePickerTitle: ''
+    datePickerTitle: '',
+    // 附加门店开关选项（预计算 checked 状态）
+    formExtraStoreOptions: []
   },
 
   onLoad() {
@@ -67,7 +79,8 @@ Page({
   async loadStoreList() {
     try {
       const res = await request({ url: '/stores', method: 'GET' });
-      const list = res.data && res.data.list ? res.data.list : (Array.isArray(res.data) ? res.data : []);
+      const rawList = res.data && res.data.list ? res.data.list : (Array.isArray(res.data) ? res.data : []);
+      const list = rawList.map(s => ({ ...s, _id: _normalizeStoreId(s._id) }));
       this.setData({
         storeList: list,
         storeListForPicker: list
@@ -200,8 +213,9 @@ Page({
         real_name: '',
         gender: 0,
         reserve_phone: '',
-        store_id: defaultStore ? defaultStore._id : '',
+        store_id: defaultStore ? _normalizeStoreId(defaultStore._id) : '',
         store_name: defaultStore ? defaultStore.name : '',
+        extra_store_ids: [],
         member_identity: 'old',
         package_type: '',
         start_date: '',
@@ -214,6 +228,7 @@ Page({
         remark: ''
       }
     });
+    this._buildFormExtraStoreOptions();
   },
 
   async onEditPreMember(e) {
@@ -230,8 +245,9 @@ Page({
           real_name: data.real_name || '',
           gender: data.gender || 0,
           reserve_phone: data.reserve_phone || '',
-          store_id: storeObj._id || '',
+          store_id: _normalizeStoreId(storeObj._id) || '',
           store_name: storeObj.name || '',
+          extra_store_ids: pkg && pkg.extra_store_ids ? pkg.extra_store_ids.map(s => _normalizeStoreId(typeof s === 'object' ? (s._id || s.id) : s)) : [],
           member_identity: data.member_identity || 'new',
           package_type: pkg ? pkg.package_type : '',
           start_date: pkg && pkg.start_date ? this._formatDate(pkg.start_date) : '',
@@ -244,6 +260,7 @@ Page({
           remark: data.remark || ''
         }
       });
+      this._buildFormExtraStoreOptions();
     } catch (err) {
       wx.showToast({ title: '加载详情失败', icon: 'none' });
     }
@@ -297,15 +314,63 @@ Page({
 
   onSelectStore(e) {
     const { id, name } = e.currentTarget.dataset;
-    // 先更新选中态，让用户立即看到高亮反馈
+    const normalizedId = _normalizeStoreId(id);
     this.setData({
-      'form.store_id': id,
+      'form.store_id': normalizedId,
       'form.store_name': name
     });
+    // 主门店变更时，从附加门店中移除新主门店
+    let { extra_store_ids } = this.data.form;
+    extra_store_ids = (extra_store_ids || []).slice();
+    const idx = extra_store_ids.indexOf(normalizedId);
+    if (idx > -1) {
+      extra_store_ids.splice(idx, 1);
+      this.setData({ 'form.extra_store_ids': extra_store_ids });
+    }
+    // 重建开关选项（主门店变更后过滤条件变化）
+    this._buildFormExtraStoreOptions();
     // 延迟 300ms 关闭弹窗，让用户看到选中动画
     setTimeout(() => {
       this.setData({ showStorePicker: false });
     }, 300);
+  },
+
+  /**
+   * 构建附加门店开关选项列表（预计算 checked 状态，避免 WXML 中 indexOf 不可靠）
+   */
+  _buildFormExtraStoreOptions() {
+    const { storeList, form } = this.data;
+    const storeId = _normalizeStoreId(form.store_id);
+    const extraIds = form.extra_store_ids || [];
+    const options = storeList
+      .filter(s => s.status === 'active' && _normalizeStoreId(s._id) !== storeId)
+      .map(s => ({
+        _id: _normalizeStoreId(s._id),
+        name: s.name,
+        checked: extraIds.indexOf(_normalizeStoreId(s._id)) > -1
+      }));
+    this.setData({ formExtraStoreOptions: options });
+  },
+
+  onToggleExtraStore(e) {
+    const { id } = e.currentTarget.dataset;
+    const checked = e.detail.value;
+    const normalizedId = _normalizeStoreId(id);
+    const storeId = _normalizeStoreId(this.data.form.store_id);
+    if (normalizedId === storeId) {
+      wx.showToast({ title: '该门店已为主门店', icon: 'none' });
+      return;
+    }
+    const extraStoreIds = (this.data.form.extra_store_ids || []).slice();
+    const idx = extraStoreIds.indexOf(normalizedId);
+    if (checked && idx === -1) {
+      extraStoreIds.push(normalizedId);
+    } else if (!checked && idx > -1) {
+      extraStoreIds.splice(idx, 1);
+    }
+    this.setData({ 'form.extra_store_ids': extraStoreIds });
+    // 同步更新开关选项的 checked 状态
+    this._buildFormExtraStoreOptions();
   },
 
   // ========== 自定义日期选择器 ==========
@@ -399,7 +464,8 @@ Page({
 
     if (form.package_type) {
       const packageData = {
-        package_type: form.package_type
+        package_type: form.package_type,
+        extra_store_ids: form.extra_store_ids || []
       };
       if (form.member_identity === 'new') {
         // 新会员：传时长，后端激活时计算起止日期

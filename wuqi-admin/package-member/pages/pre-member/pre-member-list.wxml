@@ -127,6 +127,18 @@
           <text class="picker-arrow">›</text>
         </view>
       </view>
+      <!-- 附加门店（跨店使用），仅选择套餐类型后显示 -->
+      <view class="form-group" wx:if="{{form.package_type}}">
+        <text class="form-label">附加门店（可跨店使用）</text>
+        <view class="extra-store-list">
+          <view class="extra-store-switch-row"
+                wx:for="{{formExtraStoreOptions}}" wx:key="_id" wx:for-item="storeItem">
+            <text class="extra-store-switch-label">{{storeItem.name}}</text>
+            <switch class="extra-store-switch" checked="{{storeItem.checked}}"
+                    data-id="{{storeItem._id}}" bindchange="onToggleExtraStore" color="#C4663E" />
+          </view>
+        </view>
+      </view>
       <view class="form-group">
         <text class="form-label">会员姓名 *</text>
         <input class="input-field" placeholder="请输入会员姓名" placeholder-class="input-placeholder" maxlength="20" value="{{form.real_name}}" bindinput="onFormInput" data-field="real_name" />

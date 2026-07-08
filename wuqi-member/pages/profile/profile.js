@@ -30,6 +30,7 @@ Page({
     historyPackages: [],
     showPackageHistory: false,
     imageErrors: {},
+    statsReady: false,
     stats: {
       totalBookings: 0,
       completedClasses: 0,
@@ -220,14 +221,6 @@ Page({
   },
 
   async loadUserData() {
-    this.setData({
-      stats: {
-        totalBookings: 0,
-        completedClasses: 0,
-        remainingClasses: 0
-      }
-    });
-
     try {
       // 并行请求所有接口，单个失败不影响其他请求，最后统一 setData 减少渲染次数
       const [packageRes, bookingRes, completedRes, meRes] = await Promise.all([
@@ -413,7 +406,7 @@ Page({
       }
 
       // 一次性设置所有页面数据，大幅减少渲染层通信次数
-      this.setData(finalData);
+      this.setData(Object.assign(finalData, { statsReady: true }));
     } catch (err) {
       console.error('加载数据失败:', err);
     }
@@ -834,6 +827,9 @@ Page({
     packages.forEach(function(pkg) {
       // 门店名称
       pkg._storeName = (pkg.store_id && pkg.store_id.name) ? pkg.store_id.name : '';
+
+      // 跨店标识：extra_store_ids 非空表示可跨店使用
+      pkg._crossStore = Array.isArray(pkg.extra_store_ids) && pkg.extra_store_ids.length > 0;
 
       // 套餐类型标签（简短版用于标签）
       pkg._typeLabel = pkg.package_type === 'time_card' ? '时间卡' : '次卡';

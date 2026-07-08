@@ -497,6 +497,35 @@
   color: #FFFFFF;
 }
 
+/* 附加门店开关 */
+.extra-store-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4rpx;
+}
+
+.extra-store-switch-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20rpx 0;
+  border-bottom: 1rpx solid #F0EBE2;
+}
+
+.extra-store-switch-row:last-child {
+  border-bottom: none;
+}
+
+.extra-store-switch-label {
+  font-size: 28rpx;
+  color: #5C5246;
+}
+
+.extra-store-switch {
+  transform: scale(0.85);
+  transform-origin: right center;
+}
+
 .form-divider {
   height: 1rpx;
   background: #F0EBE2;

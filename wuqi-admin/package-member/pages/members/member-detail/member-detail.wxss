@@ -757,6 +757,48 @@
   color: var(--color-primary);
 }
 
+/* 附加门店开关 */
+.extra-store-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4rpx;
+}
+
+.extra-store-switch-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20rpx 0;
+  border-bottom: 1rpx solid var(--border);
+}
+
+.extra-store-switch-row:last-child {
+  border-bottom: none;
+}
+
+.extra-store-switch-label {
+  font-size: 28rpx;
+  color: var(--text-secondary);
+}
+
+.extra-store-switch {
+  transform: scale(0.85);
+  transform-origin: right center;
+}
+
+/* 套餐列表"可跨店"标签 */
+.package-cross-store-badge {
+  display: inline-block;
+  padding: 4rpx 12rpx;
+  border-radius: var(--radius-xl);
+  font-size: 22rpx;
+  background-color: var(--color-success-bg);
+  color: var(--color-success);
+  white-space: nowrap;
+  flex-shrink: 0;
+  margin-left: 8rpx;
+}
+
 .duration-input-row {
   display: flex;
   gap: 16rpx;

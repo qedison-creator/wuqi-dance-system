@@ -103,13 +103,16 @@
             </view>
           </view>
           <view class="cd-course-action">
-            <!-- 受限用户：只显示3种状态 -->
+            <!-- 受限用户：已结束 / 未开放预约 / 已预约（可取消）/ 不可预约 -->
             <block wx:if="{{isRestrictedUser}}">
               <view class="cd-book-btn disabled" wx:if="{{item._ended}}">
                 <text>已结束</text>
               </view>
               <view class="cd-book-btn disabled-clickable" wx:elif="{{!item.bookingOpen}}">
                 <text>未开放预约</text>
+              </view>
+              <view class="cd-book-btn booked" wx:elif="{{cmp.contains(bookedScheduleIds, item._id)}}" data-course="{{item}}" catchtap="onBookTap">
+                <text>已预约</text>
               </view>
               <view class="cd-book-btn disabled-clickable" wx:else data-course="{{item}}" catchtap="onBookTap">
                 <text>不可预约</text>

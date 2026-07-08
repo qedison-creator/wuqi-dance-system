@@ -2,6 +2,15 @@ const { request } = require('../../../../utils/request');
 const { getBeijingDate } = require('../../../../utils/helpers');
 const { fixImageUrl } = require('../../../../utils/util');
 
+// 统一把门店 ID 转成字符串，避免 ObjectId 对象与字符串比较失败
+const _normalizeStoreId = (id) => {
+  if (!id) return '';
+  if (typeof id === 'object') {
+    return id._id || id.id || (id.toString ? id.toString() : '') || '';
+  }
+  return String(id);
+};
+
 // 预约状态文案映射（booking 专属状态，与课程状态不同）
 // 统一分类：待上课 / 已完成 / 已取消
 const BOOKING_STATUS_TEXT_MAP = {
@@ -47,6 +56,9 @@ Page({
     addPackageForm: {},
     addPackageStoreList: [],
     addPackageFormStoreIndex: 0,
+    addExtraStoreOptions: [],
+    // 编辑套餐附加门店开关选项
+    editExtraStoreOptions: [],
     // 删除会员
     showDeleteModal: false,
     deleteConfirmName: '',
@@ -313,10 +325,22 @@ Page({
   /**
    * 修改套餐
    */
-  onEditPackage(e) {
+  async onEditPackage(e) {
     const { id } = e.currentTarget.dataset;
     const pkg = this.data.packages.find(p => p._id === id);
     if (!pkg) return;
+
+    // 确保门店列表已加载（供附加门店多选使用）
+    if (!this.data.addPackageStoreList || this.data.addPackageStoreList.length === 0) {
+      try {
+        const storeRes = await request({ url: '/stores' });
+        const stores = storeRes.data && (Array.isArray(storeRes.data) ? storeRes.data : (storeRes.data.list || []));
+        const storeList = stores.filter(s => s.status === 'active').map(s => ({ ...s, _id: _normalizeStoreId(s._id) }));
+        this.setData({ addPackageStoreList: storeList });
+      } catch (err) {
+        console.error('获取门店列表失败', err);
+      }
+    }
 
     this.setData({
       showPackageEditModal: true,
@@ -329,9 +353,11 @@ Page({
         duration_unit: pkg.duration_unit || 'month',
         limit_type: pkg.daily_limit ? 'daily' : (pkg.weekly_limit ? 'weekly' : 'unlimited'),
         limit_value: pkg.daily_limit || pkg.weekly_limit || '',
-        remark: pkg.remark || ''
+        remark: pkg.remark || '',
+        extra_store_ids: (pkg.extra_store_ids || []).map(s => _normalizeStoreId(typeof s === 'object' ? (s._id || s.id) : s))
       }
     });
+    this._buildEditExtraStoreOptions();
   },
 
   /**
@@ -431,6 +457,55 @@ Page({
   },
 
   /**
+   * 构建编辑套餐附加门店开关选项（预计算 checked 状态）
+   */
+  _buildEditExtraStoreOptions() {
+    const { addPackageStoreList, editPackageForm, editingPackage } = this.data;
+    const mainStoreId = _normalizeStoreId(
+      editingPackage && editingPackage.store_id
+        ? (typeof editingPackage.store_id === 'object'
+          ? (editingPackage.store_id._id || editingPackage.store_id.id)
+          : editingPackage.store_id)
+        : null
+    );
+    const extraIds = editPackageForm.extra_store_ids || [];
+    const options = addPackageStoreList
+      .filter(s => _normalizeStoreId(s._id) !== mainStoreId)
+      .map(s => ({
+        _id: _normalizeStoreId(s._id),
+        name: s.name,
+        checked: extraIds.indexOf(_normalizeStoreId(s._id)) > -1
+      }));
+    this.setData({ editExtraStoreOptions: options });
+  },
+
+  onToggleEditPackageExtraStore(e) {
+    const { id } = e.currentTarget.dataset;
+    const checked = e.detail.value;
+    const normalizedId = _normalizeStoreId(id);
+    const mainStoreId = _normalizeStoreId(
+      this.data.editingPackage && this.data.editingPackage.store_id
+        ? (typeof this.data.editingPackage.store_id === 'object'
+          ? (this.data.editingPackage.store_id._id || this.data.editingPackage.store_id.id)
+          : this.data.editingPackage.store_id)
+        : null
+    );
+    if (normalizedId === mainStoreId) {
+      wx.showToast({ title: '该门店已为主门店', icon: 'none' });
+      return;
+    }
+    let extraStoreIds = (this.data.editPackageForm.extra_store_ids || []).slice();
+    const idx = extraStoreIds.indexOf(normalizedId);
+    if (checked && idx === -1) {
+      extraStoreIds.push(normalizedId);
+    } else if (!checked && idx > -1) {
+      extraStoreIds.splice(idx, 1);
+    }
+    this.setData({ 'editPackageForm.extra_store_ids': extraStoreIds });
+    this._buildEditExtraStoreOptions();
+  },
+
+  /**
    * 关闭套餐编辑弹窗
    */
   onClosePackageEditModal() {
@@ -476,7 +551,8 @@ Page({
         remark: editPackageForm.remark,
         package_type: editPackageForm.package_type,
         duration_value: parseInt(editPackageForm.duration_value),
-        duration_unit: editPackageForm.duration_unit
+        duration_unit: editPackageForm.duration_unit,
+        extra_store_ids: editPackageForm.extra_store_ids || []
       };
 
       if (editPackageForm.package_type === 'count_card') {
@@ -526,10 +602,11 @@ Page({
       duration_unit: 'month',
       limit_type: 'weekly',
       limit_value: '',
-      remark: ''
+      remark: '',
+      extra_store_ids: []
     };
 
-    const memberStoreId = member.store_id && (member.store_id._id || member.store_id);
+    const memberStoreId = _normalizeStoreId(member.store_id && (member.store_id._id || member.store_id));
     const memberStoreName = member.store_name || '';
     if (memberStoreId) {
       defaultForm.store_id = memberStoreId;
@@ -541,9 +618,9 @@ Page({
     try {
       const storeRes = await request({ url: '/stores' });
       const stores = storeRes.data && (Array.isArray(storeRes.data) ? storeRes.data : (storeRes.data.list || []));
-      storeList = stores.filter(s => s.status === 'active');
+      storeList = stores.filter(s => s.status === 'active').map(s => ({ ...s, _id: _normalizeStoreId(s._id) }));
       if (memberStoreId) {
-        const idx = storeList.findIndex(s => s._id === memberStoreId || s._id.toString() === memberStoreId.toString());
+        const idx = storeList.findIndex(s => s._id === memberStoreId);
         if (idx >= 0) storeIndex = idx;
       }
     } catch (err) {
@@ -556,18 +633,66 @@ Page({
       addPackageStoreList: storeList,
       addPackageFormStoreIndex: storeIndex
     });
+    this._buildAddExtraStoreOptions();
   },
 
   onAddPackageStoreChange(e) {
     const idx = e.detail.value;
     const store = this.data.addPackageStoreList[idx];
     if (store) {
-      this.setData({
+      const storeId = _normalizeStoreId(store._id);
+      const updates = {
         addPackageFormStoreIndex: idx,
-        'addPackageForm.store_id': store._id,
+        'addPackageForm.store_id': storeId,
         'addPackageForm.store_name': store.name
-      });
+      };
+      // 主门店变更时，从附加门店中移除新主门店
+      let extraStoreIds = (this.data.addPackageForm.extra_store_ids || []).slice();
+      const extraIdx = extraStoreIds.indexOf(storeId);
+      if (extraIdx > -1) {
+        extraStoreIds.splice(extraIdx, 1);
+        updates['addPackageForm.extra_store_ids'] = extraStoreIds;
+      }
+      this.setData(updates);
+      this._buildAddExtraStoreOptions();
     }
+  },
+
+  /**
+   * 构建新增套餐附加门店开关选项（预计算 checked 状态）
+   */
+  _buildAddExtraStoreOptions() {
+    const { addPackageStoreList, addPackageForm } = this.data;
+    const storeId = _normalizeStoreId(addPackageForm.store_id);
+    const extraIds = addPackageForm.extra_store_ids || [];
+    const options = addPackageStoreList
+      .filter(s => _normalizeStoreId(s._id) !== storeId)
+      .map(s => ({
+        _id: _normalizeStoreId(s._id),
+        name: s.name,
+        checked: extraIds.indexOf(_normalizeStoreId(s._id)) > -1
+      }));
+    this.setData({ addExtraStoreOptions: options });
+  },
+
+  onToggleAddPackageExtraStore(e) {
+    const { id } = e.currentTarget.dataset;
+    const checked = e.detail.value;
+    const normalizedId = _normalizeStoreId(id);
+    const storeId = _normalizeStoreId(this.data.addPackageForm.store_id);
+    if (normalizedId === storeId) {
+      wx.showToast({ title: '该门店已为主门店', icon: 'none' });
+      return;
+    }
+    const extraStoreIds = (this.data.addPackageForm.extra_store_ids || []).slice();
+    const idx = extraStoreIds.indexOf(normalizedId);
+    if (checked && idx === -1) {
+      extraStoreIds.push(normalizedId);
+    } else if (!checked && idx > -1) {
+      extraStoreIds.splice(idx, 1);
+    }
+    this.setData({ 'addPackageForm.extra_store_ids': extraStoreIds });
+    this._buildAddExtraStoreOptions();
   },
 
   onAddPackageTypeChange(e) {
@@ -631,6 +756,7 @@ Page({
         package_type: addPackageForm.package_type,
         duration_value: parseInt(addPackageForm.duration_value),
         duration_unit: addPackageForm.duration_unit,
+        extra_store_ids: addPackageForm.extra_store_ids || [],
         remark: addPackageForm.remark
       };
 

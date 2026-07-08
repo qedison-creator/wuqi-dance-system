@@ -3,6 +3,7 @@ const Schedule = require('../models/Schedule');
 const UserPackage = require('../models/UserPackage');
 const User = require('../models/User');
 const Waitlist = require('../models/Waitlist');
+const mongoose = require('mongoose');
 const PendingTask = require('../models/PendingTask');
 const logService = require('./log.service');
 const memberService = require('./member.service');
@@ -257,7 +258,9 @@ exports.createBooking = async (userId, scheduleId) => {
     }
 
     // 提取store_id（兼容populate后的对象和原始ObjectId）
-    const scheduleStoreId = schedule.store_id ? (schedule.store_id._id || schedule.store_id) : null;
+    const scheduleStoreIdRaw = schedule.store_id ? (schedule.store_id._id || schedule.store_id) : null;
+    const scheduleStoreId = scheduleStoreIdRaw ? new mongoose.Types.ObjectId(scheduleStoreIdRaw.toString()) : null;
+    console.log('[Booking] scheduleStoreId:', scheduleStoreId, 'storeName:', schedule.store_id?.name);
     const scheduleCoachId = schedule.coach_id ? (schedule.coach_id._id || schedule.coach_id) : null;
     const scheduleDanceStyleId = schedule.dance_style_id ? (schedule.dance_style_id._id || schedule.dance_style_id) : null;
 
@@ -300,14 +303,14 @@ exports.createBooking = async (userId, scheduleId) => {
 
     let storeActivePackages = await UserPackage.find({
       user_id: userId,
-      store_id: scheduleStoreId,
+      $or: [{ store_id: scheduleStoreId }, { extra_store_ids: scheduleStoreId }],
       status: 'active',
       is_suspended: false,
     });
 
     let storePendingPackages = await UserPackage.find({
       user_id: userId,
-      store_id: scheduleStoreId,
+      $or: [{ store_id: scheduleStoreId }, { extra_store_ids: scheduleStoreId }],
       status: 'pending',
     }).sort({ created_at: 1 });
 
@@ -330,7 +333,7 @@ exports.createBooking = async (userId, scheduleId) => {
       });
       storeActivePackages = await UserPackage.find({
         user_id: userId,
-        store_id: scheduleStoreId,
+        $or: [{ store_id: scheduleStoreId }, { extra_store_ids: scheduleStoreId }],
         status: 'active',
         is_suspended: false,
       });
@@ -360,7 +363,7 @@ exports.createBooking = async (userId, scheduleId) => {
 
       storePendingPackages = await UserPackage.find({
         user_id: userId,
-        store_id: scheduleStoreId,
+        $or: [{ store_id: scheduleStoreId }, { extra_store_ids: scheduleStoreId }],
         status: 'pending',
       }).sort({ created_at: 1 });
 
@@ -405,7 +408,7 @@ exports.createBooking = async (userId, scheduleId) => {
         // 时间卡限额已满，查找同门店可用次卡（pending 或 active）
         const availableCountCards = await UserPackage.find({
           user_id: userId,
-          store_id: scheduleStoreId,
+          $or: [{ store_id: scheduleStoreId }, { extra_store_ids: scheduleStoreId }],
           package_type: 'count_card',
           status: 'active',
           is_suspended: false,
@@ -414,7 +417,7 @@ exports.createBooking = async (userId, scheduleId) => {
 
         const pendingCountCards = await UserPackage.find({
           user_id: userId,
-          store_id: scheduleStoreId,
+          $or: [{ store_id: scheduleStoreId }, { extra_store_ids: scheduleStoreId }],
           package_type: 'count_card',
           status: 'pending',
           is_suspended: false,
@@ -454,7 +457,6 @@ exports.createBooking = async (userId, scheduleId) => {
     // 校验4: 仅拦截同一门店完全重合时段的课程（放开部分重叠，满足连上课需求）
     const conflictSchedules = await Schedule.find({
       date: schedule.date,
-      store_id: schedule.store_id,
       status: { $in: ['available', 'full'] },
       _id: { $ne: scheduleId },
       start_time: schedule.start_time,
@@ -1256,14 +1258,14 @@ exports.promoteWaitlist = async (waitlistId, operatorId) => {
   // 按门店查找套餐（与 createBooking 逻辑一致）
   const storeActivePackages = await UserPackage.find({
     user_id: userId,
-    store_id: scheduleStoreId,
+    $or: [{ store_id: scheduleStoreId }, { extra_store_ids: scheduleStoreId }],
     status: 'active',
     is_suspended: false,
   });
 
   const storePendingPackages = await UserPackage.find({
     user_id: userId,
-    store_id: scheduleStoreId,
+    $or: [{ store_id: scheduleStoreId }, { extra_store_ids: scheduleStoreId }],
     status: 'pending',
     is_suspended: false,
   }).sort({ created_at: 1 });
@@ -1331,7 +1333,6 @@ exports.promoteWaitlist = async (waitlistId, operatorId) => {
   // 检查时间冲突：仅拦截同一门店完全重合时段
   const conflictSchedules = await Schedule.find({
     date: schedule.date,
-    store_id: schedule.store_id,
     status: { $in: ['available', 'full'] },
     _id: { $ne: schedule._id },
     start_time: schedule.start_time,
@@ -1460,19 +1461,19 @@ exports.notifyWaitlistUsers = async (scheduleId) => {
   for (const item of toPromote) {
     try {
       const userId = item.user_id;
-      const scheduleStoreId = schedule.store_id;
+      const scheduleStoreId = schedule.store_id ? (new mongoose.Types.ObjectId(schedule.store_id._id || schedule.store_id.toString())) : null;
 
       // 查找同门店套餐
       const storeActivePackages = await UserPackage.find({
         user_id: userId,
-        store_id: scheduleStoreId,
+        $or: [{ store_id: scheduleStoreId }, { extra_store_ids: scheduleStoreId }],
         status: 'active',
         is_suspended: false,
       });
 
       const storePendingPackages = await UserPackage.find({
         user_id: userId,
-        store_id: scheduleStoreId,
+        $or: [{ store_id: scheduleStoreId }, { extra_store_ids: scheduleStoreId }],
         status: 'pending',
         is_suspended: false,
       }).sort({ created_at: 1 });
@@ -1535,7 +1536,6 @@ exports.notifyWaitlistUsers = async (scheduleId) => {
       // 检查时间冲突：仅拦截同一门店完全重合时段
       const conflictSchedules = await Schedule.find({
         date: schedule.date,
-        store_id: schedule.store_id,
         status: { $in: ['available', 'full'] },
         _id: { $ne: schedule._id },
         start_time: schedule.start_time,
@@ -1621,19 +1621,20 @@ exports.confirmWaitlistBooking = async (userId, waitlistId) => {
     throw new Error('名额已满，候补失败');
   }
 
-  const scheduleStoreId = schedule.store_id ? (schedule.store_id._id || schedule.store_id) : null;
+  const scheduleStoreIdRaw = schedule.store_id ? (schedule.store_id._id || schedule.store_id) : null;
+  const scheduleStoreId = scheduleStoreIdRaw ? new mongoose.Types.ObjectId(scheduleStoreIdRaw.toString()) : null;
 
   // 查找同门店套餐
   const storeActivePackages = await UserPackage.find({
     user_id: userId,
-    store_id: scheduleStoreId,
+    $or: [{ store_id: scheduleStoreId }, { extra_store_ids: scheduleStoreId }],
     status: 'active',
     is_suspended: false,
   });
 
   const storePendingPackages = await UserPackage.find({
     user_id: userId,
-    store_id: scheduleStoreId,
+    $or: [{ store_id: scheduleStoreId }, { extra_store_ids: scheduleStoreId }],
     status: 'pending',
     is_suspended: false,
   }).sort({ created_at: 1 });
@@ -1701,7 +1702,6 @@ exports.confirmWaitlistBooking = async (userId, waitlistId) => {
   // 检查时间冲突：仅拦截同一门店完全重合时段
   const conflictSchedules = await Schedule.find({
     date: schedule.date,
-    store_id: schedule.store_id,
     status: { $in: ['available', 'full'] },
     _id: { $ne: schedule._id },
     start_time: schedule.start_time,
@@ -2089,12 +2089,13 @@ exports.onsiteCheckIn = async (scheduleId, userId, operatorId = null, userPackag
 
     // 选择套餐并检查可用性（优先使用指定套餐）
     const UserPackage = require('../models/UserPackage');
+    const scheduleStoreId = schedule.store_id ? (new mongoose.Types.ObjectId(schedule.store_id._id || schedule.store_id.toString())) : null;
     let pkg;
     if (userPackageId) {
       pkg = await UserPackage.findOne({
         _id: userPackageId,
         user_id: userId,
-        store_id: schedule.store_id,
+        $or: [{ store_id: scheduleStoreId }, { extra_store_ids: scheduleStoreId }],
         is_activated: true,
       });
       if (!pkg) {
@@ -2105,7 +2106,7 @@ exports.onsiteCheckIn = async (scheduleId, userId, operatorId = null, userPackag
       // 查找可用套餐：包含停卡中的套餐（签到后自动恢复停卡）
       pkg = await UserPackage.findOne({
         user_id: userId,
-        store_id: schedule.store_id,
+        $or: [{ store_id: scheduleStoreId }, { extra_store_ids: scheduleStoreId }],
         status: { $in: ['active', 'suspended'] },
         is_activated: true,
       }).sort({ package_type: 1, created_at: -1 });

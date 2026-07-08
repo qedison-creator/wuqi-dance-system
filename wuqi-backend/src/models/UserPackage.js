@@ -4,6 +4,7 @@ const userPackageSchema = new mongoose.Schema({
   user_id: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   package_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Package' },
   store_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Store' },
+  extra_store_ids: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Store' }],
   package_type: { type: String, enum: ['count_card', 'time_card'], required: true, default: 'count_card' },
   total_credits: { type: Number, required: true },
   remaining_credits: { type: Number, required: true },

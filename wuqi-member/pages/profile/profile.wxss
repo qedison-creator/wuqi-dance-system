@@ -666,6 +666,11 @@ page {
   background: rgba(197, 116, 75, 0.85);
 }
 
+/* 跨店标签 - 青碧渐变 */
+.pkg-tag-cross-store {
+  background: linear-gradient(135deg, #5D9B9B, #3D7B7B);
+}
+
 /* 时间卡标签 - 薰衣草紫渐变 */
 .pkg-tag-type-time_card {
   background: linear-gradient(135deg, #B89CDA, #9B7EC4);

@@ -467,13 +467,22 @@ exports.getScheduleList = async (query, req = null) => {
 
   if (list.length > 0) {
     const scheduleIds = list.map(s => s._id);
-    // 当前有效预约（booked + completed），用于头像列表
+    // 当前有效预约（booked + completed），用于头像列表和预约人数统计
     const bookings = await Booking.find({
       schedule_id: { $in: scheduleIds },
       status: { $in: ['booked', 'completed'] }
     }).populate('user_id', 'avatar_url').lean();
 
-    // 查询所有状态的预约，按user_id去重统计真实预约人数
+    // 统计有效预约的去重用户数（与 booked_users 头像列表保持一致）
+    const activeUserBySchedule = {};
+    for (const b of bookings) {
+      const sid = String(b.schedule_id);
+      if (!activeUserBySchedule[sid]) activeUserBySchedule[sid] = new Set();
+      const uid = b.user_id ? (b.user_id._id ? String(b.user_id._id) : String(b.user_id)) : '';
+      if (uid) activeUserBySchedule[sid].add(uid);
+    }
+
+    // 查询所有状态的预约，统计历史总预约人次
     const allBookingsForCount = await Booking.find({
       schedule_id: { $in: scheduleIds }
     }).select('schedule_id user_id').lean();
@@ -511,8 +520,8 @@ exports.getScheduleList = async (query, req = null) => {
     for (const schedule of list) {
       const sid = String(schedule._id);
       schedule.booked_users = bookingsBySchedule[sid] || [];
-      // current_bookings = 曾经预约过的不同用户数（反映真实预约情况，含已取消）
-      schedule.current_bookings = uniqueUserBySchedule[sid]?.size || 0;
+      // current_bookings = 有效预约的去重用户数（booked + completed，与头像列表一致）
+      schedule.current_bookings = activeUserBySchedule[sid]?.size || 0;
       // 历史总预约人次（含已取消/已完成）
       schedule.total_bookings = totalCountBySchedule[sid] || 0;
 

@@ -261,7 +261,7 @@ async function createPreMember(data, operatorId) {
  * 为用户创建套餐记录（内部辅助函数）
  */
 async function createPackageForUser(userId, storeId, packageData, operatorId, isOldMember = false) {
-  const { package_type, total_credits, start_date, end_date, duration_value, duration_unit, weekly_limit, daily_limit, remark } = packageData;
+  const { package_type, total_credits, start_date, end_date, duration_value, duration_unit, weekly_limit, daily_limit, remark, extra_store_ids } = packageData;
 
   if (!package_type || !['count_card', 'time_card'].includes(package_type)) {
     throw new Error('套餐类型必须为次卡(count_card)或时间卡(time_card)');
@@ -289,6 +289,7 @@ async function createPackageForUser(userId, storeId, packageData, operatorId, is
   const packageRecord = {
     user_id: userId,
     store_id: storeId,
+    extra_store_ids: extra_store_ids || [],
     package_type: package_type,
     is_activated: isOldMember,
     activated_at: isOldMember ? now : null,
@@ -510,7 +511,8 @@ async function importPreMembers(rows, operatorId) {
     if (!row.store_name) {
       errors.push('门店名称不能为空');
     } else if (!storeMap[row.store_name]) {
-      errors.push(`门店名称"${row.store_name}"不匹配，必须为：舞栖舞蹈社（固戍店）/ 舞栖舞蹈社（福永店）`);
+      const validNames = Object.keys(storeMap).join(' / ');
+      errors.push(`门店名称"${row.store_name}"不匹配，可选门店：${validNames}`);
     }
 
     // 会员姓名校验
@@ -594,6 +596,23 @@ async function importPreMembers(rows, operatorId) {
       }
     }
 
+    // 附加门店校验（仅在有套餐时）
+    if (row.package_type && row.extra_store_names) {
+      const names = row.extra_store_names.split(/[,，]/).map(s => s.trim()).filter(Boolean);
+      const extraIds = [];
+      for (const name of names) {
+        if (name === row.store_name) {
+          errors.push(`附加门店不应包含主门店"${name}"`);
+        } else if (!storeMap[name]) {
+          const validNames = Object.keys(storeMap).join(' / ');
+          errors.push(`附加门店"${name}"不匹配，可选门店：${validNames}`);
+        } else {
+          extraIds.push(storeMap[name]);
+        }
+      }
+      row._extra_store_ids = extraIds;
+    }
+
     if (errors.length > 0) {
       results.errors.push({ row: rowNum, reason: errors.join('；') });
       results.failed++;
@@ -638,8 +657,8 @@ async function importPreMembers(rows, operatorId) {
     results.validRows = stillValid;
   }
 
-  // 4. 全部通过后逐条写入（逐条生成会员编号，避免并发序号冲突）
-  if (results.validRows.length > 0 && results.failed === 0) {
+  // 4. 逐行写入（通过校验的行即可导入，不要求全部通过）
+  if (results.validRows.length > 0) {
     const createdUsers = [];
     const packagesToCreate = [];
 
@@ -671,6 +690,7 @@ async function importPreMembers(rows, operatorId) {
           const packageData = {
             user_id: user._id,
             store_id: user.store_id,
+            extra_store_ids: row._extra_store_ids || [],
             package_type: row._package_type,
             start_date: startDateObj,
             end_date: endDateObj,
