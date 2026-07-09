@@ -7,6 +7,7 @@ const checkPermission = require('../middleware/permission');
 const preMemberService = require('../services/preMember.service');
 const Store = require('../models/Store');
 const { success, paginate } = require('../utils/response');
+const { broadcastMemberCountUpdate } = require('../services/websocket.service');
 
 // ========== 批量导入数据清洗 ==========
 
@@ -307,6 +308,7 @@ router.get('/:id', auth, checkPermission(['super_admin', 'store_manager', 'staff
 router.post('/', auth, checkPermission(['super_admin', 'store_manager', 'staff']), async (req, res, next) => {
   try {
     const user = await preMemberService.createPreMember(req.body, req.user.id);
+    broadcastMemberCountUpdate();
     res.json(success(user, '预建档创建成功'));
   } catch (err) {
     res.status(400).json({ code: 400, message: err.message });
@@ -327,6 +329,7 @@ router.put('/:id', auth, checkPermission(['super_admin', 'store_manager', 'staff
 router.delete('/:id', auth, checkPermission(['super_admin', 'store_manager', 'staff']), async (req, res, next) => {
   try {
     await preMemberService.deletePreMember(req.params.id);
+    broadcastMemberCountUpdate();
     res.json(success(null, '预建档删除成功'));
   } catch (err) {
     res.status(400).json({ code: 400, message: err.message });
@@ -413,6 +416,7 @@ router.post('/import', auth, checkPermission(['super_admin', 'store_manager', 's
 
     // 调用 service 执行校验和导入
     const results = await preMemberService.importPreMembers(cleanedRows, req.user.id);
+    broadcastMemberCountUpdate();
     res.json(success(results, results.failed === 0 ? '导入成功' : '存在校验失败的数据'));
   } catch (err) {
     next(err);

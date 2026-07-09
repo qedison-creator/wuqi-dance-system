@@ -178,7 +178,7 @@
   <view class="modal-mask" wx:if="{{showBookingModal}}" bindtap="onCancelBooking">
     <view class="modal-content" catchtap="onModalTap">
       <view class="mc-title">确认预约</view>
-      <view class="mc-body">{{bookingModalText}}</view>
+      <text class="mc-body">{{bookingModalText}}</text>
       <view class="mc-footer">
         <view class="mcf-btn secondary" bindtap="onCancelBooking">取消</view>
         <view class="mcf-btn primary" bindtap="onConfirmBooking">确定</view>
@@ -213,7 +213,7 @@
   <view class="modal-mask" wx:if="{{showLeaveWaitlistModal}}" bindtap="onCancelLeaveWaitlist">
     <view class="modal-content" catchtap="onModalTap">
       <view class="mc-title">退出候补</view>
-      <view class="mc-body">{{bookingModalText}}</view>
+      <text class="mc-body">{{bookingModalText}}</text>
       <view class="mc-footer">
         <view class="mcf-btn secondary" bindtap="onCancelLeaveWaitlist">取消</view>
         <view class="mcf-btn primary" bindtap="onConfirmLeaveWaitlist">确定退出</view>

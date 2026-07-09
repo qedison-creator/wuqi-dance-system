@@ -179,7 +179,7 @@
   <view class="modal-mask" wx:if="{{showWaitlistModal}}" bindtap="onCancelWaitlist">
     <view class="modal-content" catchtap="onModalTap">
       <view class="mc-title">加入候补</view>
-      <view class="mc-body">{{waitlistModalText}}</view>
+      <text class="mc-body">{{waitlistModalText}}</text>
       <view class="mc-footer">
         <view class="mcf-btn secondary" bindtap="onCancelWaitlist">取消</view>
         <view class="mcf-btn primary" bindtap="onConfirmWaitlist">确定</view>

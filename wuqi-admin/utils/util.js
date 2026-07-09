@@ -226,6 +226,55 @@ const fixImageUrl = (url) => {
   }
 };
 
+/**
+ * 将图片裁剪为圆形（中心裁剪 + 圆形遮罩）
+ * 使用离屏 Canvas 实现，不受 wx.cropImage 方形限制
+ * 不支持的环境自动降级为返回原图
+ * @param {string} filePath - 图片临时路径
+ * @param {number} outputSize - 输出尺寸（默认200px）
+ * @returns {Promise<string>} 圆形图片临时路径
+ */
+const cropImageToCircle = (filePath, outputSize = 200) => {
+  return new Promise((resolve) => {
+    let canvas;
+    try {
+      canvas = wx.createOffscreenCanvas({ type: '2d', width: outputSize, height: outputSize });
+    } catch (e) {
+      resolve(filePath);
+      return;
+    }
+
+    wx.getImageInfo({
+      src: filePath,
+      success: (imgInfo) => {
+        const ctx = canvas.getContext('2d');
+        const srcSize = Math.min(imgInfo.width, imgInfo.height);
+        const sx = (imgInfo.width - srcSize) / 2;
+        const sy = (imgInfo.height - srcSize) / 2;
+
+        const img = canvas.createImage();
+        img.onload = () => {
+          ctx.save();
+          ctx.beginPath();
+          ctx.arc(outputSize / 2, outputSize / 2, outputSize / 2, 0, Math.PI * 2);
+          ctx.clip();
+          ctx.drawImage(img, sx, sy, srcSize, srcSize, 0, 0, outputSize, outputSize);
+          ctx.restore();
+
+          wx.canvasToTempFilePath({
+            canvas,
+            success: (res) => resolve(res.tempFilePath),
+            fail: () => resolve(filePath)
+          });
+        };
+        img.onerror = () => resolve(filePath);
+        img.src = filePath;
+      },
+      fail: () => resolve(filePath)
+    });
+  });
+};
+
 module.exports = {
   getBeijingDate,
   formatDate,
@@ -249,5 +298,6 @@ module.exports = {
   hideLoading,
   showModal,
   debounce,
-  fixImageUrl
+  fixImageUrl,
+  cropImageToCircle
 };

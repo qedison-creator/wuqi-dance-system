@@ -930,6 +930,18 @@ Page({
                 pkg._pendingCreditsText = '有效期' + (pkg.duration_value || '-') + unitText;
             }
             
+            // 待激活套餐使用限制
+            if (pkg.weekly_limit) {
+              pkg._pendingRestrictionLabel = '每周限制';
+              pkg._pendingRestrictionValue = pkg.weekly_limit + ' 次';
+            } else if (pkg.daily_limit) {
+              pkg._pendingRestrictionLabel = '每日限制';
+              pkg._pendingRestrictionValue = pkg.daily_limit + ' 次';
+            } else {
+              pkg._pendingRestrictionLabel = '';
+              pkg._pendingRestrictionValue = '';
+            }
+            
             // 历史套餐统计文本
 
             if (pkg.package_type === 'count_card') {
@@ -1733,11 +1745,14 @@ Page({
       cropScale: '1:1',
       success: (cropRes) => {
         wx.hideLoading();
-        self._uploadAvatar(cropRes.tempFilePath);
+        self._cropAndUpload(cropRes.tempFilePath);
       },
-      fail: () => {
+      fail: (err) => {
         wx.hideLoading();
-        self._uploadAvatar(filePath);
+        // 用户点击取消：静默退出，不上传
+        if (err && err.errMsg && err.errMsg.indexOf('cancel') > -1) return;
+        // 其他裁剪失败：使用原图上传
+        self._cropAndUpload(filePath);
       }
     });
   },
@@ -1753,13 +1768,28 @@ Page({
       cropScale: '1:1',
       success: (cropRes) => {
         wx.hideLoading();
-        self._uploadAvatar(cropRes.tempFilePath);
+        self._cropAndUpload(cropRes.tempFilePath);
       },
       fail: (err) => {
         wx.hideLoading();
+        // 用户点击取消：静默退出，不上传
+        if (err && err.errMsg && err.errMsg.indexOf('cancel') > -1) return;
+        // 其他裁剪失败：使用原图上传
         console.warn('[profile] cropImage 失败，使用原图上传:', err);
-        self._uploadAvatar(avatarUrl);
+        self._cropAndUpload(avatarUrl);
       }
+    });
+  },
+
+  _cropAndUpload(filePath) {
+    const { cropImageToCircle } = require('../../utils/util');
+    wx.showLoading({ title: '处理中...' });
+    cropImageToCircle(filePath).then((circlePath) => {
+      wx.hideLoading();
+      this._uploadAvatar(circlePath);
+    }).catch(() => {
+      wx.hideLoading();
+      this._uploadAvatar(filePath);
     });
   },
 

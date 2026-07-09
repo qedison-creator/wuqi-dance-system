@@ -116,10 +116,48 @@ Page({
       this.loadPendingClaimCount()
     ]);
     this._startAutoRefresh();
+
+    // 接入 WebSocket 实时更新计数
+    this._connectWebSocket();
   },
 
   onHide() {
     this._stopAutoRefresh();
+  },
+
+  _connectWebSocket() {
+    try {
+      const ws = require('../../utils/websocket-client');
+      const self = this;
+      ws.connect({
+        onMessage: {
+          member_count_update: () => {
+            // 会员计数变更时，实时刷新统计卡片数据（不影响列表滚动位置）
+            self.loadInfoChangeCount();
+            self.loadPendingClaimCount();
+            // 刷新待审核计数（轻量级，不重置列表）
+            self._refreshPendingCount();
+          }
+        }
+      });
+    } catch (e) {
+      // WebSocket 不可用时静默降级，_startAutoRefresh 轮询兜底
+    }
+  },
+
+  // 轻量刷新待审核计数，不重置列表和分页
+  async _refreshPendingCount() {
+    try {
+      const res = await request({
+        url: '/members/stats/overview',
+        method: 'GET',
+        data: { store_id: this.data.currentStoreId },
+        timeout: 10000
+      });
+      if (res && res.data) {
+        this.setData({ pendingCount: res.data.registered || 0 });
+      }
+    } catch (e) { /* 静默忽略 */ }
   },
 
   _startAutoRefresh() {
@@ -789,10 +827,21 @@ Page({
 
   // ========== 查看详情 ==========
   onViewDetail(e) {
+    // 防止快速双击导致 routeDone webviewId not found 错误
+    if (this._navigating) return;
     const member = e.currentTarget.dataset.member || (e.detail && e.detail.member);
     if (!member) return;
+    this._navigating = true;
     wx.navigateTo({
-      url: `/package-member/pages/members/member-detail/member-detail?id=${member._id}`
+      url: `/package-member/pages/members/member-detail/member-detail?id=${member._id}`,
+      fail: (err) => {
+        this._navigating = false;
+        console.warn('导航到会员详情失败:', err);
+      },
+      complete: () => {
+        // 延迟释放锁，确保页面跳转完成后再允许下次点击
+        setTimeout(() => { this._navigating = false; }, 500);
+      }
     });
   }
 });

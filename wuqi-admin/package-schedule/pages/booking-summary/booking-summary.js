@@ -206,10 +206,11 @@ Page({
         _id: userId,
         nick_name: userObj.nick_name || userObj.name || '未知会员',
         real_name: userObj.real_name || '',
-        phone: userObj.phone || '',
         wechat_phone: userObj.wechat_phone || '',
         reserve_phone: userObj.reserve_phone || '',
-        avatar_url: fixImageUrl(userObj.avatar_url) || ''
+        avatar_url: fixImageUrl(userObj.avatar_url) || '',
+        claimed_at: userObj.claimed_at || null,
+        is_pre_registered: !!userObj.claimed_at
       },
       created_at_display: this.formatDateTime(item.created_at),
       cancel_time_display: item.cancel_time ? this.formatDateTime(item.cancel_time) : '',
@@ -222,7 +223,7 @@ Page({
   getCancelTypeText(cancelType) {
     if (!cancelType) return '已取消';
     const map = {
-      'normal': '会员主动取消',
+      'normal': '会员取消',
       'exempt': '豁免取消',
       'admin_cancel': '管理员取消',
       'min_bookings_not_met': '系统取消-人数不足',

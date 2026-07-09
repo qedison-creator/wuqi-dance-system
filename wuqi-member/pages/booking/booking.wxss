@@ -691,6 +691,7 @@ page {
 }
 
 .modal-body-text {
+  display: block;
   font-size: 28rpx;
   color: #6B5D5E;
   line-height: 1.65;

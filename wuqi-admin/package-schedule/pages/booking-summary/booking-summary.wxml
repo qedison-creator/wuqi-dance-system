@@ -122,9 +122,9 @@
                                     <text class="mc-name">{{mg.user_info.real_name || mg.user_info.nick_name || '未知会员'}}</text>
                                     <text class="mc-nick" wx:if="{{mg.user_info.real_name && mg.user_info.nick_name && mg.user_info.real_name !== mg.user_info.nick_name}}">（{{mg.user_info.nick_name}}）</text>
                                   </view>
-                                  <view class="mc-phone-row" wx:if="{{mg.user_info.wechat_phone || mg.user_info.reserve_phone}}">
+                                  <view class="mc-phone-row" wx:if="{{mg.user_info.wechat_phone || (!mg.user_info.is_pre_registered && mg.user_info.reserve_phone)}}">
                                     <text class="mc-phone-item" wx:if="{{mg.user_info.wechat_phone}}">微信:{{mg.user_info.wechat_phone}}</text>
-                                    <text class="mc-phone-item" wx:if="{{mg.user_info.reserve_phone}}">预留:{{mg.user_info.reserve_phone}}</text>
+                                    <text class="mc-phone-item" wx:if="{{!mg.user_info.is_pre_registered && mg.user_info.reserve_phone}}">预留:{{mg.user_info.reserve_phone}}</text>
                                   </view>
                                 </view>
                                 <view class="mc-status-badge badge-completed" wx:if="{{mg._isCompleted}}">
@@ -181,9 +181,9 @@
                                     <text class="mc-name">{{mg.user_info.real_name || mg.user_info.nick_name || '未知会员'}}</text>
                                     <text class="mc-nick" wx:if="{{mg.user_info.real_name && mg.user_info.nick_name && mg.user_info.real_name !== mg.user_info.nick_name}}">（{{mg.user_info.nick_name}}）</text>
                                   </view>
-                                  <view class="mc-phone-row" wx:if="{{mg.user_info.wechat_phone || mg.user_info.reserve_phone}}">
+                                  <view class="mc-phone-row" wx:if="{{mg.user_info.wechat_phone || (!mg.user_info.is_pre_registered && mg.user_info.reserve_phone)}}">
                                     <text class="mc-phone-item" wx:if="{{mg.user_info.wechat_phone}}">微信:{{mg.user_info.wechat_phone}}</text>
-                                    <text class="mc-phone-item" wx:if="{{mg.user_info.reserve_phone}}">预留:{{mg.user_info.reserve_phone}}</text>
+                                    <text class="mc-phone-item" wx:if="{{!mg.user_info.is_pre_registered && mg.user_info.reserve_phone}}">预留:{{mg.user_info.reserve_phone}}</text>
                                   </view>
                                 </view>
                                 <view class="mc-cancel-tag">
@@ -240,9 +240,9 @@
                                     <text class="mc-name">{{mg.user_info.real_name || mg.user_info.nick_name || '未知会员'}}</text>
                                     <text class="mc-nick" wx:if="{{mg.user_info.real_name && mg.user_info.nick_name && mg.user_info.real_name !== mg.user_info.nick_name}}">（{{mg.user_info.nick_name}}）</text>
                                   </view>
-                                  <view class="mc-phone-row" wx:if="{{mg.user_info.wechat_phone || mg.user_info.reserve_phone}}">
+                                  <view class="mc-phone-row" wx:if="{{mg.user_info.wechat_phone || (!mg.user_info.is_pre_registered && mg.user_info.reserve_phone)}}">
                                     <text class="mc-phone-item" wx:if="{{mg.user_info.wechat_phone}}">微信:{{mg.user_info.wechat_phone}}</text>
-                                    <text class="mc-phone-item" wx:if="{{mg.user_info.reserve_phone}}">预留:{{mg.user_info.reserve_phone}}</text>
+                                    <text class="mc-phone-item" wx:if="{{!mg.user_info.is_pre_registered && mg.user_info.reserve_phone}}">预留:{{mg.user_info.reserve_phone}}</text>
                                   </view>
                                 </view>
                                 <view class="mc-status-badge badge-booked" wx:if="{{!mg._isCourseCancel}}">

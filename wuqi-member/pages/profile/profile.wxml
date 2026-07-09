@@ -220,20 +220,24 @@
                   <text class="pkg-new-info-capsule-label">套餐次数</text>
                   <text class="pkg-new-info-capsule-value">{{item._pendingCreditsValue}}</text>
                 </view>
+                <view class="pkg-new-info-capsule" wx:if="{{item._pendingRestrictionLabel}}">
+                  <text class="pkg-new-info-capsule-label">{{item._pendingRestrictionLabel}}</text>
+                  <text class="pkg-new-info-capsule-value">{{item._pendingRestrictionValue}}</text>
+                </view>
                 <view class="pkg-new-info-capsule">
                   <text class="pkg-new-info-capsule-label">服务有效期</text>
                   <text class="pkg-new-info-capsule-value">{{item._durationText}}</text>
                 </view>
               </view>
             </view>
+            <!-- 套餐关键信息摘要 -->
+            <view class="pkg-new-pending-summary" wx:if="{{item._pendingCreditsText}}">
+              <text class="pkg-new-pending-summary-text">{{item._pendingCreditsText}}</text>
+            </view>
             <!-- 强制激活倒计时 -->
             <view class="pkg-new-auto-activate" wx:if="{{item._autoActivateDate}}">
               <text class="pkg-new-auto-text">距强制激活还剩 {{item._autoActivateDays}} 天</text>
               <text class="pkg-new-auto-countdown">将于 {{item._autoActivateDate}} 自动激活，服务有效期开始计算</text>
-            </view>
-            <view class="pkg-new-footer">
-              <text class="pkg-new-date-text">服务有效期：激活后开始计算</text>
-              <text class="pkg-new-date-text pkg-new-footer-hint">录入后2个月未激活将自动强制激活</text>
             </view>
           </view>
         </view>

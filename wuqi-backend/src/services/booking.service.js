@@ -913,7 +913,7 @@ exports.getBookingList = async (query) => {
   // 使用 booking_date 降序排序，与 { booking_date: -1, created_at: -1 } 索引匹配
   // 避免内存排序导致的性能问题
   const list = await Booking.find(filter)
-    .populate('user_id', 'real_name nick_name avatar_url phone wechat_phone reserve_phone')
+    .populate('user_id', 'real_name nick_name avatar_url wechat_phone reserve_phone claimed_at')
     .populate({
       path: 'schedule_id',
       select: 'course_name start_time end_time date store_id',

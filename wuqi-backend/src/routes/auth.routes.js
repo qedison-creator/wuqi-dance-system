@@ -70,7 +70,13 @@ router.put('/profile', auth, checkPermission(['member']), async (req, res, next)
     if (!user) return res.status(404).json({ code: 404, message: '用户不存在', data: null });
 
     if (real_name !== undefined) user.real_name = real_name;
-    if (phone !== undefined) user.phone = phone;
+    if (phone !== undefined) {
+      user.phone = phone;
+      // 自主注册会员首次完善信息时，同步写入 reserve_phone
+      if (!user.claimed_at && !user.reserve_phone) {
+        user.reserve_phone = phone;
+      }
+    }
     if (gender !== undefined) user.gender = gender;
     if (nick_name !== undefined) user.nick_name = nick_name;
     if (avatar_url !== undefined) user.avatar_url = avatar_url;
@@ -83,6 +89,17 @@ router.put('/profile', auth, checkPermission(['member']), async (req, res, next)
         return res.status(403).json({ code: 403, message: '已录入套餐的会员不能修改门店，请联系管理员', data: null });
       }
       user.store_id = store_id;
+    }
+
+    // 自主注册会员：判断必填信息是否齐全，齐全则标记 info_completed
+    // 预建档会员（claimed_at）由 checkMemberInfoComplete 处理，此处跳过
+    if (!user.claimed_at) {
+      const hasRealName = user.real_name && user.real_name.trim();
+      const hasPhone = user.phone && String(user.phone).trim().length === 11;
+      const hasGender = user.gender === 1 || user.gender === 2;
+      if (hasRealName && hasPhone && hasGender && !user.info_completed) {
+        user.info_completed = true;
+      }
     }
 
     await user.save();

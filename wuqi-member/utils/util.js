@@ -142,23 +142,63 @@ const throttle = (func, limit) => {
 const normalizeImageUrl = (url, serverBase) => {
   if (!url) return '';
   if (!serverBase) return url;
+  // 仅处理相对路径：补全协议+域名
   if (url.startsWith('/')) return serverBase + url;
-  const serverHosts = [
-    'api.yuekeme.cn',
-    'admin-api.yuekeme.cn',
-    '101.33.203.22:3000',
-    'localhost:3000',
-    '127.0.0.1:3000'
-  ];
-  const match = url.match(/^https?:\/\/([^\/]+)(\/.*)/);
-  if (match) {
-    if (serverHosts.indexOf(match[1]) !== -1) {
-      return serverBase + match[2];
-    }
-    // 外部域名（如 CDN、unsplash 等）保留原样
-    return url;
-  }
+  // 已是完整 URL（http/https 开头）：保持原样不修改
+  // 避免开发环境将生产图片 URL 重写为 localhost 导致 ERR_CONNECTION_RESET
+  if (url.startsWith('http://') || url.startsWith('https://')) return url;
   return url;
+};
+
+/**
+ * 将图片裁剪为圆形（中心裁剪 + 圆形遮罩）
+ * 使用离屏 Canvas 实现，不受 wx.cropImage 方形限制
+ * 不支持的环境自动降级为返回原图
+ * @param {string} filePath - 图片临时路径
+ * @param {number} outputSize - 输出尺寸（默认200px）
+ * @returns {Promise<string>} 圆形图片临时路径
+ */
+const cropImageToCircle = (filePath, outputSize = 200) => {
+  return new Promise((resolve) => {
+    // 尝试创建离屏 Canvas（基础库 2.16.0+）
+    let canvas;
+    try {
+      canvas = wx.createOffscreenCanvas({ type: '2d', width: outputSize, height: outputSize });
+    } catch (e) {
+      // 不支持离屏 Canvas，降级返回原图
+      resolve(filePath);
+      return;
+    }
+
+    wx.getImageInfo({
+      src: filePath,
+      success: (imgInfo) => {
+        const ctx = canvas.getContext('2d');
+        const srcSize = Math.min(imgInfo.width, imgInfo.height);
+        const sx = (imgInfo.width - srcSize) / 2;
+        const sy = (imgInfo.height - srcSize) / 2;
+
+        const img = canvas.createImage();
+        img.onload = () => {
+          ctx.save();
+          ctx.beginPath();
+          ctx.arc(outputSize / 2, outputSize / 2, outputSize / 2, 0, Math.PI * 2);
+          ctx.clip();
+          ctx.drawImage(img, sx, sy, srcSize, srcSize, 0, 0, outputSize, outputSize);
+          ctx.restore();
+
+          wx.canvasToTempFilePath({
+            canvas,
+            success: (res) => resolve(res.tempFilePath),
+            fail: () => resolve(filePath)
+          });
+        };
+        img.onerror = () => resolve(filePath);
+        img.src = filePath;
+      },
+      fail: () => resolve(filePath)
+    });
+  });
 };
 
 module.exports = {
@@ -176,5 +216,6 @@ module.exports = {
   showModal,
   debounce,
   throttle,
-  normalizeImageUrl
+  normalizeImageUrl,
+  cropImageToCircle
 };

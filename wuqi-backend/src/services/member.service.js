@@ -540,6 +540,11 @@ exports.updateMemberInfo = async (userId, data) => {
       user[key] = data[key];
     }
   }
+
+  // 自主注册会员首次填写手机号时，同步到 reserve_phone
+  if (data.phone !== undefined && !user.claimed_at && !user.reserve_phone) {
+    user.reserve_phone = data.phone;
+  }
   
   await user.save();
   

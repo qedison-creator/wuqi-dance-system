@@ -1057,6 +1057,22 @@ page {
   margin-top: 4rpx;
 }
 
+/* 待激活套餐摘要文本 */
+.pkg-new-pending-summary {
+  background: rgba(139, 126, 172, 0.06);
+  border-radius: 16rpx;
+  padding: 16rpx 20rpx;
+  margin-bottom: 16rpx;
+}
+
+.pkg-new-pending-summary-text {
+  font-size: 26rpx;
+  color: #5A4E7A;
+  font-weight: 500;
+  line-height: 1.5;
+  display: block;
+}
+
 /* ========== 强制激活倒计时 ========== */
 .pkg-new-auto-activate {
   background: rgba(139, 126, 172, 0.06);

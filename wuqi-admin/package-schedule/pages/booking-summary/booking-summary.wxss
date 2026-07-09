@@ -518,6 +518,7 @@
   display: flex;
   flex-direction: column;
   min-width: 0;
+  overflow: hidden;
 }
 
 .mc-name-row {
@@ -525,17 +526,20 @@
   align-items: center;
   flex-wrap: wrap;
   gap: 8rpx;
+  min-width: 0;
 }
 
 .mc-name {
   font-size: 26rpx;
   color: #2C2416;
   font-weight: 600;
+  min-width: 0;
 }
 
 .mc-nick {
   font-size: 20rpx;
   color: #948284;
+  min-width: 0;
 }
 
 .mc-phone-row {
@@ -544,11 +548,13 @@
   flex-wrap: wrap;
   gap: 16rpx;
   margin-top: 2rpx;
+  min-width: 0;
 }
 
 .mc-phone-item {
   font-size: 20rpx;
   color: #B8AFA4;
+  min-width: 0;
 }
 
 /* 状态徽章 */

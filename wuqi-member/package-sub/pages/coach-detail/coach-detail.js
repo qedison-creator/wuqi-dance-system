@@ -101,6 +101,11 @@ Page({
   },
 
   onShow() {
+    // 预加载消息模板（网络请求），确保点击预约时 requestBookingSubscribe 使用缓存模板
+    // 避免点击时的网络请求破坏微信 tap gesture 上下文导致授权弹窗静默失败
+    const { fetchTemplates } = require('../../../utils/subscribe-message');
+    fetchTemplates(true).catch(() => {});
+
     if (this.data.coach && this.data.coach.name) {
       wx.setNavigationBarTitle({ title: this.data.coach.name });
     }
@@ -608,20 +613,28 @@ Page({
 
   async doBook(scheduleId) {
     try {
-      // 发起API请求（不等待，让后端并行处理）
-      const apiPromise = request({
+      // 检查是否有待激活套餐，如果有则连同套餐激活通知一起授权
+      let hasPendingPackage = false;
+      try {
+        const pkgCheck = await request({ url: '/packages/my', silent: true });
+        const pkgData = (pkgCheck && pkgCheck.data) ? pkgCheck.data : {};
+        const pending = pkgData.pending || [];
+        const active = pkgData.active || [];
+        hasPendingPackage = pending.length > 0 && active.length === 0;
+      } catch (e) { /* 忽略检查失败 */ }
+
+      // 先弹消息授权弹窗，确保订阅先生效（避免后端提前发送通知导致 43101 错误）
+      const { requestBookingSubscribe, requestBookingAndActivationSubscribe, getAcceptedTemplates } = require('../../../utils/subscribe-message');
+      const subscribeFn = hasPendingPackage ? requestBookingAndActivationSubscribe : requestBookingSubscribe;
+      const subscribeResult = await subscribeFn();
+      const acceptedTemplates = getAcceptedTemplates(subscribeResult);
+
+      // 授权完成后再发起API请求
+      await request({
         url: '/bookings',
         method: 'POST',
         data: { schedule_id: scheduleId }
       });
-
-      // 同时立即弹出消息授权弹窗
-      const { requestBookingSubscribe, getAcceptedTemplates } = require('../../../utils/subscribe-message');
-      const subscribeResult = await requestBookingSubscribe();
-      const acceptedTemplates = getAcceptedTemplates(subscribeResult);
-
-      // 等待API响应（此时通常已完成）
-      await apiPromise;
 
       // 更新页面数据和按钮状态
       await this.refreshCourses();

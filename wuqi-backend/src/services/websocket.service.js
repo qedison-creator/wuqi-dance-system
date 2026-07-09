@@ -328,11 +328,41 @@ function getUserEventIds(userId) {
   return Array.from(userEventIdsMap.get(String(userId)) || []);
 }
 
+/**
+ * 广播会员计数更新事件给所有管理端在线连接
+ * 当待审核用户数、信息修改请求数、预建档会员数变化时调用
+ *
+ * @param {Object} counts - { pendingCount, infoChangeCount, pendingClaimCount }
+ */
+function broadcastMemberCountUpdate(counts = {}) {
+  const message = JSON.stringify({
+    event: 'member_count_update',
+    updateTime: new Date().toISOString(),
+    data: {
+      pendingCount: counts.pendingCount ?? null,
+      infoChangeCount: counts.infoChangeCount ?? null,
+      pendingClaimCount: counts.pendingClaimCount ?? null
+    }
+  });
+
+  let sentCount = 0;
+  for (const conns of connectionPool.values()) {
+    for (const ws of conns) {
+      if (ws._userType === 'admin' && ws.readyState === 1) {
+        ws.send(message);
+        sentCount++;
+      }
+    }
+  }
+  return sentCount;
+}
+
 module.exports = {
   initWebSocketServer,
   broadcastCourseUpdate,
   broadcastToAdmins,
   sendToUser,
+  broadcastMemberCountUpdate,
   getOnlineCount,
   getUserVersion,
   getUserEventIds

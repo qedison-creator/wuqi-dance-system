@@ -4,6 +4,7 @@ const checkPermission = require('../middleware/permission');
 const storeFilter = require('../middleware/storeFilter');
 const memberService = require('../services/member.service');
 const { success, paginate } = require('../utils/response');
+const { broadcastMemberCountUpdate } = require('../services/websocket.service');
 
 // ========== 具体命名路由（必须在 /:id 参数化路由之前） ==========
 
@@ -141,6 +142,8 @@ router.put('/:id/review', auth, checkPermission(['super_admin', 'store_manager',
       return res.status(400).json({ code: 400, message: 'action必须为approve或reject', data: null });
     }
     const member = await memberService.reviewMember(req.params.id, action, reason, req.user.id, store_id);
+    // 会员审核后通知管理端刷新待审核计数
+    broadcastMemberCountUpdate();
     res.json(success(member, action === 'approve' ? '审核通过' : '已拒绝'));
   } catch (err) {
     next(err);
@@ -244,6 +247,8 @@ router.put('/:id/phone-audit', auth, checkPermission(['super_admin', 'store_mana
       return res.status(400).json({ code: 400, message: 'action必须为approve或reject', data: null });
     }
     const member = await memberService.auditReservePhone(req.params.id, action, req.user.id, req.user.nick_name || req.user.username, reason);
+    // 手机号审核后通知管理端刷新计数
+    broadcastMemberCountUpdate();
     res.json(success(member, action === 'approve' ? '审核通过' : '已拒绝'));
   } catch (err) {
     next(err);
@@ -258,6 +263,8 @@ router.put('/:id/info-change-audit', auth, checkPermission(['super_admin', 'stor
       return res.status(400).json({ code: 400, message: 'action必须为approve或reject', data: null });
     }
     const member = await memberService.auditInfoChange(req.params.id, action, req.user.id, reason);
+    // 信息修改审核后通知管理端刷新计数
+    broadcastMemberCountUpdate();
     res.json(success(member, action === 'approve' ? '审核通过，信息已更新' : '已拒绝'));
   } catch (err) {
     next(err);

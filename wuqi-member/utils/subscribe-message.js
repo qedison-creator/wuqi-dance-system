@@ -253,7 +253,9 @@ const requestSubscribeMessage = (tmplIds, sceneKey = '', skipGuide = false) => {
  * 上课提醒需要2次授权（1小时提醒 + 30分钟提醒各消耗1次）
  */
 const requestBookingSubscribe = async () => {
-  await fetchTemplates(true);
+  // 使用缓存模板（无网络请求），避免异步网络请求破坏微信 tap gesture 上下文
+  // 模板由页面 onShow 预加载（fetchTemplates(true)），确保模板数据是最新的
+  await fetchTemplates();
   const ids = [
     SUBSCRIBE_TEMPLATES.BOOKING_SUCCESS,
     SUBSCRIBE_TEMPLATES.CLASS_REMINDER,
@@ -267,6 +269,33 @@ const requestBookingSubscribe = async () => {
   // 为30分钟上课提醒补充请求第2次CLASS_REMINDER授权
   // 微信一次性订阅每个模板每次授权仅能发送1条消息，1小时提醒会消耗第1次授权
   // 已勾选"总是保持"的用户此调用静默通过不弹窗；未勾选的用户可能弹第2次窗
+  if (SUBSCRIBE_TEMPLATES.CLASS_REMINDER) {
+    try {
+      await requestSubscribeMessage([SUBSCRIBE_TEMPLATES.CLASS_REMINDER], 'booking-reminder-2', true);
+    } catch (e) {
+      // 第2次授权失败不影响预约流程
+    }
+  }
+  return result;
+};
+
+/**
+ * 预约 + 套餐激活通知（用于有待激活套餐的首次预约场景）
+ * 将 PACKAGE_ACTIVATED 与预约模板合并到单次授权中，避免二次授权丢失 tap 上下文
+ */
+const requestBookingAndActivationSubscribe = async () => {
+  await fetchTemplates();
+  const ids = [
+    SUBSCRIBE_TEMPLATES.BOOKING_SUCCESS,
+    SUBSCRIBE_TEMPLATES.CLASS_REMINDER,
+    SUBSCRIBE_TEMPLATES.BOOKING_CANCEL,
+    SUBSCRIBE_TEMPLATES.PACKAGE_ACTIVATED
+  ].filter(id => id);
+  if (ids.length === 0) {
+    return Promise.resolve({});
+  }
+  const result = await requestSubscribeMessage(ids, 'booking');
+  // 为30分钟上课提醒补充请求第2次CLASS_REMINDER授权
   if (SUBSCRIBE_TEMPLATES.CLASS_REMINDER) {
     try {
       await requestSubscribeMessage([SUBSCRIBE_TEMPLATES.CLASS_REMINDER], 'booking-reminder-2', true);
@@ -298,7 +327,8 @@ const requestCancelSubscribe = async () => {
  * 合并去重后最多3个，优先保留候补相关
  */
 const requestWaitlistAndBookingSubscribe = async () => {
-  await fetchTemplates(true);
+  // 使用缓存模板（无网络请求），避免异步网络请求破坏微信 tap gesture 上下文
+  await fetchTemplates();
   const idSet = new Set();
   const ids = [];
   // 优先候补相关模板
@@ -315,15 +345,15 @@ const requestWaitlistAndBookingSubscribe = async () => {
 };
 
 /**
- * 激活套餐时：套餐即将到期 + 次卡低次数 + 不活跃提醒
- * （套餐激活本身不需要推送消息，此处借激活时机授权到期提醒）
+ * 套餐相关：到期提醒 + 次卡低次数 + 套餐激活通知
+ * （MEMBER_INACTIVE_REMIND 已在 cancel/phoneAudit 场景中授权，此处不再重复）
  */
 const requestPackageSubscribe = async () => {
   await fetchTemplates(true);
   const ids = [
     SUBSCRIBE_TEMPLATES.PACKAGE_EXPIRING,
     SUBSCRIBE_TEMPLATES.COUNT_CARD_LOW_REMIND,
-    SUBSCRIBE_TEMPLATES.MEMBER_INACTIVE_REMIND
+    SUBSCRIBE_TEMPLATES.PACKAGE_ACTIVATED
   ].filter(id => id);
   if (ids.length === 0) return Promise.resolve({});
   return requestSubscribeMessage(ids, 'package');
@@ -390,6 +420,7 @@ module.exports = {
   fetchTemplates,
   requestSubscribeMessage,
   requestBookingSubscribe,
+  requestBookingAndActivationSubscribe,
   requestCancelSubscribe,
   requestPackageSubscribe,
   requestWaitlistAndBookingSubscribe,

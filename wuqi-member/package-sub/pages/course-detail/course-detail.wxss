@@ -488,6 +488,7 @@ page {
 }
 
 .mc-body {
+  display: block;
   font-size: 28rpx;
   color: #7A6B6D;
   line-height: 1.6;

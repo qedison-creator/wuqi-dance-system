@@ -1,5 +1,6 @@
 const app = getApp();
 const { request } = require('../../../../utils/request');
+const { cropImageToCircle } = require('../../../../utils/util');
 
 Page({
   data: {
@@ -93,15 +94,13 @@ Page({
           src: tempFilePath,
           cropScale: '1:1',
           success: (cropRes) => {
-            self.uploadAvatar(cropRes.tempFilePath);
+            self.cropAndUpload(cropRes.tempFilePath);
           },
           fail: (err) => {
-            // 裁剪失败或取消，直接使用原图
-
             if (err.errMsg && err.errMsg.indexOf('cancel') > -1) {
               return;
             }
-            self.uploadAvatar(tempFilePath);
+            self.cropAndUpload(tempFilePath);
           }
         });
       },
@@ -138,6 +137,17 @@ Page({
           }
         });
       }
+    });
+  },
+
+  cropAndUpload(filePath) {
+    wx.showLoading({ title: '处理中...', mask: true });
+    cropImageToCircle(filePath).then((circlePath) => {
+      wx.hideLoading();
+      this.uploadAvatar(circlePath);
+    }).catch(() => {
+      wx.hideLoading();
+      this.uploadAvatar(filePath);
     });
   },
 
