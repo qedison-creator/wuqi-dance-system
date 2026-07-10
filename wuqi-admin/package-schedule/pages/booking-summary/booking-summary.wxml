@@ -36,7 +36,7 @@
 
     <!-- 当日汇总 + 导出 -->
     <view class="summary-row">
-      <text class="summary-text">汇总：总课程<text class="summary-num">{{summary.totalCourses}}</text>节｜总预约<text class="summary-num">{{summary.totalBookings}}</text>单｜已签到<text class="summary-num summary-green">{{summary.checkedIn}}</text>人｜已取消<text class="summary-num summary-red">{{summary.cancelled}}</text>人</text>
+      <text class="summary-text">汇总：总课程<text class="summary-num">{{summary.totalCourses}}</text>节｜总预约<text class="summary-num">{{summary.totalBookings}}</text>人｜已签到<text class="summary-num summary-green">{{summary.checkedIn}}</text>人｜已取消<text class="summary-num summary-red">{{summary.cancelled}}</text>人</text>
       <view class="export-btn-global" bindtap="onExport">
         <text>导出Excel</text>
       </view>
@@ -49,7 +49,7 @@
       <view class="year-group" wx:for="{{yearGroups}}" wx:key="year" wx:for-index="yearIndex">
         <view class="year-header">
           <text class="year-label">{{item.yearLabel}}</text>
-          <text class="year-count">{{item.totalCount}}条预约</text>
+          <text class="year-count">{{item.totalCount}}节课</text>
         </view>
 
         <view class="month-list">
@@ -59,18 +59,21 @@
                 <text class="month-toggle {{month.expanded ? 'expanded' : ''}}">▸</text>
                 <text class="month-label">{{month.monthLabel}}</text>
               </view>
-              <text class="month-count">{{month.totalCount}}条</text>
+              <text class="month-count">{{month.totalCount}}节课</text>
             </view>
 
             <view class="month-content" wx:if="{{month.expanded}}">
-              <view class="date-list">
+              <view wx:if="{{!month._loaded && dateFilter === 'all'}}" class="loading-inline">
+                <text>加载中...</text>
+              </view>
+              <view class="date-list" wx:else>
                 <view class="date-group" wx:for="{{month.dates}}" wx:for-item="dateItem" wx:key="date" wx:for-index="dateIndex">
                   <view class="date-header">
                     <view class="date-header-left">
                       <text class="date-label">{{dateItem.dateLabel}}</text>
                       <text class="date-weekday" wx:if="{{dateItem.weekday}}">{{dateItem.weekday}}</text>
                     </view>
-                    <text class="date-count">{{dateItem.totalCount}}条预约</text>
+                    <text class="date-count">{{dateItem.totalCount}}节课</text>
                   </view>
 
                   <view class="course-list">

@@ -341,14 +341,14 @@ exports.sendPackageActivated = async (user, packageName, endDate, clientType = '
   await sendByTemplateKey(user.openid, 'packageActivated', bizData, 'pages/booking/booking', clientType);
 };
 
-// 手机号审核结果通知
-exports.sendPhoneAuditResult = async (user, result, reason = '', clientType = 'member') => {
+// 信息修改审核结果通知（支持手机号、姓名等修改）
+exports.sendPhoneAuditResult = async (user, result, reason = '', clientType = 'member', auditItem = '预留手机号修改') => {
   if (!user.openid) return;
   const resultText = result === 'approved' ? '审核通过' : '审核未通过';
-  const remark = result === 'approved' ? '您的预留手机号已更新成功' : (reason || '请核实信息后重新提交');
+  const remark = result === 'approved' ? '您的信息修改申请已审核通过' : (reason || '请核实信息后重新提交');
 
   const bizData = {
-    auditItem: '预留手机号修改',
+    auditItem: auditItem,
     auditResult: resultText,
     remark: remark,
   };

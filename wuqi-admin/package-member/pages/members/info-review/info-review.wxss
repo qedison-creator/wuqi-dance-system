@@ -29,6 +29,7 @@
 .member-info {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 15rpx;
   margin-bottom: 20rpx;
   padding-bottom: 20rpx;
@@ -41,12 +42,38 @@
   color: var(--text-primary);
 }
 
-.member-code {
+/* 手机号行 */
+.phone-row {
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+}
+
+.phone-text {
   font-size: 24rpx;
-  color: var(--color-primary);
-  padding: 4rpx 12rpx;
-  background-color: rgba(197, 116, 75, 0.1);
-  border-radius: 6rpx;
+  color: var(--text-secondary);
+}
+
+.h-phone-text {
+  font-size: 20rpx;
+}
+
+/* 小眼睛图标 */
+.eye-icon {
+  width: 36rpx;
+  height: 36rpx;
+  flex-shrink: 0;
+}
+
+.eye-sm {
+  width: 30rpx;
+  height: 30rpx;
+}
+
+.h-name-row {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
 }
 
 .change-section {
@@ -116,20 +143,37 @@
 .action-btn {
   flex: 1;
   text-align: center;
-  padding: 25rpx;
-  border-radius: 16rpx;
+  padding: 20rpx 0;
+  border-radius: 12rpx;
   font-size: 28rpx;
-  font-weight: bold;
+  font-weight: 600;
+  border: none;
+  line-height: 1.4;
 }
 
-.action-btn.approve {
-  background-color: var(--color-success);
-  color: var(--text-primary);
+.action-btn::after {
+  border: none;
 }
 
-.action-btn.reject {
-  background-color: var(--color-danger);
-  color: var(--text-primary);
+.action-approve {
+  background: linear-gradient(135deg, #5B8C5A, #4A7A49);
+  color: #FFFFFF;
+  box-shadow: 0 4rpx 12rpx rgba(91, 140, 90, 0.25);
+}
+
+.action-approve:active {
+  opacity: 0.85;
+  transform: scale(0.97);
+}
+
+.action-reject {
+  background: #F5F0EB;
+  color: #D4786E;
+  border: 1rpx solid #E8D5C8;
+}
+
+.action-reject:active {
+  background: #EDE4DA;
 }
 
 .empty-state {
@@ -159,4 +203,125 @@
 .loading-text {
   font-size: 28rpx;
   color: var(--text-secondary);
+}
+
+/* 顶部Tab */
+.tab-bar {
+  display: flex;
+  margin-bottom: 20rpx;
+  background: var(--bg-card);
+  border-radius: 16rpx;
+  padding: 6rpx;
+}
+
+.tab-item {
+  flex: 1;
+  text-align: center;
+  padding: 16rpx 0;
+  font-size: 28rpx;
+  color: var(--text-secondary);
+  border-radius: 12rpx;
+  transition: all 0.2s;
+}
+
+.tab-item.active {
+  background: var(--color-primary);
+  color: #fff;
+  font-weight: 600;
+}
+
+/* 审核记录 */
+.history-scroll {
+  height: calc(100vh - 200rpx);
+}
+
+.history-item {
+  background-color: var(--bg-card);
+  border-radius: 16rpx;
+  padding: 24rpx;
+  margin-bottom: 16rpx;
+  border: 1rpx solid var(--border);
+}
+
+.h-member-info {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16rpx;
+  padding-bottom: 16rpx;
+  border-bottom: 1rpx solid var(--border);
+}
+
+.h-member-name {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.h-status {
+  font-size: 22rpx;
+  padding: 4rpx 16rpx;
+  border-radius: 10rpx;
+  font-weight: 500;
+}
+
+.h-status.approved {
+  background: rgba(91, 140, 90, 0.1);
+  color: #5B8C5A;
+}
+
+.h-status.rejected {
+  background: rgba(212, 120, 110, 0.1);
+  color: #D4786E;
+}
+
+.h-change-section {
+  margin-bottom: 16rpx;
+}
+
+.h-change-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  padding: 8rpx 0;
+  font-size: 24rpx;
+}
+
+.h-change-label {
+  color: var(--text-secondary);
+  margin-right: 6rpx;
+}
+
+.h-change-old {
+  color: var(--text-tertiary);
+  text-decoration: line-through;
+  margin-right: 8rpx;
+}
+
+.h-change-arrow {
+  color: var(--text-tertiary);
+  margin-right: 8rpx;
+}
+
+.h-change-new {
+  color: var(--color-primary);
+  font-weight: 500;
+}
+
+.h-footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16rpx;
+  padding-top: 12rpx;
+  border-top: 1rpx solid var(--border);
+}
+
+.h-time {
+  font-size: 20rpx;
+  color: var(--text-tertiary);
+}
+
+.h-operator {
+  font-size: 20rpx;
+  color: var(--text-tertiary);
 }

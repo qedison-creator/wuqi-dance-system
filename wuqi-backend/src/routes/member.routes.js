@@ -4,7 +4,7 @@ const checkPermission = require('../middleware/permission');
 const storeFilter = require('../middleware/storeFilter');
 const memberService = require('../services/member.service');
 const { success, paginate } = require('../utils/response');
-const { broadcastMemberCountUpdate } = require('../services/websocket.service');
+const { broadcastMemberCountUpdate, sendToUser, broadcastToAdmins } = require('../services/websocket.service');
 
 // ========== 具体命名路由（必须在 /:id 参数化路由之前） ==========
 
@@ -64,6 +64,26 @@ router.get('/info-change/list', auth, checkPermission(['super_admin', 'store_man
   }
 });
 
+// GET /api/v1/members/info-change/history - 获取信息修改审核记录
+router.get('/info-change/history', auth, checkPermission(['super_admin', 'store_manager', 'staff']), storeFilter(), async (req, res, next) => {
+  try {
+    const result = await memberService.getInfoChangeHistory({ ...req.query, ...(req.storeFilter || {}) });
+    res.json(success(paginate(result.list, result.total, result.page, result.pageSize)));
+  } catch (err) {
+    next(err);
+  }
+});
+
+// GET /api/v1/members/audit-history - 获取会员审核历史记录
+router.get('/audit-history', auth, checkPermission(['super_admin', 'store_manager', 'staff']), async (req, res, next) => {
+  try {
+    const result = await memberService.getMemberAuditHistory(req.query);
+    res.json(success(paginate(result.list, result.total, result.page, result.pageSize)));
+  } catch (err) {
+    next(err);
+  }
+});
+
 // PUT /api/v1/members/profile/update - 会员更新个人信息
 router.put('/profile/update', auth, checkPermission(['member']), async (req, res, next) => {
   try {
@@ -92,6 +112,9 @@ router.post('/reserve-phone/request', auth, checkPermission(['member']), async (
 router.post('/info-change/request', auth, checkPermission(['member']), async (req, res, next) => {
   try {
     const member = await memberService.requestInfoChange(req.user.id, req.body);
+    // 通知管理端有新的信息修改审核
+    broadcastToAdmins('info_change_request', { memberId: req.user.id });
+    broadcastMemberCountUpdate();
     res.json(success(member, '修改申请已提交，等待审核'));
   } catch (err) {
     next(err);
@@ -249,6 +272,11 @@ router.put('/:id/phone-audit', auth, checkPermission(['super_admin', 'store_mana
     const member = await memberService.auditReservePhone(req.params.id, action, req.user.id, req.user.nick_name || req.user.username, reason);
     // 手机号审核后通知管理端刷新计数
     broadcastMemberCountUpdate();
+    // 通过 WebSocket 实时推送审核结果给会员端
+    sendToUser(req.params.id, 'phone_audit_result', {
+      status: action === 'approve' ? 'approved' : 'rejected',
+      auditTime: new Date().toISOString()
+    });
     res.json(success(member, action === 'approve' ? '审核通过' : '已拒绝'));
   } catch (err) {
     next(err);
@@ -265,6 +293,11 @@ router.put('/:id/info-change-audit', auth, checkPermission(['super_admin', 'stor
     const member = await memberService.auditInfoChange(req.params.id, action, req.user.id, reason);
     // 信息修改审核后通知管理端刷新计数
     broadcastMemberCountUpdate();
+    // 通过 WebSocket 实时推送审核结果给会员端
+    sendToUser(req.params.id, 'info_change_result', {
+      status: action === 'approve' ? 'approved' : 'rejected',
+      auditTime: new Date().toISOString()
+    });
     res.json(success(member, action === 'approve' ? '审核通过，信息已更新' : '已拒绝'));
   } catch (err) {
     next(err);

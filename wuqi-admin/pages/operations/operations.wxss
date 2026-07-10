@@ -420,24 +420,59 @@
 }
 
 .cal-cell.is-today {
-  color: #C5744B;
+  color: #FFFFFF;
   font-weight: 700;
   background: transparent;
-  box-shadow: inset 0 0 0 3rpx #C5744B;
+  box-shadow: none;
+}
+
+.cal-cell.is-today > text {
+  position: relative;
+  z-index: 1;
+}
+
+/* 今天：居中小实心圆（尺寸小于 cell，底部留空不遮挡状态横线） */
+.cal-cell.is-today::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 70%;
+  height: 70%;
+  border-radius: 50%;
+  background: #C5744B;
 }
 
 .cal-cell.is-selected {
-  background: #C5744B;
-  color: #FFFFFF;
+  background: transparent;
+  color: #C5744B;
   font-weight: 600;
+  border-radius: 8rpx;
   box-shadow: none;
+}
+
+/* 选中：空心方形（缩小尺寸，底部开放不遮挡状态横线） */
+.cal-cell.is-selected::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 72%;
+  height: 72%;
+  border-top: 5rpx solid #C5744B;
+  border-left: 5rpx solid #C5744B;
+  border-right: 5rpx solid #C5744B;
+  border-bottom: none;
+  border-radius: 6rpx;
 }
 
 .cal-cell.is-selected.has-normal,
 .cal-cell.is-selected.has-cancelled,
 .cal-cell.is-selected.has-mixed,
 .cal-cell.is-selected.has-holiday {
-  background: #C5744B;
+  background: transparent;
   box-shadow: none;
 }
 
@@ -509,14 +544,7 @@
 .cal-cell.is-selected.has-cancelled::after,
 .cal-cell.is-selected.has-mixed::after,
 .cal-cell.is-selected.has-holiday::after {
-  background: rgba(255,255,255,0.6);
-}
-
-.cal-cell.is-today.has-normal,
-.cal-cell.is-today.has-cancelled,
-.cal-cell.is-today.has-mixed,
-.cal-cell.is-today.has-holiday {
-  box-shadow: inset 0 0 0 3rpx #C5744B;
+  /* 选中时横线保持原色，空心方形底部开放不遮挡 */
 }
 
 .date-block {

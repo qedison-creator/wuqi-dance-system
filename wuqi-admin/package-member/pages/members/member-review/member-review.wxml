@@ -1,59 +1,105 @@
 <view class="review-page">
-  <!-- 顶部统计 -->
-  <view class="review-header">
-    <text class="review-title">待审核用户</text>
-    <text class="review-count">共 {{total}} 人</text>
-  </view>
-
-  <!-- 列表 -->
-  <view class="review-list" wx:if="{{members.length > 0}}">
-    <view class="review-card" wx:for="{{members}}" wx:key="_id">
-      <view class="card-top">
-        <image class="card-avatar" src="{{item.avatar || '/images/default-avatar.svg'}}" mode="aspectFill" decoding="async"></image>
-        <view class="card-info">
-          <view class="card-name-row">
-            <text class="card-name">{{item.nickname || '未知'}}</text>
-            <view class="card-tag tag-orange">
-              <text class="tag-text">待审核</text>
-            </view>
-          </view>
-          <view class="card-phone-line">
-            <text class="phone-item" wx:if="{{item.wechat_phone_display}}"><text class="phone-label">微信</text>{{item.wechat_phone_display}}</text>
-            <text class="phone-item" wx:if="{{item.reserve_phone_display}}"><text class="phone-label">预留</text>{{item.reserve_phone_display}}</text>
-          </view>
-          <text class="card-phone" wx:if="{{!item.wechat_phone_display && !item.reserve_phone_display}}">未绑定手机号</text>
-          <text class="card-date">申请时间 {{item.created_at}}</text>
-          <text class="card-store" wx:if="{{item.store_name}}">用户选择门店：{{item.store_name}}</text>
-        </view>
-      </view>
-      <view class="card-actions">
-        <view class="action-btn btn-delete" data-id="{{item._id}}" data-name="{{item.nickname}}" bindtap="onDelete">
-          <text class="btn-text">删除</text>
-        </view>
-        <view class="action-btn btn-reject" data-id="{{item._id}}" data-name="{{item.nickname}}" bindtap="onReject">
-          <text class="btn-text">拒绝</text>
-        </view>
-        <view class="action-btn btn-approve" data-id="{{item._id}}" data-name="{{item.nickname}}" data-store-id="{{item.store_id}}" bindtap="onApprove">
-          <text class="btn-text">通过</text>
-        </view>
-      </view>
+  <!-- 顶部Tab -->
+  <view class="tab-bar">
+    <view class="tab-item {{activeTab === 'pending' ? 'active' : ''}}" data-tab="pending" bindtap="onTabChange">
+      <text>待审核</text>
+    </view>
+    <view class="tab-item {{activeTab === 'history' ? 'active' : ''}}" data-tab="history" bindtap="onTabChange">
+      <text>审核记录</text>
     </view>
   </view>
 
-  <!-- 空状态 -->
-  <view class="empty-state" wx:else>
-    <text class="empty-icon"></text>
-    <text class="empty-text">暂无待审核用户</text>
-  </view>
+  <!-- 待审核列表 -->
+  <block wx:if="{{activeTab === 'pending'}}">
+    <view class="review-header">
+      <text class="review-title">待审核用户</text>
+      <text class="review-count">共 {{total}} 人</text>
+    </view>
 
-  <view class="load-more" wx:if="{{loading}}">加载中...</view>
+    <view class="review-list" wx:if="{{members.length > 0}}">
+      <view class="review-card" wx:for="{{members}}" wx:key="_id" wx:for-index="idx">
+        <view class="card-top">
+          <image class="card-avatar" src="{{item.avatar || '/images/default-avatar.svg'}}" mode="aspectFill" decoding="async"></image>
+          <view class="card-info">
+            <view class="card-name-row">
+              <view class="phone-row">
+                <text class="phone-text" wx:if="{{item.wechatPhoneRaw}}">
+                  <text wx:if="{{isReviewer}}">{{item.wechatPhoneDisplay}}</text>
+                  <text wx:elif="{{item._showPhone}}">{{item.wechatPhoneRaw}}</text>
+                  <text wx:else>{{item.wechatPhoneDisplay}}</text>
+                </text>
+                <image wx:if="{{item.wechatPhoneRaw && !isReviewer}}" class="eye-icon" src="{{item._showPhone ? '/images/icons/eye-open.svg' : '/images/icons/eye-close.svg'}}" mode="aspectFit" catchtouchstart="onTogglePhone" data-index="{{idx}}"></image>
+              </view>
+              <view class="card-tag tag-orange">
+                <text class="tag-text">待审核</text>
+              </view>
+            </view>
+            <text class="card-phone" wx:if="{{!item.wechatPhoneRaw}}">未绑定手机号</text>
+            <text class="card-date">申请时间 {{item.created_at}}</text>
+            <text class="card-store" wx:if="{{item.store_name}}">用户选择门店：{{item.store_name}}</text>
+          </view>
+        </view>
+        <view class="card-actions">
+          <view class="action-btn action-delete" data-id="{{item._id}}" data-name="{{item.wechatPhoneRaw}}" bindtap="onDelete">
+            <text class="btn-text">删除</text>
+          </view>
+          <view class="action-btn action-reject" data-id="{{item._id}}" data-name="{{item.wechatPhoneRaw}}" bindtap="onReject">
+            <text class="btn-text">拒绝</text>
+          </view>
+          <view class="action-btn action-approve" data-id="{{item._id}}" data-name="{{item.wechatPhoneRaw}}" data-store-id="{{item.store_id}}" bindtap="onApprove">
+            <text class="btn-text">通过</text>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <view class="empty-state" wx:else>
+      <text class="empty-text">暂无待审核用户</text>
+    </view>
+
+    <view class="load-more" wx:if="{{loading}}">加载中...</view>
+  </block>
+
+  <!-- 审核记录列表 -->
+  <scroll-view wx:if="{{activeTab === 'history'}}" class="history-scroll" scroll-y enhanced show-scrollbar="{{false}}" bindscrolltolower="loadMoreHistory">
+    <view class="empty-state" wx:if="{{!historyLoading && history.length === 0}}">
+      <text class="empty-text">暂无审核记录</text>
+    </view>
+    <view class="history-item" wx:for="{{history}}" wx:key="_id" wx:for-index="idx">
+      <view class="h-header">
+        <view class="h-name-row">
+          <text class="h-name">{{item.memberName}}</text>
+          <view class="phone-row" wx:if="{{item.memberPhoneRaw}}">
+            <text class="h-phone-text">
+              <text wx:if="{{isReviewer}}">{{item.memberPhoneDisplay}}</text>
+              <text wx:elif="{{item._showPhone}}">{{item.memberPhoneRaw}}</text>
+              <text wx:else>{{item.memberPhoneDisplay}}</text>
+            </text>
+            <image wx:if="{{!isReviewer}}" class="eye-icon eye-sm" src="{{item._showPhone ? '/images/icons/eye-open.svg' : '/images/icons/eye-close.svg'}}" mode="aspectFit" catchtouchstart="onToggleHistoryPhone" data-index="{{idx}}"></image>
+          </view>
+        </view>
+        <text class="h-status {{item.auditResultClass}}">{{item.auditResult}}</text>
+      </view>
+      <view class="h-body" wx:if="{{item.memberCreatedAt}}">
+        <text class="h-time">注册时间: {{item.memberCreatedAt}}</text>
+      </view>
+      <view class="h-footer">
+        <text class="h-time">审核时间: {{item.auditAt}}</text>
+        <text class="h-operator" wx:if="{{item.operatorName}}">操作人: {{item.operatorName}}</text>
+      </view>
+    </view>
+    <view class="load-more" wx:if="{{historyLoading}}">加载中...</view>
+    <view class="empty-state" wx:if="{{!historyLoading && history.length >= historyTotal && history.length > 0}}">
+      <text class="empty-text">已加载全部</text>
+    </view>
+  </scroll-view>
 
   <!-- 审核通过 - 门店选择弹窗 -->
   <view class="modal-mask" wx:if="{{showStoreModal}}" bindtap="onCloseStoreModal">
     <view class="store-modal-content" catchtap="onModalTap">
       <view class="store-modal-header">
         <text class="store-modal-title">分配门店</text>
-        <text class="store-modal-subtitle">为 {{approveMember.name || '该用户'}} 选择门店</text>
+        <text class="store-modal-subtitle">为该用户选择门店</text>
         <text class="modal-close" bindtap="onCloseStoreModal">×</text>
       </view>
       <view class="store-modal-list">

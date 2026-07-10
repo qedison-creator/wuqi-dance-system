@@ -1183,33 +1183,157 @@ page {
   border-radius: 4rpx;
 }
 
-/* 加载状态提示样式 */
-.loading-wrap {
+/* 骨架屏加载 */
+.skeleton-list {
+  padding: 0 0 40rpx;
+}
+
+.skeleton-card {
+  display: flex;
+  flex-direction: row;
+  background: #F8F5F2;
+  border-radius: 24rpx;
+  margin-bottom: 20rpx;
+  position: relative;
+  overflow: hidden;
+  padding: 24rpx;
+}
+
+.sk-accent-bar {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 10rpx;
+  background: #E8E2DA;
+}
+
+.sk-left {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  padding: 80rpx 0;
-  min-height: 400rpx;
+  margin-right: 20rpx;
+  flex-shrink: 0;
+  width: 100rpx;
 }
 
-.loading-spinner {
-  width: 64rpx;
-  height: 64rpx;
-  border: 4rpx solid #F0E8E3;
-  border-top: 4rpx solid #D4786E;
+.sk-avatar {
+  width: 80rpx;
+  height: 80rpx;
   border-radius: 50%;
-  animation: spin 0.8s linear infinite;
-  margin-bottom: 24rpx;
+  background: #E8E2DA;
+  margin-bottom: 10rpx;
 }
 
-@keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+.sk-name {
+  width: 60rpx;
+  height: 20rpx;
+  border-radius: 6rpx;
+  background: #E8E2DA;
 }
 
-.loading-text {
-  font-size: 26rpx;
-  color: #948284;
-  font-weight: 500;
+.sk-right {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.sk-btn {
+  width: 100rpx;
+  height: 48rpx;
+  border-radius: 24rpx;
+  background: #E8E2DA;
+  align-self: flex-end;
+  margin-bottom: 12rpx;
+}
+
+.sk-time {
+  width: 180rpx;
+  height: 22rpx;
+  border-radius: 6rpx;
+  background: #E8E2DA;
+  margin-bottom: 10rpx;
+}
+
+.sk-title {
+  width: 260rpx;
+  height: 28rpx;
+  border-radius: 6rpx;
+  background: #E8E2DA;
+  margin-bottom: 10rpx;
+}
+
+.sk-tag {
+  width: 120rpx;
+  height: 28rpx;
+  border-radius: 8rpx;
+  background: #E8E2DA;
+  margin-bottom: 8rpx;
+}
+
+.sk-room {
+  width: 160rpx;
+  height: 20rpx;
+  border-radius: 6rpx;
+  background: #E8E2DA;
+  margin-bottom: 8rpx;
+}
+
+.sk-deadline {
+  width: 300rpx;
+  height: 20rpx;
+  border-radius: 6rpx;
+  background: #E8E2DA;
+  margin-bottom: 12rpx;
+}
+
+.sk-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.sk-capacity {
+  width: 80rpx;
+  height: 24rpx;
+  border-radius: 6rpx;
+  background: #E8E2DA;
+}
+
+.sk-avatars {
+  display: flex;
+  flex-direction: row;
+}
+
+.sk-small-avatar {
+  width: 40rpx;
+  height: 40rpx;
+  border-radius: 50%;
+  background: #E8E2DA;
+  margin-left: -8rpx;
+  border: 2rpx solid #F8F5F2;
+}
+
+.sk-small-avatar:first-child {
+  margin-left: 0;
+}
+
+/* 骨架屏闪烁动画 */
+.skeleton-card .sk-accent-bar,
+.skeleton-card .sk-avatar,
+.skeleton-card .sk-name,
+.skeleton-card .sk-btn,
+.skeleton-card .sk-time,
+.skeleton-card .sk-title,
+.skeleton-card .sk-tag,
+.skeleton-card .sk-room,
+.skeleton-card .sk-deadline,
+.skeleton-card .sk-capacity,
+.skeleton-card .sk-small-avatar {
+  animation: skeleton-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes skeleton-pulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 0.8; }
 }

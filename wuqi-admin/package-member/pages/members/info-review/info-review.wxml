@@ -3,44 +3,113 @@
     <text class="page-title">信息修改审核</text>
   </view>
 
-  <view class="reviews-list" wx:if="{{!loading && reviews.length > 0}}">
-    <view class="review-item" wx:for="{{reviews}}" wx:key="_id">
-      <view class="member-info">
-        <text class="member-name">{{item.real_name || item.nick_name || '未知'}}</text>
-        <text class="member-code" wx:if="{{item.phone}}">{{item.phone}}</text>
-      </view>
-
-      <view class="change-section">
-        <view class="change-row" wx:for="{{item.changeFields}}" wx:for-item="field" wx:key="label">
-          <view class="change-field">
-            <text class="change-label">{{field.label}}</text>
-            <view class="change-values">
-              <text class="change-old">{{field.currentValue || '未填写'}}</text>
-              <text class="change-arrow">→</text>
-              <text class="change-new">{{field.newValue}}</text>
-            </view>
-          </view>
-        </view>
-      </view>
-
-      <view class="request-time">
-        <text class="time-label">申请时间：</text>
-        <text class="time-value">{{item.requestTimeStr}}</text>
-      </view>
-
-      <view class="action-section">
-        <view class="action-btn reject" data-member="{{item}}" data-action="reject" bindtap="onReview">拒绝</view>
-        <view class="action-btn approve" data-member="{{item}}" data-action="approve" bindtap="onReview">通过</view>
-      </view>
+  <!-- 顶部Tab -->
+  <view class="tab-bar">
+    <view class="tab-item {{activeTab === 'pending' ? 'active' : ''}}" data-tab="pending" bindtap="onTabChange">
+      <text>待审核</text>
+    </view>
+    <view class="tab-item {{activeTab === 'history' ? 'active' : ''}}" data-tab="history" bindtap="onTabChange">
+      <text>审核记录</text>
     </view>
   </view>
 
-  <view class="empty-state" wx:if="{{!loading && reviews.length === 0}}">
-    <text class="empty-icon"></text>
-    <text class="empty-text">暂无待审核的信息修改申请</text>
-  </view>
+  <!-- 待审核列表 -->
+  <block wx:if="{{activeTab === 'pending'}}">
+    <view class="reviews-list" wx:if="{{!loading && reviews.length > 0}}">
+      <view class="review-item" wx:for="{{reviews}}" wx:key="_id" wx:for-index="idx">
+        <view class="member-info">
+          <text class="member-name">{{item.real_name || item.nick_name || '未知'}}</text>
+          <view class="phone-row">
+            <text class="phone-text" wx:if="{{item.memberPhoneRaw}}">
+              <text wx:if="{{isReviewer}}">{{item.memberPhone}}</text>
+              <text wx:elif="{{item._showPhone}}">{{item.memberPhoneRaw}}</text>
+              <text wx:else>{{item.memberPhone}}</text>
+            </text>
+            <image wx:if="{{item.memberPhoneRaw && !isReviewer}}" class="eye-icon" src="{{item._showPhone ? '/images/icons/eye-open.svg' : '/images/icons/eye-close.svg'}}" mode="aspectFit" catchtouchstart="onTogglePhone" data-index="{{idx}}"></image>
+          </view>
+        </view>
 
-  <view class="loading-state" wx:if="{{loading}}">
-    <text class="loading-text">加载中...</text>
-  </view>
+        <view class="change-section">
+          <view class="change-row" wx:for="{{item.changeFields}}" wx:for-item="field" wx:key="label">
+            <view class="change-field">
+              <text class="change-label">{{field.label}}</text>
+              <view class="change-values">
+                <text wx:if="{{field.isPhone && !isReviewer && field.currentValueRaw}}" class="change-old">{{item._showPhone ? field.currentValueRaw : field.currentValue}}</text>
+                <text wx:elif="{{field.isPhone && isReviewer}}" class="change-old">{{field.currentValue}}</text>
+                <text wx:else class="change-old">{{field.currentValue || '未填写'}}</text>
+                <text class="change-arrow">→</text>
+                <text wx:if="{{field.isPhone && !isReviewer && field.newValueRaw}}" class="change-new">{{item._showPhone ? field.newValueRaw : field.newValue}}</text>
+                <text wx:elif="{{field.isPhone && isReviewer}}" class="change-new">{{field.newValue}}</text>
+                <text wx:else class="change-new">{{field.newValue}}</text>
+              </view>
+            </view>
+          </view>
+        </view>
+
+        <view class="request-time">
+          <text class="time-label">申请时间：</text>
+          <text class="time-value">{{item.requestTimeStr}}</text>
+        </view>
+
+        <view class="action-section">
+          <button class="action-btn action-reject" data-member="{{item}}" data-action="reject" bindtap="onReview">拒绝</button>
+          <button class="action-btn action-approve" data-member="{{item}}" data-action="approve" bindtap="onReview">通过</button>
+        </view>
+      </view>
+    </view>
+
+    <view class="empty-state" wx:if="{{!loading && reviews.length === 0}}">
+      <text class="empty-text">暂无待审核的信息修改申请</text>
+    </view>
+
+    <view class="loading-state" wx:if="{{loading}}">
+      <text class="loading-text">加载中...</text>
+    </view>
+  </block>
+
+  <!-- 审核记录列表 -->
+  <scroll-view wx:if="{{activeTab === 'history'}}" class="history-scroll" scroll-y enhanced show-scrollbar="{{false}}" bindscrolltolower="loadMoreHistory">
+    <view class="empty-state" wx:if="{{!historyLoading && history.length === 0}}">
+      <text class="empty-text">暂无审核记录</text>
+    </view>
+    <view class="history-item" wx:for="{{history}}" wx:key="_id" wx:for-index="idx">
+      <view class="h-member-info">
+        <view class="h-name-row">
+          <text class="h-member-name">{{item.real_name || item.nick_name || '未知'}}</text>
+          <view class="phone-row">
+            <text class="phone-text h-phone-text" wx:if="{{item.memberPhoneRaw}}">
+              <text wx:if="{{isReviewer}}">{{item.memberPhone}}</text>
+              <text wx:elif="{{item._showPhone}}">{{item.memberPhoneRaw}}</text>
+              <text wx:else>{{item.memberPhone}}</text>
+            </text>
+            <image wx:if="{{item.memberPhoneRaw && !isReviewer}}" class="eye-icon eye-sm" src="{{item._showPhone ? '/images/icons/eye-open.svg' : '/images/icons/eye-close.svg'}}" mode="aspectFit" catchtouchstart="onToggleHistoryPhone" data-index="{{idx}}"></image>
+          </view>
+        </view>
+        <text class="h-status {{item.reviewStatusClass}}">{{item.reviewStatus}}</text>
+      </view>
+      <view class="h-change-section">
+        <view class="h-change-row" wx:for="{{item.changeFields}}" wx:for-item="field" wx:key="label">
+          <text class="h-change-label">{{field.label}}：</text>
+          <text wx:if="{{field.isPhone && !isReviewer && field.currentValueRaw}}" class="h-change-old">{{item._showPhone ? field.currentValueRaw : field.currentValue}}</text>
+          <text wx:elif="{{field.isPhone && isReviewer}}" class="h-change-old">{{field.currentValue}}</text>
+          <text wx:else class="h-change-old">{{field.currentValue || '未填写'}}</text>
+          <text class="h-change-arrow">→</text>
+          <text wx:if="{{field.isPhone && !isReviewer && field.newValueRaw}}" class="h-change-new">{{item._showPhone ? field.newValueRaw : field.newValue}}</text>
+          <text wx:elif="{{field.isPhone && isReviewer}}" class="h-change-new">{{field.newValue}}</text>
+          <text wx:else class="h-change-new">{{field.newValue}}</text>
+        </view>
+      </view>
+      <view class="h-footer">
+        <text class="h-time">提交: {{item.requestTimeStr}}</text>
+        <text class="h-time">审核: {{item.reviewTimeStr}}</text>
+        <text class="h-operator" wx:if="{{item.reviewerName}}">操作人: {{item.reviewerName}}</text>
+      </view>
+    </view>
+    <view class="loading-state" wx:if="{{historyLoading}}">
+      <text class="loading-text">加载中...</text>
+    </view>
+    <view class="empty-state" wx:if="{{!historyLoading && history.length >= historyTotal && history.length > 0}}">
+      <text class="empty-text">已加载全部</text>
+    </view>
+  </scroll-view>
 </view>

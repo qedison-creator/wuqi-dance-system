@@ -1,6 +1,11 @@
 const app = getApp();
 const { request } = require('../../../../utils/request');
 
+const maskPhone = (phone) => {
+  if (!phone || phone.length < 7) return phone || '';
+  return phone.substring(0, 3) + '****' + phone.substring(phone.length - 4);
+};
+
 const formatDate = (dateStr) => {
   if (!dateStr) return '';
   const d = new Date(dateStr);
@@ -19,21 +24,47 @@ Page({
     members: [],
     total: 0,
     loading: false,
-    // 审核通过时的门店选择弹窗
     showStoreModal: false,
     approveMember: null,
     storeList: [],
-    selectedStoreId: ''
+    selectedStoreId: '',
+    activeTab: 'pending',
+    history: [],
+    historyPage: 1,
+    historyTotal: 0,
+    historyLoading: false,
+    isReviewer: false
   },
 
   onShow() {
-    this.loadPendingMembers();
+    this.checkRole();
+    if (this.data.activeTab === 'pending') {
+      this.loadPendingMembers();
+    }
   },
 
   onPullDownRefresh() {
-    this.loadPendingMembers().finally(() => {
+    const promise = this.data.activeTab === 'pending' ? this.loadPendingMembers() : this.loadHistory(true);
+    promise.finally(() => {
       wx.stopPullDownRefresh();
     });
+  },
+
+  checkRole() {
+    const userInfo = app && app.globalData && app.globalData.userInfo;
+    const role = userInfo && userInfo.role;
+    const isReviewer = role === 'reviewer';
+    this.setData({ isReviewer });
+  },
+
+  onTabChange(e) {
+    const tab = e.currentTarget.dataset.tab;
+    this.setData({ activeTab: tab });
+    if (tab === 'pending') {
+      this.loadPendingMembers();
+    } else if (tab === 'history') {
+      this.loadHistory(true);
+    }
   },
 
   async loadPendingMembers() {
@@ -50,13 +81,13 @@ Page({
 
       const members = list.map(member => {
         const wechatPhone = member.wechat_phone || '';
-        const reservePhone = member.reserve_phone || member.phone || '';
         return {
           ...member,
           nickname: member.nick_name,
           avatar: member.avatar_url,
-          wechat_phone_display: wechatPhone,
-          reserve_phone_display: reservePhone,
+          wechatPhoneRaw: wechatPhone,
+          wechatPhoneDisplay: maskPhone(wechatPhone),
+          _showPhone: false,
           created_at: formatDate(member.created_at),
           store_name: member.store_id && member.store_id.name ? member.store_id.name : '',
           store_id: member.store_id && member.store_id._id ? member.store_id._id : null
@@ -71,16 +102,77 @@ Page({
     }
   },
 
+  onTogglePhone(e) {
+    const index = e.currentTarget.dataset.index;
+    const key = `members[${index}]._showPhone`;
+    const current = this.data.members[index] && this.data.members[index]._showPhone;
+    this.setData({ [key]: !current });
+  },
+
+  loadHistory(reset) {
+    if (reset) {
+      this.setData({ historyPage: 1, history: [], historyLoading: true });
+    } else {
+      this.setData({ historyLoading: true });
+    }
+    const page = reset ? 1 : this.data.historyPage;
+    request({
+      url: '/members/audit-history',
+      data: { page, pageSize: 20 }
+    }).then(res => {
+      const data = res.data || {};
+      const list = (data.list || []).map(log => {
+        const member = log.target_id || {};
+        const operator = log.operator_id || {};
+        const phone = member.wechat_phone || member.reserve_phone || member.phone || '';
+        return {
+          ...log,
+          memberName: member.real_name || member.nick_name || '未知',
+          memberPhone: phone,
+          memberPhoneRaw: phone,
+          memberPhoneDisplay: maskPhone(phone),
+          _showPhone: false,
+          memberCreatedAt: member.created_at ? formatDate(member.created_at) : '',
+          operatorName: operator.real_name || operator.nick_name || log.operator_name || '—',
+          auditAt: formatDate(log.created_at),
+          auditResult: log.action === 'approve' ? '已通过' : '已拒绝',
+          auditResultClass: log.action === 'approve' ? 'approved' : 'rejected'
+        };
+      });
+      const history = reset ? list : this.data.history.concat(list);
+      this.setData({
+        history,
+        historyPage: page + 1,
+        historyTotal: data.total || 0,
+        historyLoading: false
+      });
+    }).catch(() => {
+      this.setData({ historyLoading: false });
+      wx.showToast({ title: '加载失败', icon: 'none' });
+    });
+  },
+
+  onToggleHistoryPhone(e) {
+    const index = e.currentTarget.dataset.index;
+    const key = `history[${index}]._showPhone`;
+    const current = this.data.history[index] && this.data.history[index]._showPhone;
+    this.setData({ [key]: !current });
+  },
+
+  loadMoreHistory() {
+    if (this.data.historyLoading || this.data.history.length >= this.data.historyTotal) return;
+    this.loadHistory(false);
+  },
+
   async onDelete(e) {
     const { id, name } = e.currentTarget.dataset;
     wx.showModal({
       title: '确认删除',
-      content: `确认删除 ${name || '该用户'} 的会员申请？删除后信息将不再保留。`,
+      content: `确认删除该用户的会员申请？删除后信息将不再保留。`,
       confirmColor: '#C44B4B',
       success: async (res) => {
         if (res.confirm) {
           try {
-            // 删除功能直接调用拒绝接口，或者用软删除
             await request({
               url: `/members/${id}/review`,
               method: 'PUT',
@@ -96,20 +188,14 @@ Page({
     });
   },
 
-  // 点击"通过"→ 弹出门店选择
   async onApprove(e) {
     const { id, name, storeId } = e.currentTarget.dataset;
-    // 加载门店列表
     try {
       const res = await request({ url: '/stores' });
       const storeList = res.data && Array.isArray(res.data.list) ? res.data.list : (Array.isArray(res.data) ? res.data : []);
       
-      // 自动选中用户已选择的门店
-
       let autoSelectedStoreId = '';
       if (storeId) {
-        // 检查门店列表中是否存在这个门店
-
         const targetStore = storeList.find(s => String(s._id) === String(storeId));
         if (targetStore) {
           autoSelectedStoreId = targetStore._id;
@@ -137,7 +223,6 @@ Page({
 
   onModalTap() {},
 
-  // 确认通过（带门店）
   async onConfirmApprove() {
     const { approveMember, selectedStoreId } = this.data;
     if (!selectedStoreId) {
@@ -163,7 +248,7 @@ Page({
     const { id, name } = e.currentTarget.dataset;
     wx.showModal({
       title: '确认拒绝',
-      content: `确认拒绝 ${name || '该用户'} 的会员申请？`,
+      content: `确认拒绝该用户的会员申请？`,
       success: async (res) => {
         if (res.confirm) {
           try {

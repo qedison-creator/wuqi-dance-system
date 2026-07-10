@@ -929,7 +929,115 @@ exports.getBookingList = async (query) => {
   return { list, total, page: Number(page), pageSize: Number(pageSize) };
 };
 
-// 获取预约详情
+// 按日期汇总预约数据（轻量级，用于"所有日期"懒加载）
+exports.getBookingDateSummary = async (query) => {
+  const { store_id } = query;
+  const findQuery = {};
+  if (store_id) findQuery.store_id = store_id;
+
+  // 只查询统计所需字段（轻量级查询），按 created_at 倒序以便去重时取最新状态
+  const bookings = await Booking.find(findQuery)
+    .select('schedule_id user_id status cancel_type booking_date created_at')
+    .sort({ created_at: -1 })
+    .lean();
+
+  // 按.schedule_id + user_id 去重，取每个用户在该课程的最新状态
+  // 与前端 groupByYearMonthDate 的 memberGroups 去重逻辑保持一致
+  const isCourseCancelType = (type) => ['admin_cancel', 'min_bookings_not_met', 'holiday', 'after_checkin_cancel'].includes(type);
+  const userScheduleMap = new Map(); // key: schedule_id|user_id
+  bookings.forEach(b => {
+    const key = `${b.schedule_id}|${b.user_id}`;
+    if (!userScheduleMap.has(key)) {
+      userScheduleMap.set(key, {
+        status: b.status,
+        cancel_type: b.cancel_type,
+        booking_date: b.booking_date,
+        schedule_id: b.schedule_id
+      });
+    }
+  });
+
+  // 按日期分组统计人数（去重后）
+  const dateMap = {}; // dateStr -> { bookedCount, checkedInCount, cancelledCount, totalCount, scheduleSet }
+  userScheduleMap.forEach(v => {
+    const dateStr = v.booking_date;
+    if (!dateMap[dateStr]) {
+      dateMap[dateStr] = { bookedCount: 0, checkedInCount: 0, cancelledCount: 0, totalCount: 0, scheduleSet: new Set() };
+    }
+    const dg = dateMap[dateStr];
+    dg.totalCount++;
+    dg.scheduleSet.add(String(v.schedule_id));
+
+    // 分类（与前端 getDisplayStatus 逻辑一致）
+    if (v.status === 'completed') {
+      dg.checkedInCount++;
+    } else if (v.status === 'cancelled' && isCourseCancelType(v.cancel_type)) {
+      // 课程/admin原因取消：仍算实际预约人数
+      dg.bookedCount++;
+    } else if (v.status === 'exempted') {
+      dg.cancelledCount++;
+    } else if (v.status === 'cancelled') {
+      // 用户自行取消
+      dg.cancelledCount++;
+    } else {
+      // booked 等其他状态
+      dg.bookedCount++;
+    }
+  });
+
+  // 构建年-月结构
+  const yearMap = {};
+  let totalCourses = 0;
+  let totalBookings = 0;
+  let totalCheckedIn = 0;
+  let totalCancelled = 0;
+
+  Object.keys(dateMap).forEach(dateStr => {
+    const dg = dateMap[dateStr];
+    const parts = dateStr.split('-');
+    const year = parts[0];
+    const month = parseInt(parts[1], 10);
+    const yearKey = year;
+    const monthKey = `${year}-${String(month).padStart(2, '0')}`;
+
+    if (!yearMap[yearKey]) {
+      yearMap[yearKey] = { year: yearKey, months: {} };
+    }
+    if (!yearMap[yearKey].months[monthKey]) {
+      yearMap[yearKey].months[monthKey] = { monthKey, month, dates: [], totalCount: 0 };
+    }
+
+    const scheduleCount = dg.scheduleSet.size;
+    yearMap[yearKey].months[monthKey].dates.push({
+      date: dateStr,
+      scheduleCount,
+      bookedCount: dg.bookedCount,
+      checkedInCount: dg.checkedInCount,
+      cancelledCount: dg.cancelledCount,
+      totalCount: dg.totalCount
+    });
+    yearMap[yearKey].months[monthKey].totalCount += dg.totalCount;
+
+    totalCourses += scheduleCount;
+    totalBookings += dg.bookedCount + dg.checkedInCount;
+    totalCheckedIn += dg.checkedInCount;
+    totalCancelled += dg.cancelledCount;
+  });
+
+  // 转为数组并排序
+  const yearGroups = Object.values(yearMap).map(yg => {
+    const months = Object.values(yg.months).sort((a, b) => b.month - a.month);
+    months.forEach(mg => {
+      mg.dates.sort((a, b) => new Date(b.date) - new Date(a.date));
+    });
+    return { year: yg.year, months };
+  }).sort((a, b) => parseInt(b.year) - parseInt(a.year));
+
+  return {
+    yearGroups,
+    summary: { totalCourses, totalBookings, checkedIn: totalCheckedIn, cancelled: totalCancelled }
+  };
+};
 exports.getBookingById = async (id) => {
   const booking = await Booking.findById(id)
     .populate('user_id', 'real_name nick_name avatar_url phone exemption_count')

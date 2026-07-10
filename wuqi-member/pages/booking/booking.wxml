@@ -96,10 +96,29 @@
       <view class="booking-disclaimer">成人零基础・舞蹈健身服务</view>
     </scroll-view>
 
-    <!-- 加载状态提示 -->
-    <view class="loading-wrap" wx:if="{{loading}}">
-      <view class="loading-spinner"></view>
-      <text class="loading-text">加载课程中...</text>
+    <!-- 骨架屏加载 -->
+    <view class="skeleton-list" wx:if="{{loading}}">
+      <view class="skeleton-card" wx:for="{{[1,2,3]}}" wx:key="*this">
+        <view class="sk-accent-bar"></view>
+        <view class="sk-left">
+          <view class="sk-avatar"></view>
+          <view class="sk-name"></view>
+        </view>
+        <view class="sk-right">
+          <view class="sk-btn"></view>
+          <view class="sk-time"></view>
+          <view class="sk-title"></view>
+          <view class="sk-tag"></view>
+          <view class="sk-room"></view>
+          <view class="sk-deadline"></view>
+          <view class="sk-meta">
+            <view class="sk-capacity"></view>
+            <view class="sk-avatars">
+              <view class="sk-small-avatar" wx:for="{{[1,2,3]}}" wx:key="*this"></view>
+            </view>
+          </view>
+        </view>
+      </view>
     </view>
     
     <empty-state

@@ -52,6 +52,52 @@
   font-weight: 500;
 }
 
+.ic-val-pending-wrap {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10rpx;
+}
+
+.ic-val-pending {
+  color: #E8985E;
+}
+
+.ic-pending-tag {
+  font-size: 20rpx;
+  color: #E8985E;
+  padding: 2rpx 12rpx;
+  background: rgba(232,152,94,0.1);
+  border-radius: 12rpx;
+  font-weight: 500;
+  flex-shrink: 0;
+}
+
+.ic-val-wrap {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8rpx;
+}
+
+.ic-val-old {
+  text-decoration: line-through;
+  color: #CCC0C0;
+  font-size: 24rpx;
+}
+
+.ic-arrow {
+  font-size: 22rpx;
+  color: #CCC0C0;
+}
+
+.ic-val-new {
+  color: #D4786E;
+  font-weight: 600;
+}
+
 .ic-row-avatar {
   display: flex;
   justify-content: space-between;

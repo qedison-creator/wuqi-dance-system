@@ -271,13 +271,15 @@ function broadcastToAdmins(event, data = {}) {
   let sentCount = 0;
   for (const conns of connectionPool.values()) {
     for (const ws of conns) {
-      // 仅推送给管理端连接（user_type 为 admin 或 super_admin/staff/store_manager 等角色）
-      if (ws._userType === 'admin' && ws.readyState === 1) {
-        ws.send(message);
-        sentCount++;
+      if (ws._userType === 'admin' || ws._userType === 'staff') {
+        if (ws.readyState === 1) {
+          ws.send(message);
+          sentCount++;
+        }
       }
     }
   }
+  return sentCount;
 }
 
 /**
@@ -348,7 +350,7 @@ function broadcastMemberCountUpdate(counts = {}) {
   let sentCount = 0;
   for (const conns of connectionPool.values()) {
     for (const ws of conns) {
-      if (ws._userType === 'admin' && ws.readyState === 1) {
+      if ((ws._userType === 'admin' || ws._userType === 'staff') && ws.readyState === 1) {
         ws.send(message);
         sentCount++;
       }
