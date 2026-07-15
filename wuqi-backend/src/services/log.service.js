@@ -2,7 +2,7 @@ const OperationLog = require('../models/OperationLog');
 
 // 创建操作日志
 exports.createLog = async (data) => {
-  const { operator_id, operator_name, action, module, target_id, detail, ip, user_agent } = data;
+  const { operator_id, operator_name, action, module, target_id, detail, ip, user_agent, metadata } = data;
 
   if (!action || !module) {
     throw new Error('操作类型和模块名称为必填项');
@@ -17,6 +17,7 @@ exports.createLog = async (data) => {
     detail,
     ip,
     user_agent,
+    metadata,
   });
 
   return log;

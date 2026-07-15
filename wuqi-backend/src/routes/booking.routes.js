@@ -64,6 +64,17 @@ router.get('/my-attendance', auth, checkPermission(['member']), async (req, res,
   }
 });
 
+// GET /api/v1/bookings/date-summary - 按日期汇总预约数据（轻量级，用于"所有日期"懒加载）
+router.get('/date-summary', auth, checkPermission(['super_admin', 'store_manager', 'staff']), storeFilter(), async (req, res, next) => {
+  try {
+    const result = await bookingService.getBookingDateSummary(req.query);
+    res.json(success(result));
+  } catch (err) {
+    console.error('getBookingDateSummary错误:', err.message, err.stack);
+    next(err);
+  }
+});
+
 // GET /api/v1/bookings - 管理端获取预约记录
 router.get('/', auth, checkPermission(['super_admin', 'store_manager', 'staff']), storeFilter(), async (req, res, next) => {
   try {

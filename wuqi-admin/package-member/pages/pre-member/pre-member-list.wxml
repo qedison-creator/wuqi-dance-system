@@ -14,7 +14,7 @@
     </scroll-view>
   </view>
 
-  <!-- 操作栏：搜索 + 批量导入 + 新建 -->
+  <!-- 操作栏：搜索 + 批量管理 + 批量导入 + 新建 -->
   <view class="action-bar">
     <view class="search-input-wrap">
       <text class="search-icon">搜</text>
@@ -24,12 +24,23 @@
       </view>
     </view>
     <view class="action-btns">
-      <view class="btn-import" bindtap="onGoImport">
-        <text class="btn-import-text">批量导入</text>
-      </view>
-      <view class="btn-create" bindtap="onCreatePreMember">
-        <text class="btn-create-text">+ 新建</text>
-      </view>
+      <!-- 批量管理模式下隐藏这些按钮，避免与底部操作栏冲突 -->
+      <block wx:if="{{!batchMode}}">
+        <view class="btn-import" bindtap="onEnterBatchMode">
+          <text class="btn-import-text">批量管理</text>
+        </view>
+        <view class="btn-import" bindtap="onGoImport">
+          <text class="btn-import-text">批量导入</text>
+        </view>
+        <view class="btn-create" bindtap="onCreatePreMember">
+          <text class="btn-create-text">+ 新建</text>
+        </view>
+      </block>
+      <block wx:else>
+        <view class="btn-exit-batch" bindtap="onExitBatchMode">
+          <text class="btn-import-text">退出管理</text>
+        </view>
+      </block>
     </view>
   </view>
 
@@ -47,9 +58,15 @@
   </view>
 
   <!-- 列表 -->
-  <view class="member-list" wx:if="{{!loading && list.length > 0}}">
-    <view class="member-card" wx:for="{{list}}" wx:key="_id">
+  <view class="member-list {{batchMode ? 'member-list-batch' : ''}}" wx:if="{{!loading && list.length > 0}}">
+    <view class="member-card {{batchMode && item.member_status === 'pending_claim' ? 'member-card-selectable' : ''}} {{batchMode && item._selected ? 'member-card-selected' : ''}}" wx:for="{{list}}" wx:key="_id" data-id="{{item._id}}" catchtap="onCardTap">
       <view class="member-card-top">
+        <!-- 批量管理模式下，仅 pending_claim 状态显示复选框；其他状态显示禁用占位以保持对齐 -->
+        <view class="batch-checkbox-wrap" wx:if="{{batchMode}}">
+          <view class="batch-checkbox {{item.member_status === 'pending_claim' ? (item._selected ? 'checked' : '') : 'disabled'}}">
+            <text class="batch-checkbox-tick" wx:if="{{item.member_status === 'pending_claim' && item._selected}}">✓</text>
+          </view>
+        </view>
         <view class="member-avatar-placeholder">
           <image wx:if="{{item.avatar_url}}" class="member-avatar-img" src="{{item.avatar_url}}" mode="aspectFill" lazy-load decoding="async"></image>
           <text wx:else class="avatar-text">{{item.real_name ? item.real_name[0] : '?'}}</text>
@@ -78,7 +95,8 @@
           </view>
         </view>
       </view>
-      <view class="member-actions">
+      <!-- 批量管理模式下隐藏操作按钮，避免与卡片选中冲突 -->
+      <view class="member-actions" wx:if="{{!batchMode}}">
         <block wx:if="{{item.member_status === 'pending_claim'}}">
           <view class="action-btn action-edit" catchtap="onEditPreMember" data-id="{{item._id}}">
             <text>编辑</text>
@@ -108,6 +126,22 @@
   <!-- 加载状态 -->
   <view class="loading-state" wx:if="{{loading}}">
     <text class="loading-text">加载中...</text>
+  </view>
+
+  <!-- 底部批量操作栏：仅批量管理模式下显示 -->
+  <view class="batch-action-bar" wx:if="{{batchMode}}">
+    <view class="batch-select-all-btn" catchtap="onToggleSelectAll">
+      <view class="batch-checkbox {{allSelected ? 'checked' : ''}}">
+        <text class="batch-checkbox-tick" wx:if="{{allSelected}}">✓</text>
+      </view>
+      <text class="batch-select-all-text">全选</text>
+    </view>
+    <view class="batch-action-right">
+      <text class="batch-selected-count">已选 {{selectedIds.length}} 项</text>
+      <view class="batch-delete-btn {{selectedIds.length === 0 ? 'disabled' : ''}}" catchtap="onBatchDelete">
+        <text class="batch-delete-btn-text">删除选中</text>
+      </view>
+    </view>
   </view>
 </view>
 

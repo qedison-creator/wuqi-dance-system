@@ -101,6 +101,12 @@ Page({
     this.updateGreeting();
     this.updateContentPadding();
     const currentStoreId = this.data.currentStore ? this.data.currentStore._id : '';
+    // 检测登录状态变化（登录/退出登录/切换账号），变化时强制刷新首页数据
+    const loginStateToken = app.globalData.loginStateToken || 0;
+    const loginStateChanged = this._lastLoginStateToken !== loginStateToken;
+    if (loginStateChanged) {
+      this._lastLoginStateToken = loginStateToken;
+    }
     // 从其他 tab 切回时，若课程数据为空则重新加载（修复游客切换 tab 后卡片消失）
 
     if (this.data._dataLoaded && this.data._lastStoreId === currentStoreId && (!this.data.recentCourses || this.data.recentCourses.length === 0)) {
@@ -111,9 +117,9 @@ Page({
       this.checkPendingRelocate();
       return;
     }
-    // 仅首次加载或切换门店时请求数据，避免从其他页面返回时重复请求
+    // 仅首次加载、切换门店或登录状态变化时请求数据，避免从其他页面返回时重复请求
 
-    if (!this.data._dataLoaded || this.data._lastStoreId !== currentStoreId) {
+    if (!this.data._dataLoaded || this.data._lastStoreId !== currentStoreId || loginStateChanged) {
       this.setData({ _dataLoaded: true, _lastStoreId: currentStoreId });
       this.loadHomeData();
     }
@@ -467,6 +473,8 @@ Page({
       isOfficial: userInfo.member_status === 'official',
       currentStore: app.globalData.currentStore
     });
+    // 同步登录状态令牌，避免下次 onShow 因令牌变化重复刷新
+    this._lastLoginStateToken = app.globalData.loginStateToken || 0;
     // 登录成功后刷新页面数据
     this.loadHomeData();
   },

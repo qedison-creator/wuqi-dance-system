@@ -1,35 +1,25 @@
-V1.1.0.3: 预建档自动匹配功能 + 扫码签到P0/P1/P2 + 待办事项改造 + 隐私协议适配
-
-【后端】
-- 新增预建档服务（preMember.service.js）：列表/创建/编辑/删除/认领匹配/批量导入
-- 新增预建档路由（preMember.routes.js）：7个接口，路由顺序修复（/template 移到 /:id 前）
-- 新增 MongoDB 部分唯一索引脚本（create-premember-index.js）
-- auth.service.js：微信登录新增预建档匹配前置分支（异常自动降级）
-- User.js：member_status 枚举追加 pending_claim
-- SystemConfig.js：删除重复 schema.index，保留字段 unique 属性
-- 18处 new: true → returnDocument: 'after'（Mongoose 9 弃用警告清理）
-- package.json：新增 xlsx 和 ws 依赖
-
-【管理端】
-- 新增预建档管理页（pre-member-list）：列表/新建/编辑/删除/批量导入
-- 新增预建档导入页（pre-member-import）：模板下载 + Excel 上传
-- 新增 iPhone 风格日期选择器组件（components/date-picker）
-- 自定义门店选择弹窗（替代微信原生 picker）
-- 弹窗布局修复：统一输入框高度、防止溢出、禁止滑动穿透
-- members 页面：新增预建档会员统计卡片
-- todo-list 页面：今日课程按钮改"查看预约"跳运营管理页（tabBar 用 switchTab）
-- privacy 页面：新增 chooseMessageFile/chooseFile 隐私用途说明
-- app.json：permission 配置两个 scope 权限描述
-- project.config.json：__usePrivacyCheck__ 配置
+V1.1.0.6: 信息修改审核WebSocket实时推送 + 预约记录懒加载与统计口径修正 + 运营日历选中样式优化
 
 【会员端】
-- profile 页面：删除转卡申请入口（wxml/js/wxss 3处修改）
-- 修复 compare.wxs 缺失导致的编译错误
-- 清理残留文件：pages/coach-detail/coach-detail.json、pages/course-list/（4个文件）
+- 个人信息页：手机号/姓名修改提交后弹出订阅消息授权窗口
+- 个人信息页：审核结果通过WebSocket实时推送，按字段独立显示审核中状态（划线旧值+彩色新值）
+- 个人信息页：审核通过/拒绝后即时刷新，无需手动刷新页面
 
-【部署相关】
-- 修复 ObjectId 转换 500 错误（mongoose.Types.ObjectId 加 new 关键字）
-- 修复 require 路径错误（4层 → 3层 ../）
-- 修复 downloadFile 域名校验错误（api.yuekeme.cn → admin-api.yuekeme.cn）
-- 修复 EBUSY 文件占用错误（用时间戳唯一文件名）
-- 修复 chooseMessageFile 隐私协议 112 报错（button open-type=agreePrivacyAuthorization）
+【管理端】
+- 信息修改审核页：WebSocket实时推送待审核事件（admin/staff双类型支持）
+- 信息修改审核页：下拉刷新替代轮询，审核记录手机号脱敏+小眼睛切换
+- 信息修改审核页：同一会员多条审核记录（存入OperationLog，不再覆盖）
+- 预约记录页：日期筛选"所有日期"懒加载（轻量汇总接口+展开月份按需加载）
+- 预约记录页：统计口径修正（总预约人数=每节课已预约+已签到人数汇总，按用户去重）
+- 预约记录页：横条统计改为课程数（非记录数），"所有日期"显示真实数据
+- 预约记录页：导出功能增加未展开月份提示
+- 运营管理页：课程日历选中日期改为空心方形（底部开放不遮挡状态横线）
+- 运营管理页：今天标识改为居中小实心圆（不遮挡状态横线）
+
+【后端】
+- 新增 /bookings/date-summary 轻量聚合接口（按用户去重统计人数）
+- auditInfoChange：所有修改字段都发送微信通知（不再只限手机号）
+- auditInfoChange：审核记录存入OperationLog（含metadata结构化数据）
+- broadcastToAdmins：支持admin+staff双类型WebSocket推送
+- OperationLog模型：新增metadata字段存储结构化审核数据
+- 移除调试日志，保留error日志

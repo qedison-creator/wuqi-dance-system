@@ -49,15 +49,38 @@ Page({
           .catch(() => resolve({ data: {} }));
       })
     ]).then(([res, systemRes]) => {
-      // 过滤掉重复的模板ID配置
-
-      const EXCLUDED_KEYS = ['tpl_bookingSuccessTemplateId', 'tpl_bookingCancelTemplateId'];
+      // 过滤掉不需要在此页面展示的配置：
+      // 1. 模板ID配置（由消息模板页单独管理）
+      // 2. 角色权限配置（由权限管理页单独管理，value 是对象，渲染会显示 [object Object]）
+      // 3. 套餐提醒相关配置（由"消息推送设置-套餐提醒设置"单独管理，避免重复展示）
+      // 4. value 非简单标量（对象/数组）的配置，无法在此文本编辑框中修改
+      const EXCLUDED_KEYS = [
+        'tpl_bookingSuccessTemplateId',
+        'tpl_bookingCancelTemplateId',
+        'role_permissions',
+        'reminder_send_time',
+        'package_expire_remind_days',
+        'expire_remind_interval',
+        'count_card_low_remind',
+        'low_count_remind_interval',
+        'inactive_remind_days',
+        'inactive_remind_interval'
+      ];
       const configs = (res.data || [])
         .filter(c => !EXCLUDED_KEYS.includes(c.key))
+        .filter(c => {
+          const v = c.value;
+          // 仅保留字符串/数字/布尔等简单标量
+          return v === null || v === undefined ||
+                 typeof v === 'string' ||
+                 typeof v === 'number' ||
+                 typeof v === 'boolean';
+        })
         .map(c => ({
           config_key: c.key,
-          config_value: c.value,
-          description: c.description
+          // 统一转字符串，避免数字等被 WXML 渲染异常
+          config_value: c.value === null || c.value === undefined ? '' : String(c.value),
+          description: c.description || c.key
         }));
       
       const systemConfigs = systemRes && systemRes.data ? systemRes.data : {};

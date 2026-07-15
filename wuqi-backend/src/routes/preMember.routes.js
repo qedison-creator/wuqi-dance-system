@@ -336,6 +336,21 @@ router.delete('/:id', auth, checkPermission(['super_admin', 'store_manager', 'st
   }
 });
 
+// POST /api/v1/pre-members/batch-delete - 批量删除预建档
+router.post('/batch-delete', auth, checkPermission(['super_admin', 'store_manager', 'staff']), async (req, res, next) => {
+  try {
+    const { ids } = req.body || {};
+    const result = await preMemberService.batchDeletePreMembers(ids);
+    broadcastMemberCountUpdate();
+    const msg = result.failed.length === 0
+      ? `成功删除${result.deleted}条记录`
+      : `成功删除${result.deleted}条，${result.failed.length}条不可删除`;
+    res.json(success(result, msg));
+  } catch (err) {
+    res.status(400).json({ code: 400, message: err.message });
+  }
+});
+
 // POST /api/v1/pre-members/import - 批量导入预建档
 router.post('/import', auth, checkPermission(['super_admin', 'store_manager', 'staff']), excelUpload.single('file'), async (req, res, next) => {
   try {

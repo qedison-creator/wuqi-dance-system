@@ -82,6 +82,8 @@ Component({
               wx.hideLoading();
               wx.setStorageSync('token', 'mock-token');
               app.globalData.token = 'mock-token';
+              // 登录状态令牌自增，通知首页等页面用户身份已变化，需强制刷新数据
+              app.globalData.loginStateToken = (app.globalData.loginStateToken || 0) + 1;
               wx.showToast({ title: '登录成功', icon: 'success', duration: 1200 });
               self.triggerEvent('success');
               self.triggerEvent('close');
@@ -107,6 +109,8 @@ Component({
                 if (token) {
                   wx.setStorageSync('token', token);
                   app.globalData.token = token;
+                  // 登录状态令牌自增，通知首页等页面用户身份已变化，需强制刷新数据
+                  app.globalData.loginStateToken = (app.globalData.loginStateToken || 0) + 1;
                 }
 
                 // 登录成功后调用 /auth/me 获取完整用户信息

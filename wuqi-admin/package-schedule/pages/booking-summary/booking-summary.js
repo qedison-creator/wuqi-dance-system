@@ -145,6 +145,7 @@ Page({
     const parts = dateStr.split('-');
     const label = `${parseInt(parts[1])}月${parseInt(parts[2])}日`;
     this.setData({
+      dateFilter: 'custom',
       customDate: dateStr,
       customDateText: label,
       startDate: dateStr,
@@ -156,9 +157,13 @@ Page({
 
   // ========== 加载预约数据 ==========
   async loadBookings() {
+    // "所有日期"模式：先加载轻量级日期汇总，月份展开时再加载详细数据
+    if (this.data.dateFilter === 'all') {
+      return this.loadDateSummary();
+    }
     this.setData({ loading: true });
     try {
-      const reqData = {};
+      const reqData = { pageSize: 9999 };
       if (this.data.activeStoreId) reqData.store_id = this.data.activeStoreId;
       if (this.data.startDate) reqData.start_date = this.data.startDate;
       if (this.data.endDate) reqData.end_date = this.data.endDate;
@@ -177,6 +182,114 @@ Page({
       wx.showToast({ title: '加载失败', icon: 'none' });
     } finally {
       this.setData({ loading: false });
+    }
+  },
+
+  // 加载日期汇总（轻量级，用于"所有日期"）
+  async loadDateSummary() {
+    this.setData({ loading: true });
+    try {
+      const reqData = {};
+      if (this.data.activeStoreId) reqData.store_id = this.data.activeStoreId;
+
+      const res = await request({ url: '/bookings/date-summary', method: 'GET', data: reqData });
+      const data = res.data || {};
+
+      // 构建年-月-日结构（全部折叠，展开时再加载详细数据）
+      const now = new Date();
+      const currentYear = now.getFullYear();
+      const currentMonth = now.getMonth() + 1;
+
+      const yearGroups = (data.yearGroups || []).map(yg => {
+        const yearLabel = yg.year === '未知' ? '未知年份' : `${yg.year}年`;
+        const months = yg.months.map(mg => {
+          const dates = mg.dates.map(d => ({
+            date: d.date,
+            dateLabel: this.formatDateLabel(d.date),
+            weekday: this.getWeekday(d.date),
+            // 横条统计：课程数（非记录数）
+            totalCount: d.scheduleCount,
+            // 汇总数据（折叠时显示）
+            _summaryBooked: d.bookedCount + d.checkedInCount,
+            _summaryCheckedIn: d.checkedInCount,
+            _summaryCancelled: d.cancelledCount,
+            _summaryCourses: d.scheduleCount,
+            // 标记未加载详细数据
+            _loaded: false,
+            schedules: []
+          }));
+          return {
+            monthKey: mg.monthKey,
+            month: mg.month,
+            monthLabel: mg.month === 0 ? '未知月份' : `${mg.month}月`,
+            expanded: false,
+            dates,
+            // 月份横条统计：该月所有日期的课程数之和（真实数据，不依赖展开加载）
+            totalCount: dates.reduce((sum, d) => sum + d.totalCount, 0),
+            _loaded: false
+          };
+        });
+        return {
+          year: yg.year,
+          yearLabel,
+          months,
+          // 年份横条统计：该年所有月份的课程数之和
+          totalCount: months.reduce((sum, m) => sum + m.totalCount, 0)
+        };
+      });
+
+      this.setData({
+        yearGroups,
+        summary: data.summary || { totalCourses: 0, totalBookings: 0, checkedIn: 0, cancelled: 0 }
+      });
+    } catch (err) {
+      console.error('加载日期汇总失败', err);
+      wx.showToast({ title: '加载失败', icon: 'none' });
+    } finally {
+      this.setData({ loading: false });
+    }
+  },
+
+  // 加载某个月的详细预约数据
+  async loadMonthDetails(yearIndex, monthIndex) {
+    const yearGroup = this.data.yearGroups[yearIndex];
+    if (!yearGroup) return;
+    const monthGroup = yearGroup.months[monthIndex];
+    if (!monthGroup || monthGroup._loaded) return;
+
+    try {
+      // 计算月份的起止日期
+      const year = parseInt(yearGroup.year, 10);
+      const month = monthGroup.month;
+      const monthStart = `${year}-${String(month).padStart(2, '0')}-01`;
+      const lastDay = new Date(year, month, 0).getDate();
+      const monthEnd = `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+
+      const reqData = { pageSize: 9999, start_date: monthStart, end_date: monthEnd };
+      if (this.data.activeStoreId) reqData.store_id = this.data.activeStoreId;
+
+      const res = await request({ url: '/bookings', method: 'GET', data: reqData });
+      const data = res.data || {};
+      const list = data.list || [];
+
+      const processedList = list.map(item => this.processBookingItem(item));
+      const newYearGroups = this.groupByYearMonthDate(processedList);
+      const newMonthData = newYearGroups[0] && newYearGroups[0].months[0];
+
+      // 合并详细数据到现有结构（无数据时也要标记已加载，避免一直显示"加载中"）
+      const key = `yearGroups[${yearIndex}].months[${monthIndex}]`;
+      if (newMonthData) {
+        this.setData({
+          [`${key}.dates`]: newMonthData.dates,
+          [`${key}.totalCount`]: newMonthData.totalCount,
+          [`${key}._loaded`]: true
+        });
+      } else {
+        this.setData({ [`${key}._loaded`]: true });
+      }
+    } catch (err) {
+      console.error('加载月详细数据失败', err);
+      wx.showToast({ title: '加载失败', icon: 'none' });
     }
   },
 
@@ -372,12 +485,9 @@ Page({
         memberGroup._isCompleted = item.status === 'completed';
       }
 
-      dateGroup.totalCount++;
-      monthGroup.totalCount++;
-      yearMap[yearKey].totalCount++;
     });
 
-    // 排序各层级
+    // 排序各层级 + 统计课程数（totalCount = schedules.length）
     Object.values(yearMap).forEach(yg => {
       yg.months.forEach(mg => {
         mg.dates.forEach(dg => {
@@ -415,10 +525,16 @@ Page({
             const timeB = b.schedule_info.start_time || '';
             return timeA.localeCompare(timeB);
           });
+          // 日期横条统计：课程数
+          dg.totalCount = dg.schedules.length;
         });
         mg.dates.sort((a, b) => new Date(b.date) - new Date(a.date));
+        // 月份横条统计：该月所有日期的课程数之和
+        mg.totalCount = mg.dates.reduce((sum, d) => sum + d.totalCount, 0);
       });
       yg.months.sort((a, b) => b.month - a.month);
+      // 年份横条统计：该年所有月份的课程数之和
+      yg.totalCount = yg.months.reduce((sum, m) => sum + m.totalCount, 0);
     });
 
     const sortedYears = Object.keys(yearMap).sort((a, b) => parseInt(b) - parseInt(a));
@@ -436,13 +552,10 @@ Page({
         mg.dates.forEach(dg => {
           dg.schedules.forEach(schedule => {
             totalCourses++;
-            schedule.memberGroups.forEach(mg => {
-              totalBookings += mg.records.length;
-              // 已签到（含已完成）
-              if (mg.latestStatus === 'checkedIn') checkedIn++;
-              // 已取消（含豁免取消）
-              else if (mg.latestStatus === 'cancelled') cancelled++;
-            });
+            // 总预约人数 = 已预约 + 已签到（排除已取消）
+            totalBookings += schedule.bookedCount + schedule.checkedInCount;
+            checkedIn += schedule.checkedInCount;
+            cancelled += schedule.cancelledCount;
           });
         });
       });
@@ -478,8 +591,15 @@ Page({
     const { yearIndex, monthIndex } = e.currentTarget.dataset;
     const yearGroups = [...this.data.yearGroups];
     if (!yearGroups[yearIndex] || !yearGroups[yearIndex].months[monthIndex]) return;
-    yearGroups[yearIndex].months[monthIndex].expanded = !yearGroups[yearIndex].months[monthIndex].expanded;
+    const monthData = yearGroups[yearIndex].months[monthIndex];
+    const newExpanded = !monthData.expanded;
+    monthData.expanded = newExpanded;
     this.setData({ yearGroups });
+
+    // "所有日期"模式下，展开月份时懒加载详细数据
+    if (newExpanded && this.data.dateFilter === 'all' && !monthData._loaded) {
+      this.loadMonthDetails(yearIndex, monthIndex);
+    }
   },
 
   onToggleCourse(e) {
@@ -538,10 +658,36 @@ Page({
   // ========== 导出 ==========
   // 从当前 yearGroups 数据生成 HTML 表格，导出为 .xls
   onExport() {
-    const { yearGroups, startDate, endDate, summary } = this.data;
+    const { yearGroups, startDate, endDate, summary, dateFilter } = this.data;
 
-    // 收集所有预约记录，按 年-月-日-课程-会员-记录 展开
+    // "所有日期"模式下，未展开的月份未加载详细数据，提示用户
+    if (dateFilter === 'all') {
+      const hasUnloaded = yearGroups.some(yg =>
+        (yg.months || []).some(mg => mg.expanded && !mg._loaded)
+      );
+      const hasUnexpanded = yearGroups.some(yg =>
+        (yg.months || []).some(mg => !mg.expanded)
+      );
+      if (hasUnexpanded || hasUnloaded) {
+        wx.showModal({
+          title: '提示',
+          content: '当前为"所有日期"模式，未展开的月份未加载详细数据，导出内容可能不完整。是否继续导出？',
+          confirmText: '继续导出',
+          cancelText: '取消',
+          success: (res) => {
+            if (res.confirm) {
+              this._doExport(yearGroups, startDate, endDate, summary);
+            }
+          }
+        });
+        return;
+      }
+    }
 
+    this._doExport(yearGroups, startDate, endDate, summary);
+  },
+
+  _doExport(yearGroups, startDate, endDate, summary) {
     const rows = [];
     yearGroups.forEach(yg => {
       (yg.months || []).forEach(mg => {
@@ -606,7 +752,7 @@ Page({
     html += '<tr><td colspan="13" style="text-align:center;font-size:16px;font-weight:bold;">舞栖DANCE · 预约记录汇总</td></tr>';
     html += `<tr><td colspan="2">日期范围</td><td colspan="11">${startDate || ''} ~ ${endDate || ''}</td></tr>`;
     html += `<tr><td colspan="2">导出时间</td><td colspan="11">${new Date().toLocaleString('zh-CN')}</td></tr>`;
-    html += `<tr><td colspan="2">汇总</td><td colspan="11">总课程${summary.totalCourses || 0}节｜总预约${summary.totalBookings || 0}单｜已签到${summary.checkedIn || 0}人｜已取消${summary.cancelled || 0}人</td></tr>`;
+    html += `<tr><td colspan="2">汇总</td><td colspan="11">总课程${summary.totalCourses || 0}节｜总预约${summary.totalBookings || 0}人｜已签到${summary.checkedIn || 0}人｜已取消${summary.cancelled || 0}人</td></tr>`;
     html += '<tr></tr>';
 
     // 表头

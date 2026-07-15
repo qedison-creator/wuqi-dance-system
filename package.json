@@ -1,6 +1,6 @@
 {
   "name": "wuqi-dance-system",
-  "version": "1.1.0.5",
+  "version": "1.1.0.6",
   "description": "舞栖舞蹈社微信小程序管理系统，包含管理端、会员端和后端服务。",
   "main": "wuqi-backend/server.js",
   "directories": {

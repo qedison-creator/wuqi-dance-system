@@ -353,6 +353,145 @@
   color: #B8AF9E;
 }
 
+/* ========== 批量管理模式 ========== */
+
+/* 退出管理按钮（复用 .btn-import 的描边样式，灰色调以区分） */
+.btn-exit-batch {
+  padding: 0 20rpx;
+  background: #FFFFFF;
+  border: 1rpx solid #B8AF9E;
+  border-radius: 32rpx;
+  height: 64rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-exit-batch .btn-import-text {
+  color: #8B7E6A;
+}
+
+/* 批量模式下列表底部留出批量操作栏的空间 */
+.member-list-batch {
+  padding-bottom: 160rpx;
+}
+
+/* 可选中卡片：轻提示用户可点 */
+.member-card-selectable {
+  position: relative;
+  transition: background 0.15s;
+}
+
+.member-card-selectable:active {
+  background: #FAF6F0;
+}
+
+/* 已选中卡片：左侧主色边框 + 浅色底 */
+.member-card-selected {
+  background: #FFF8F3 !important;
+  box-shadow: 0 0 0 2rpx #C4663E inset, 0 2rpx 16rpx rgba(196, 102, 62, 0.12);
+}
+
+/* 复选框容器 */
+.batch-checkbox-wrap {
+  width: 44rpx;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 16rpx;
+  padding-top: 18rpx;  /* 与头像顶部对齐 */
+}
+
+/* 复选框主体 */
+.batch-checkbox {
+  width: 36rpx;
+  height: 36rpx;
+  border-radius: 50%;
+  border: 2rpx solid #D9CFC0;
+  background: #FFFFFF;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+}
+
+.batch-checkbox.checked {
+  background: #C4663E;
+  border-color: #C4663E;
+}
+
+/* 不可选（已认领）状态的复选框：灰色禁用样式 */
+.batch-checkbox.disabled {
+  background: #F2EDE5;
+  border-color: #E0D8C8;
+}
+
+.batch-checkbox-tick {
+  font-size: 22rpx;
+  color: #FFFFFF;
+  font-weight: bold;
+  line-height: 1;
+}
+
+/* 底部批量操作栏 */
+.batch-action-bar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: #FFFFFF;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20rpx 28rpx;
+  padding-bottom: calc(20rpx + env(safe-area-inset-bottom));
+  box-shadow: 0 -4rpx 24rpx rgba(139, 126, 106, 0.1);
+  z-index: 100;
+}
+
+.batch-select-all-btn {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+}
+
+.batch-select-all-text {
+  font-size: 28rpx;
+  color: #2C2416;
+}
+
+.batch-action-right {
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
+}
+
+.batch-selected-count {
+  font-size: 26rpx;
+  color: #5C5246;
+}
+
+.batch-delete-btn {
+  padding: 0 32rpx;
+  height: 72rpx;
+  border-radius: 36rpx;
+  background: #D4786E;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.batch-delete-btn.disabled {
+  background: #E8DDD0;
+}
+
+.batch-delete-btn-text {
+  font-size: 28rpx;
+  color: #FFFFFF;
+  font-weight: 500;
+}
+
 /* ========== 新建/编辑弹窗 ========== */
 .modal-mask {
   position: fixed;

@@ -153,9 +153,9 @@ function connect(options = {}) {
     _handleDisconnect();
   });
 
-  // 连接错误
+  // 连接错误：降级为 warn（已有自动重连+降级轮询机制，连接失败不影响功能）
   socketTask.onError((err) => {
-    console.error('[WebSocket] 连接错误:', err);
+    console.warn('[WebSocket] 连接错误（将自动降级为轮询）:', err && err.errMsg ? err.errMsg : err);
     _handleDisconnect();
   });
 }

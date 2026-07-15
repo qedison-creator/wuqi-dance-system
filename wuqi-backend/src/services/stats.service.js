@@ -369,7 +369,8 @@ exports.getDashboardData = async (storeId) => {
       const endDate = dayjs(pkg.end_date);
       const startDate = dayjs(pkg.start_date);
       const totalDays = endDate.diff(startDate, 'day');
-      const remainingDays = endDate.diff(now, 'day');
+      // 剩余天数统一用 Math.ceil（与会员详情页 member-detail 的剩余天数算法一致），避免 floor/ceil 差1天
+      const remainingDays = Math.ceil((endDate.valueOf() - now.valueOf()) / (1000 * 60 * 60 * 24));
       const remainingPercent = totalDays > 0 ? (remainingDays / totalDays) * 100 : 0;
       
       // 阈值规则
@@ -389,8 +390,7 @@ exports.getDashboardData = async (storeId) => {
       };
     })
     .filter(m => m.is_expiring)
-    .sort((a, b) => a.remaining_days - b.remaining_days)
-    .slice(0, 10);
+    .sort((a, b) => a.remaining_days - b.remaining_days);
 
   // 3. 次卡会员跟进提醒
   const countCardFilter = {
@@ -409,7 +409,8 @@ exports.getDashboardData = async (storeId) => {
       const endDate = pkg.end_date ? dayjs(pkg.end_date) : null;
       const startDate = pkg.start_date ? dayjs(pkg.start_date) : null;
       const totalDays = endDate && startDate ? endDate.diff(startDate, 'day') : 0;
-      const remainingDays = endDate ? endDate.diff(now, 'day') : 999;
+      // 剩余天数统一用 Math.ceil（与会员详情页 member-detail 的剩余天数算法一致），避免 floor/ceil 差1天
+      const remainingDays = endDate ? Math.ceil((endDate.valueOf() - now.valueOf()) / (1000 * 60 * 60 * 24)) : 999;
       const remainingPercent = totalDays > 0 ? (remainingDays / totalDays) * 100 : 100;
       
       // 次卡阈值规则
@@ -419,7 +420,7 @@ exports.getDashboardData = async (storeId) => {
       else if (totalDays < 150) timeThreshold = 10;
       else timeThreshold = 8;
       
-      const isLowCredits = (pkg.remaining_credits || 0) <= 3;
+      const isLowCredits = (pkg.remaining_credits || 0) <= 5;
       const isExpiring = remainingPercent < timeThreshold && remainingDays >= 0;
       
       return {
@@ -441,8 +442,7 @@ exports.getDashboardData = async (storeId) => {
         return a.remaining_days - b.remaining_days;
       }
       return a.remaining_credits - b.remaining_credits;
-    })
-    .slice(0, 10);
+    });
 
   // 4. 近期课程安排（未来7天，不含今天）— 用于首页待办角标统计，不限制数量
   // 注意：今天的课程由"今日课程"待办项单独统计，这里排除今天避免重复

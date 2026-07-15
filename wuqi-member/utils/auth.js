@@ -31,6 +31,9 @@ const wxLogin = (storeId) => {
             }
           }
 
+          // 登录状态令牌自增，通知首页等页面用户身份已变化，需强制刷新数据
+          getApp().globalData.loginStateToken = (getApp().globalData.loginStateToken || 0) + 1;
+
           resolve(userInfo);
         }).catch(reject);
       },
@@ -112,6 +115,8 @@ const logout = () => {
   wx.removeStorageSync('token');
   getApp().globalData.token = '';
   getApp().globalData.userInfo = null;
+  // 登录状态令牌自增，通知首页等页面用户身份已变化（退出登录），需强制刷新数据
+  getApp().globalData.loginStateToken = (getApp().globalData.loginStateToken || 0) + 1;
 };
 
 module.exports = { wxLogin, checkLogin, requireLogin, requireMember, logout };

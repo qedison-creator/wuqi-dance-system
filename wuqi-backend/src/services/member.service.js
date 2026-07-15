@@ -4,6 +4,11 @@ const Booking = require('../models/Booking');
 const ExemptionLog = require('../models/ExemptionLog');
 const logService = require('./log.service');
 const dayjs = require('dayjs');
+const utc = require('dayjs/plugin/utc');
+const timezone = require('dayjs/plugin/timezone');
+dayjs.extend(utc);
+dayjs.extend(timezone);
+const BEIJING_TZ = 'Asia/Shanghai';
 
 // 获取会员列表(支持status/keyword/store_id/package_active/package_suspended/package_expired/package_pending/package_exhausted筛选)
 exports.getMemberList = async (query) => {
@@ -231,6 +236,16 @@ exports.reviewMember = async (id, action, reason, operatorId, storeId) => {
     module: 'member',
     target_id: id,
     detail: `审核会员: ${user.nick_name || user.phone || id}, 操作: ${action === 'approve' ? '通过' : '拒绝'}${reason ? ', 原因: ' + reason : ''}${user.member_code ? ', 会员编码: ' + user.member_code : ''}`,
+    metadata: {
+      member_snapshot: {
+        real_name: user.real_name || '',
+        nick_name: user.nick_name || '',
+        phone: user.phone || '',
+        wechat_phone: user.wechat_phone || '',
+        reserve_phone: user.reserve_phone || '',
+        member_code: user.member_code || ''
+      }
+    }
   });
 
   return user;
@@ -419,7 +434,7 @@ exports.unsuspendMember = async (userId, operatorId) => {
 // 福永店FY, 固戍店GS + 日期8位 + 序号3位
 exports.generateMemberCode = async (storeId) => {
   const Store = require('../models/Store');
-  const dateStr = dayjs().format('YYYYMMDD');
+  const dateStr = dayjs().tz(BEIJING_TZ).format('YYYYMMDD');
   
   let prefix = 'FY'; // 默认福永店
   
@@ -436,8 +451,8 @@ exports.generateMemberCode = async (storeId) => {
   }
   
   // 查询今日已生成的编码数量（该前缀的）
-  const todayStart = dayjs().startOf('day').toDate();
-  const todayEnd = dayjs().endOf('day').toDate();
+  const todayStart = dayjs().tz(BEIJING_TZ).startOf('day').toDate();
+  const todayEnd = dayjs().tz(BEIJING_TZ).endOf('day').toDate();
   
   const count = await User.countDocuments({
     member_code: { $regex: new RegExp(`^${prefix}${dateStr}`) },
@@ -638,6 +653,16 @@ exports.auditReservePhone = async (userId, action, operatorId, operatorName, rea
       module: 'member',
       target_id: userId,
       detail: `审核通过会员预留手机号修改为 ${newPhone}`,
+      metadata: {
+        member_snapshot: {
+          real_name: user.real_name || '',
+          nick_name: user.nick_name || '',
+          phone: user.phone || '',
+          wechat_phone: user.wechat_phone || '',
+          reserve_phone: user.reserve_phone || '',
+          member_code: user.member_code || ''
+        }
+      }
     });
     
     // 发送审核通过通知
@@ -659,6 +684,16 @@ exports.auditReservePhone = async (userId, action, operatorId, operatorName, rea
       module: 'member',
       target_id: userId,
       detail: `审核拒绝会员预留手机号修改，原因：${reason || '未说明'}`,
+      metadata: {
+        member_snapshot: {
+          real_name: user.real_name || '',
+          nick_name: user.nick_name || '',
+          phone: user.phone || '',
+          wechat_phone: user.wechat_phone || '',
+          reserve_phone: user.reserve_phone || '',
+          member_code: user.member_code || ''
+        }
+      }
     });
     
     // 发送审核拒绝通知
@@ -759,6 +794,84 @@ exports.getInfoChangeList = async (query = {}) => {
   return list;
 };
 
+// 获取信息修改审核历史记录（从 OperationLog 查询，支持同一会员多条记录）
+exports.getInfoChangeHistory = async (query = {}) => {
+  const OperationLog = require('../models/OperationLog');
+  const User = require('../models/User');
+  const { page = 1, pageSize = 20 } = query;
+  const filter = {
+    module: 'member',
+    action: { $in: ['info_change_approve', 'info_change_reject'] }
+  };
+
+  const total = await OperationLog.countDocuments(filter);
+  const logs = await OperationLog.find(filter)
+    .populate('operator_id', 'nick_name real_name')
+    .sort({ created_at: -1 })
+    .skip((page - 1) * pageSize)
+    .limit(Number(pageSize));
+
+  // 批量查询对应的会员信息
+  const userIds = [...new Set(logs.map(l => l.target_id?.toString()).filter(Boolean))];
+  const users = await User.find({ _id: { $in: userIds } })
+    .populate('store_id', 'name')
+    .select('nick_name real_name phone reserve_phone store_id');
+  const userMap = new Map();
+  users.forEach(u => userMap.set(u._id.toString(), u));
+
+  const list = logs.map(log => {
+    const user = userMap.get(log.target_id?.toString()) || {};
+    const meta = log.metadata || {};
+    const pendingData = meta.pending_data || {};
+    const reviewer = log.operator_id || {};
+    return {
+      _id: log._id,
+      real_name: user.real_name || user.nick_name || '未知',
+      nick_name: user.nick_name || '',
+      phone: user.phone || '',
+      store_id: user.store_id || null,
+      info_change_request: {
+        pending_data: pendingData,
+        requested_at: meta.requested_at || log.created_at,
+        reviewed_at: log.created_at,
+        status: meta.audit_status || (log.action === 'info_change_approve' ? 'approved' : 'rejected'),
+        reject_reason: meta.reject_reason || '',
+        reviewed_by: { _id: reviewer._id, nick_name: reviewer.nick_name, real_name: reviewer.real_name }
+      }
+    };
+  });
+
+  return { list, total, page: Number(page), pageSize: Number(pageSize) };
+};
+
+// 获取会员审核历史记录（待审核→通过/拒绝）
+exports.getMemberAuditHistory = async (query = {}) => {
+  const OperationLog = require('../models/OperationLog');
+  const { page = 1, pageSize = 20 } = query;
+  const filter = { module: 'member', action: { $in: ['approve', 'reject'] } };
+
+  const total = await OperationLog.countDocuments(filter);
+  const list = await OperationLog.find(filter)
+    .populate('operator_id', 'nick_name real_name')
+    // target_id 在 OperationLog 模型上为多态 ObjectId（未声明 ref），此处显式指定 model 为 User，
+    // 否则 populate 会静默失效，导致审核记录卡片姓名/手机号显示"未知"
+    .populate({ path: 'target_id', model: 'User', select: 'nick_name real_name phone wechat_phone reserve_phone created_at' })
+    .sort({ created_at: -1 })
+    .skip((page - 1) * pageSize)
+    .limit(Number(pageSize))
+    .lean();
+
+  // 会员被删除后 populate target_id 为 null，从 metadata.member_snapshot 回退填充，
+  // 确保审核记录卡片仍能显示真实姓名和微信授权手机号
+  list.forEach(log => {
+    if (!log.target_id && log.metadata && log.metadata.member_snapshot) {
+      log.target_id = log.metadata.member_snapshot;
+    }
+  });
+
+  return { list, total, page: Number(page), pageSize: Number(pageSize) };
+};
+
 exports.auditInfoChange = async (userId, action, operatorId, reason = '') => {
   const User = require('../models/User');
   const user = await User.findById(userId);
@@ -767,13 +880,19 @@ exports.auditInfoChange = async (userId, action, operatorId, reason = '') => {
     throw new Error('没有待审核的信息修改请求');
   }
 
+  const pendingData = user.info_change_request.pending_data || {};
+  const requestedAt = user.info_change_request.requested_at;
+
   if (action === 'approve') {
-    const pendingData = user.info_change_request.pending_data || {};
     const allowedFields = ['real_name', 'phone', 'gender', 'store_id'];
     for (const field of allowedFields) {
       if (pendingData[field] !== undefined) {
         user[field] = pendingData[field];
       }
+    }
+    // 手机号修改审核通过时，同步更新 reserve_phone
+    if (pendingData.phone !== undefined) {
+      user.reserve_phone = pendingData.phone;
     }
     user.info_change_request.status = 'approved';
   } else if (action === 'reject') {
@@ -786,5 +905,41 @@ exports.auditInfoChange = async (userId, action, operatorId, reason = '') => {
   user.info_change_request.reviewed_by = operatorId;
   user.info_change_request.reviewed_at = new Date();
   await user.save();
+
+  // 保存审核记录到 OperationLog（支持同一会员多条记录）
+  const changedFields = Object.keys(pendingData);
+  const fieldLabels = { real_name: '姓名', phone: '手机号', gender: '性别', store_id: '门店' };
+  const itemText = changedFields.map(f => fieldLabels[f] || f).join('、');
+  try {
+    await logService.createLog({
+      operator_id: operatorId,
+      operator_name: '',
+      action: action === 'approve' ? 'info_change_approve' : 'info_change_reject',
+      module: 'member',
+      target_id: userId,
+      detail: `审核${action === 'approve' ? '通过' : '拒绝'}会员信息修改（${itemText}）`,
+      metadata: {
+        pending_data: pendingData,
+        requested_at: requestedAt,
+        reject_reason: action === 'reject' ? reason : null,
+        audit_status: action === 'approve' ? 'approved' : 'rejected'
+      }
+    });
+  } catch (e) {
+    console.error('保存信息修改审核记录失败:', e.message);
+  }
+
+  // 发送微信审核结果通知（所有修改字段都通知）
+  if (user.openid) {
+    try {
+      const wechatMessageService = require('./wechat-message.service');
+      const result = action === 'approve' ? 'approved' : 'rejected';
+      const remark = action === 'approve' ? '您的信息修改申请已审核通过' : (reason || '您的信息修改申请未通过审核');
+      await wechatMessageService.sendPhoneAuditResult(user, result, remark, 'member', itemText + '修改');
+    } catch (notifyErr) {
+      console.error('发送信息修改审核通知失败:', notifyErr.message);
+    }
+  }
+
   return user;
 };

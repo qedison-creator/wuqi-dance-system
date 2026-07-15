@@ -9,7 +9,7 @@
 
   <view class="subscribe-all-card" bindtap="onSubscribeAll">
     <text class="sa-text">一键订阅全部通知</text>
-    <text class="sa-sub" wx:if="{{unsubscribedCount > 0}}">还有 {{unsubscribedCount}} 个未授权，点击一次性完成全部授权</text>
+    <text class="sa-sub" wx:if="{{unsubscribedCount > 0}}">还有 {{unsubscribedCount}} 个未授权，点击开始授权（每次最多3个）</text>
     <text class="sa-sub" wx:else>全部已授权 ✓</text>
   </view>
 
@@ -24,8 +24,11 @@
           </view>
           <view class="setting-action">
             <text class="setting-status subscribed" wx:if="{{item.subscribed}}">✓ 已订阅</text>
+            <text class="setting-status once" wx:elif="{{item.onceAccepted}}">已授权(一次性)</text>
             <text class="setting-status rejected" wx:elif="{{item.rejected}}">已拒绝</text>
-            <text class="setting-status" wx:else>待授权</text>
+            <view class="setting-status-btn" wx:else catchtap="onSubscribeSingle" data-id="{{item.id}}" data-index="{{index}}">
+              <text>待授权</text>
+            </view>
           </view>
         </view>
         <view class="setting-divider" wx:if="{{index < templatesWithStatus.length - 1}}"></view>
@@ -34,6 +37,6 @@
   </view>
 
   <view class="tips-section">
-    <text class="tips-text">💡 微信订阅消息为一次性消费授权，勾选"总是保持以上选择"后无需重复授权。显示"待授权"的模板可点击「一键订阅」进行授权。</text>
+    <text class="tips-text">💡 微信订阅消息为一次性消费授权，每授权一次仅能接收一条通知。"已授权(一次性)"表示配额可能已消耗，如需长期接收请勾选「总是保持以上选择」。每次点击最多授权3个，如有剩余请再次点击「一键订阅」。</text>
   </view>
 </view>

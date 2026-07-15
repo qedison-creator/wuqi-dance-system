@@ -50,7 +50,11 @@ Page({
     datePickerValue: '',
     datePickerTitle: '',
     // 附加门店开关选项（预计算 checked 状态）
-    formExtraStoreOptions: []
+    formExtraStoreOptions: [],
+    // 批量管理模式
+    batchMode: false,        // 是否处于批量管理模式
+    selectedIds: [],         // 已选中的预建档 ID 列表
+    allSelected: false       // 当前列表中可删除项是否已全部选中（半选/全选状态）
   },
 
   onLoad() {
@@ -109,12 +113,19 @@ Page({
       const formattedList = list.map(item => {
         return {
           ...item,
+          _id: String(item._id),  // 统一转为字符串，避免 indexOf/比较时类型不匹配
+          _selected: false,        // 预计算选中状态，供 WXML 直接判断
           avatar_url: fixImageUrl(item.avatar_url),
           created_at_text: item.created_at ? this._formatDate(item.created_at) : '',
           package_text: this._formatPackageText(item.packages)
         };
       });
       this.setData({ list: formattedList, loading: false });
+      // 列表刷新后同步批量管理状态（清理已不存在的选中项并更新全选标记 + 重算 _selected）
+      // 容错：热重载可能导致新方法尚未注入到已存在的 Page 实例，此时跳过避免阻断列表加载
+      if (typeof this._syncBatchState === 'function') {
+        this._syncBatchState();
+      }
     } catch (err) {
       console.error('加载预建档列表失败', err);
       this.setData({ loading: false });
@@ -524,6 +535,155 @@ Page({
         }
       }
     });
+  },
+
+  // ========== 批量管理 ==========
+
+  // 进入批量管理模式
+  onEnterBatchMode() {
+    this.setData({ batchMode: true, selectedIds: [], allSelected: false });
+  },
+
+  // 退出批量管理模式
+  onExitBatchMode() {
+    this.setData({ batchMode: false, selectedIds: [], allSelected: false });
+  },
+
+  // 切换某条记录的选中状态
+  onToggleSelect(e) {
+    const id = e.currentTarget.dataset.id;
+    if (!id) return;
+    const selectedIds = this.data.selectedIds.slice();
+    const idx = selectedIds.indexOf(id);
+    if (idx > -1) {
+      selectedIds.splice(idx, 1);
+    } else {
+      selectedIds.push(id);
+    }
+    this.setData({ selectedIds });
+    this._updateListSelectedState(selectedIds);
+    this._updateAllSelectedFlag(selectedIds);
+  },
+
+  // 卡片点击统一入口：批量模式下切换选中，非批量模式不做任何事（交由内部按钮各自处理）
+  onCardTap(e) {
+    if (!this.data.batchMode) return;
+    const id = e.currentTarget.dataset.id;
+    if (!id) return;
+    // 仅 pending_claim 可选；其他状态点击时提示
+    const item = this.data.list.find(it => it._id === id);
+    if (!item || item.member_status !== 'pending_claim') {
+      wx.showToast({ title: '仅待认领记录可删除', icon: 'none' });
+      return;
+    }
+    this.onToggleSelect(e);
+  },
+
+  // 全选/取消全选（仅对当前列表中可删除的 pending_claim 记录生效）
+  onToggleSelectAll() {
+    const { list, allSelected } = this.data;
+    const deletableIds = list
+      .filter(item => item.member_status === 'pending_claim')
+      .map(item => item._id);
+    let newSelected;
+    if (allSelected) {
+      // 取消全选：从已选中移除当前列表的所有可删除项
+      const set = new Set(this.data.selectedIds);
+      deletableIds.forEach(id => set.delete(id));
+      newSelected = Array.from(set);
+      this.setData({ selectedIds: newSelected, allSelected: false });
+    } else {
+      // 全选：合并当前列表的可删除项
+      const set = new Set(this.data.selectedIds);
+      deletableIds.forEach(id => set.add(id));
+      newSelected = Array.from(set);
+      this.setData({ selectedIds: newSelected, allSelected: true });
+    }
+    this._updateListSelectedState(newSelected);
+  },
+
+  // 批量删除
+  onBatchDelete() {
+    const { selectedIds } = this.data;
+    if (!selectedIds || selectedIds.length === 0) {
+      wx.showToast({ title: '请至少选择一条记录', icon: 'none' });
+      return;
+    }
+    wx.showModal({
+      title: '确认批量删除',
+      content: `将删除选中的 ${selectedIds.length} 条预建档记录，删除后不可恢复，确定继续？`,
+      confirmColor: '#D4786E',
+      success: async (res) => {
+        if (!res.confirm) return;
+        wx.showLoading({ title: '删除中...', mask: true });
+        try {
+          const result = await request({
+            url: '/pre-members/batch-delete',
+            method: 'POST',
+            data: { ids: selectedIds }
+          });
+          wx.hideLoading();
+          const data = result.data || {};
+          const deleted = data.deleted || 0;
+          const failedCount = data.failed ? data.failed.length : 0;
+          if (failedCount > 0) {
+            wx.showToast({ title: `成功${deleted}条，${failedCount}条不可删除`, icon: 'none' });
+          } else {
+            wx.showToast({ title: `删除${deleted}条成功`, icon: 'success' });
+          }
+          // 退出批量模式并刷新列表
+          this.setData({ batchMode: false, selectedIds: [], allSelected: false });
+          this.loadList();
+        } catch (err) {
+          wx.hideLoading();
+          wx.showToast({ title: err.message || '批量删除失败', icon: 'none' });
+        }
+      }
+    });
+  },
+
+  // 列表刷新后同步批量管理状态：清理已不存在的选中项 + 更新全选标记 + 重算 _selected
+  _syncBatchState() {
+    if (!this.data.batchMode) return;
+    const { list, selectedIds } = this.data;
+    const currentIds = new Set(list.map(item => item._id));
+    // 过滤掉不在当前列表中的选中项（如已被删除或被筛选条件排除）
+    const filtered = selectedIds.filter(id => currentIds.has(id));
+    if (filtered.length !== selectedIds.length) {
+      this.setData({ selectedIds: filtered });
+    }
+    this._updateListSelectedState(filtered);
+    this._updateAllSelectedFlag(filtered);
+  },
+
+  // 根据 selectedIds 更新 list 中每条记录的 _selected 字段（供 WXML 直接判断，避免在模板中用 indexOf）
+  _updateListSelectedState(selectedIds) {
+    const selectedSet = new Set(selectedIds || this.data.selectedIds);
+    const updates = {};
+    this.data.list.forEach((item, index) => {
+      const newSelected = selectedSet.has(item._id);
+      if (item._selected !== newSelected) {
+        updates[`list[${index}]._selected`] = newSelected;
+      }
+    });
+    if (Object.keys(updates).length > 0) {
+      this.setData(updates);
+    }
+  },
+
+  // 根据 selectedIds 和当前列表计算全选标记
+  _updateAllSelectedFlag(selectedIds) {
+    const { list } = this.data;
+    const deletableIds = list
+      .filter(item => item.member_status === 'pending_claim')
+      .map(item => item._id);
+    if (deletableIds.length === 0) {
+      this.setData({ allSelected: false });
+      return;
+    }
+    const selectedSet = new Set(selectedIds);
+    const allIn = deletableIds.every(id => selectedSet.has(id));
+    this.setData({ allSelected: allIn });
   },
 
   // 查看详情

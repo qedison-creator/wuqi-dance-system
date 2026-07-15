@@ -416,6 +416,67 @@ async function deletePreMember(id) {
 }
 
 /**
+ * 批量删除预建档记录
+ * 仅待认领（pending_claim）状态可删除；非该状态的记录返回到 failed 列表
+ * 一次性查询、批量删除、统一广播一次 WS，避免逐条删除产生大量请求与广播
+ * @param {string[]} ids - 待删除的预建档 ID 列表
+ * @returns {{success: string[], failed: Array<{id:string, reason:string}>, total: number, deleted: number}}
+ */
+async function batchDeletePreMembers(ids) {
+  if (!Array.isArray(ids) || ids.length === 0) {
+    throw new Error('请选择要删除的记录');
+  }
+  // 过滤无效 ID（类型校验，避免注入异常 ObjectId）
+  const validIds = ids.filter(id => {
+    try {
+      return id && mongoose.isValidObjectId(id);
+    } catch (e) {
+      return false;
+    }
+  });
+  if (validIds.length === 0) {
+    throw new Error('请选择要删除的记录');
+  }
+
+  // 一次性查询所有符合条件的预建档（pending_claim 状态）
+  const users = await User.find({
+    _id: { $in: validIds },
+    member_status: 'pending_claim'
+  }).select('_id store_id real_name');
+
+  const deletableIds = users.map(u => u._id);
+  const deletableIdStrings = deletableIds.map(id => id.toString());
+  // 找出失败项（不在 deletableIds 中的）
+  const failed = validIds
+    .filter(id => deletableIdStrings.indexOf(id.toString()) === -1)
+    .map(id => ({ id: id.toString(), reason: '记录不存在或非待认领状态' }));
+
+  if (deletableIds.length > 0) {
+    // 一次性删除关联的套餐记录
+    await UserPackage.deleteMany({ user_id: { $in: deletableIds } });
+    // 一次性删除预建档记录
+    await User.deleteMany({ _id: { $in: deletableIds } });
+
+    // 统一广播一次（避免逐条广播）
+    const storeIds = [...new Set(
+      users.map(u => u.store_id ? u.store_id.toString() : null).filter(Boolean)
+    )];
+    notifyPreMemberChange('delete_batch', {
+      count: deletableIds.length,
+      user_ids: deletableIdStrings,
+      store_ids: storeIds
+    });
+  }
+
+  return {
+    success: deletableIdStrings,
+    failed,
+    total: validIds.length,
+    deleted: deletableIds.length
+  };
+}
+
+/**
  * 认领匹配逻辑（原子操作，防并发）
  * 在微信登录时调用，匹配成功则将预建档转为正式会员
  *
@@ -759,6 +820,7 @@ module.exports = {
   createPreMember,
   updatePreMember,
   deletePreMember,
+  batchDeletePreMembers,
   claimByPhone,
   importPreMembers,
   createPackageForUser

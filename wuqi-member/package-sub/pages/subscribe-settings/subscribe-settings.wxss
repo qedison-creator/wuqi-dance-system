@@ -121,6 +121,22 @@
   margin-right: 12rpx;
 }
 
+.setting-status-btn {
+  font-size: 24rpx;
+  color: #D4786E;
+  background: #FFF0ED;
+  border-radius: 24rpx;
+  padding: 8rpx 24rpx;
+  border: 1rpx solid #D4786E;
+  transition: all 0.2s ease;
+}
+
+.setting-status-btn:active {
+  background: #D4786E;
+  color: #fff;
+  transform: scale(0.96);
+}
+
 .setting-status.subscribed {
   color: #52C41A;
 }
@@ -131,6 +147,10 @@
 
 .setting-status.rejected {
   color: #999;
+}
+
+.setting-status.once {
+  color: #FA8C16;
 }
 
 .setting-arrow {

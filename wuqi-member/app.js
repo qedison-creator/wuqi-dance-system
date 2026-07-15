@@ -16,7 +16,9 @@ App({
     privacyResolve: null,
     scene: null,
     fromServiceAccount: false,
-    isOnline: true
+    isOnline: true,
+    // 登录状态令牌：每次登录成功/退出登录时自增，供各页面 onShow 检测用户身份是否变化以决定是否强制刷新数据
+    loginStateToken: 0
   },
   onLaunch(options) {
     this.silenceUnsupportedApi();

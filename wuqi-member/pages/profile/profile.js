@@ -156,6 +156,12 @@ Page({
       this._serviceLoginPrompted = true;
       this.setData({ showLoginModal: true });
     }
+
+    // 预加载订阅消息模板，确保后续在 tap 事件中调用 wx.requestSubscribeMessage 时模板已缓存
+    try {
+      const { fetchTemplates } = require('../../utils/subscribe-message');
+      fetchTemplates(true).catch(() => {});
+    } catch (e) {}
   },
 
   onHide() {
@@ -1596,10 +1602,10 @@ Page({
       return;
     }
 
-    // 请求审核结果订阅授权
+    // 请求审核结果订阅授权（模板已在 onShow 预加载，此处直接调用不触发网络请求）
     try {
-      const { fetchTemplates, requestPhoneAuditSubscribe } = require('../../utils/subscribe-message');
-      fetchTemplates().then(() => requestPhoneAuditSubscribe()).catch(function(e) {
+      const { requestPhoneAuditSubscribe } = require('../../utils/subscribe-message');
+      requestPhoneAuditSubscribe().catch(function(e) {
         console.log('[Profile] 请求审核订阅授权失败:', e.message);
       });
     } catch (e) {

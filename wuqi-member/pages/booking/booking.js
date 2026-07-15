@@ -121,6 +121,9 @@ Page({
       return;
     }
     this.setData({ isLoggedIn: true });
+    // 先立即加载课程列表（用当前已知状态显示按钮），再异步刷新用户身份信息
+    // 避免"进入页面→等 refreshUserInfo 网络请求→再加载课程"的延迟
+    this.initPage();
     this.refreshUserInfo();
     // 建立 WebSocket 实时推送连接（仅登录用户，游客无 token 无法连接）
     this._connectWebSocket();
@@ -215,12 +218,15 @@ Page({
           restrictedReason: '您不是正式会员，请联系门店办理'
         });
       }
-      this.initPage();
+      // initPage 已在 onShow 中调用，此处不再重复加载课程列表；
+      // 用户身份信息更新后，刷新预约/候补/已完成数据以更新按钮状态（_updateCoursesButtonState 会在各 setData 回调中触发）
+      this.loadMyBookings();
+      this.loadMyWaitlists();
       this.loadCompletedBookings();
     }).catch(() => {
       const userInfo = app.globalData.userInfo || {};
       const isOfficial = userInfo.member_status === 'official';
-      this.setData({ 
+      this.setData({
         isOfficial,
         isRestrictedUser: true,
         restrictedReason: isOfficial ? '您暂无可用套餐，请联系门店开通' : '您不是正式会员，请联系门店办理'
@@ -228,7 +234,10 @@ Page({
       if (isOfficial) {
         this.setData({ memberPackageStoreIds: [], canBookCurrentStore: false, bookedScheduleIds: [], canViewCapacity: false });
       }
-      this.initPage();
+      // 刷新按钮状态以反映最新的用户身份（课程列表已由 onShow 中的 initPage 加载）
+      this.loadMyBookings();
+      this.loadMyWaitlists();
+      this.loadCompletedBookings();
     });
   },
 
@@ -397,10 +406,17 @@ Page({
     if (this._initPageTimer) {
       clearTimeout(this._initPageTimer);
     }
-    // 延迟到 app.js 冷启动请求高峰后再初始化，避免并发 ERR_CONNECTION_RESET
-    this._initPageTimer = setTimeout(() => {
+    // 首次冷启动时延迟 600ms 避开 app.js 请求高峰，避免并发 ERR_CONNECTION_RESET；
+    // 后续进入页面直接执行，避免课程卡片/预约按钮延迟刷新
+    if (!this._initDone) {
+      this._initPageTimer = setTimeout(() => {
+        this._initPageTimer = null;
+        this._initDone = true;
+        this._doInitPage();
+      }, 600);
+    } else {
       this._doInitPage();
-    }, 600);
+    }
   },
 
   _doInitPage() {
@@ -988,6 +1004,8 @@ Page({
 
   onLoginSuccess() {
     this.setData({ showLoginModal: false, isLoggedIn: true });
+    // 登录成功后立即加载课程列表，再异步刷新用户身份信息更新按钮状态
+    this.initPage();
     this.refreshUserInfo();
   },
 

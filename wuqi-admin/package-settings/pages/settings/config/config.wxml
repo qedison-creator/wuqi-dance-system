@@ -16,7 +16,9 @@
       </view>
       <view class="config-value">
         <text class="value-text">{{item.config_value}}</text>
-        <text class="edit-icon" bindtap="onEditConfig" data-index="{{index}}" data-type="general">编</text>
+        <view class="edit-icon" bindtap="onEditConfig" data-index="{{index}}" data-type="general">
+          <text class="edit-icon-text">✎</text>
+        </view>
       </view>
     </view>
   </view>
@@ -43,19 +45,22 @@
   <!-- 编辑弹窗 -->
   <view class="modal-mask" wx:if="{{showEditModal}}" bindtap="onCloseModal">
     <view class="modal-content" catchtap="onModalTap">
-      <text class="modal-title">编辑参数</text>
-      
+      <view class="modal-header">
+        <text class="modal-title">编辑参数</text>
+        <text class="modal-close" bindtap="onCloseModal">×</text>
+      </view>
+
       <view class="form-item">
         <text class="form-label">{{editingConfig.description}}</text>
         <input class="input-field" value="{{configValue}}" bindinput="onValueChange" placeholder="请输入参数值" />
       </view>
-      
+
       <view class="modal-buttons">
         <view class="btn-secondary" bindtap="onCloseModal">
           <text>取消</text>
         </view>
         <view class="btn-primary" bindtap="onSaveConfig">
-          <text>保存</text>
+          <text>确认</text>
         </view>
       </view>
     </view>

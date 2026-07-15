@@ -419,7 +419,7 @@ exports.getScheduleList = async (query, req = null) => {
     filter.status = { $ne: 'deleted' };
   } else {
     // 会员端默认逻辑：仅展示当天及未来的课程，前一天及更早的历史课程不在预约列表显示
-    const today = dayjs().format('YYYY-MM-DD');
+    const today = dayjs().tz(BEIJING_TZ).format('YYYY-MM-DD');
     if (date) {
       if (date < today) {
         // 过去日期：会员端不展示历史课程，直接返回空列表

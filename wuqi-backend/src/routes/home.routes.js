@@ -20,7 +20,7 @@ const path = require('path');
 // GET /api/v1/home/member - 会员端首页数据
 router.get('/member', async (req, res, next) => {
   try {
-    const today = dayjs().format('YYYY-MM-DD');
+    const today = dayjs().tz('Asia/Shanghai').format('YYYY-MM-DD');
 
     // 轮播图
     const banners = await Banner.find({ status: 'active' })
@@ -72,8 +72,8 @@ router.get('/member', async (req, res, next) => {
 router.get('/admin', auth, async (req, res, next) => {
   try {
     const { store_id } = req.query;
-    const today = dayjs().format('YYYY-MM-DD');
-    const thisMonthStart = dayjs().startOf('month').format('YYYY-MM-DD');
+    const today = dayjs().tz('Asia/Shanghai').format('YYYY-MM-DD');
+    const thisMonthStart = dayjs().tz('Asia/Shanghai').startOf('month').format('YYYY-MM-DD');
 
     const storeFilter = {};
     if (store_id) storeFilter.store_id = store_id;
@@ -81,8 +81,8 @@ router.get('/admin', auth, async (req, res, next) => {
     // 统计数据
     const totalMembers = await User.countDocuments({ user_type: 'member', member_status: 'official', ...storeFilter });
     const officialMembers = await User.countDocuments({ user_type: 'member', member_status: 'official', ...storeFilter });
-    // 今日课程数：统计所有非软删除的排课（与展开列表一致）
-    const todaySchedules = await Schedule.countDocuments({ ...storeFilter, date: today, status: { $ne: 'deleted' } });
+    // 今日课程数：统计今日有效排课（排除已删除和已取消，避免数量虚高）
+    const todaySchedules = await Schedule.countDocuments({ ...storeFilter, date: today, status: { $nin: ['deleted', 'cancelled'] } });
     const todayBookings = await Booking.countDocuments({
       ...storeFilter,
       booking_date: today,
@@ -108,11 +108,11 @@ router.get('/admin', auth, async (req, res, next) => {
       member_status: 'registered',
     });
 
-    // 今日排课列表（所有非软删除的课程，带动态状态修正）
+    // 今日排课列表（排除已删除和已取消，带动态状态修正）
     const todayScheduleDocs = await Schedule.find({
       ...storeFilter,
       date: today,
-      status: { $ne: 'deleted' },
+      status: { $nin: ['deleted', 'cancelled'] },
     })
       .populate('coach_id', 'name')
       .populate('dance_style_id', 'name')
@@ -146,7 +146,7 @@ router.get('/admin', auth, async (req, res, next) => {
     const protocol = req.protocol;
     const host = req.get('host');
     const uploadsDir = path.join(__dirname, '../../uploads');
-    const hour = new Date().getHours();
+    const hour = dayjs().tz('Asia/Shanghai').hour();
     let theme;
     if (hour >= 5 && hour < 8) theme = 'sunrise';
     else if (hour >= 8 && hour < 12) theme = 'morning';

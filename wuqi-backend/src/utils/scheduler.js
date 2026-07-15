@@ -260,7 +260,7 @@ const startScheduler = () => {
   // 任务7: 每天凌晨4点清理课程已结束的候补记录
   cron.schedule('0 4 * * *', async () => {
     try {
-      const yesterday = dayjs().subtract(1, 'day').format('YYYY-MM-DD');
+      const yesterday = bjNow().subtract(1, 'day').format('YYYY-MM-DD');
       const oldSchedules = await Schedule.find({
         date: { $lte: yesterday },
         status: { $in: ['completed', 'cancelled'] },

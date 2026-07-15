@@ -29,13 +29,17 @@ async function sendPackageExpireReminder(user, packageInfo, daysLeft) {
       : `${packageInfo.duration_value || ''}${packageInfo.duration_unit === 'month' ? '个月' : '天'}时间卡`;
     const expireDate = packageInfo.end_date ? dayjs(packageInfo.end_date).format('YYYY年MM月DD日') : '即将到期';
 
-    await sendByTemplateKey(user.openid, 'packageExpiring', {
+    const ok = await sendByTemplateKey(user.openid, 'packageExpiring', {
       packageType: packageName,
       remindType: '到期提醒',
       remindReason: `您的套餐将于${expireDate}到期`,
       tipMessage: `套餐还有${daysLeft}天到期，记得续费哦`
     }, 'pages/profile/profile');
 
+    if (!ok) {
+      console.warn(`[Reminder] 套餐到期提醒发送失败(未授权/配额耗尽/模板未配置): 会员 ${user._id}, 套餐 ${packageInfo._id}`);
+      return false;
+    }
     console.log(`[Reminder] 发送套餐到期提醒给会员 ${user._id}, 套餐: ${packageInfo._id}, 剩余${daysLeft}天`);
     return true;
   } catch (err) {
@@ -50,13 +54,17 @@ async function sendLowCountReminder(user, packageInfo) {
     const packageName = `${packageInfo.total_credits}次卡`;
     const remainCount = String(packageInfo.remaining_credits || 0);
 
-    await sendByTemplateKey(user.openid, 'countCardLowRemind', {
+    const ok = await sendByTemplateKey(user.openid, 'countCardLowRemind', {
       packageType: `${packageInfo.total_credits}次卡`,
       remindType: '套餐额度',
       remindReason: `剩余次数仅剩${packageInfo.remaining_credits}次`,
       tipMessage: '跳舞次数快用完啦，赶紧囤卡哟'
     }, 'pages/profile/profile');
 
+    if (!ok) {
+      console.warn(`[Reminder] 次卡低次数提醒发送失败(未授权/配额耗尽/模板未配置): 会员 ${user._id}, 套餐 ${packageInfo._id}`);
+      return false;
+    }
     console.log(`[Reminder] 发送次卡低次数提醒给会员 ${user._id}, 套餐: ${packageInfo._id}, 剩余${packageInfo.remaining_credits}次`);
     return true;
   } catch (err) {
@@ -75,13 +83,17 @@ async function sendInactiveReminder(user, daysInactive, packageInfo) {
         : `${packageInfo.duration_value || ''}${packageInfo.duration_unit === 'month' ? '个月' : '天'}时间卡`)
       : '会员卡';
 
-    await sendByTemplateKey(user.openid, 'memberInactiveRemind', {
+    const ok = await sendByTemplateKey(user.openid, 'memberInactiveRemind', {
       packageType,
       remindType: '久未跳舞',
       remindReason: `您已超过${daysInactive}天未预约课程`,
       tipMessage: '舞蹈社想你啦，快来跳支舞吧'
     }, 'pages/booking/booking');
 
+    if (!ok) {
+      console.warn(`[Reminder] 不活跃提醒发送失败(未授权/配额耗尽/模板未配置): 会员 ${user._id}`);
+      return false;
+    }
     console.log(`[Reminder] 发送不活跃提醒给会员 ${user._id}, 已${daysInactive}天未预约`);
     return true;
   } catch (err) {
@@ -115,13 +127,13 @@ async function checkPackageExpireReminders() {
 
     // 去重：如果间隔时间内已提醒过，跳过
     if (pkg.last_expire_reminded_at) {
-      const lastReminded = dayjs(pkg.last_expire_reminded_at);
+      const lastReminded = dayjs(pkg.last_expire_reminded_at).tz(BEIJING_TZ);
       if (today.diff(lastReminded, 'day') < expireRemindInterval) {
         continue;
       }
     }
 
-    const daysLeft = dayjs(pkg.end_date).diff(today, 'day');
+    const daysLeft = dayjs(pkg.end_date).tz(BEIJING_TZ).diff(today, 'day');
 
     if (pkg.package_type === 'time_card') {
       const sent = await sendPackageExpireReminder(pkg.user_id, pkg, daysLeft);
@@ -183,7 +195,7 @@ async function checkCountCardLowReminders() {
 
     // 去重：如果间隔时间内已提醒过，跳过
     if (pkg.last_low_count_reminded_at) {
-      const lastReminded = dayjs(pkg.last_low_count_reminded_at);
+      const lastReminded = dayjs(pkg.last_low_count_reminded_at).tz(BEIJING_TZ);
       if (today.diff(lastReminded, 'day') < lowCountRemindInterval) {
         console.log(`[Reminder] 跳过套餐 ${pkg._id}: ${today.diff(lastReminded, 'day')}天内已提醒过`);
         continue;
@@ -234,7 +246,7 @@ async function checkInactiveMemberReminders() {
   for (const user of users) {
     // 去重：如果5天内已提醒过，跳过
     if (user.last_inactive_reminded_at) {
-      const lastReminded = dayjs(user.last_inactive_reminded_at);
+      const lastReminded = dayjs(user.last_inactive_reminded_at).tz(BEIJING_TZ);
       if (today.diff(lastReminded, 'day') < inactiveRemindInterval) {
         continue;
       }

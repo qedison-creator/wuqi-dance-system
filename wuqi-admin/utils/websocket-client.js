@@ -150,12 +150,12 @@ function connect(options = {}) {
     _handleDisconnect();
   });
 
-  // 连接错误
+  // 连接错误：降级为 warn（已有自动重连+降级轮询机制，连接失败不影响功能）
   socketTask.onError((err) => {
     if (myEpoch !== connectionEpoch) return;  // 忽略旧连接回调
     // 主动断开时连接未建立会触发 onError，属正常情况，不打印错误
     if (isManualDisconnect) return;
-    console.error('[Admin WebSocket] 连接错误:', err);
+    console.warn('[Admin WebSocket] 连接错误（将自动降级为轮询）:', err && err.errMsg ? err.errMsg : err);
     _handleDisconnect();
   });
 }

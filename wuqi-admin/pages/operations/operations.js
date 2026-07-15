@@ -447,7 +447,7 @@ Page({
       currentMonth: todayMonthKey,
       isSelectedDateHoliday: isHoliday
     }, () => {
-      this.generateMonthCalendar(todayMonthKey);
+      this.loadMonthSchedules(todayMonthKey);
       if (!isHoliday) {
         this.loadDateSchedules(todayDate);
       } else {

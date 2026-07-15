@@ -8,6 +8,7 @@ const operationLogSchema = new mongoose.Schema({
   target_id: { type: mongoose.Schema.Types.ObjectId },
   target_type: { type: String },
   detail: { type: String },
+  metadata: { type: mongoose.Schema.Types.Mixed, default: {} },
   result: { type: String, enum: ['success', 'failure'], default: 'success' },
   ip: { type: String },
   user_agent: { type: String },

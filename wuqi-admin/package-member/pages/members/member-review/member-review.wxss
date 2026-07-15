@@ -5,6 +5,31 @@
   min-height: 100vh;
 }
 
+/* ========== 顶部Tab ========== */
+.tab-bar {
+  display: flex;
+  margin-bottom: 24rpx;
+  background: var(--bg-card);
+  border-radius: 16rpx;
+  padding: 6rpx;
+}
+
+.tab-item {
+  flex: 1;
+  text-align: center;
+  padding: 16rpx 0;
+  font-size: 28rpx;
+  color: var(--text-secondary);
+  border-radius: 12rpx;
+  transition: all 0.2s;
+}
+
+.tab-item.active {
+  background: var(--color-primary);
+  color: #fff;
+  font-weight: 600;
+}
+
 .review-header {
   display: flex;
   align-items: baseline;
@@ -55,6 +80,7 @@
   display: flex;
   align-items: center;
   margin-bottom: 8rpx;
+  gap: 12rpx;
 }
 
 .card-name {
@@ -62,6 +88,43 @@
   color: var(--text-primary);
   font-weight: 600;
   margin-right: 12rpx;
+}
+
+/* 手机号行 */
+.phone-row {
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+}
+
+.phone-text {
+  font-size: 28rpx;
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.h-phone-text {
+  font-size: 22rpx;
+  color: var(--text-secondary);
+  font-weight: 400;
+}
+
+/* 小眼睛图标 */
+.eye-icon {
+  width: 36rpx;
+  height: 36rpx;
+  flex-shrink: 0;
+}
+
+.eye-sm {
+  width: 30rpx;
+  height: 30rpx;
+}
+
+.h-name-row {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
 }
 
 .card-tag {
@@ -125,40 +188,52 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: var(--radius-lg);
+  border-radius: 12rpx;
   transition: all 0.2s ease;
 }
 
 .btn-text {
   font-size: 26rpx;
-  font-weight: 500;
-}
-
-.btn-approve {
-  background-color: rgba(52, 199, 89, 0.12);
-}
-
-.btn-approve .btn-text {
-  color: #1D1D1F;
   font-weight: 600;
 }
 
-.btn-reject {
-  background-color: rgba(0, 122, 255, 0.12);
+.action-approve {
+  background: linear-gradient(135deg, #5B8C5A, #4A7A49);
+  box-shadow: 0 4rpx 12rpx rgba(91, 140, 90, 0.25);
 }
 
-.btn-reject .btn-text {
-  color: #1D1D1F;
-  font-weight: 600;
+.action-approve .btn-text {
+  color: #FFFFFF;
 }
 
-.btn-delete {
-  background-color: rgba(255, 59, 48, 0.12);
+.action-approve:active {
+  opacity: 0.85;
+  transform: scale(0.97);
 }
 
-.btn-delete .btn-text {
-  color: #1D1D1F;
-  font-weight: 600;
+.action-reject {
+  background: #F5F0EB;
+  border: 1rpx solid #E8D5C8;
+}
+
+.action-reject .btn-text {
+  color: #D4786E;
+}
+
+.action-reject:active {
+  background: #EDE4DA;
+}
+
+.action-delete {
+  background: rgba(255, 59, 48, 0.08);
+}
+
+.action-delete .btn-text {
+  color: #C0392B;
+}
+
+.action-delete:active {
+  background: rgba(255, 59, 48, 0.15);
 }
 
 .empty-state {
@@ -276,5 +351,80 @@
 
 .store-modal-confirm.disabled {
   background-color: var(--border);
+  color: var(--text-tertiary);
+}
+
+/* ========== 审核记录 ========== */
+.history-scroll {
+  height: calc(100vh - 200rpx);
+}
+
+.history-item {
+  background-color: var(--bg-card);
+  border: 1rpx solid var(--border);
+  border-radius: var(--radius-xl);
+  padding: 24rpx;
+  margin-bottom: 16rpx;
+}
+
+.h-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12rpx;
+  padding-bottom: 12rpx;
+  border-bottom: 1rpx solid var(--border);
+}
+
+.h-name {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.h-status {
+  font-size: 22rpx;
+  padding: 4rpx 16rpx;
+  border-radius: 10rpx;
+  font-weight: 500;
+}
+
+.h-status.approved {
+  background: rgba(91, 140, 90, 0.1);
+  color: #5B8C5A;
+}
+
+.h-status.rejected {
+  background: rgba(212, 120, 110, 0.1);
+  color: #D4786E;
+}
+
+.h-body {
+  display: flex;
+  flex-direction: column;
+  gap: 6rpx;
+  margin-bottom: 12rpx;
+}
+
+.h-phone {
+  font-size: 24rpx;
+  color: var(--text-secondary);
+}
+
+.h-footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16rpx;
+  padding-top: 12rpx;
+  border-top: 1rpx solid var(--border);
+}
+
+.h-time {
+  font-size: 20rpx;
+  color: var(--text-tertiary);
+}
+
+.h-operator {
+  font-size: 20rpx;
   color: var(--text-tertiary);
 }
