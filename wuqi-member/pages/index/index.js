@@ -3,6 +3,7 @@ const { request } = require('../../utils/request');
 const config = require('../../config/index.js');
 const SERVER_BASE = config.serverBase;
 const { getBeijingDate } = require('../../utils/helpers');
+const { normalizeImageUrl } = require('../../utils/util');
 const auth = require('../../utils/auth');
 
 function getDanceTagColor(styleName) {
@@ -227,29 +228,8 @@ Page({
       // 注意：服务器返回的 URL 可能是 http 或完整 https 地址，这里统一规范化为 /uploads/xxx 格式
       // 当图片加载失败时，binderror 会触发 fallback 到本地默认图
 
-      const fixImageUrl = (url) => {
-        if (!url) return '';
-        // 如果是相对路径（/uploads/xxx），直接拼接 SERVER_BASE
-
-        if (url.startsWith('/')) return SERVER_BASE + url;
-        // 如果是本服务器的 URL（http://IP:3000/... 或 https://api.yuekeme.cn/...），提取路径到 SERVER_BASE
-
-        const serverHosts = ['101.33.203.22:3000', 'localhost:3000', 'api.yuekeme.cn', 'admin-api.yuekeme.cn'];
-        const match = url.match(/^https?:\/\/([^/]+)(\/.*)/);
-        if (match) {
-          const host = match[1];
-          if (serverHosts.some(h => host === h || host.endsWith('.' + h))) {
-            return SERVER_BASE + match[2];
-          }
-          // 外部域名（如 images.unsplash.com）保留原址
-          return url;
-        }
-        // 其他情况原样返回
-
-        return url;
-      };
       const banners = (Array.isArray(bannerRes.data) ? bannerRes.data : (bannerRes.data && bannerRes.data.data) || [])
-        .map(b => ({ ...b, image_url: fixImageUrl(b.image_url) }));
+        .map(b => ({ ...b, image_url: normalizeImageUrl(b.image_url, SERVER_BASE) }));
 
       // 处理热门教练
 
@@ -257,7 +237,7 @@ Page({
       const rawCoaches = Array.isArray(coachData) ? coachData : (coachData.data || coachData.list || []);
       const coaches = rawCoaches.map(c => ({
         ...c,
-        avatar_url: fixImageUrl(c.avatar_url) || ''
+        avatar_url: normalizeImageUrl(c.avatar_url, SERVER_BASE) || ''
       }));
 
       // 处理近期课程（同时处理 cover 字段， 已取消下架的不展示
@@ -286,7 +266,7 @@ Page({
             danceStyleName,
             danceTagBg: tagColor.bg,
             danceTagText: tagColor.text,
-            cover: fixImageUrl(course.cover) || '',
+            cover: normalizeImageUrl(course.cover, SERVER_BASE) || '',
             timeDisplay: this.data.isOfficial
               ? `${course.start_time || ''} - ${course.end_time || ''}`
               : '??:?? - ??:??'
@@ -335,20 +315,6 @@ Page({
       const res = await request({ url: '/home/images', silent: true });
       const rawImages = res.data || [];
       const imageList = Array.isArray(rawImages) ? rawImages : (rawImages.data || rawImages.list || []);
-      const fixImageUrl = (url) => {
-        if (!url) return '';
-        if (url.startsWith('/')) return SERVER_BASE + url;
-        const serverHosts = ['101.33.203.22:3000', 'localhost:3000', 'api.yuekeme.cn', 'admin-api.yuekeme.cn'];
-        const match = url.match(/^https?:\/\/([^/]+)(\/.*)/);
-        if (match) {
-          const host = match[1];
-          if (serverHosts.some(h => host === h || host.endsWith('.' + h))) {
-            return SERVER_BASE + match[2];
-          }
-          return url;
-        }
-        return url;
-      };
       const images = imageList.map(img => {
         const width = Number(img.width) || 0;
         const height = Number(img.height) || 0;
@@ -362,8 +328,8 @@ Page({
         }
         return {
           ...img,
-          image_url: fixImageUrl(img.image_url),
-          thumbnail_url: fixImageUrl(img.thumbnail_url),
+          image_url: normalizeImageUrl(img.image_url, SERVER_BASE),
+          thumbnail_url: normalizeImageUrl(img.thumbnail_url, SERVER_BASE),
           orientation,
           ratio,
           coachName: img.coach_ids && img.coach_ids.length > 0 ? img.coach_ids[0].name : ''

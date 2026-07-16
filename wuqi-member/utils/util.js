@@ -142,11 +142,20 @@ const throttle = (func, limit) => {
 const normalizeImageUrl = (url, serverBase) => {
   if (!url) return '';
   if (!serverBase) return url;
-  // 仅处理相对路径：补全协议+域名
+  // 相对路径：补全协议+域名
   if (url.startsWith('/')) return serverBase + url;
-  // 已是完整 URL（http/https 开头）：保持原样不修改
-  // 避免开发环境将生产图片 URL 重写为 localhost 导致 ERR_CONNECTION_RESET
-  if (url.startsWith('http://') || url.startsWith('https://')) return url;
+  // 完整 URL：识别已知服务器主机（测试 IP/localhost/生产域名），改写到 serverBase
+  // 避免测试主机名被微信小程序域名白名单拦截
+  const serverHosts = ['101.33.203.22:3000', 'localhost:3000', 'api.yuekeme.cn', 'admin-api.yuekeme.cn'];
+  const match = url.match(/^https?:\/\/([^/]+)(\/.*)/);
+  if (match) {
+    const host = match[1];
+    if (serverHosts.some(h => host === h || host.endsWith('.' + h))) {
+      return serverBase + match[2];
+    }
+    // 外部域名（如 images.unsplash.com）保留原址
+    return url;
+  }
   return url;
 };
 
