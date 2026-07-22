@@ -219,7 +219,7 @@ const initDefaultConfigs = async () => {
         mappings: [
           { field_name: '会员卡类型', wx_field: 'thing2', biz_field: 'packageType', example_value: '时间卡3个月' },
           { field_name: '提醒类型', wx_field: 'short_thing1', biz_field: 'remindType', example_value: '不活跃提醒' },
-          { field_name: '提醒原因', wx_field: 'thing3', biz_field: 'remindReason', example_value: '您已超过30天未预约课程' },
+          { field_name: '提醒原因', wx_field: 'thing3', biz_field: 'remindReason', example_value: '您有30天没有跳舞了哦' },
           { field_name: '温馨提示', wx_field: 'thing4', biz_field: 'tipMessage', example_value: '舞蹈社想你啦，快来跳支舞吧' }
         ]
       },

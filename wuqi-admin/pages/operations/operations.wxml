@@ -31,7 +31,7 @@
           <view class="schedule-status {{item.status}}">
           <text>{{item.statusText}}</text>
         </view>
-          <text class="card-progress-text" wx:if="{{item.status !== 'cancelled' && item.status !== 'offline'}}">{{item.bookedCount || 0}}/{{item.capacity || 15}} 已预约</text>
+          <text class="card-progress-text" wx:if="{{item.status !== 'cancelled' && item.status !== 'offline'}}">{{(item.status === 'completed' ? item.checkedInCount : item.bookedCount) || 0}}/{{item.capacity || 15}} {{item.status === 'completed' ? '已签到' : '已预约'}}</text>
         </view>
       </view>
       <view class="card-stats" wx:if="{{item.status !== 'cancelled' && item.status !== 'offline'}}">
@@ -108,6 +108,8 @@
     <view class="cal-grid">
       <view class="cal-week" wx:for="{{monthCalendar}}" wx:for-item="week" wx:key="index">
         <view class="cal-cell {{day.type}} {{day.isToday ? 'is-today' : ''}} {{day.isSelected ? 'is-selected' : ''}} {{day.dayStatus ? 'has-' + day.dayStatus : ''}}" wx:for="{{week}}" wx:for-item="day" wx:key="index" data-date="{{day.date}}" bindtap="onSelectMonthDate">
+          <view class="today-circle" wx:if="{{day.isToday && !day.isSelected}}"></view>
+          <view class="selected-frame" wx:if="{{day.isSelected}}"></view>
           <text wx:if="{{day.type === 'date'}}">{{day.day}}</text>
         </view>
       </view>
@@ -132,9 +134,9 @@
 
       <view class="card-progress">
         <view class="progress-track">
-          <view class="progress-fill {{item.status === 'full' ? 'fill-warning' : 'fill-accent'}}" style="width: {{((item.bookedCount || 0) / (item.capacity || 15)) * 100}}%"></view>
+          <view class="progress-fill {{item.status === 'full' ? 'fill-warning' : 'fill-accent'}}" style="width: {{(((item.status === 'completed' ? item.checkedInCount : item.bookedCount) || 0) / (item.capacity || 15)) * 100}}%"></view>
         </view>
-        <text class="progress-label">{{item.bookedCount || 0}}/{{item.capacity || 15}} 已预约</text>
+        <text class="progress-label">{{(item.status === 'completed' ? item.checkedInCount : item.bookedCount) || 0}}/{{item.capacity || 15}} {{item.status === 'completed' ? '已签到' : '已预约'}}</text>
       </view>
 
       <view class="card-stats">
@@ -191,35 +193,41 @@
       </view>
 
       <scroll-view class="sheet-list" scroll-y wx:if="{{activeTab === 'booked'}}">
-        <view class="booking-row" wx:for="{{bookedList}}" wx:key="_id">
+        <view class="booking-row booking-row-vertical" wx:for="{{bookedList}}" wx:key="_id">
           <view class="booking-user">
             <image class="booking-avatar" src="{{item.userAvatar || '/images/default-avatar.svg'}}" mode="aspectFill" decoding="async"></image>
             <view class="booking-user-info">
               <view class="booking-user-name-row">
                 <text class="booking-user-name">{{item.userName}}</text>
                 <text class="booking-user-nick" wx:if="{{item.userNickName}}">（{{item.userNickName}}）</text>
-                <text class="booking-status-tag course-cancel" wx:if="{{item.cancelType === 'admin_cancel' || item.cancelType === 'min_bookings_not_met' || item.cancelType === 'holiday' || item.cancelType === 'after_checkin_cancel'}}">课程已取消</text>
               </view>
               <view class="booking-user-phone-row" wx:if="{{item.userWechatPhone || item.userReservePhone}}">
                 <text class="booking-user-phone-item" wx:if="{{item.userWechatPhone}}">微信:{{item.userWechatPhone}}</text>
                 <text class="booking-user-phone-item" wx:if="{{item.userReservePhone}}">预留:{{item.userReservePhone}}</text>
               </view>
-              <view class="booking-user-phone-row" wx:if="{{item.cancelReason}}">
-                <text class="booking-user-phone-item">原因：{{item.cancelReason}}</text>
+            </view>
+          </view>
+          <view class="booking-actions-row">
+            <!-- 课程已取消：课时已退还，不可操作 -->
+            <block wx:if="{{item.scheduleStatus === 'cancelled'}}">
+              <text class="booking-refunded">已退还{{item.creditsRefunded}}次</text>
+              <text class="course-cancelled-tag">{{item.cancelReasonText || '课程已取消'}}</text>
+            </block>
+            <!-- 已签到/已完成：显示扣次+已签到标签 -->
+            <block wx:elif="{{item.checkedIn}}">
+              <text class="booking-credits">扣{{item.creditsDeducted}}次</text>
+              <text class="checked-in-tag">已签到</text>
+            </block>
+            <!-- 正常可操作的预约 -->
+            <block wx:else>
+              <text class="booking-credits">扣{{item.creditsDeducted}}次</text>
+              <view class="booking-btn btn-checkin" data-id="{{item._id}}" bindtap="onCheckIn">
+                <text>签到</text>
               </view>
-            </view>
-          </view>
-          <view class="booking-actions" wx:if="{{item.cancelType !== 'admin_cancel' && item.cancelType !== 'min_bookings_not_met' && item.cancelType !== 'holiday' && item.cancelType !== 'after_checkin_cancel'}}">
-            <text class="booking-credits">扣{{item.creditsDeducted}}次</text>
-            <view class="booking-btn btn-checkin" data-id="{{item._id}}" bindtap="onCheckIn">
-              <text>{{item.checkedIn ? '已签到' : '签到'}}</text>
-            </view>
-            <view class="booking-btn btn-cancel" data-id="{{item._id}}" bindtap="onCancelBooking">
-              <text>取消</text>
-            </view>
-          </view>
-          <view class="booking-actions" wx:else>
-            <text class="booking-credits">已返还{{item.creditsDeducted}}次</text>
+              <view class="booking-btn btn-cancel" data-id="{{item._id}}" bindtap="onCancelBooking">
+                <text>取消</text>
+              </view>
+            </block>
           </view>
         </view>
         <view class="sheet-empty" wx:if="{{bookedList.length === 0}}">
@@ -254,7 +262,7 @@
       </scroll-view>
 
       <scroll-view class="sheet-list" scroll-y wx:if="{{activeTab === 'cancelled'}}">
-        <view class="booking-row is-cancelled" wx:for="{{cancelledList}}" wx:key="_id">
+        <view class="booking-row booking-row-vertical is-cancelled" wx:for="{{cancelledList}}" wx:key="_id">
           <view class="booking-user">
             <image class="booking-avatar" src="{{item.userAvatar || '/images/default-avatar.svg'}}" mode="aspectFill" decoding="async"></image>
             <view class="booking-user-info">
@@ -268,9 +276,9 @@
               </view>
             </view>
           </view>
-          <view class="cancel-info">
-            <text class="cancel-time">取消时间：{{item.cancelTime}}</text>
-            <text class="cancel-reason" wx:if="{{item.cancelReason}}">原因：{{item.cancelReason}}</text>
+          <view class="booking-cancel-row">
+            <text class="cancel-reason-tag" wx:if="{{item.cancelReason}}">{{item.cancelReason}}</text>
+            <text class="cancel-time-text" wx:if="{{item.cancelTime}}">取消时间：{{item.cancelTime}}</text>
           </view>
         </view>
         <view class="sheet-empty" wx:if="{{cancelledList.length === 0}}">

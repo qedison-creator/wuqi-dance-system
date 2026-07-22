@@ -67,7 +67,10 @@ Page({
     showDeletePackageModal: false,
     deletingPackage: null,
     deletePackageConfirmText: '',
-    loading: false
+    loading: false,
+    // 手机号脱敏
+    isReviewer: false,      // 审核员只能查看脱敏手机号
+    showFullPhone: false    // 是否展示全号码（审核员不可切换）
   },
 
   onLoad(options) {
@@ -79,7 +82,10 @@ Page({
 
     const app = getApp();
     const userInfo = app.globalData.userInfo || {};
-    this.setData({ isAdmin: userInfo.role === 'super_admin' });
+    this.setData({
+      isAdmin: userInfo.role === 'super_admin',
+      isReviewer: userInfo.role === 'reviewer'
+    });
   },
 
   onPullDownRefresh() {
@@ -199,6 +205,18 @@ Page({
 
       const { statusText, statusClass, hasActive, hasSuspended } = this.calcMemberStatus(member, packages);
 
+      // 手机号脱敏：保留原始号码用于切换显示，脱敏号默认展示
+      const maskPhone = (p) => {
+        if (p && p.length === 11) {
+          return p.replace(/(\d{3})\d{4}(\d{4})/, '$1****$2');
+        }
+        return p || '';
+      };
+      member.reserve_phone_raw = member.reserve_phone || member.phone || '';
+      member.wechat_phone_raw = member.wechat_phone || '';
+      member.reserve_phone_masked = maskPhone(member.reserve_phone_raw);
+      member.wechat_phone_masked = maskPhone(member.wechat_phone_raw);
+
       this.setData({
         member: member,
         packages: packages,
@@ -208,6 +226,7 @@ Page({
         memberStatusClass: statusClass,
         hasActivePackage: hasActive,
         hasSuspendedPackage: hasSuspended,
+        showFullPhone: false,  // 每次加载详情重置为脱敏显示
         loading: false
       });
     }).catch(err => {
@@ -947,6 +966,13 @@ Page({
     } catch (err) {
       wx.showToast({ title: '修改失败', icon: 'none' });
     }
+  },
+
+  // ========== 手机号脱敏切换 ==========
+  // 切换手机号脱敏/全号码显示（审核员不可切换）
+  onTogglePhone() {
+    if (this.data.isReviewer) return;
+    this.setData({ showFullPhone: !this.data.showFullPhone });
   },
 
   // ========== 编辑姓名 ==========

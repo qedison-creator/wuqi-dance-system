@@ -2,6 +2,55 @@ const app = getApp();
 const { request } = require('../../utils/request');
 const { getScheduleStatusText, formatDateTime, fixImageUrl } = require('../../utils/util');
 
+// 课程取消类型集合（管理员/系统取消，非用户自行取消）
+const COURSE_CANCEL_TYPES = ['admin_cancel', 'min_bookings_not_met', 'holiday', 'after_checkin_cancel'];
+
+/**
+ * 统一预约分类逻辑（卡片统计和课程日志面板共用）
+ * @param {Object} item - 后端返回的 booking 记录
+ * @returns {Object} { isBooked, isCheckedIn, isCancelled, cancelReasonText }
+ *   - isBooked: 是否计入"已预约"
+ *   - isCheckedIn: 是否计入"已签到"
+ *   - isCancelled: 是否计入"已取消"
+ *   - cancelReasonText: 取消原因文案（仅 isCancelled 时有意义）
+ */
+function classifyBooking(item) {
+  const status = item.status;
+  const cancelType = item.cancel_type;
+  const isCourseCancel = status === 'cancelled' && COURSE_CANCEL_TYPES.includes(cancelType);
+  const isUserCancel = status === 'cancelled' && !isCourseCancel;
+  const isExempted = status === 'exempted' || item.is_exempted;
+  const isCheckedIn = item.checked_in || status === 'checked_in' || status === 'completed';
+
+  let isBooked = false;
+  let isCancelled = false;
+  let cancelReasonText = '';
+
+  if (isCheckedIn) {
+    // 已签到/已完成：计入已签到 + 已预约
+    isBooked = true;
+  } else if (status === 'booked') {
+    // 正常预约中
+    isBooked = true;
+  } else if (isCourseCancel) {
+    // 课程/管理员取消：保留已预约记录，同时计入已取消
+    isBooked = true;
+    isCancelled = true;
+    // 去掉冗余的"课时已退还"文案，前面已单独显示退还课时数
+    cancelReasonText = (item.cancel_reason || '课程取消').replace(/，\s*课时已退还/g, '').replace(/课时已退还/g, '').trim() || '课程取消';
+  } else if (isExempted) {
+    // 豁免取消
+    isCancelled = true;
+    cancelReasonText = '豁免取消';
+  } else if (isUserCancel) {
+    // 用户自行取消：不计入已预约
+    isCancelled = true;
+    cancelReasonText = item.cancel_reason || '用户取消';
+  }
+
+  return { isBooked, isCheckedIn, isCancelled, cancelReasonText };
+}
+
 Page({
   data: {
     stores: [],
@@ -217,6 +266,8 @@ Page({
       const enrichedList = list.map((schedule, i) => {
         const bookingStats = statsResults[i];
         const status = schedule.status || 'available';
+        const bookedCount = bookingStats.booked || 0;
+        const checkedInCount = bookingStats.checkedIn || 0;
         return {
           ...schedule,
           status,
@@ -224,9 +275,9 @@ Page({
           course_name: schedule.course_name || (schedule.dance_style_name || '课程'),
           dance_style_name: schedule.dance_style_name || (schedule.dance_style_id && schedule.dance_style_id.name || ''),
           coach_name: schedule.coach_name || (schedule.coach_id && schedule.coach_id.name || ''),
-          // 卡片"已预约"显示：已预约 + 已签到（所有实际预约人数）
-          bookedCount: (bookingStats.booked || 0) + (bookingStats.checkedIn || 0),
-          checkedInCount: bookingStats.checkedIn,
+          // 卡片"已预约"显示：所有实际预约人数（含已签到/已完成/课程取消）
+          bookedCount: bookedCount,
+          checkedInCount,
           // 已取消含豁免取消
           cancelledCount: (bookingStats.cancelled || 0) + (bookingStats.exempted || 0)
         };
@@ -253,29 +304,19 @@ Page({
       });
       const userLatestMap = new Map();
       sortedAll.forEach(item => {
-        const uid = item.user_id?._id || item.user_id || 'unknown';
+        const uid = item.user_id?._id?.toString?.() || item.user_id?.toString?.() || 'unknown';
         if (!userLatestMap.has(uid)) {
           userLatestMap.set(uid, item);
         }
       });
       let booked = 0, checkedIn = 0, cancelled = 0, exempted = 0;
       userLatestMap.forEach(item => {
-        const status = item.status;
-        const cancelType = item.cancel_type;
-        // 因课程/admin原因取消的，仍算实际预约人数
-        const isCourseCancel = status === 'cancelled' && ['admin_cancel', 'min_bookings_not_met', 'holiday', 'after_checkin_cancel'].includes(cancelType);
-        const isUserCancel = status === 'cancelled' && !isCourseCancel;
-        const isExempted = status === 'exempted' || item.is_exempted;
-        // 已签到 + 已完成 都归入"已签到"
-        const isCheckedIn = item.checked_in || status === 'checked_in' || status === 'completed';
-        if (isCheckedIn) checkedIn++;
-        // 预约人数（卡片显示）：booked + checked_in + completed + 课程取消的cancelled
-        if (status === 'booked' || status === 'checked_in' || status === 'completed' || isCourseCancel) {
-          booked++;
-        } else if (isExempted) {
-          exempted++;
-        } else if (isUserCancel) {
+        const result = classifyBooking(item);
+        if (result.isCheckedIn) checkedIn++;
+        if (result.isBooked) booked++;
+        if (result.isCancelled) {
           cancelled++;
+          if (item.status === 'exempted' || item.is_exempted) exempted++;
         }
       });
       return { booked, checkedIn, cancelled, exempted };
@@ -505,6 +546,9 @@ Page({
       const enrichedList = list.map((schedule, i) => {
         const bookingStats = statsResults[i];
         const status = schedule.status || 'available';
+        const isCompleted = status === 'completed';
+        const bookedCount = bookingStats.booked || 0;
+        const checkedInCount = bookingStats.checkedIn || 0;
         return {
           ...schedule,
           status,
@@ -512,9 +556,9 @@ Page({
           course_name: schedule.course_name || (schedule.dance_style_name || '课程'),
           dance_style_name: schedule.dance_style_name || '',
           coach_name: schedule.coach_name || (schedule.coach_id && schedule.coach_id.name || ''),
-          // 卡片"已预约"显示：已预约 + 已签到（所有实际预约人数）
-          bookedCount: (bookingStats.booked || 0) + (bookingStats.checkedIn || 0),
-          checkedInCount: bookingStats.checkedIn,
+          // 卡片"已预约"显示：所有实际预约人数（含已签到/已完成/课程取消）
+          bookedCount: bookedCount,
+          checkedInCount,
           // 已取消含豁免取消
           cancelledCount: (bookingStats.cancelled || 0) + (bookingStats.exempted || 0)
         };
@@ -558,14 +602,13 @@ Page({
       const all = res.data || [];
       const bookedList = [], checkedInList = [], cancelledList = [];
 
-      // 列表保留每一次记录（按时间正序）
+      // 列表保留每一次记录（按时间正序），使用统一分类逻辑
       all.forEach(item => {
         const realName = item.user_id?.real_name;
         const nickName = item.user_id?.nick_name;
         const displayName = realName || nickName || '未知用户';
         const nickNameDisplay = realName && nickName && nickName !== realName ? nickName : '';
         const status = item.status;
-        const cancelType = item.cancel_type;
         const booking = {
           _id: item._id,
           userName: displayName,
@@ -578,38 +621,42 @@ Page({
           creditsDeducted: item.credits_deducted || 0,
           checkedIn: item.checked_in || status === 'checked_in' || status === 'completed',
           isCompleted: status === 'completed',
-          cancelType: cancelType,
+          cancelType: item.cancel_type,
           cancelReason: item.cancel_reason || '',
-          creditsRefunded: item.credits_refunded || 0
+          creditsRefunded: item.credits_refunded || 0,
+          scheduleStatus: this.data.panelSchedule ? this.data.panelSchedule.status || '' : ''
         };
-        const isCourseCancel = status === 'cancelled' && ['admin_cancel', 'min_bookings_not_met', 'holiday', 'after_checkin_cancel'].includes(cancelType);
-        const isUserCancel = status === 'cancelled' && !isCourseCancel;
-        const isExempted = status === 'exempted' || item.is_exempted;
-        const isCheckedIn = item.checked_in || status === 'checked_in' || status === 'completed';
-        // 已签到（含已完成）：checked_in + completed
-        if (isCheckedIn) {
+
+        const result = classifyBooking(item);
+
+        // 已签到（含已完成）
+        if (result.isCheckedIn) {
           checkedInList.push(booking);
         }
-        // 已预约：booked + 课程/admin取消的（不含已签到/已完成）
-        if (status === 'booked' || isCourseCancel) {
-          bookedList.push(booking);
-        } else if (isUserCancel || isExempted) {
-          // 已取消：用户自行取消 + 豁免取消
-          let cancelReasonText = '';
-          if (isExempted) {
-            cancelReasonText = '豁免取消';
+        // 已预约：正常预约 + 已签到/已完成 + 课程取消（保留预约记录）
+        if (result.isBooked) {
+          // 课程取消的预约，带上取消原因供已预约列表展示
+          if (result.isCancelled) {
+            bookedList.push({
+              ...booking,
+              cancelReasonText: result.cancelReasonText,
+              creditsRefunded: item.credits_refunded || item.credits_deducted || 0
+            });
           } else {
-            cancelReasonText = item.cancel_reason || '用户取消';
+            bookedList.push(booking);
           }
+        }
+        // 已取消：用户取消 + 豁免 + 课程取消
+        if (result.isCancelled) {
           cancelledList.push({
             ...booking,
             cancelTime: item.cancel_time ? formatDateTime(item.cancel_time) : '',
-            cancelReason: cancelReasonText
+            cancelReason: result.cancelReasonText
           });
         }
       });
 
-      // 统计按人数（同一用户多次预约只算1次，取最新状态）
+      // 统计按人数（同一用户多次预约只算1次，取最新状态），与卡片统计使用同一套逻辑
       const sortedAll = [...all].sort((a, b) => {
         const ta = a.created_at ? new Date(a.created_at).getTime() : 0;
         const tb = b.created_at ? new Date(b.created_at).getTime() : 0;
@@ -617,30 +664,19 @@ Page({
       });
       const userLatestMap = new Map();
       sortedAll.forEach(item => {
-        const uid = item.user_id?._id || item.user_id || 'unknown';
+        const uid = item.user_id?._id?.toString?.() || item.user_id?.toString?.() || 'unknown';
         if (!userLatestMap.has(uid)) {
           userLatestMap.set(uid, item);
         }
       });
       let bookedCount = 0, checkedInCount = 0, cancelledCount = 0;
       userLatestMap.forEach(item => {
-        const status = item.status;
-        const cancelType = item.cancel_type;
-        const isCourseCancel = status === 'cancelled' && ['admin_cancel', 'min_bookings_not_met', 'holiday', 'after_checkin_cancel'].includes(cancelType);
-        const isUserCancel = status === 'cancelled' && !isCourseCancel;
-        const isExempted = status === 'exempted' || item.is_exempted;
-        const isCheckedIn = item.checked_in || status === 'checked_in' || status === 'completed';
-        if (isCheckedIn) {
-          checkedInCount++;
-        }
-        if (status === 'booked' || isCourseCancel) {
-          bookedCount++;
-        } else if (isUserCancel || isExempted) {
-          cancelledCount++;
-        }
+        const result = classifyBooking(item);
+        if (result.isCheckedIn) checkedInCount++;
+        if (result.isBooked) bookedCount++;
+        if (result.isCancelled) cancelledCount++;
       });
-      // 卡片"预约人数"显示：已预约 + 已签到 = 所有实际预约人数
-      const totalBookedDisplay = bookedCount + checkedInCount;
+      const totalBookedDisplay = bookedCount;
 
       this.setData({
         bookedList, checkedInList, cancelledList,
@@ -660,7 +696,7 @@ Page({
     const bookingId = e.currentTarget.dataset.id;
     wx.showLoading({ title: '签到中' });
     try {
-      await request({ url: `/bookings/${bookingId}/checkin`, method: 'PUT' });
+      await request({ url: '/bookings/check-in', method: 'POST', data: { booking_id: bookingId } });
       wx.showToast({ title: '签到成功', icon: 'success' });
       this.loadBookingList(this.data.panelSchedule._id);
     } catch (err) {
@@ -677,7 +713,7 @@ Page({
       success: async (res) => {
         if (res.confirm) {
           try {
-            await request({ url: `/bookings/${bookingId}/cancel`, method: 'PUT' });
+            await request({ url: `/bookings/${bookingId}/admin-cancel`, method: 'PUT', data: { reason: '管理员手动取消' } });
             wx.showToast({ title: '已取消', icon: 'success' });
             this.loadBookingList(this.data.panelSchedule._id);
           } catch (err) {

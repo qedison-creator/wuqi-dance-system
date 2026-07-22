@@ -30,27 +30,50 @@ function normalizeEmpty(input) {
 
 /**
  * 门店名称模糊匹配
+ * 支持：精确匹配 / 去括号短名匹配 / 括号关键词匹配 / 包含匹配
+ * 容错：全角/半角括号等价；输入"固戍店"或"福永店"等关键词也能匹配
  */
 function cleanStoreName(input, storeMap) {
   if (!input) return input;
-  // 精确匹配
+
+  // 0. 规范化括号：把半角括号统一成全角括号
+  const normalizedInput = String(input).replace(/\(/g, '（').replace(/\)/g, '）').trim();
+
+  // 1. 精确匹配（最高优先级）
+  if (storeMap[normalizedInput]) return normalizedInput;
   if (storeMap[input]) return input;
+
   const names = Object.keys(storeMap);
   if (names.length === 0) return input;
-  // 去掉括号部分后匹配全名
-  for (const fullName of names) {
-    const shortName = fullName.replace(/（.*）/, '').trim();
-    if (input === shortName || input.includes(shortName) || shortName.includes(input)) return fullName;
+
+  const inputHasBracket = /[（(].+?[）)]/.test(normalizedInput);
+
+  // 2. 括号内关键词匹配（如"固戍" / "固戍店" 匹配"舞栖舞蹈社（固戍店）"）
+  if (!inputHasBracket) {
+    for (const fullName of names) {
+      const bracketMatch = fullName.match(/[（(](.+?)[）)]/);
+      if (bracketMatch) {
+        const keyword = bracketMatch[1];
+        // 互相包含即可匹配："固戍店"含"固戍"，"固戍"也含在"固戍店"里
+        if (keyword && (normalizedInput.includes(keyword) || keyword.includes(normalizedInput))) return fullName;
+      }
+    }
+    // 3. 去括号短名匹配（如"舞栖"匹配"舞栖舞蹈社（固戍店）"）
+    for (const fullName of names) {
+      const shortName = fullName.replace(/[（(].*?[）)]/, '').trim();
+      if (shortName && (normalizedInput === shortName || normalizedInput.includes(shortName) || shortName.includes(normalizedInput))) {
+        return fullName;
+      }
+    }
   }
-  // 括号内关键词匹配（如"固戍"匹配"舞栖舞蹈社（固戍店）"）
-  for (const fullName of names) {
-    const bracketMatch = fullName.match(/（(.+?)）/);
-    if (bracketMatch && input.includes(bracketMatch[1])) return fullName;
+
+  // 4. 短名包含匹配（如"舞栖"匹配"舞栖舞蹈社（固戍店）"）
+  if (!inputHasBracket) {
+    for (const fullName of names) {
+      if (fullName.includes(normalizedInput)) return fullName;
+    }
   }
-  // 短名包含匹配（如"舞栖"匹配"舞栖舞蹈社（固戍店）"）
-  for (const fullName of names) {
-    if (fullName.includes(input)) return fullName;
-  }
+
   return input;
 }
 

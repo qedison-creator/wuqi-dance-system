@@ -147,6 +147,7 @@
 }
 
 .status-tab {
+  position: relative;
   padding: 8rpx 24rpx;
   border-radius: 24rpx;
   font-size: 26rpx;
@@ -157,6 +158,29 @@
 .status-tab.active {
   background: #C4663E;
   color: #FFFFFF;
+}
+
+/* tab 数量角标 */
+.tab-badge {
+  position: absolute;
+  top: -8rpx;
+  right: -8rpx;
+  min-width: 32rpx;
+  height: 32rpx;
+  padding: 0 8rpx;
+  border-radius: 16rpx;
+  background: #E8584A;
+  color: #FFFFFF;
+  font-size: 22rpx;
+  line-height: 32rpx;
+  text-align: center;
+  box-sizing: border-box;
+  border: 2rpx solid #FFFFFF;
+}
+
+/* 已认领/全部 tab 的角标用低饱和度色，避免抢眼 */
+.tab-badge-muted {
+  background: #B8A98E;
 }
 
 /* 列表区域：内容多时滚动，内容少时不滚动 */
@@ -267,18 +291,39 @@
 .member-phone-line {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  gap: 12rpx;
   margin-bottom: 8rpx;
 }
 
 .phone-item {
   font-size: 26rpx;
   color: #5C5246;
+  flex: 1;
+  min-width: 0;
+}
+
+.phone-eye-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48rpx;
+  height: 48rpx;
+  flex-shrink: 0;
+}
+
+.phone-eye-btn:active {
+  opacity: 0.6;
+}
+
+.phone-eye-icon {
+  width: 36rpx;
+  height: 36rpx;
 }
 
 .created-time {
   font-size: 22rpx;
   color: #B8AF9E;
+  flex-shrink: 0;
 }
 
 .package-info {
@@ -676,6 +721,49 @@
   font-weight: 600;
   color: #2C2416;
   margin-bottom: 20rpx;
+}
+
+/* ========== 多套餐区块 ========== */
+/* 单个套餐区块容器：带边框和圆角，与上下区块分隔 */
+.package-section {
+  border: 1rpx solid #F0EBE2;
+  border-radius: 16rpx;
+  padding: 24rpx;
+  margin-bottom: 24rpx;
+  background: #FCFBF9;
+}
+
+/* 套餐标题行：标题左对齐，删除按钮右对齐 */
+.package-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20rpx;
+}
+
+.package-section-title {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: #2C2416;
+}
+
+/* 删除套餐按钮：红色文字 */
+.package-remove-btn {
+  font-size: 26rpx;
+  color: #D4786E;
+  padding: 4rpx 12rpx;
+}
+
+/* 添加套餐按钮：虚线边框，居中文字 */
+.add-package-btn {
+  border: 2rpx dashed #C4663E;
+  border-radius: 12rpx;
+  padding: 24rpx 0;
+  text-align: center;
+  font-size: 28rpx;
+  color: #C4663E;
+  margin-bottom: 24rpx;
+  background: #FFFFFF;
 }
 
 .package-type-selector {

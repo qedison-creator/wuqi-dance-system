@@ -26,13 +26,20 @@ const MASKERS = {
   username: maskUsername,
 };
 
+function toStringId(id) {
+  if (!id) return '';
+  if (typeof id === 'string') return id;
+  if (typeof id.toString === 'function') return id.toString();
+  return String(id);
+}
+
 // 递归遍历数据，对敏感字段进行脱敏
 // 注意：业务代码可能将 Mongoose Document 直接塞进响应（含 $__、_doc 循环引用），
 // 需先转普通对象再递归，否则会栈溢出
-function maskData(data) {
+function maskData(data, currentUserId) {
   if (data === null || data === undefined) return data;
   if (Array.isArray(data)) {
-    return data.map(maskData);
+    return data.map(item => maskData(item, currentUserId));
   }
   if (typeof data === 'object' && !(data instanceof Date)) {
     // Mongoose Document：先转普通对象
@@ -44,12 +51,15 @@ function maskData(data) {
     if (proto !== null && proto !== Object.prototype) {
       return data;
     }
+    // 当前登录用户自身的账号信息不脱敏
+    const itemId = toStringId(data._id || data.id);
+    const isSelf = currentUserId && itemId === currentUserId;
     const result = {};
     for (const key of Object.keys(data)) {
-      if (MASKERS[key] && typeof data[key] === 'string') {
+      if (!isSelf && MASKERS[key] && typeof data[key] === 'string') {
         result[key] = MASKERS[key](data[key]);
       } else {
-        result[key] = maskData(data[key]);
+        result[key] = maskData(data[key], currentUserId);
       }
     }
     return result;
@@ -64,7 +74,8 @@ const dataMasking = (req, res, next) => {
     // 仅对 reviewer 角色脱敏，排除 /auth/ 路由（登录、个人信息不应脱敏）
     const isAuthRoute = req.path.startsWith('/auth/');
     if (req.user && req.user.role === 'reviewer' && !isAuthRoute && body && typeof body === 'object') {
-      body = maskData(body);
+      const currentUserId = toStringId(req.user._id || req.user.id);
+      body = maskData(body, currentUserId);
     }
     return originalJson(body);
   };

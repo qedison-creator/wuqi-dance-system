@@ -48,6 +48,7 @@
   <view class="status-tabs">
     <view class="status-tab {{currentStatus === 'pending' ? 'active' : ''}}" data-status="pending" bindtap="onStatusTabChange">
       <text>待认领</text>
+      <view class="tab-badge" wx:if="{{pendingCount > 0}}">{{pendingCount}}</view>
     </view>
     <view class="status-tab {{currentStatus === 'claimed' ? 'active' : ''}}" data-status="claimed" bindtap="onStatusTabChange">
       <text>已认领</text>
@@ -84,7 +85,10 @@
             </view>
           </view>
           <view class="member-phone-line">
-            <text class="phone-item">{{item.reserve_phone || '未绑定'}}</text>
+            <text class="phone-item">{{(item._showPhone && !isReviewer) ? (item.reserve_phone_raw || '未绑定') : (item.reserve_phone || '未绑定')}}</text>
+            <view class="phone-eye-btn" wx:if="{{!isReviewer}}" catchtap="onTogglePhone" data-index="{{index}}">
+              <image class="phone-eye-icon" src="{{item._showPhone ? '/images/icons/eye-close.svg' : '/images/icons/eye-open.svg'}}" mode="aspectFit" decoding="async" />
+            </view>
             <text class="created-time">{{item.created_at_text}}</text>
           </view>
           <view class="package-info" wx:if="{{item.has_package}}">
@@ -161,18 +165,6 @@
           <text class="picker-arrow">›</text>
         </view>
       </view>
-      <!-- 附加门店（跨店使用），仅选择套餐类型后显示 -->
-      <view class="form-group" wx:if="{{form.package_type}}">
-        <text class="form-label">附加门店（可跨店使用）</text>
-        <view class="extra-store-list">
-          <view class="extra-store-switch-row"
-                wx:for="{{formExtraStoreOptions}}" wx:key="_id" wx:for-item="storeItem">
-            <text class="extra-store-switch-label">{{storeItem.name}}</text>
-            <switch class="extra-store-switch" checked="{{storeItem.checked}}"
-                    data-id="{{storeItem._id}}" bindchange="onToggleExtraStore" color="#C4663E" />
-          </view>
-        </view>
-      </view>
       <view class="form-group">
         <text class="form-label">会员姓名 *</text>
         <input class="input-field" placeholder="请输入会员姓名" placeholder-class="input-placeholder" maxlength="20" value="{{form.real_name}}" bindinput="onFormInput" data-field="real_name" />
@@ -210,117 +202,143 @@
         </view>
       </view>
 
-      <view class="form-group">
-        <text class="form-label">套餐类型</text>
-        <view class="package-type-selector">
-          <view class="type-option {{form.package_type === 'count_card' ? 'active' : ''}}" data-type="count_card" bindtap="onPackageTypeChange">
-            <text>次卡</text>
-          </view>
-          <view class="type-option {{form.package_type === 'time_card' ? 'active' : ''}}" data-type="time_card" bindtap="onPackageTypeChange">
-            <text>时间卡</text>
-          </view>
-          <view class="type-option {{form.package_type === '' ? 'active' : ''}}" data-type="" bindtap="onPackageTypeChange">
-            <text>不录套餐</text>
+      <!-- 套餐列表：循环渲染每个套餐 -->
+      <view class="package-section" wx:for="{{form.packages}}" wx:key="index" wx:for-item="pkg" wx:for-index="pkgIdx">
+        <view class="package-section-header">
+          <text class="package-section-title">套餐 {{pkgIdx + 1}}</text>
+          <view class="package-remove-btn" catchtap="onRemovePackage" data-index="{{pkgIdx}}">删除</view>
+        </view>
+
+        <view class="form-group">
+          <text class="form-label">套餐类型</text>
+          <view class="package-type-selector">
+            <view class="type-option {{pkg.package_type === 'count_card' ? 'active' : ''}}" data-type="count_card" data-index="{{pkgIdx}}" bindtap="onPackageTypeChange">
+              <text>次卡</text>
+            </view>
+            <view class="type-option {{pkg.package_type === 'time_card' ? 'active' : ''}}" data-type="time_card" data-index="{{pkgIdx}}" bindtap="onPackageTypeChange">
+              <text>时间卡</text>
+            </view>
+            <view class="type-option {{pkg.package_type === '' ? 'active' : ''}}" data-type="" data-index="{{pkgIdx}}" bindtap="onPackageTypeChange">
+              <text>不录套餐</text>
+            </view>
           </view>
         </view>
+
+        <block wx:if="{{pkg.package_type}}">
+          <!-- 新会员：只填时长，不填起止日期 -->
+          <block wx:if="{{form.member_identity === 'new'}}">
+            <block wx:if="{{pkg.package_type === 'count_card'}}">
+              <view class="form-group">
+                <text class="form-label">总次数 *</text>
+                <input class="input-field" type="number" placeholder="请输入总次数" placeholder-class="input-placeholder" value="{{pkg.total_credits}}" bindinput="onFormInput" data-field="total_credits" data-index="{{pkgIdx}}" />
+              </view>
+              <view class="form-group">
+                <text class="form-label">服务有效期 *</text>
+                <view class="duration-input-row">
+                  <input class="input-field duration-input" type="number" placeholder="请输入时长" placeholder-class="input-placeholder" value="{{pkg.duration_value}}" bindinput="onFormInput" data-field="duration_value" data-index="{{pkgIdx}}" />
+                  <view class="duration-unit-selector">
+                    <view class="unit-option {{pkg.duration_unit === 'month' ? 'active' : ''}}" data-unit="month" data-index="{{pkgIdx}}" bindtap="onDurationUnitChange">
+                      <text>月</text>
+                    </view>
+                    <view class="unit-option {{pkg.duration_unit === 'day' ? 'active' : ''}}" data-unit="day" data-index="{{pkgIdx}}" bindtap="onDurationUnitChange">
+                      <text>天</text>
+                    </view>
+                  </view>
+                </view>
+              </view>
+            </block>
+
+            <block wx:if="{{pkg.package_type === 'time_card'}}">
+              <view class="form-group">
+                <text class="form-label">有效时长 *</text>
+                <view class="duration-input-row">
+                  <input class="input-field duration-input" type="number" placeholder="请输入时长" placeholder-class="input-placeholder" value="{{pkg.duration_value}}" bindinput="onFormInput" data-field="duration_value" data-index="{{pkgIdx}}" />
+                  <view class="duration-unit-selector">
+                    <view class="unit-option {{pkg.duration_unit === 'month' ? 'active' : ''}}" data-unit="month" data-index="{{pkgIdx}}" bindtap="onDurationUnitChange">
+                      <text>月</text>
+                    </view>
+                    <view class="unit-option {{pkg.duration_unit === 'day' ? 'active' : ''}}" data-unit="day" data-index="{{pkgIdx}}" bindtap="onDurationUnitChange">
+                      <text>天</text>
+                    </view>
+                  </view>
+                </view>
+              </view>
+              <view class="form-group">
+                <text class="form-label">周期限制 *</text>
+                <view class="period-picker">
+                  <view class="period-option {{pkg.period_type === 'weekly' ? 'active' : ''}}" data-period="weekly" data-index="{{pkgIdx}}" bindtap="onPeriodTypeChange">每周</view>
+                  <view class="period-option {{pkg.period_type === 'daily' ? 'active' : ''}}" data-period="daily" data-index="{{pkgIdx}}" bindtap="onPeriodTypeChange">每天</view>
+                  <view class="period-option {{pkg.period_type === 'unlimited' ? 'active' : ''}}" data-period="unlimited" data-index="{{pkgIdx}}" bindtap="onPeriodTypeChange">不限</view>
+                </view>
+                <view class="period-count-row" wx:if="{{pkg.period_type !== 'unlimited'}}">
+                  <text class="period-count-label">限制次数</text>
+                  <input class="input-field period-count-input" type="number" placeholder="0" placeholder-class="input-placeholder" value="{{pkg.period_count}}" bindinput="onFormInput" data-field="period_count" data-index="{{pkgIdx}}" />
+                  <text class="period-count-unit">次</text>
+                </view>
+              </view>
+            </block>
+          </block>
+
+          <!-- 老会员：只填起止日期，不填时长 -->
+          <block wx:else>
+            <view class="form-group">
+              <text class="form-label">有效期开始日期 *</text>
+              <view class="picker-field {{pkg.start_date ? '' : 'placeholder'}}" bindtap="onOpenDatePicker" data-field="start_date" data-index="{{pkgIdx}}">
+                <text>{{pkg.start_date || '请选择开始日期'}}</text>
+                <text class="picker-arrow">›</text>
+              </view>
+            </view>
+            <view class="form-group">
+              <text class="form-label">有效期结束日期 *</text>
+              <view class="picker-field {{pkg.end_date ? '' : 'placeholder'}}" bindtap="onOpenDatePicker" data-field="end_date" data-index="{{pkgIdx}}">
+                <text>{{pkg.end_date || '请选择结束日期'}}</text>
+                <text class="picker-arrow">›</text>
+              </view>
+            </view>
+
+            <block wx:if="{{pkg.package_type === 'count_card'}}">
+              <view class="form-group">
+                <text class="form-label">总次数 *</text>
+                <input class="input-field" type="number" placeholder="请输入总次数" placeholder-class="input-placeholder" value="{{pkg.total_credits}}" bindinput="onFormInput" data-field="total_credits" data-index="{{pkgIdx}}" />
+              </view>
+            </block>
+
+            <block wx:if="{{pkg.package_type === 'time_card'}}">
+              <view class="form-group">
+                <text class="form-label">周期限制 *</text>
+                <view class="period-picker">
+                  <view class="period-option {{pkg.period_type === 'weekly' ? 'active' : ''}}" data-period="weekly" data-index="{{pkgIdx}}" bindtap="onPeriodTypeChange">每周</view>
+                  <view class="period-option {{pkg.period_type === 'daily' ? 'active' : ''}}" data-period="daily" data-index="{{pkgIdx}}" bindtap="onPeriodTypeChange">每天</view>
+                  <view class="period-option {{pkg.period_type === 'unlimited' ? 'active' : ''}}" data-period="unlimited" data-index="{{pkgIdx}}" bindtap="onPeriodTypeChange">不限</view>
+                </view>
+                <view class="period-count-row" wx:if="{{pkg.period_type !== 'unlimited'}}">
+                  <text class="period-count-label">限制次数</text>
+                  <input class="input-field period-count-input" type="number" placeholder="0" placeholder-class="input-placeholder" value="{{pkg.period_count}}" bindinput="onFormInput" data-field="period_count" data-index="{{pkgIdx}}" />
+                  <text class="period-count-unit">次</text>
+                </view>
+              </view>
+            </block>
+          </block>
+
+          <!-- 附加门店（跨店使用）：每个套餐独立配置 -->
+          <view class="form-group" wx:if="{{pkg.package_type}}">
+            <text class="form-label">附加门店（可跨店使用）</text>
+            <view class="extra-store-list">
+              <view class="extra-store-switch-row"
+                    wx:for="{{formExtraStoreOptions[pkgIdx]}}" wx:key="_id" wx:for-item="storeItem">
+                <text class="extra-store-switch-label">{{storeItem.name}}</text>
+                <switch class="extra-store-switch" checked="{{storeItem.checked}}"
+                        data-id="{{storeItem._id}}" data-index="{{pkgIdx}}" bindchange="onToggleExtraStore" color="#C4663E" />
+              </view>
+            </view>
+          </view>
+        </block>
       </view>
 
-      <block wx:if="{{form.package_type}}">
-        <!-- 新会员：只填时长，不填起止日期 -->
-        <block wx:if="{{form.member_identity === 'new'}}">
-          <block wx:if="{{form.package_type === 'count_card'}}">
-            <view class="form-group">
-              <text class="form-label">总次数 *</text>
-              <input class="input-field" type="number" placeholder="请输入总次数" placeholder-class="input-placeholder" value="{{form.total_credits}}" bindinput="onFormInput" data-field="total_credits" />
-            </view>
-            <view class="form-group">
-              <text class="form-label">服务有效期 *</text>
-              <view class="duration-input-row">
-                <input class="input-field duration-input" type="number" placeholder="请输入时长" placeholder-class="input-placeholder" value="{{form.duration_value}}" bindinput="onFormInput" data-field="duration_value" />
-                <view class="duration-unit-selector">
-                  <view class="unit-option {{form.duration_unit === 'month' ? 'active' : ''}}" data-unit="month" bindtap="onDurationUnitChange">
-                    <text>月</text>
-                  </view>
-                  <view class="unit-option {{form.duration_unit === 'day' ? 'active' : ''}}" data-unit="day" bindtap="onDurationUnitChange">
-                    <text>天</text>
-                  </view>
-                </view>
-              </view>
-            </view>
-          </block>
-
-          <block wx:if="{{form.package_type === 'time_card'}}">
-            <view class="form-group">
-              <text class="form-label">有效时长 *</text>
-              <view class="duration-input-row">
-                <input class="input-field duration-input" type="number" placeholder="请输入时长" placeholder-class="input-placeholder" value="{{form.duration_value}}" bindinput="onFormInput" data-field="duration_value" />
-                <view class="duration-unit-selector">
-                  <view class="unit-option {{form.duration_unit === 'month' ? 'active' : ''}}" data-unit="month" bindtap="onDurationUnitChange">
-                    <text>月</text>
-                  </view>
-                  <view class="unit-option {{form.duration_unit === 'day' ? 'active' : ''}}" data-unit="day" bindtap="onDurationUnitChange">
-                    <text>天</text>
-                  </view>
-                </view>
-              </view>
-            </view>
-            <view class="form-group">
-              <text class="form-label">周期限制 *</text>
-              <view class="period-picker">
-                <view class="period-option {{form.period_type === 'weekly' ? 'active' : ''}}" data-period="weekly" bindtap="onPeriodTypeChange">每周</view>
-                <view class="period-option {{form.period_type === 'daily' ? 'active' : ''}}" data-period="daily" bindtap="onPeriodTypeChange">每天</view>
-                <view class="period-option {{form.period_type === 'unlimited' ? 'active' : ''}}" data-period="unlimited" bindtap="onPeriodTypeChange">不限</view>
-              </view>
-              <view class="period-count-row" wx:if="{{form.period_type !== 'unlimited'}}">
-                <text class="period-count-label">限制次数</text>
-                <input class="input-field period-count-input" type="number" placeholder="0" placeholder-class="input-placeholder" value="{{form.period_count}}" bindinput="onFormInput" data-field="period_count" />
-                <text class="period-count-unit">次</text>
-              </view>
-            </view>
-          </block>
-        </block>
-
-        <!-- 老会员：只填起止日期，不填时长 -->
-        <block wx:else>
-          <view class="form-group">
-            <text class="form-label">有效期开始日期 *</text>
-            <view class="picker-field {{form.start_date ? '' : 'placeholder'}}" bindtap="onOpenDatePicker" data-field="start_date">
-              <text>{{form.start_date || '请选择开始日期'}}</text>
-              <text class="picker-arrow">›</text>
-            </view>
-          </view>
-          <view class="form-group">
-            <text class="form-label">有效期结束日期 *</text>
-            <view class="picker-field {{form.end_date ? '' : 'placeholder'}}" bindtap="onOpenDatePicker" data-field="end_date">
-              <text>{{form.end_date || '请选择结束日期'}}</text>
-              <text class="picker-arrow">›</text>
-            </view>
-          </view>
-
-          <block wx:if="{{form.package_type === 'count_card'}}">
-            <view class="form-group">
-              <text class="form-label">总次数 *</text>
-              <input class="input-field" type="number" placeholder="请输入总次数" placeholder-class="input-placeholder" value="{{form.total_credits}}" bindinput="onFormInput" data-field="total_credits" />
-            </view>
-          </block>
-
-          <block wx:if="{{form.package_type === 'time_card'}}">
-            <view class="form-group">
-              <text class="form-label">周期限制 *</text>
-              <view class="period-picker">
-                <view class="period-option {{form.period_type === 'weekly' ? 'active' : ''}}" data-period="weekly" bindtap="onPeriodTypeChange">每周</view>
-                <view class="period-option {{form.period_type === 'daily' ? 'active' : ''}}" data-period="daily" bindtap="onPeriodTypeChange">每天</view>
-                <view class="period-option {{form.period_type === 'unlimited' ? 'active' : ''}}" data-period="unlimited" bindtap="onPeriodTypeChange">不限</view>
-              </view>
-              <view class="period-count-row" wx:if="{{form.period_type !== 'unlimited'}}">
-                <text class="period-count-label">限制次数</text>
-                <input class="input-field period-count-input" type="number" placeholder="0" placeholder-class="input-placeholder" value="{{form.period_count}}" bindinput="onFormInput" data-field="period_count" />
-                <text class="period-count-unit">次</text>
-              </view>
-            </view>
-          </block>
-        </block>
-      </block>
+      <!-- 添加套餐按钮 -->
+      <view class="add-package-btn" bindtap="onAddPackage">
+        <text>+ 添加套餐</text>
+      </view>
 
       <view class="form-group">
         <text class="form-label">备注</text>

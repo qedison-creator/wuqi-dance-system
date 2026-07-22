@@ -86,7 +86,7 @@ async function sendInactiveReminder(user, daysInactive, packageInfo) {
     const ok = await sendByTemplateKey(user.openid, 'memberInactiveRemind', {
       packageType,
       remindType: '久未跳舞',
-      remindReason: `您已超过${daysInactive}天未预约课程`,
+      remindReason: `您有${daysInactive}天没有跳舞了哦`,
       tipMessage: '舞蹈社想你啦，快来跳支舞吧'
     }, 'pages/booking/booking');
 

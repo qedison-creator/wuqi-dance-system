@@ -18,21 +18,22 @@
 
   <view class="list" wx:if="{{announcements.length > 0}}">
     <view class="list-item {{item.status === 'inactive' ? 'inactive' : ''}}" wx:for="{{announcements}}" wx:key="_id">
-      <view class="item-main">
-        <view class="item-row">
+      <view class="item-row">
+        <view class="item-left">
           <view class="item-status {{item.status === 'active' ? 'on' : 'off'}}"></view>
-          <text class="item-title">{{item.title}}</text>
-          <text class="item-store" wx:if="{{item.store_id}}">{{item.store_id.name}}</text>
-          <text class="item-store global" wx:else>全部门店</text>
         </view>
-        <text class="item-content">{{item.content}}</text>
-      </view>
-      <view class="item-actions">
-        <view class="action-btn edit" data-id="{{item._id}}" data-item="{{item}}" bindtap="onShowEditModal">编辑</view>
-        <view class="action-btn {{item.status === 'active' ? 'pause' : 'resume'}}" data-id="{{item._id}}" data-status="{{item.status === 'active' ? 'inactive' : 'active'}}" bindtap="onToggleStatus">
-          {{item.status === 'active' ? '停用' : '启用'}}
+        <view class="item-right">
+          <view class="item-title">{{item.title}}</view>
+          <view class="item-meta">
+            <text class="item-store {{item.store_id ? '' : 'global'}}">{{item.store_id ? item.store_id.name : '全部门店'}}</text>
+          </view>
+          <view class="item-content" wx:if="{{item.content}}">{{item.content}}</view>
+          <view class="item-actions">
+            <view class="action-btn edit" data-id="{{item._id}}" data-item="{{item}}" bindtap="onShowEditModal">编辑</view>
+            <view class="action-btn {{item.status === 'active' ? 'pause' : 'resume'}}" data-id="{{item._id}}" data-status="{{item.status === 'active' ? 'inactive' : 'active'}}" bindtap="onToggleStatus">{{item.status === 'active' ? '停用' : '启用'}}</view>
+            <view class="action-btn del" data-id="{{item._id}}" bindtap="onDelete">删除</view>
+          </view>
         </view>
-        <view class="action-btn del" data-id="{{item._id}}" bindtap="onDelete">删除</view>
       </view>
     </view>
   </view>

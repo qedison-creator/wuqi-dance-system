@@ -180,25 +180,35 @@ async function getPreMemberList(query = {}) {
 
 /**
  * 获取预建档统计数量
+ * 返回待认领 / 已认领 / 全部 三种计数
  */
 async function getPreMemberStats(storeId = null) {
-  const filter = { member_status: 'pending_claim' };
+  const baseFilter = { user_type: 'member', member_status: { $in: ['pending_claim', 'official'] } };
   if (storeId) {
     try {
-      filter.store_id = new mongoose.Types.ObjectId(storeId);
+      baseFilter.store_id = new mongoose.Types.ObjectId(storeId);
     } catch (e) {
       // store_id 无效时不添加筛选条件
     }
   }
-  const count = await User.countDocuments(filter);
-  return { pending_claim_count: count };
+  const [pendingCount, claimedCount] = await Promise.all([
+    User.countDocuments({ ...baseFilter, member_status: 'pending_claim' }),
+    User.countDocuments({ ...baseFilter, member_status: 'official' })
+  ]);
+  return {
+    pending_count: pendingCount,
+    claimed_count: claimedCount,
+    all_count: pendingCount + claimedCount
+  };
 }
 
 /**
  * 创建预建档记录
+ * 支持多套餐：packages 为数组，每个元素是一个套餐对象
+ * 兼容旧版：若传入 package（单对象），内部转为 [package]
  */
 async function createPreMember(data, operatorId) {
-  const { real_name, gender, reserve_phone, store_id, package: packageData, remark, member_identity } = data;
+  const { real_name, gender, reserve_phone, store_id, package: packageData, packages: packagesData, remark, member_identity } = data;
 
   // 基础校验
   if (!real_name || !real_name.trim()) {
@@ -223,6 +233,14 @@ async function createPreMember(data, operatorId) {
     throw new Error(phoneCheck.reason);
   }
 
+  // 统一套餐列表：优先 packages（数组），兼容旧版 package（单对象）
+  let packages = [];
+  if (Array.isArray(packagesData) && packagesData.length > 0) {
+    packages = packagesData.filter(p => p && p.package_type);
+  } else if (packageData && packageData.package_type) {
+    packages = [packageData];
+  }
+
   // 生成会员编号，规则与自主注册会员一致
   const member_code = await memberService.generateMemberCode(store_id);
 
@@ -242,9 +260,10 @@ async function createPreMember(data, operatorId) {
     // openid/wechat_phone 留空，认领时回填
   });
 
-  // 如有套餐信息，创建 UserPackage 记录
-  if (packageData && packageData.package_type) {
-    await createPackageForUser(user._id, store_id, packageData, operatorId, member_identity === 'old');
+  // 创建多个 UserPackage 记录
+  const isOldMember = member_identity === 'old';
+  for (const pkg of packages) {
+    await createPackageForUser(user._id, store_id, pkg, operatorId, isOldMember);
   }
 
   notifyPreMemberChange('create', {
@@ -371,11 +390,20 @@ async function updatePreMember(id, data, operatorId) {
   await user.save();
 
   // 如有套餐信息变更，更新套餐
-  if (data.package) {
+  // 支持多套餐：优先 packages（数组），兼容旧版 package（单对象）
+  let packagesToUpdate = [];
+  if (Array.isArray(data.packages) && data.packages.length > 0) {
+    packagesToUpdate = data.packages.filter(p => p && p.package_type);
+  } else if (data.package && data.package.package_type) {
+    packagesToUpdate = [data.package];
+  }
+
+  if (data.package !== undefined || data.packages !== undefined) {
     // 删除旧套餐，创建新套餐
     await UserPackage.deleteMany({ user_id: id });
-    if (data.package.package_type) {
-      await createPackageForUser(id, user.store_id, data.package, operatorId);
+    const isOldMember = (data.member_identity || user.member_identity) === 'old';
+    for (const pkg of packagesToUpdate) {
+      await createPackageForUser(id, user.store_id, pkg, operatorId, isOldMember);
     }
   }
 
@@ -518,7 +546,60 @@ async function claimByPhone(wechatPhone, openid) {
 }
 
 /**
+ * 门店名称模糊匹配（与 routes 层 cleanStoreName 等效）
+ * 支持：精确匹配 / 去括号短名匹配 / 括号关键词匹配 / 包含匹配
+ * @param {string} input - 用户输入的门店名称
+ * @param {Object} storeMap - { 门店全名: storeId }
+ * @returns {string|null} 匹配到的门店全名，未匹配返回 null
+ */
+function fuzzyMatchStoreName(input, storeMap) {
+  if (!input) return null;
+
+  // 0. 规范化括号：把半角括号统一成全角括号，避免"舞栖舞蹈社(固戍店)"与"舞栖舞蹈社（固戍店）"因括号类型不同匹配失败
+  const normalizedInput = String(input).replace(/\(/g, '（').replace(/\)/g, '）').trim();
+
+  // 1. 精确匹配（最高优先级）
+  if (storeMap[normalizedInput]) return normalizedInput;
+  if (storeMap[input]) return input;
+
+  const names = Object.keys(storeMap);
+  if (names.length === 0) return null;
+
+  const inputHasBracket = /[（(].+?[）)]/.test(normalizedInput);
+
+  // 2. 括号内关键词匹配（如"固戍" / "固戍店" 匹配"舞栖舞蹈社（固戍店）"）
+  //    仅当 input 本身不含括号时才走关键词匹配，避免"舞栖舞蹈社（固戍店）"误匹配到"舞栖舞蹈社（福永店）"
+  if (!inputHasBracket) {
+    for (const fullName of names) {
+      const bracketMatch = fullName.match(/[（(](.+?)[）)]/);
+      if (bracketMatch) {
+        const keyword = bracketMatch[1];
+        // 互相包含即可匹配："固戍店"含"固戍"，"固戍"也含在"固戍店"里
+        if (keyword && (normalizedInput.includes(keyword) || keyword.includes(normalizedInput))) return fullName;
+      }
+    }
+    // 3. 去括号短名匹配（如"舞栖"匹配"舞栖舞蹈社（固戍店）"）
+    for (const fullName of names) {
+      const shortName = fullName.replace(/[（(].*?[）)]/, '').trim();
+      if (shortName && (normalizedInput === shortName || normalizedInput.includes(shortName) || shortName.includes(normalizedInput))) {
+        return fullName;
+      }
+    }
+  }
+
+  // 4. 短名包含匹配（如"舞栖"匹配"舞栖舞蹈社（固戍店）"），input 不含括号时才走
+  if (!inputHasBracket) {
+    for (const fullName of names) {
+      if (fullName.includes(normalizedInput)) return fullName;
+    }
+  }
+
+  return null;
+}
+
+/**
  * 批量导入预建档记录
+ * 支持同会员多套餐：同手机号+同姓名的多行合并为一个会员，每行一个套餐
  * @param {Array} rows - 解析后的行数据
  * @param {string} operatorId - 操作员ID
  * @returns {Object} 导入结果
@@ -539,41 +620,45 @@ async function importPreMembers(rows, operatorId) {
     storeMap[s.name] = s._id;
   });
 
-  // 1. 文件内手机号去重校验
-  const phoneSet = new Set();
-  const rowNumMap = {};  // 手机号 -> 首次出现的行号
+  // 1. 同手机号不同姓名冲突检测（文件内）
+  const phoneToNames = {};  // phone -> Set<name>
   rows.forEach((row, index) => {
-    const phone = row.reserve_phone;
-    if (phone) {
-      if (phoneSet.has(phone)) {
-        results.errors.push({
-          row: row._rowNum || index + 2,
-          reason: `文件内手机号重复（首次出现在第 ${rowNumMap[phone]} 行）`
-        });
-        row._invalid = true;
-      } else {
-        phoneSet.add(phone);
-        rowNumMap[phone] = row._rowNum || index + 2;
-      }
+    const phone = String(row.reserve_phone || '').trim();
+    const name = String(row.real_name || '').trim();
+    if (phone && name) {
+      if (!phoneToNames[phone]) phoneToNames[phone] = new Set();
+      phoneToNames[phone].add(name);
+    }
+  });
+  const conflictPhones = {};
+  Object.keys(phoneToNames).forEach(phone => {
+    if (phoneToNames[phone].size > 1) {
+      conflictPhones[phone] = Array.from(phoneToNames[phone]).join(' / ');
     }
   });
 
   // 2. 逐行校验
   for (const row of rows) {
-    if (row._invalid) {
-      results.failed++;
-      continue;
-    }
-
     const rowNum = row._rowNum || 0;
     const errors = [];
 
-    // 门店名称校验
+    // 同手机号不同姓名冲突
+    const phone = String(row.reserve_phone || '').trim();
+    if (conflictPhones[phone]) {
+      errors.push(`手机号${phone}出现不同姓名（${conflictPhones[phone]}），请核对`);
+    }
+
+    // 门店名称校验（带模糊匹配）
     if (!row.store_name) {
       errors.push('门店名称不能为空');
-    } else if (!storeMap[row.store_name]) {
-      const validNames = Object.keys(storeMap).join(' / ');
-      errors.push(`门店名称"${row.store_name}"不匹配，可选门店：${validNames}`);
+    } else {
+      const matchedName = fuzzyMatchStoreName(row.store_name, storeMap);
+      if (!matchedName) {
+        const validNames = Object.keys(storeMap).join(' / ');
+        errors.push(`门店名称"${row.store_name}"不匹配，可选门店：${validNames}`);
+      } else {
+        row._store_name_matched = matchedName;  // 用匹配后的全名
+      }
     }
 
     // 会员姓名校验
@@ -588,7 +673,7 @@ async function importPreMembers(rows, operatorId) {
       errors.push('预留手机号不能为空');
     } else {
       const phoneRegex = /^1[3-9]\d{9}$/;
-      if (!phoneRegex.test(row.reserve_phone)) {
+      if (!phoneRegex.test(String(row.reserve_phone))) {
         errors.push('预留手机号格式不正确');
       }
     }
@@ -657,18 +742,20 @@ async function importPreMembers(rows, operatorId) {
       }
     }
 
-    // 附加门店校验（仅在有套餐时）
+    // 附加门店校验（仅在有套餐时，带模糊匹配）
     if (row.package_type && row.extra_store_names) {
-      const names = row.extra_store_names.split(/[,，]/).map(s => s.trim()).filter(Boolean);
+      const names = String(row.extra_store_names).split(/[,，]/).map(s => s.trim()).filter(Boolean);
       const extraIds = [];
+      const mainStoreName = row._store_name_matched || row.store_name;
       for (const name of names) {
-        if (name === row.store_name) {
+        const matched = fuzzyMatchStoreName(name, storeMap);
+        if (matched === mainStoreName) {
           errors.push(`附加门店不应包含主门店"${name}"`);
-        } else if (!storeMap[name]) {
+        } else if (!matched) {
           const validNames = Object.keys(storeMap).join(' / ');
           errors.push(`附加门店"${name}"不匹配，可选门店：${validNames}`);
         } else {
-          extraIds.push(storeMap[name]);
+          extraIds.push(storeMap[matched]);
         }
       }
       row._extra_store_ids = extraIds;
@@ -684,73 +771,194 @@ async function importPreMembers(rows, operatorId) {
     }
   }
 
-  // 3. 全局唯一性批量校验（对通过校验的手机号查询数据库）
-  if (results.validRows.length > 0) {
-    const phones = results.validRows.map(r => r.reserve_phone);
+  // 3. 同组内套餐完全重复校验（同 phone+name + 同 package_type + 同起止日期）
+  const groupKey = (r) => `${r.reserve_phone}|${r.real_name.trim()}`;
+  const groupMap = {};  // key -> { rows: [] }
+  results.validRows.forEach(r => {
+    const k = groupKey(r);
+    if (!groupMap[k]) groupMap[k] = { rows: [] };
+    groupMap[k].rows.push(r);
+  });
+  Object.keys(groupMap).forEach(k => {
+    const group = groupMap[k];
+    if (group.rows.length < 2) return;
+    for (let i = 0; i < group.rows.length; i++) {
+      for (let j = i + 1; j < group.rows.length; j++) {
+        const a = group.rows[i];
+        const b = group.rows[j];
+        if (a._package_type && b._package_type &&
+            a._package_type === b._package_type &&
+            String(a.start_date) === String(b.start_date) &&
+            String(a.end_date) === String(b.end_date)) {
+          results.errors.push({
+            row: b._rowNum || 0,
+            reason: `与第${a._rowNum || 0}行套餐完全重复（同类型+同起止日期）`
+          });
+          b._invalid = true;
+          results.passed--;
+          results.failed++;
+        }
+      }
+    }
+    group.rows = group.rows.filter(r => !r._invalid);
+  });
+
+  // 4. 全局唯一性批量校验
+  // 策略：
+  //   - DB 中已有 pending_claim 会员：把 Excel 中的套餐追加到该会员（不创建新 User）
+  //     但要校验套餐不与该会员已有套餐完全重复（同类型+同起止日期）
+  //   - DB 中已有 registered / official 会员：拒绝（不能给已注册/正式会员追加预建档套餐）
+  const stillValidAfterDedup = results.validRows.filter(r => !r._invalid);
+  if (stillValidAfterDedup.length > 0) {
+    const phones = [...new Set(stillValidAfterDedup.map(r => r.reserve_phone))];
     const existing = await User.find({
       reserve_phone: { $in: phones },
       member_status: { $in: ['pending_claim', 'registered', 'official'] }
-    }).select('reserve_phone member_status').lean();
+    }).select('reserve_phone member_status store_id real_name').lean();
 
     const existingMap = {};
     existing.forEach(u => {
-      existingMap[u.reserve_phone] = u.member_status;
+      existingMap[u.reserve_phone] = u;  // 保存完整 user 对象供追加套餐使用
+    });
+
+    // 查询所有待追加会员的已有套餐，用于重复校验
+    const appendUserIds = Object.values(existingMap)
+      .filter(u => u.member_status === 'pending_claim')
+      .map(u => u._id);
+    const existingPackages = appendUserIds.length > 0
+      ? await UserPackage.find({ user_id: { $in: appendUserIds } })
+          .select('user_id package_type start_date end_date').lean()
+      : [];
+    // 按 user_id 分组，建立 (package_type + start_date + end_date) 集合
+    const existingPkgMap = {};
+    existingPackages.forEach(p => {
+      const uid = p.user_id.toString();
+      if (!existingPkgMap[uid]) existingPkgMap[uid] = new Set();
+      const startStr = p.start_date ? new Date(p.start_date).toISOString().slice(0, 10) : '';
+      const endStr = p.end_date ? new Date(p.end_date).toISOString().slice(0, 10) : '';
+      existingPkgMap[uid].add(`${p.package_type}|${startStr}|${endStr}`);
     });
 
     const stillValid = [];
-    results.validRows.forEach(row => {
-      if (existingMap[row.reserve_phone]) {
-        const statusMap = {
-          'pending_claim': '待认领',
-          'registered': '待审核',
-          'official': '正式会员'
-        };
-        results.errors.push({
-          row: row._rowNum || 0,
-          reason: `该手机号已存在${statusMap[existingMap[row.reserve_phone]]}账号`
-        });
-        results.passed--;
-        results.failed++;
+    stillValidAfterDedup.forEach(row => {
+      const existingUser = existingMap[row.reserve_phone];
+      if (existingUser) {
+        if (existingUser.member_status === 'pending_claim') {
+          // 校验姓名一致（防止同手机号不同人）
+          if (existingUser.real_name && row.real_name.trim() && existingUser.real_name !== row.real_name.trim()) {
+            results.errors.push({
+              row: row._rowNum || 0,
+              reason: `该手机号已存在待认领会员"${existingUser.real_name}"，与当前行姓名"${row.real_name.trim()}"不一致`
+            });
+            results.passed--;
+            results.failed++;
+            return;
+          }
+          // 校验套餐是否与 DB 已有套餐完全重复（仅当本行有套餐时）
+          if (row._package_type) {
+            const uid = existingUser._id.toString();
+            const startStr = row.start_date ? new Date(row.start_date).toISOString().slice(0, 10) : '';
+            const endStr = row.end_date ? new Date(row.end_date).toISOString().slice(0, 10) : '';
+            const pkgKey = `${row._package_type}|${startStr}|${endStr}`;
+            if (existingPkgMap[uid] && existingPkgMap[uid].has(pkgKey)) {
+              results.errors.push({
+                row: row._rowNum || 0,
+                reason: `该会员已存在相同套餐（同类型+同起止日期），不能重复导入`
+              });
+              results.passed--;
+              results.failed++;
+              return;
+            }
+          }
+          // 校验通过：标记 _appendToUserId 供写入阶段使用
+          row._appendToUserId = existingUser._id;
+          row._appendToStoreId = existingUser.store_id;
+          stillValid.push(row);
+        } else {
+          // registered / official：拒绝
+          const statusMap = {
+            'registered': '待审核',
+            'official': '正式会员'
+          };
+          results.errors.push({
+            row: row._rowNum || 0,
+            reason: `该手机号已存在${statusMap[existingUser.member_status]}账号，不能追加预建档套餐`
+          });
+          results.passed--;
+          results.failed++;
+        }
       } else {
         stillValid.push(row);
       }
     });
     results.validRows = stillValid;
+  } else {
+    results.validRows = stillValidAfterDedup;
   }
 
-  // 4. 逐行写入（通过校验的行即可导入，不要求全部通过）
+  // 5. 按组写入（同 phone+name 的多行合并为一个会员，每行一个套餐）
+  //     支持 _appendToUserId：该组是追加套餐到已有 pending_claim 会员，不创建新 User
   if (results.validRows.length > 0) {
+    // 重新分组（基于最终 validRows）
+    const writeGroupMap = {};
+    const writeOrder = [];  // 保持首次出现顺序
+    results.validRows.forEach(r => {
+      const k = groupKey(r);
+      if (!writeGroupMap[k]) {
+        writeGroupMap[k] = { rows: [] };
+        writeOrder.push(k);
+      }
+      writeGroupMap[k].rows.push(r);
+    });
+
     const createdUsers = [];
+    const appendedUsers = [];  // 追加套餐的已有会员
     const packagesToCreate = [];
 
-    for (const row of results.validRows) {
-      const storeId = storeMap[row.store_name];
-      const member_code = await memberService.generateMemberCode(storeId);
-      const userData = {
-        user_type: 'member',
-        member_status: 'pending_claim',
-        member_identity: 'old', // 批量导入固定为老会员
-        member_code,
-        real_name: row.real_name.trim(),
-        gender: row._gender_num,
-        reserve_phone: row.reserve_phone,
-        store_id: storeId,
-        info_completed: true,
-        remark: row.remark || '',
-        created_by: operatorId
-      };
+    for (const k of writeOrder) {
+      const group = writeGroupMap[k].rows;
+      const firstRow = group[0];
+
+      // 判断是新建会员还是追加套餐到已有会员
+      const isAppend = !!firstRow._appendToUserId;
+      let userId, storeId;
 
       try {
-        const user = await User.create(userData);
-        createdUsers.push(user);
+        if (isAppend) {
+          // 追加套餐到已有 pending_claim 会员
+          userId = firstRow._appendToUserId;
+          storeId = firstRow._appendToStoreId;
+          appendedUsers.push({ _id: userId, store_id: storeId });
+        } else {
+          // 新建会员
+          storeId = storeMap[firstRow._store_name_matched || firstRow.store_name];
+          const member_code = await memberService.generateMemberCode(storeId);
+          const userData = {
+            user_type: 'member',
+            member_status: 'pending_claim',
+            member_identity: 'old', // 批量导入固定为老会员
+            member_code,
+            real_name: firstRow.real_name.trim(),
+            gender: firstRow._gender_num,
+            reserve_phone: firstRow.reserve_phone,
+            store_id: storeId,
+            info_completed: true,
+            remark: firstRow.remark || '',
+            created_by: operatorId
+          };
+          const user = await User.create(userData);
+          userId = user._id;
+          createdUsers.push(user);
+        }
 
-        // 创建套餐记录
-        if (row._package_type) {
+        // 为该会员创建所有套餐（每行一个套餐）
+        for (const row of group) {
+          if (!row._package_type) continue;
           const startDateObj = new Date(row.start_date);
           const endDateObj = new Date(row.end_date);
           const packageData = {
-            user_id: user._id,
-            store_id: user.store_id,
+            user_id: userId,
+            store_id: storeId,
             extra_store_ids: row._extra_store_ids || [],
             package_type: row._package_type,
             start_date: startDateObj,
@@ -787,12 +995,15 @@ async function importPreMembers(rows, operatorId) {
           packagesToCreate.push(packageData);
         }
       } catch (err) {
-        results.errors.push({
-          row: row._rowNum || 0,
-          reason: err.message || '创建会员失败'
-        });
-        results.failed++;
-        results.passed--;
+        // 创建/追加失败：整组所有行标记失败
+        for (const row of group) {
+          results.errors.push({
+            row: row._rowNum || 0,
+            reason: err.message || (isAppend ? '追加套餐失败' : '创建会员失败')
+          });
+          results.failed++;
+          results.passed--;
+        }
       }
     }
 
@@ -800,11 +1011,16 @@ async function importPreMembers(rows, operatorId) {
       await UserPackage.insertMany(packagesToCreate);
     }
 
-    results.imported_count = createdUsers.length;
+    results.imported_count = createdUsers.length + appendedUsers.length;
 
+    // 通知：新建的会员 + 追加套餐的已有会员，都触发列表刷新
+    const allAffectedStoreIds = [
+      ...createdUsers.map(u => u.store_id ? u.store_id.toString() : null),
+      ...appendedUsers.map(u => u.store_id ? u.store_id.toString() : null)
+    ].filter(Boolean);
     notifyPreMemberChange('import', {
       count: results.imported_count,
-      store_ids: createdUsers.map(u => u.store_id ? u.store_id.toString() : null).filter(Boolean)
+      store_ids: allAffectedStoreIds
     });
   } else {
     results.imported_count = 0;

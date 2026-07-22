@@ -11,6 +11,19 @@ const _normalizeStoreId = (id) => {
   return String(id);
 };
 
+// 创建一个空套餐对象，供新建/添加套餐使用
+const _createEmptyPackage = () => ({
+  package_type: '',        // 'count_card' / 'time_card' / ''
+  start_date: '',
+  end_date: '',
+  total_credits: '',
+  period_type: 'weekly',   // 'weekly' / 'daily' / 'unlimited'
+  period_count: '',
+  duration_value: '',
+  duration_unit: 'month',  // 'month' / 'day'
+  extra_store_ids: []      // 该套餐的附加门店 ID 数组
+});
+
 Page({
   data: {
     loading: false,
@@ -21,6 +34,10 @@ Page({
     currentStoreName: '',
     keyword: '',
     currentStatus: 'pending',  // pending / claimed / all
+    // tab 数量角标
+    pendingCount: 0,
+    claimedCount: 0,
+    allCount: 0,
     // 新建/编辑弹窗
     showFormModal: false,
     editingId: '',
@@ -30,31 +47,26 @@ Page({
       reserve_phone: '',
       store_id: '',
       store_name: '',
-      extra_store_ids: [],
       member_identity: 'old',
-      package_type: '',
-      start_date: '',
-      end_date: '',
-      total_credits: '',
-      period_type: 'weekly',
-      period_count: '',
-      duration_value: '',
-      duration_unit: 'month',
-      remark: ''
+      remark: '',
+      packages: []   // 套餐数组，每个元素结构见 _createEmptyPackage
     },
     // 门店选择弹窗
     showStorePicker: false,
     // 日期选择器
     showDatePicker: false,
-    datePickerField: '', // start_date / end_date
+    datePickerField: '',     // start_date / end_date
+    datePickerIndex: -1,     // 当前编辑的套餐索引
     datePickerValue: '',
     datePickerTitle: '',
-    // 附加门店开关选项（预计算 checked 状态）
+    // 附加门店开关选项：二维数组，formExtraStoreOptions[pkgIdx] 为该套餐对应的门店开关列表
     formExtraStoreOptions: [],
     // 批量管理模式
     batchMode: false,        // 是否处于批量管理模式
     selectedIds: [],         // 已选中的预建档 ID 列表
-    allSelected: false       // 当前列表中可删除项是否已全部选中（半选/全选状态）
+    allSelected: false,      // 当前列表中可删除项是否已全部选中（半选/全选状态）
+    // 手机号脱敏
+    isReviewer: false        // 审核员只能查看脱敏手机号，不可切换为全号码
   },
 
   onLoad() {
@@ -62,6 +74,10 @@ Page({
   },
 
   onShow() {
+    // 读取当前用户角色，判断是否为审核员（脱敏角色）
+    const app = getApp();
+    const userInfo = (app && app.globalData && app.globalData.userInfo) || {};
+    this.setData({ isReviewer: userInfo.role === 'reviewer' });
     this.loadList();
     this._connectWebSocket();
   },
@@ -103,24 +119,42 @@ Page({
         status: this.data.currentStatus,
         pageSize: 100
       };
-      const res = await request({
-        url: '/pre-members',
-        method: 'GET',
-        data: params
-      });
+      // 并发拉取列表和数量统计
+      const [res, statsRes] = await Promise.all([
+        request({ url: '/pre-members', method: 'GET', data: params }),
+        request({ url: '/pre-members/stats', method: 'GET', data: { store_id: this.data.currentStoreId } }).catch(() => null)
+      ]);
       const list = res.data && res.data.list ? res.data.list : [];
+      // 手机号脱敏处理：保留原始手机号供切换显示，脱敏号默认展示
+      const maskPhone = (p) => {
+        if (p && p.length === 11) {
+          return p.replace(/(\d{3})\d{4}(\d{4})/, '$1****$2');
+        }
+        return p || '';
+      };
       // 格式化显示
       const formattedList = list.map(item => {
+        const reservePhoneRaw = item.reserve_phone || '';
         return {
           ...item,
           _id: String(item._id),  // 统一转为字符串，避免 indexOf/比较时类型不匹配
           _selected: false,        // 预计算选中状态，供 WXML 直接判断
+          _showPhone: false,       // 默认显示脱敏手机号
+          reserve_phone_raw: reservePhoneRaw,           // 原始手机号（点击眼睛后展示）
+          reserve_phone: maskPhone(reservePhoneRaw),    // 脱敏手机号（默认展示）
           avatar_url: fixImageUrl(item.avatar_url),
           created_at_text: item.created_at ? this._formatDate(item.created_at) : '',
           package_text: this._formatPackageText(item.packages)
         };
       });
-      this.setData({ list: formattedList, loading: false });
+      const statsData = statsRes && statsRes.data ? statsRes.data : {};
+      this.setData({
+        list: formattedList,
+        loading: false,
+        pendingCount: statsData.pending_count || 0,
+        claimedCount: statsData.claimed_count || 0,
+        allCount: statsData.all_count || 0
+      });
       // 列表刷新后同步批量管理状态（清理已不存在的选中项并更新全选标记 + 重算 _selected）
       // 容错：热重载可能导致新方法尚未注入到已存在的 Page 实例，此时跳过避免阻断列表加载
       if (typeof this._syncBatchState === 'function') {
@@ -214,6 +248,16 @@ Page({
     this.loadList();
   },
 
+  // 切换手机号脱敏/全号码显示（审核员不可切换）
+  onTogglePhone(e) {
+    if (this.data.isReviewer) return;
+    const index = e.currentTarget.dataset.index;
+    const key = `list[${index}]._showPhone`;
+    this.setData({
+      [key]: !this.data.list[index]._showPhone
+    });
+  },
+
   // ========== 新建/编辑弹窗 ==========
   onCreatePreMember() {
     const defaultStore = this.data.currentStoreId ? this.data.storeList.find(s => s._id === this.data.currentStoreId) : null;
@@ -226,17 +270,9 @@ Page({
         reserve_phone: '',
         store_id: defaultStore ? _normalizeStoreId(defaultStore._id) : '',
         store_name: defaultStore ? defaultStore.name : '',
-        extra_store_ids: [],
         member_identity: 'old',
-        package_type: '',
-        start_date: '',
-        end_date: '',
-        total_credits: '',
-        period_type: 'weekly',
-        period_count: '',
-        duration_value: '',
-        duration_unit: 'month',
-        remark: ''
+        remark: '',
+        packages: [_createEmptyPackage()]   // 至少1个空套餐
       }
     });
     this._buildFormExtraStoreOptions();
@@ -248,7 +284,24 @@ Page({
       const res = await request({ url: `/pre-members/${id}`, method: 'GET' });
       const data = res.data;
       const storeObj = data.store_id && data.store_id._id ? data.store_id : { _id: data.store_id, name: '' };
-      const pkg = data.packages && data.packages.length > 0 ? data.packages[0] : null;
+      // 把后端 packages 数组（或旧版单 package 对象）转换为前端表单结构
+      const rawPackages = Array.isArray(data.packages) && data.packages.length > 0
+        ? data.packages
+        : (data.package ? [data.package] : []);
+      const packages = rawPackages.map(pkg => {
+        const extraIds = (pkg.extra_store_ids || []).map(s => _normalizeStoreId(typeof s === 'object' ? (s._id || s.id) : s));
+        return {
+          package_type: pkg.package_type || '',
+          start_date: pkg.start_date ? this._formatDate(pkg.start_date) : '',
+          end_date: pkg.end_date ? this._formatDate(pkg.end_date) : '',
+          total_credits: pkg.total_credits ? String(pkg.total_credits) : '',
+          period_type: pkg.weekly_limit ? 'weekly' : (pkg.daily_limit ? 'daily' : 'unlimited'),
+          period_count: pkg.weekly_limit ? String(pkg.weekly_limit) : (pkg.daily_limit ? String(pkg.daily_limit) : ''),
+          duration_value: pkg.duration_value ? String(pkg.duration_value) : '',
+          duration_unit: pkg.duration_unit || 'month',
+          extra_store_ids: extraIds
+        };
+      });
       this.setData({
         showFormModal: true,
         editingId: id,
@@ -258,17 +311,9 @@ Page({
           reserve_phone: data.reserve_phone || '',
           store_id: _normalizeStoreId(storeObj._id) || '',
           store_name: storeObj.name || '',
-          extra_store_ids: pkg && pkg.extra_store_ids ? pkg.extra_store_ids.map(s => _normalizeStoreId(typeof s === 'object' ? (s._id || s.id) : s)) : [],
           member_identity: data.member_identity || 'new',
-          package_type: pkg ? pkg.package_type : '',
-          start_date: pkg && pkg.start_date ? this._formatDate(pkg.start_date) : '',
-          end_date: pkg && pkg.end_date ? this._formatDate(pkg.end_date) : '',
-          total_credits: pkg && pkg.total_credits ? String(pkg.total_credits) : '',
-          period_type: pkg && pkg.weekly_limit ? 'weekly' : (pkg && pkg.daily_limit ? 'daily' : 'unlimited'),
-          period_count: pkg && pkg.weekly_limit ? String(pkg.weekly_limit) : (pkg && pkg.daily_limit ? String(pkg.daily_limit) : ''),
-          duration_value: pkg && pkg.duration_value ? String(pkg.duration_value) : '',
-          duration_unit: pkg && pkg.duration_unit ? pkg.duration_unit : 'month',
-          remark: data.remark || ''
+          remark: data.remark || '',
+          packages: packages.length > 0 ? packages : [_createEmptyPackage()]
         }
       });
       this._buildFormExtraStoreOptions();
@@ -291,7 +336,14 @@ Page({
 
   onFormInput(e) {
     const field = e.currentTarget.dataset.field;
-    this.setData({ [`form.${field}`]: e.detail.value });
+    const index = e.currentTarget.dataset.index;
+    if (index === undefined || index === null || index === '') {
+      // 会员级别字段（如 real_name、reserve_phone、remark）
+      this.setData({ [`form.${field}`]: e.detail.value });
+    } else {
+      // 套餐级别字段
+      this.setData({ [`form.packages[${index}].${field}`]: e.detail.value });
+    }
   },
 
   onGenderSelect(e) {
@@ -299,7 +351,9 @@ Page({
   },
 
   onPackageTypeChange(e) {
-    this.setData({ 'form.package_type': e.currentTarget.dataset.type });
+    const index = e.currentTarget.dataset.index;
+    const type = e.currentTarget.dataset.type;
+    this.setData({ [`form.packages[${index}].package_type`]: type });
   },
 
   onMemberIdentityChange(e) {
@@ -307,11 +361,36 @@ Page({
   },
 
   onDurationUnitChange(e) {
-    this.setData({ 'form.duration_unit': e.currentTarget.dataset.unit });
+    const index = e.currentTarget.dataset.index;
+    const unit = e.currentTarget.dataset.unit;
+    this.setData({ [`form.packages[${index}].duration_unit`]: unit });
   },
 
   onPeriodTypeChange(e) {
-    this.setData({ 'form.period_type': e.currentTarget.dataset.period });
+    const index = e.currentTarget.dataset.index;
+    const period = e.currentTarget.dataset.period;
+    this.setData({ [`form.packages[${index}].period_type`]: period });
+  },
+
+  // 新增套餐：在末尾追加一个空套餐对象
+  onAddPackage() {
+    const packages = this.data.form.packages.slice();
+    packages.push(_createEmptyPackage());
+    this.setData({ 'form.packages': packages });
+    this._buildFormExtraStoreOptions();
+  },
+
+  // 删除套餐：删除指定索引的套餐，至少保留1个
+  onRemovePackage(e) {
+    const index = e.currentTarget.dataset.index;
+    const packages = this.data.form.packages.slice();
+    if (packages.length <= 1) {
+      wx.showToast({ title: '至少保留一个套餐', icon: 'none' });
+      return;
+    }
+    packages.splice(index, 1);
+    this.setData({ 'form.packages': packages });
+    this._buildFormExtraStoreOptions();
   },
 
   // ========== 自定义门店选择弹窗 ==========
@@ -326,19 +405,21 @@ Page({
   onSelectStore(e) {
     const { id, name } = e.currentTarget.dataset;
     const normalizedId = _normalizeStoreId(id);
+    // 主门店变更时，遍历所有套餐，从每个套餐的 extra_store_ids 中移除新主门店
+    const packages = this.data.form.packages.map(pkg => {
+      const extraIds = (pkg.extra_store_ids || []).slice();
+      const idx = extraIds.indexOf(normalizedId);
+      if (idx > -1) {
+        extraIds.splice(idx, 1);
+      }
+      return { ...pkg, extra_store_ids: extraIds };
+    });
     this.setData({
       'form.store_id': normalizedId,
-      'form.store_name': name
+      'form.store_name': name,
+      'form.packages': packages
     });
-    // 主门店变更时，从附加门店中移除新主门店
-    let { extra_store_ids } = this.data.form;
-    extra_store_ids = (extra_store_ids || []).slice();
-    const idx = extra_store_ids.indexOf(normalizedId);
-    if (idx > -1) {
-      extra_store_ids.splice(idx, 1);
-      this.setData({ 'form.extra_store_ids': extra_store_ids });
-    }
-    // 重建开关选项（主门店变更后过滤条件变化）
+    // 重建所有套餐的开关选项（主门店变更后过滤条件变化）
     this._buildFormExtraStoreOptions();
     // 延迟 300ms 关闭弹窗，让用户看到选中动画
     setTimeout(() => {
@@ -347,24 +428,32 @@ Page({
   },
 
   /**
-   * 构建附加门店开关选项列表（预计算 checked 状态，避免 WXML 中 indexOf 不可靠）
+   * 构建附加门店开关选项：二维数组，formExtraStoreOptions[pkgIdx] 为该套餐对应的门店开关列表
+   * 预计算 checked 状态，避免 WXML 中 indexOf 不可靠
    */
   _buildFormExtraStoreOptions() {
     const { storeList, form } = this.data;
     const storeId = _normalizeStoreId(form.store_id);
-    const extraIds = form.extra_store_ids || [];
-    const options = storeList
+    // 过滤掉主门店、非活跃门店；其余门店在每个套餐下都作为一个开关
+    const candidateStores = storeList
       .filter(s => s.status === 'active' && _normalizeStoreId(s._id) !== storeId)
       .map(s => ({
         _id: _normalizeStoreId(s._id),
-        name: s.name,
-        checked: extraIds.indexOf(_normalizeStoreId(s._id)) > -1
+        name: s.name
       }));
-    this.setData({ formExtraStoreOptions: options });
+    const optionsArr = (form.packages || []).map(pkg => {
+      const extraIds = pkg.extra_store_ids || [];
+      return candidateStores.map(s => ({
+        _id: s._id,
+        name: s.name,
+        checked: extraIds.indexOf(s._id) > -1
+      }));
+    });
+    this.setData({ formExtraStoreOptions: optionsArr });
   },
 
   onToggleExtraStore(e) {
-    const { id } = e.currentTarget.dataset;
+    const { id, index } = e.currentTarget.dataset;
     const checked = e.detail.value;
     const normalizedId = _normalizeStoreId(id);
     const storeId = _normalizeStoreId(this.data.form.store_id);
@@ -372,14 +461,15 @@ Page({
       wx.showToast({ title: '该门店已为主门店', icon: 'none' });
       return;
     }
-    const extraStoreIds = (this.data.form.extra_store_ids || []).slice();
+    const pkgIdx = Number(index);
+    const extraStoreIds = (this.data.form.packages[pkgIdx].extra_store_ids || []).slice();
     const idx = extraStoreIds.indexOf(normalizedId);
     if (checked && idx === -1) {
       extraStoreIds.push(normalizedId);
     } else if (!checked && idx > -1) {
       extraStoreIds.splice(idx, 1);
     }
-    this.setData({ 'form.extra_store_ids': extraStoreIds });
+    this.setData({ [`form.packages[${pkgIdx}].extra_store_ids`]: extraStoreIds });
     // 同步更新开关选项的 checked 状态
     this._buildFormExtraStoreOptions();
   },
@@ -387,11 +477,14 @@ Page({
   // ========== 自定义日期选择器 ==========
   onOpenDatePicker(e) {
     const field = e.currentTarget.dataset.field;
-    const currentValue = this.data.form[field] || '';
+    const index = Number(e.currentTarget.dataset.index);
+    const pkg = this.data.form.packages[index];
+    const currentValue = pkg ? (pkg[field] || '') : '';
     const title = field === 'start_date' ? '选择开始日期' : '选择结束日期';
     this.setData({
       showDatePicker: true,
       datePickerField: field,
+      datePickerIndex: index,
       datePickerValue: currentValue,
       datePickerTitle: title
     });
@@ -400,10 +493,12 @@ Page({
   onDatePickerConfirm(e) {
     const { value } = e.detail;
     const field = this.data.datePickerField;
+    const index = this.data.datePickerIndex;
     this.setData({
-      [`form.${field}`]: value,
+      [`form.packages[${index}].${field}`]: value,
       showDatePicker: false,
       datePickerField: '',
+      datePickerIndex: -1,
       datePickerValue: ''
     });
   },
@@ -412,6 +507,7 @@ Page({
     this.setData({
       showDatePicker: false,
       datePickerField: '',
+      datePickerIndex: -1,
       datePickerValue: ''
     });
   },
@@ -437,28 +533,31 @@ Page({
       return;
     }
 
-    // 套餐校验
-    if (form.package_type) {
+    // 套餐校验：遍历每个套餐，仅对 package_type 非空的套餐做校验
+    for (let i = 0; i < form.packages.length; i++) {
+      const pkg = form.packages[i];
+      if (!pkg.package_type) continue;
+      const prefix = form.packages.length > 1 ? `套餐${i + 1}：` : '';
       if (form.member_identity === 'new') {
         // 新会员：校验时长
-        if (!form.duration_value || Number(form.duration_value) <= 0) {
-          const tip = form.package_type === 'count_card' ? '请输入服务有效期' : '请输入有效时长';
+        if (!pkg.duration_value || Number(pkg.duration_value) <= 0) {
+          const tip = pkg.package_type === 'count_card' ? `${prefix}请输入服务有效期` : `${prefix}请输入有效时长`;
           wx.showToast({ title: tip, icon: 'none' });
           return;
         }
       } else {
         // 老会员：校验起止日期
-        if (!form.start_date || !form.end_date) {
-          wx.showToast({ title: '请选择有效期', icon: 'none' });
+        if (!pkg.start_date || !pkg.end_date) {
+          wx.showToast({ title: `${prefix}请选择有效期`, icon: 'none' });
           return;
         }
       }
-      if (form.package_type === 'count_card' && (!form.total_credits || Number(form.total_credits) <= 0)) {
-        wx.showToast({ title: '请输入总次数', icon: 'none' });
+      if (pkg.package_type === 'count_card' && (!pkg.total_credits || Number(pkg.total_credits) <= 0)) {
+        wx.showToast({ title: `${prefix}请输入总次数`, icon: 'none' });
         return;
       }
-      if (form.package_type === 'time_card' && form.period_type !== 'unlimited' && (!form.period_count || Number(form.period_count) <= 0)) {
-        wx.showToast({ title: '请输入周期次数', icon: 'none' });
+      if (pkg.package_type === 'time_card' && pkg.period_type !== 'unlimited' && (!pkg.period_count || Number(pkg.period_count) <= 0)) {
+        wx.showToast({ title: `${prefix}请输入周期次数`, icon: 'none' });
         return;
       }
     }
@@ -470,34 +569,37 @@ Page({
       reserve_phone: form.reserve_phone,
       store_id: form.store_id,
       member_identity: form.member_identity,
-      remark: form.remark || ''
+      remark: form.remark || '',
+      packages: []
     };
 
-    if (form.package_type) {
+    // 仅提交 package_type 非空的套餐，过滤掉"不录套餐"的空套餐
+    form.packages.forEach(pkg => {
+      if (!pkg.package_type) return;
       const packageData = {
-        package_type: form.package_type,
-        extra_store_ids: form.extra_store_ids || []
+        package_type: pkg.package_type,
+        extra_store_ids: pkg.extra_store_ids || []
       };
       if (form.member_identity === 'new') {
         // 新会员：传时长，后端激活时计算起止日期
-        packageData.duration_value = Number(form.duration_value);
-        packageData.duration_unit = form.duration_unit;
+        packageData.duration_value = Number(pkg.duration_value);
+        packageData.duration_unit = pkg.duration_unit;
       } else {
         // 老会员：传起止日期
-        packageData.start_date = form.start_date;
-        packageData.end_date = form.end_date;
+        packageData.start_date = pkg.start_date;
+        packageData.end_date = pkg.end_date;
       }
-      if (form.package_type === 'count_card') {
-        packageData.total_credits = Number(form.total_credits);
+      if (pkg.package_type === 'count_card') {
+        packageData.total_credits = Number(pkg.total_credits);
       } else {
-        if (form.period_type === 'weekly') {
-          packageData.weekly_limit = Number(form.period_count);
-        } else if (form.period_type === 'daily') {
-          packageData.daily_limit = Number(form.period_count);
+        if (pkg.period_type === 'weekly') {
+          packageData.weekly_limit = Number(pkg.period_count);
+        } else if (pkg.period_type === 'daily') {
+          packageData.daily_limit = Number(pkg.period_count);
         }
       }
-      payload.package = packageData;
-    }
+      payload.packages.push(packageData);
+    });
 
     wx.showLoading({ title: '提交中...' });
     try {
@@ -616,28 +718,30 @@ Page({
       success: async (res) => {
         if (!res.confirm) return;
         wx.showLoading({ title: '删除中...', mask: true });
-        try {
-          const result = await request({
-            url: '/pre-members/batch-delete',
-            method: 'POST',
-            data: { ids: selectedIds }
-          });
-          wx.hideLoading();
-          const data = result.data || {};
-          const deleted = data.deleted || 0;
-          const failedCount = data.failed ? data.failed.length : 0;
-          if (failedCount > 0) {
-            wx.showToast({ title: `成功${deleted}条，${failedCount}条不可删除`, icon: 'none' });
-          } else {
-            wx.showToast({ title: `删除${deleted}条成功`, icon: 'success' });
+        let successCount = 0;
+        let failCount = 0;
+        // 逐条调用单条删除接口（DELETE /pre-members/:id）
+        // 该接口在所有版本后端都存在，兼容性最佳
+        for (const id of selectedIds) {
+          try {
+            await request({
+              url: `/pre-members/${id}`,
+              method: 'DELETE'
+            });
+            successCount++;
+          } catch (err) {
+            failCount++;
           }
-          // 退出批量模式并刷新列表
-          this.setData({ batchMode: false, selectedIds: [], allSelected: false });
-          this.loadList();
-        } catch (err) {
-          wx.hideLoading();
-          wx.showToast({ title: err.message || '批量删除失败', icon: 'none' });
         }
+        wx.hideLoading();
+        if (failCount > 0) {
+          wx.showToast({ title: `成功${successCount}条，${failCount}条不可删除`, icon: 'none' });
+        } else {
+          wx.showToast({ title: `删除${successCount}条成功`, icon: 'success' });
+        }
+        // 退出批量模式并刷新列表
+        this.setData({ batchMode: false, selectedIds: [], allSelected: false });
+        this.loadList();
       }
     });
   },

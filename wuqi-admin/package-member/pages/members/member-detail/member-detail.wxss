@@ -62,12 +62,14 @@
   display: flex;
   align-items: center;
   font-size: 26rpx;
+  gap: 8rpx;
 }
 
 .member-phone-label {
   color: var(--text-secondary);
   font-size: 24rpx;
   min-width: 80rpx;
+  flex-shrink: 0;
 }
 
 .member-phone-label.secondary {
@@ -78,11 +80,31 @@
   font-size: 28rpx;
   color: var(--text-secondary);
   display: block;
+  flex: 1;
+  min-width: 0;
 }
 
 .member-phone.secondary {
   font-size: 28rpx;
   color: var(--text-secondary);
+}
+
+.phone-eye-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48rpx;
+  height: 48rpx;
+  flex-shrink: 0;
+}
+
+.phone-eye-btn:active {
+  opacity: 0.6;
+}
+
+.phone-eye-icon {
+  width: 36rpx;
+  height: 36rpx;
 }
 
 .member-tags {

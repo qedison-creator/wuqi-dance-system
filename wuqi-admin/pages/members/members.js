@@ -238,7 +238,7 @@ Page({
         url: '/pre-members/stats',
         method: 'GET'
       });
-      const count = res.data && res.data.pending_claim_count ? res.data.pending_claim_count : 0;
+      const count = res.data && res.data.pending_count ? res.data.pending_count : 0;
       this.setData({ pendingClaimCount: count });
     } catch (err) {
       console.error('加载预建档数量失败', err);
