@@ -1,0 +1,388 @@
+.container {
+  min-height: 100vh;
+  background: #F8F7F5;
+  padding: 24rpx;
+  box-sizing: border-box;
+}
+
+/* ========== 周选择器 + 背景图入口（单行） ========== */
+.selector-row {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  margin-bottom: 24rpx;
+}
+
+.selector-picker {
+  flex: 1;
+  background: #FFF;
+  border-radius: 20rpx;
+  padding: 22rpx 24rpx;
+  box-sizing: border-box;
+}
+
+.picker-value {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+}
+
+.picker-label {
+  font-size: 28rpx;
+  font-weight: 700;
+  color: #1A1A1A;
+  white-space: nowrap;
+}
+
+.picker-range {
+  flex: 1;
+  font-size: 26rpx;
+  color: #666;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.picker-arrow {
+  font-size: 28rpx;
+  color: #CCC;
+  flex-shrink: 0;
+}
+
+.bg-btn-entry {
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+  background: #FFF;
+  border-radius: 20rpx;
+  padding: 22rpx 24rpx;
+  flex-shrink: 0;
+}
+
+.bg-btn-entry text {
+  font-size: 26rpx;
+  font-weight: 600;
+  color: #1A1A1A;
+  white-space: nowrap;
+}
+
+.bg-btn-icon {
+  width: 32rpx;
+  height: 32rpx;
+}
+
+/* ========== 生成按钮 ========== */
+.generate-btn {
+  background: #E8785A;
+  color: #FFF;
+  text-align: center;
+  padding: 28rpx 0;
+  border-radius: 20rpx;
+  font-size: 32rpx;
+  font-weight: 700;
+  margin-bottom: 32rpx;
+}
+
+.generate-btn.btn-disabled {
+  opacity: 0.5;
+}
+
+/* ========== 预览结果 ========== */
+.result-section {
+  background: #FFF;
+  border-radius: 20rpx;
+  padding: 24rpx;
+  margin-bottom: 24rpx;
+}
+
+.result-title {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: #1A1A1A;
+  margin-bottom: 16rpx;
+}
+
+.result-preview {
+  width: 100%;
+  border-radius: 12rpx;
+  margin-bottom: 24rpx;
+  box-shadow: 0 4rpx 20rpx rgba(0,0,0,0.1);
+}
+
+.result-actions {
+  display: flex;
+  gap: 16rpx;
+}
+
+.action-btn {
+  flex: 1;
+  text-align: center;
+  padding: 22rpx 0;
+  border-radius: 16rpx;
+  font-size: 28rpx;
+  font-weight: 600;
+}
+
+/* 重置 button 默认样式 */
+button.action-btn {
+  margin: 0;
+  line-height: normal;
+}
+
+button.action-btn::after {
+  border: none;
+}
+
+.btn-save {
+  background: #E8785A;
+  color: #FFF;
+}
+
+.btn-regenerate {
+  background: #F0F0F0;
+  color: #666;
+}
+
+/* ========== 空状态 ========== */
+.empty-section {
+  text-align: center;
+  padding: 120rpx 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16rpx;
+}
+
+.empty-icon {
+  font-size: 80rpx;
+  margin-bottom: 16rpx;
+}
+
+.empty-text {
+  font-size: 30rpx;
+  color: #999;
+  font-weight: 500;
+}
+
+.empty-hint {
+  font-size: 24rpx;
+  color: #CCC;
+}
+
+/* ========== Canvas ========== */
+.offscreen-canvas {
+  position: fixed;
+  left: -9999rpx;
+  top: -9999rpx;
+}
+
+/* ========== 背景图管理弹窗 ========== */
+.bg-mask-layer {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.55);
+  z-index: 1000;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.bg-manager-popup {
+  width: 100%;
+  max-height: 85vh;
+  background: #FFF;
+  border-radius: 32rpx 32rpx 0 0;
+  padding: 32rpx 24rpx;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.bg-popup-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24rpx;
+}
+
+.bg-popup-title {
+  font-size: 32rpx;
+  font-weight: 700;
+  color: #1A1A1A;
+}
+
+.bg-popup-close {
+  font-size: 36rpx;
+  color: #999;
+  width: 60rpx;
+  height: 60rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.bg-section-label {
+  font-size: 26rpx;
+  color: #999;
+  margin-bottom: 12rpx;
+  display: block;
+}
+
+/* 当前使用 */
+.bg-active-section {
+  margin-bottom: 24rpx;
+}
+
+.bg-active-preview {
+  width: 100%;
+  height: 300rpx;
+  border-radius: 16rpx;
+  background: #F5F5F5;
+}
+
+/* 上传区域 */
+.bg-upload-area {
+  border: 2rpx dashed #E8785A;
+  border-radius: 16rpx;
+  padding: 36rpx 0;
+  text-align: center;
+  margin-bottom: 24rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8rpx;
+  background: #FFF;
+  line-height: normal;
+  /* 重置 button 默认样式 */
+  width: 100%;
+  box-sizing: border-box;
+  font-weight: normal;
+}
+
+.bg-upload-area::after {
+  border: none;
+}
+
+.bg-upload-area.uploading {
+  opacity: 0.5;
+}
+
+.bg-upload-icon {
+  font-size: 56rpx;
+  color: #E8785A;
+  line-height: 1;
+}
+
+.bg-upload-text {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: #E8785A;
+}
+
+.bg-upload-hint {
+  font-size: 22rpx;
+  color: #AAA;
+}
+
+/* 背景图列表 */
+.bg-list-section {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.bg-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16rpx;
+}
+
+.bg-item {
+  width: calc(50% - 8rpx);
+  position: relative;
+  border-radius: 12rpx;
+  overflow: hidden;
+  aspect-ratio: 2 / 3;
+}
+
+.bg-preview {
+  width: 100%;
+  height: 100%;
+}
+
+.bg-item-mask {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(to top, rgba(0,0,0,0.7), transparent);
+  padding: 16rpx 12rpx 12rpx;
+  display: flex;
+  flex-direction: column;
+  gap: 8rpx;
+}
+
+.bg-item-badge {
+  position: absolute;
+  top: 8rpx;
+  right: 8rpx;
+  background: #E8785A;
+  color: #FFF;
+  font-size: 20rpx;
+  font-weight: 600;
+  padding: 4rpx 12rpx;
+  border-radius: 8rpx;
+}
+
+.bg-item-actions {
+  display: flex;
+  gap: 8rpx;
+}
+
+.bg-item-btn {
+  flex: 1;
+  text-align: center;
+  font-size: 22rpx;
+  font-weight: 600;
+  padding: 10rpx 0;
+  border-radius: 8rpx;
+}
+
+.btn-use {
+  background: rgba(255, 255, 255, 0.9);
+  color: #1A1A1A;
+}
+
+.btn-current {
+  background: rgba(232, 120, 90, 0.9);
+  color: #FFF;
+}
+
+.btn-del {
+  background: rgba(255, 255, 255, 0.3);
+  color: #FFF;
+  border: 1rpx solid rgba(255, 255, 255, 0.5);
+}
+
+/* 空状态 */
+.bg-empty {
+  text-align: center;
+  padding: 60rpx 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12rpx;
+}
+
+.bg-empty-text {
+  font-size: 28rpx;
+  color: #999;
+}
+
+.bg-empty-hint {
+  font-size: 24rpx;
+  color: #CCC;
+}

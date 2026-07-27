@@ -1,0 +1,41 @@
+<view class="container">
+  <!-- 当前激活背景 -->
+  <view class="section" wx:if="{{activeBg}}">
+    <view class="section-title">当前使用</view>
+    <view class="active-card">
+      <image class="active-preview" src="{{_fixImageUrl(activeBg.background_url)}}" mode="aspectFit" />
+      <view class="active-badge">使用中</view>
+    </view>
+  </view>
+
+  <!-- 上传按钮 -->
+  <view class="upload-area" bindtap="onChooseImage">
+    <view class="upload-icon">+</view>
+    <text class="upload-text">上传新背景图</text>
+    <text class="upload-hint">建议上传A4竖版比例（2:3），将自动压缩至2048px宽</text>
+  </view>
+
+  <!-- 历史背景图列表 -->
+  <view class="section" wx:if="{{bgList.length > 0}}">
+    <view class="section-title">所有背景图（{{bgList.length}}）</view>
+    <view class="bg-grid">
+      <view class="bg-item" wx:for="{{bgList}}" wx:key="_id">
+        <image class="bg-preview" src="{{item.background_full_url}}" mode="aspectFill" />
+        <view class="bg-mask">
+          <view class="bg-actions">
+            <view class="bg-btn {{item.is_active ? 'bg-btn-active' : 'bg-btn-normal'}}" data-id="{{item._id}}" bindtap="onActivate">
+              {{item.is_active ? '使用中' : '设为背景'}}
+            </view>
+            <view class="bg-btn bg-btn-delete" data-id="{{item._id}}" bindtap="onDelete" wx:if="{{!item.is_active}}">删除</view>
+          </view>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 空状态 -->
+  <view class="empty-state" wx:if="{{!loading && bgList.length === 0}}">
+    <text class="empty-text">还没有上传背景图</text>
+    <text class="empty-hint">点击上方区域上传第一张背景图</text>
+  </view>
+</view>

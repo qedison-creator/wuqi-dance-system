@@ -669,6 +669,51 @@
   color: var(--text-secondary);
 }
 
+.export-btn {
+  padding: 12rpx 24rpx;
+  background-color: #E8785A;
+  border-radius: 40rpx;
+}
+
+.export-btn text {
+  font-size: 24rpx;
+  color: #FFFFFF;
+  font-weight: 600;
+}
+
+.export-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 22rpx 24rpx;
+  background-color: var(--bg-card);
+  border-radius: var(--radius-xl);
+  border: 1rpx solid var(--border);
+  margin-bottom: 16rpx;
+}
+
+.export-row-inner {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+}
+
+.export-row-inner text {
+  font-size: 28rpx;
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.export-icon {
+  width: 40rpx;
+  height: 40rpx;
+}
+
+.menu-arrow {
+  width: 28rpx;
+  height: 28rpx;
+}
+
 .modal-mask {
   position: fixed;
   top: 0;

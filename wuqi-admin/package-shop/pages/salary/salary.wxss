@@ -996,6 +996,24 @@
   color: var(--text-primary);
 }
 
+.salary-card-name-wrap {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  flex: 1;
+  min-width: 0;
+}
+
+.salary-config-warn {
+  font-size: 20rpx;
+  color: #E67E22;
+  background: #FFF3E0;
+  padding: 4rpx 12rpx;
+  border-radius: 8rpx;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
 .salary-card-total {
   font-size: 32rpx;
   font-weight: 800;

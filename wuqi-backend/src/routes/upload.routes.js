@@ -24,6 +24,8 @@ const IMAGE_OPTIMIZE_CONFIG = {
   banner: { maxWidth: 1400, quality: 82, progressive: true },
   // 用户头像：小图，400px宽足够
   user_avatar: { maxWidth: 400, quality: 88, progressive: true },
+  // 课程表背景图：A4竖版，2048px宽保留高清，质量85
+  schedule_background: { maxWidth: 2048, quality: 85, progressive: true },
   // 通用默认
   _default: { maxWidth: 1200, quality: 82, progressive: true },
 };
@@ -75,6 +77,7 @@ const SUB_DIRS = {
   course: 'courses',
   user_avatar: 'users',
   banner: 'banners',
+  schedule_background: 'schedule-backgrounds',
   general: 'general',
 };
 

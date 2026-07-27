@@ -1520,6 +1520,79 @@ exports.getWeeklySchedule = async (storeId, startDate, endDate) => {
   return grouped;
 };
 
+// 获取周课程表导出数据（含教练头像、舞种、教室等完整信息）
+exports.getWeekExportData = async (storeId, startDate, endDate) => {
+  const filter = {
+    status: { $nin: ['deleted'] },
+  };
+  if (storeId) filter.store_id = storeId;
+  if (startDate && endDate) {
+    filter.date = { $gte: startDate, $lte: endDate };
+  }
+
+  const list = await Schedule.find(filter)
+    .populate('store_id', 'name')
+    .populate('coach_id', 'name avatar_url')
+    .populate('dance_style_id', 'name icon_url')
+    .sort({ date: 1, start_time: 1 })
+    .lean();
+
+  // 获取门店名
+  const storeName = list.length && list[0].store_id ? list[0].store_id.name : '';
+
+  // 生成日期范围显示文本
+  const formatDateDisplay = (dateStr) => {
+    const d = new Date(dateStr + 'T00:00:00+08:00');
+    return `${d.getMonth() + 1}月${d.getDate()}日`;
+  };
+  const dateRange = `${formatDateDisplay(startDate)}-${formatDateDisplay(endDate)}`;
+
+  // 按星期分组（不依赖 getDay()，避免服务器时区问题）
+  const weekdayOrder = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
+
+  // 生成7天的日期字符串
+  const weekDates = [];
+  const [sy, sm, sd] = startDate.split('-').map(Number);
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(Date.UTC(sy, sm - 1, sd + i));
+    const dateStr = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`;
+    weekDates.push(dateStr);
+  }
+
+  const dayMap = {};
+  for (let i = 0; i < 7; i++) {
+    dayMap[weekDates[i]] = {
+      weekday: weekdayOrder[i],
+      date: formatDateDisplay(weekDates[i]),
+      courses: []
+    };
+  }
+
+  // 填充课程数据（按日期字符串匹配，不依赖时区）
+  for (const item of list) {
+    const dayData = dayMap[item.date];
+    if (!dayData) continue;
+
+    dayData.courses.push({
+      start_time: item.start_time,
+      end_time: item.end_time,
+      course_name: item.course_name || (item.dance_style_id ? item.dance_style_id.name + '课程' : '未命名课程'),
+      dance_style: item.dance_style_id ? item.dance_style_id.name : '',
+      coach_name: item.coach_id ? item.coach_id.name : '未知',
+      coach_avatar: item.coach_id && item.coach_id.avatar_url ? item.coach_id.avatar_url : '',
+      classroom: item.classroom || ''
+    });
+  }
+
+  const days = weekDates.map(d => dayMap[d]).filter(Boolean);
+
+  return {
+    store_name: storeName,
+    date_range: dateRange,
+    days
+  };
+};
+
 // 复制周排课到未来数周/数月
 exports.copyScheduleWeeks = async (data, operatorId) => {
   const {

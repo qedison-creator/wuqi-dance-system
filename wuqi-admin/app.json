@@ -57,7 +57,8 @@
         "pages/check-in/check-in",
         "pages/course-records/course-records",
         "pages/booking-summary/booking-summary",
-        "pages/waitlist/waitlist"
+        "pages/waitlist/waitlist",
+        "pages/schedule-export/schedule-export"
       ]
     },
     {
@@ -83,7 +84,8 @@
         "pages/coaches/coaches",
         "pages/holidays/holidays",
         "pages/announcements/announcements",
-        "pages/salary/salary"
+        "pages/salary/salary",
+        "pages/schedule-export-bg/schedule-export-bg"
       ]
     },
     {

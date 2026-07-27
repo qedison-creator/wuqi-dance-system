@@ -1,0 +1,95 @@
+<view class="container">
+  <!-- 周选择器 + 背景图管理入口（单行） -->
+  <view class="selector-row">
+    <picker class="selector-picker" mode="selector" range="{{weekOptions}}" range-key="label" value="{{selectedWeekIndex}}" bindchange="onWeekChange">
+      <view class="picker-value">
+        <text class="picker-label">{{weekOptions[selectedWeekIndex].label}}</text>
+        <text class="picker-range">{{dateRange}}</text>
+        <text class="picker-arrow">▾</text>
+      </view>
+    </picker>
+    <view class="bg-btn-entry" bindtap="onShowBgManager">
+      <image class="bg-btn-icon" src="/images/icons/shop-schedule.svg" mode="aspectFit" decoding="async"></image>
+      <text>背景图</text>
+    </view>
+  </view>
+
+  <!-- 生成按钮 -->
+  <view class="generate-btn {{generating ? 'btn-disabled' : ''}}" bindtap="onGenerate">
+    <text>{{generating ? '生成中...' : '生成课程表'}}</text>
+  </view>
+
+  <!-- 导出结果预览 -->
+  <view class="result-section" wx:if="{{exportImagePath}}">
+    <view class="result-title">课程表预览</view>
+    <image class="result-preview" src="{{exportImagePath}}" mode="widthFix" bindtap="onPreviewImage" />
+    <view class="result-actions">
+      <view class="action-btn btn-save" bindtap="onSaveImage">保存到相册</view>
+      <view class="action-btn btn-regenerate" bindtap="onGenerate">重新生成</view>
+    </view>
+  </view>
+
+  <!-- 空状态 -->
+  <view class="empty-section" wx:if="{{!exportImagePath && !generating}}">
+    <view class="empty-icon">📅</view>
+    <text class="empty-text">选择周次后点击生成</text>
+    <text class="empty-hint">课程表将导出为A4尺寸JPG图片</text>
+  </view>
+
+  <!-- 离屏Canvas（隐藏） -->
+  <canvas
+    type="2d"
+    id="scheduleCanvas"
+    class="offscreen-canvas"
+    style="width:{{canvasWidth}}px;height:{{canvasHeight}}px;"
+  ></canvas>
+</view>
+
+<!-- 背景图管理弹窗 -->
+<view class="bg-mask-layer" wx:if="{{showBgManager}}" bindtap="onHideBgManager">
+  <view class="bg-manager-popup" catchtap="onBgManagerStop">
+    <!-- 弹窗标题 -->
+    <view class="bg-popup-header">
+      <text class="bg-popup-title">课程表背景图管理</text>
+      <view class="bg-popup-close" bindtap="onHideBgManager">✕</view>
+    </view>
+
+    <!-- 当前使用 -->
+    <view class="bg-active-section" wx:if="{{activeBgUrl}}">
+      <text class="bg-section-label">当前使用</text>
+      <image class="bg-active-preview" src="{{activeBgUrl}}" mode="aspectFit" />
+    </view>
+
+    <!-- 上传按钮（需隐私授权） -->
+    <button id="agree-btn" class="bg-upload-area {{uploadingBg ? 'uploading' : ''}}" open-type="agreePrivacyAuthorization" bindagreeprivacyauthorization="onPrivacyAgreed" bindtap="onChooseBgImage">
+      <view class="bg-upload-icon">+</view>
+      <text class="bg-upload-text">{{uploadingBg ? '上传中...' : '上传新背景图'}}</text>
+      <text class="bg-upload-hint">建议A4竖版比例（2:3），自动压缩</text>
+    </button>
+
+    <!-- 背景图列表 -->
+    <view class="bg-list-section" wx:if="{{bgList.length > 0}}">
+      <text class="bg-section-label">所有背景图（{{bgList.length}}）</text>
+      <view class="bg-grid">
+        <view class="bg-item" wx:for="{{bgList}}" wx:key="_id">
+          <image class="bg-preview" src="{{item.background_full_url}}" mode="aspectFill" />
+          <view class="bg-item-mask">
+            <view class="bg-item-badge" wx:if="{{item.is_active}}">使用中</view>
+            <view class="bg-item-actions">
+              <view class="bg-item-btn {{item.is_active ? 'btn-current' : 'btn-use'}}" data-id="{{item._id}}" bindtap="onActivateBg">
+                {{item.is_active ? '使用中' : '使用'}}
+              </view>
+              <view class="bg-item-btn btn-del" data-id="{{item._id}}" bindtap="onDeleteBg" wx:if="{{!item.is_active}}">删除</view>
+            </view>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 空状态 -->
+    <view class="bg-empty" wx:if="{{bgList.length === 0}}">
+      <text class="bg-empty-text">还没有上传背景图</text>
+      <text class="bg-empty-hint">不上传背景图时将使用内置渐变背景</text>
+    </view>
+  </view>
+</view>

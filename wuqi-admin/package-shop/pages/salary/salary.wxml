@@ -112,7 +112,10 @@
           <view class="salary-month-coaches" wx:if="{{month._expanded}}">
             <view class="salary-coach-card" wx:for="{{month.coaches}}" wx:for-item="coach" wx:key="coach_id">
               <view class="salary-card-header">
-                <text class="salary-card-name">{{coach.coach_name}}</text>
+                <view class="salary-card-name-wrap">
+                  <text class="salary-card-name">{{coach.coach_name}}</text>
+                  <text class="salary-config-warn" wx:if="{{!coach.has_salary_config}}">需配置薪酬</text>
+                </view>
                 <text class="salary-card-total">¥{{coach.total_amount}}</text>
               </view>
               <view class="salary-card-rows">

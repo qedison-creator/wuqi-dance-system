@@ -2072,6 +2072,15 @@ Page({
     });
   },
 
+  onGoToExport() {
+    const storeId = this.data.currentStoreId || '';
+    const storeName = this.data.stores && this.data.stores.find(s => s._id === storeId);
+    const params = storeId
+      ? `?store_id=${storeId}&store_name=${encodeURIComponent(storeName ? storeName.name : '')}`
+      : '';
+    wx.navigateTo({ url: '/package-schedule/pages/schedule-export/schedule-export' + params });
+  },
+
   onCloseManageModal() {
     this.setData({ showManageModal: false });
   },

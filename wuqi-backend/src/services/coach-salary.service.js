@@ -647,15 +647,27 @@ exports.getMonthlySalaryBreakdown = async (query) => {
     .lean();
   const scheduleMap = new Map(schedules.map(s => [s._id.toString(), s]));
 
+  // 预加载所有涉及的 Coach（通过 coach_id 批量查询，Coach 软删除后仍存在）
+  const coachIdsInAttendance = [...new Set(
+    attendances.filter(a => a.coach_id).map(a => a.coach_id.toString())
+  )];
+  const coachMap = new Map();
+  if (coachIdsInAttendance.length > 0) {
+    const coaches = await Coach.find({ _id: { $in: coachIdsInAttendance } }).select('name').lean();
+    coaches.forEach(c => coachMap.set(c._id.toString(), c));
+  }
+
   // 步骤3：去重课次。同一 schedule_id 只算一节课；若 schedule 已删除，每条 attendance 独立成一节课
   const classMap = new Map();
   attendances.forEach(a => {
     const sid = a.schedule_id ? a.schedule_id.toString() : null;
     const schedule = sid ? scheduleMap.get(sid) : null;
 
-    // 优先使用 Attendance 快照字段；若快照缺失则回退到 Schedule 关联数据
+    // 优先使用 Attendance 快照字段；若快照缺失则回退到 Coach 表，再回退到 Schedule 关联数据
     const coachId = a.coach_id ? a.coach_id.toString() : (schedule && schedule.coach_id ? schedule.coach_id._id.toString() : '_unknown');
-    const coachName = a.coach_name || (schedule && schedule.coach_id ? schedule.coach_id.name : '未知');
+    const coachName = a.coach_name
+      || (a.coach_id && coachMap.get(a.coach_id.toString()) ? coachMap.get(a.coach_id.toString()).name : '')
+      || (schedule && schedule.coach_id ? schedule.coach_id.name : '未知');
     const storeId = a.store_id ? a.store_id.toString() : (schedule && schedule.store_id ? schedule.store_id._id.toString() : '_none');
     const dateStr = a.date || (schedule ? schedule.date : null);
     const duration = a.duration || (schedule ? schedule.duration : 75) || 75;
@@ -719,11 +731,13 @@ exports.getMonthlySalaryBreakdown = async (query) => {
 
   // 构建 (coach_id + duration) → rate 的映射（取最新配置）
   const rateMap = {};
+  const coachesWithConfig = new Set();
   salaryConfigs.forEach(cfg => {
     const key = `${cfg.coach_id.toString()}_${cfg.duration}`;
     if (!rateMap[key]) {
       rateMap[key] = cfg.salary_rate;
     }
+    coachesWithConfig.add(cfg.coach_id.toString());
   });
 
   // 步骤5：计算金额并转换为数组
@@ -758,7 +772,8 @@ exports.getMonthlySalaryBreakdown = async (query) => {
                 coach_id: c.coach_id,
                 coach_name: c.coach_name,
                 durations,
-                total_amount
+                total_amount,
+                has_salary_config: coachesWithConfig.has(c.coach_id)
               };
             })
             .sort((a, b) => b.total_amount - a.total_amount);

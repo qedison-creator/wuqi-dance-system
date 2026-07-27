@@ -30,6 +30,15 @@
     </view>
   </view>
 
+  <!-- 导出课程表按钮 -->
+  <view class="export-row" bindtap="onGoToExport">
+    <view class="export-row-inner">
+      <image class="export-icon" src="/images/icons/shop-schedule.svg" mode="aspectFit" decoding="async"></image>
+      <text>导出课程表</text>
+    </view>
+    <image class="menu-arrow" src="/images/icons/chevron-right.svg" mode="aspectFit" decoding="async"></image>
+  </view>
+
   <!-- 星期视图：固定的星期选择 -->
   <view class="weekday-section" wx:if="{{viewMode === 'day'}}">
     <view class="weekday-list">
