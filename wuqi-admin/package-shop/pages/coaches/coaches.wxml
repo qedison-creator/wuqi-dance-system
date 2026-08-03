@@ -1,4 +1,4 @@
-<page-meta page-style="{{showCoachModal || showDanceStyleModal || showStoreModal ? 'overflow: hidden;' : ''}}"/>
+<page-meta page-style="{{showCoachModal || showDanceStyleModal ? 'overflow: hidden;' : ''}}"/>
 <view class="coaches-page">
   <!-- 顶部Tab切换 -->
   <view class="tab-switch">
@@ -8,9 +8,7 @@
     <view class="tab-item {{activeTab === 'danceStyles' ? 'active' : ''}}" data-tab="danceStyles" bindtap="onTabChange">
       <text>舞种管理</text>
     </view>
-    <view class="tab-item {{activeTab === 'stores' ? 'active' : ''}}" data-tab="stores" bindtap="onTabChange">
-      <text>门店管理</text>
-    </view>
+    <!-- 门店管理入口已移除，请使用店务管理-门店维护 -->
   </view>
 
   <!-- 教练管理 -->
@@ -34,16 +32,21 @@
                   <text class="coach-gender">{{item.gender === 1 ? '男' : (item.gender === 2 ? '女' : '未知')}}</text>
                   <text class="coach-sort">排序: {{item.sort_order || 0}}</text>
                 </view>
-                <text class="coach-home-tag {{item.show_on_home !== false ? 'tag-home-show' : 'tag-home-hide'}}">{{item.show_on_home !== false ? '首页展示' : '不展示'}}</text>
+                <view class="coach-tags-row">
+                  <text class="coach-home-tag {{item.show_on_home !== false ? 'tag-home-show' : 'tag-home-hide'}}">{{item.show_on_home !== false ? '首页展示' : '不展示'}}</text>
+                  <!-- 多门店执教标签：仅多门店执教教练显示，与首页展示标签同一行 -->
+                  <text class="coach-multi-store-tag" wx:if="{{item.isMultiStoreCoach}}">多门店执教</text>
+                </view>
               </view>
               <view class="coach-actions">
-                <view class="action-btn-small" data-index="{{index}}" bindtap="onEditCoach">
+                <!-- 多门店执教教练对非超管禁用操作按钮（置灰且不可点击） -->
+                <view class="action-btn-small {{item.canOperate ? '' : 'action-btn-disabled'}}" data-index="{{index}}" bindtap="{{item.canOperate ? 'onEditCoach' : 'onDisabledCoachAction'}}">
                   <text>编辑</text>
                 </view>
-                <view class="action-btn-small danger" data-index="{{index}}" bindtap="onDeleteCoach">
+                <view class="action-btn-small danger {{item.canOperate ? '' : 'action-btn-disabled'}}" data-index="{{index}}" bindtap="{{item.canOperate ? 'onDeleteCoach' : 'onDisabledCoachAction'}}">
                   <text>删除</text>
                 </view>
-                <switch checked="{{item.status === 'active'}}" data-id="{{item._id}}" data-index="{{index}}" bindchange="onToggleCoach" color="#FFCC00"></switch>
+                <switch checked="{{item.status === 'active'}}" data-id="{{item._id}}" data-index="{{index}}" bindchange="{{item.canOperate ? 'onToggleCoach' : 'onDisabledCoachSwitch'}}" color="#FFCC00" disabled="{{!item.canOperate}}"></switch>
               </view>
             </view>
             <text class="coach-dance">擅长: {{item.dance_style_names || '未设置'}}</text>
@@ -85,35 +88,6 @@
     <view class="empty-state" wx:else>
       <text class="empty-text">暂无舞种</text>
       <view class="add-btn" bindtap="onAddDanceStyle"><text>+ 新增舞种</text></view>
-    </view>
-  </view>
-
-  <!-- 门店管理 -->
-  <view class="tab-content" wx:if="{{activeTab === 'stores'}}">
-    <view class="section-header">
-      <text class="text-heading">门店列表</text>
-      <view class="add-btn" bindtap="onAddStore">
-        <text>+ 新增门店</text>
-      </view>
-    </view>
-
-    <view class="store-list" wx:if="{{stores.length > 0}}">
-      <view class="store-item card" wx:for="{{stores}}" wx:key="_id">
-        <view class="store-info">
-          <text class="store-name">{{item.name}}</text>
-          <text class="store-address">地址: {{item.address || '未设置'}}</text>
-          <text class="store-phone">电话: {{item.phone || '未设置'}}</text>
-        </view>
-        <view class="store-actions">
-          <view class="action-btn-small" data-index="{{index}}" bindtap="onEditStore">
-            <text>编辑</text>
-          </view>
-        </view>
-      </view>
-    </view>
-    <view class="empty-state" wx:else>
-      <text class="empty-text">暂无门店</text>
-      <view class="add-btn" bindtap="onAddStore"><text>+ 新增门店</text></view>
     </view>
   </view>
 
@@ -189,29 +163,4 @@
     </view>
   </view>
 
-  <!-- 新增/编辑门店弹窗 -->
-  <view class="modal-mask" wx:if="{{showStoreModal}}" bindtap="onCloseStoreModal">
-    <view class="modal-content" catchtap="onModalTap">
-      <view class="modal-header">
-        <text class="modal-title">{{storeForm._id ? '编辑门店' : '新增门店'}}</text>
-        <text class="modal-close" bindtap="onCloseStoreModal">×</text>
-      </view>
-      <view class="form-group">
-        <text class="form-label">门店名称 *</text>
-        <input class="input-field" placeholder="请输入门店名称" value="{{storeForm.name}}" data-field="name" bindinput="onStoreInput" />
-      </view>
-      <view class="form-group">
-        <text class="form-label">地址</text>
-        <input class="input-field" placeholder="请输入门店地址" value="{{storeForm.address}}" data-field="address" bindinput="onStoreInput" />
-      </view>
-      <view class="form-group">
-        <text class="form-label">联系电话</text>
-        <input class="input-field" type="number" placeholder="请输入联系电话" value="{{storeForm.phone}}" data-field="phone" bindinput="onStoreInput" />
-      </view>
-      <view class="modal-buttons">
-        <view class="btn-secondary" bindtap="onCloseStoreModal"><text>取消</text></view>
-        <view class="btn-primary" bindtap="onSubmitStore"><text>确认</text></view>
-      </view>
-    </view>
-  </view>
 </view>

@@ -1,6 +1,6 @@
 <page-meta page-style="{{showBookingPanel ? 'overflow: hidden;' : ''}}"/>
 <view class="ops-page">
-  <view class="store-tabs">
+  <view class="store-tabs" wx:if="{{showStoreSwitcher}}">
     <scroll-view class="store-scroll" scroll-x enhanced show-scrollbar="{{false}}">
       <view class="store-pills">
         <view class="store-pill {{currentStoreId === item._id ? 'on' : ''}}" wx:for="{{stores}}" wx:key="_id" data-id="{{item._id}}" bindtap="onSwitchStore">

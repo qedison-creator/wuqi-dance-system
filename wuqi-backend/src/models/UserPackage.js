@@ -36,6 +36,17 @@ const userPackageSchema = new mongoose.Schema({
   // 提醒相关
   last_expire_reminded_at: { type: Date },
   last_low_count_reminded_at: { type: Date },
+  // 快照字段：即使会员/套餐被删除，记录信息也不丢失
+  member_snapshot: {
+    real_name: { type: String, default: '' },
+    nick_name: { type: String, default: '' },
+    phone: { type: String, default: '' },
+    wechat_phone: { type: String, default: '' },
+    member_code: { type: String, default: '' },
+  },
+  package_snapshot: {
+    name: { type: String, default: '' },
+  },
 }, { timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' } });
 
 userPackageSchema.index({ user_id: 1, status: 1 });

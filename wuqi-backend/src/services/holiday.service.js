@@ -79,13 +79,20 @@ const calculateHolidayDays = (startDate, endDate) => {
   return result;
 };
 
-// 获取放假列表(支持store_scope/status筛选)
+// 获取放假列表(支持store_id/store_scope/status筛选)
 exports.getHolidays = async (query) => {
-  const { store_scope, status, page = 1, pageSize = 20 } = query;
+  const { store_scope, status, store_id, page = 1, pageSize = 20 } = query;
   const filter = {};
 
   if (store_scope) filter.store_scope = store_scope;
   if (status) filter.status = status;
+  // 门店过滤：指定门店的店长可看到"全部门店"放假 + 自己门店的放假
+  if (store_id) {
+    filter.$or = [
+      { store_scope: 'all' },
+      { store_scope: 'single', store_id: store_id },
+    ];
+  }
 
   const list = await Holiday.find(filter)
     .populate('store_id', 'name')
@@ -335,113 +342,115 @@ const unblockSchedules = async (startDate, endDate, storeId) => {
   return restoredCount;
 };
 
+// 构建按门店过滤 UserPackage 的查询条件
+// 放假只影响"套餐属于该门店"的会员：store_id 命中 或 extra_store_ids 命中（跨店套餐）
+// 全门店放假（storeId 为 undefined）时不过滤，影响所有套餐
+const buildPackageStoreFilter = (storeId) => {
+  if (!storeId) return {};
+  return {
+    $or: [
+      { store_id: storeId },
+      { extra_store_ids: storeId },
+    ],
+  };
+};
+
 // 顺延对应门店正式会员的有效期，并记录PackageExtension
+// 按 UserPackage.store_id / extra_store_ids 过滤，确保只延长"该门店套餐"的有效期
+// 会员在其他门店的套餐不受影响
 const extendMemberPackages = async (totalDays, storeId, holidayId, operatorId, operatorName) => {
-  const filter = {
-    user_type: 'member',
-    member_status: 'official',
+  // 直接按套餐门店过滤，避免基于 User.store_id 误延/漏延
+  const pkgFilter = {
     status: 'active',
+    end_date: { $ne: null },
+    ...buildPackageStoreFilter(storeId),
   };
 
-  if (storeId) {
-    filter.store_id = storeId;
-  }
-
-  const users = await User.find(filter);
+  const activePackages = await UserPackage.find(pkgFilter).populate('user_id', 'member_status status user_type');
   let extendedCount = 0;
   const extensionRecords = [];
 
-  for (const user of users) {
-    const activePackages = await UserPackage.find({
-      user_id: user._id,
-      status: 'active',
-      end_date: { $ne: null },
-    });
-
-    for (const pkg of activePackages) {
-      const originalExpireAt = new Date(pkg.end_date);
-      pkg.end_date = dayjs(pkg.end_date).add(totalDays, 'day').toDate();
-      pkg.extension_days = (pkg.extension_days || 0) + totalDays;
-      if (pkg.is_suspended && pkg.suspend_end_date) {
-        pkg.suspend_end_date = dayjs(pkg.suspend_end_date).add(totalDays, 'day').toDate();
-      }
-      await pkg.save();
-      
-      // 记录PackageExtension
-      try {
-        const extension = await packageService.extendPackage(
-          pkg._id, 
-          totalDays, 
-          operatorId, 
-          operatorName, 
-          { 
-            reason: '放假顺延', 
-            holidayId, 
-            storeId 
-          }
-        );
-        extensionRecords.push(extension);
-      } catch (err) {
-        console.error('记录PackageExtension失败:', err);
-      }
-      
-      extendedCount++;
+  for (const pkg of activePackages) {
+    // 仅处理正式会员的有效账号套餐
+    const user = pkg.user_id;
+    if (!user || user.user_type !== 'member' || user.member_status !== 'official' || user.status !== 'active') {
+      continue;
     }
+
+    pkg.end_date = dayjs(pkg.end_date).add(totalDays, 'day').toDate();
+    pkg.extension_days = (pkg.extension_days || 0) + totalDays;
+    if (pkg.is_suspended && pkg.suspend_end_date) {
+      pkg.suspend_end_date = dayjs(pkg.suspend_end_date).add(totalDays, 'day').toDate();
+    }
+    await pkg.save();
+
+    // 记录PackageExtension
+    try {
+      const extension = await packageService.extendPackage(
+        pkg._id,
+        totalDays,
+        operatorId,
+        operatorName,
+        {
+          reason: '放假顺延',
+          holidayId,
+          storeId
+        }
+      );
+      extensionRecords.push(extension);
+    } catch (err) {
+      console.error('记录PackageExtension失败:', err);
+    }
+
+    extendedCount++;
   }
 
   return { extendedCount, extensionRecords };
 };
 
 // 回滚有效期补偿，并记录PackageExtension
+// 按 UserPackage.store_id / extra_store_ids 过滤，与 extendMemberPackages 保持一致
 const rollbackMemberPackages = async (totalDays, storeId, holidayId, operatorId, operatorName) => {
-  const filter = {
-    user_type: 'member',
-    member_status: 'official',
+  const pkgFilter = {
     status: 'active',
+    end_date: { $ne: null },
+    ...buildPackageStoreFilter(storeId),
   };
 
-  if (storeId) {
-    filter.store_id = storeId;
-  }
-
-  const users = await User.find(filter);
+  const activePackages = await UserPackage.find(pkgFilter).populate('user_id', 'member_status status user_type');
   let rollbackCount = 0;
 
-  for (const user of users) {
-    const activePackages = await UserPackage.find({
-      user_id: user._id,
-      status: 'active',
-      end_date: { $ne: null },
-    });
-
-    for (const pkg of activePackages) {
-      const originalExpireAt = new Date(pkg.end_date);
-      pkg.end_date = dayjs(pkg.end_date).subtract(totalDays, 'day').toDate();
-      pkg.extension_days = Math.max(0, (pkg.extension_days || 0) - totalDays);
-      if (pkg.is_suspended && pkg.suspend_end_date) {
-        pkg.suspend_end_date = dayjs(pkg.suspend_end_date).subtract(totalDays, 'day').toDate();
-      }
-      await pkg.save();
-      
-      // 记录回滚操作
-      try {
-        await packageService.extendPackage(
-          pkg._id, 
-          -totalDays, 
-          operatorId, 
-          operatorName, 
-          { 
-            reason: '撤销放假顺延', 
-            holidayId, 
-            storeId 
-          }
-        );
-      } catch (err) {
-        console.error('记录PackageExtension回滚失败:', err);
-      }
-      
-      rollbackCount++;
+  for (const pkg of activePackages) {
+    const user = pkg.user_id;
+    if (!user || user.user_type !== 'member' || user.member_status !== 'official' || user.status !== 'active') {
+      continue;
     }
+
+    pkg.end_date = dayjs(pkg.end_date).subtract(totalDays, 'day').toDate();
+    pkg.extension_days = Math.max(0, (pkg.extension_days || 0) - totalDays);
+    if (pkg.is_suspended && pkg.suspend_end_date) {
+      pkg.suspend_end_date = dayjs(pkg.suspend_end_date).subtract(totalDays, 'day').toDate();
+    }
+    await pkg.save();
+
+    // 记录回滚操作
+    try {
+      await packageService.extendPackage(
+        pkg._id,
+        -totalDays,
+        operatorId,
+        operatorName,
+        {
+          reason: '撤销放假顺延',
+          holidayId,
+          storeId
+        }
+      );
+    } catch (err) {
+      console.error('记录PackageExtension回滚失败:', err);
+    }
+
+    rollbackCount++;
   }
 
   return rollbackCount;

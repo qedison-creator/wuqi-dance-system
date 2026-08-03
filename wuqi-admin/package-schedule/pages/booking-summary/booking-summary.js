@@ -2,6 +2,7 @@ const { request } = require('../../../utils/request');
 const { getBeijingDate } = require('../../../utils/helpers');
 const { fixImageUrl } = require('../../../utils/util');
 const config = require('../../../config/index.js');
+const app = getApp();
 
 function getDateStr(d) {
   const y = d.getFullYear();
@@ -34,10 +35,11 @@ Page({
 
   onLoad() {
     this.initDates();
-    this.loadStores();
   },
 
-  onShow() {
+  async onShow() {
+    // 先确保门店列表加载完成（单门店角色需要锁定所属门店），再加载数据
+    await this.loadStores();
     this.loadBookings();
   },
 
@@ -79,11 +81,27 @@ Page({
     try {
       const res = await request({ url: '/stores', method: 'GET' });
       const list = res.data && res.data.list ? res.data.list : (Array.isArray(res.data) ? res.data : []);
-      const storeList = [{ _id: '', name: '全部' }].concat(list);
-      this.setData({ storeList });
+      // 单门店角色：仅显示所属门店，不显示"全部"
+      if (app.isSingleStoreRole()) {
+        const defaultStoreId = app.getDefaultStoreId();
+        const ownStore = list.find(s => String(s._id) === String(defaultStoreId));
+        const storeList = ownStore ? [ownStore] : [];
+        this.setData({
+          storeList,
+          activeStoreId: defaultStoreId || ''
+        });
+      } else {
+        const storeList = [{ _id: '', name: '全部' }].concat(list);
+        this.setData({ storeList });
+      }
     } catch (err) {
       console.error('加载门店失败', err);
-      this.setData({ storeList: [{ _id: '', name: '全部' }] });
+      // 单门店角色失败时也保留所属门店
+      if (app.isSingleStoreRole()) {
+        this.setData({ storeList: [], activeStoreId: app.getDefaultStoreId() || '' });
+      } else {
+        this.setData({ storeList: [{ _id: '', name: '全部' }] });
+      }
     }
   },
 

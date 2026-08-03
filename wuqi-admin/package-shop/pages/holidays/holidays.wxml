@@ -67,8 +67,8 @@
         <input class="input-field" placeholder="如：春节放假" value="{{formData.title}}" data-field="title" bindinput="onFormInput" />
       </view>
 
-      <!-- 适用范围选择 -->
-      <view class="form-group">
+      <!-- 适用范围选择（单门店角色隐藏，强制使用所属门店） -->
+      <view class="form-group" wx:if="{{!isSingleStore}}">
         <text class="form-label">适用范围</text>
         <view class="scope-options">
           <view class="scope-item {{formData.storeScope === 'all' ? 'active' : ''}}" data-scope="all" bindtap="onScopeChange">
@@ -82,8 +82,8 @@
         </view>
       </view>
 
-      <!-- 门店选择（仅指定门店时显示） -->
-      <view class="form-group" wx:if="{{formData.storeScope === 'single'}}">
+      <!-- 门店选择（仅多门店角色指定门店时显示） -->
+      <view class="form-group" wx:if="{{!isSingleStore && formData.storeScope === 'single'}}">
         <text class="form-label">选择门店 *</text>
         <picker range="{{storeList}}" range-key="name" value="{{storePickerIndex}}" bindchange="onStorePickerChange">
           <view class="input-field picker-field">

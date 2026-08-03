@@ -23,10 +23,16 @@ const coachSchema = new mongoose.Schema({
   // 软删除标记：true 表示已删除，不再在教练列表中显示
   // 但历史关联数据（课程/预约/签到/取消记录）通过 populate 仍能获取教练信息
   is_deleted: { type: Boolean, default: false },
+  // 教练执教门店列表（多门店执教模型）：
+  // [] 空数组 = 多门店执教（全门店共用，存量教练默认值，仅超管可编辑/删除/配置薪酬）
+  // [storeA] = storeA 独占（该门店店长/员工可管理）
+  // [storeA, storeB] = 多门店执教（storeA 和 storeB 可见可用）
+  store_ids: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Store' }],
 }, { timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' } });
 
 coachSchema.index({ name: 1 });
 coachSchema.index({ status: 1 });
 coachSchema.index({ store_id: 1 });
+coachSchema.index({ store_ids: 1 });
 
 module.exports = mongoose.model('Coach', coachSchema);

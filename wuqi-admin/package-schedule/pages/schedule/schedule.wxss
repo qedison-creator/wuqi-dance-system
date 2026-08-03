@@ -253,6 +253,7 @@
 
 .month-add-schedule-btn {
   margin-top: 24rpx;
+  margin-bottom: 20rpx;
   padding: 20rpx;
   background-color: var(--color-primary);
   border-radius: 48rpx;
@@ -375,7 +376,7 @@
 .schedule-list {
   display: flex;
   flex-direction: column;
-  gap: 20rpx;
+  gap: 16rpx;
 }
 
 .schedule-item.card {
@@ -1179,6 +1180,41 @@
   font-weight: bold;
 }
 
+.desc-hint {
+  margin-bottom: 24rpx;
+}
+
+.desc-hint text {
+  font-size: 24rpx;
+  color: var(--text-tertiary);
+  line-height: 1.5;
+}
+
+.weekday-checkbox {
+  width: 36rpx;
+  height: 36rpx;
+  border-radius: 8rpx;
+  border: 2rpx solid var(--border);
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  background-color: var(--bg-card);
+  transition: all 200ms ease;
+}
+
+.weekday-checkbox.checked {
+  border-color: #D4786E;
+  background-color: #D4786E;
+}
+
+.weekday-checkbox text {
+  font-size: 22rpx;
+  color: var(--text-inverse);
+  font-weight: bold;
+}
+
 .source-preview {
   background-color: var(--bg-page);
   border-radius: 16rpx;
@@ -1246,6 +1282,17 @@
   display: flex;
   align-items: center;
   gap: 8rpx;
+  border: 2rpx solid transparent;
+  transition: all 200ms ease;
+}
+
+.template-weekday-item.selected {
+  background-color: rgba(212, 120, 110, 0.06);
+  border-color: #D4786E;
+}
+
+.template-weekday-item.disabled {
+  opacity: 0.4;
 }
 
 .template-weekday-item .weekday-name {

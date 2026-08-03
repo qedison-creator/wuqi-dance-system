@@ -87,7 +87,7 @@
         </view>
         <view class="config-actions">
           <view class="action-btn edit" bindtap="onEditConfig" data-item="{{item}}">编辑</view>
-          <view class="action-btn delete" bindtap="onDeleteConfig" data-id="{{item.configs[0]._id}}">删除</view>
+          <view class="action-btn delete" bindtap="onDeleteConfig" data-item="{{item}}">删除</view>
         </view>
       </view>
     </view>

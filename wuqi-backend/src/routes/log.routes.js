@@ -1,11 +1,12 @@
 const router = require('express').Router();
 const auth = require('../middleware/auth');
 const { checkModulePermission } = require('../middleware/permission');
+const storeFilter = require('../middleware/storeFilter');
 const Log = require('../models/OperationLog');
 const { success, paginate } = require('../utils/response');
 
 // GET /api/v1/logs - 获取操作日志
-router.get('/', auth, checkModulePermission('log'), async (req, res, next) => {
+router.get('/', auth, checkModulePermission('log'), storeFilter(), async (req, res, next) => {
   try {
     const { action, user_id, startDate, endDate, page = 1, pageSize = 20 } = req.query;
     const filter = {};

@@ -271,6 +271,55 @@ exports.getMyAttendance = async (userId, page, pageSize) => {
   return { list, total, page: Number(page), pageSize: Number(pageSize) };
 };
 
+/**
+ * 管理端：按会员ID获取上课记录（不分页，返回全部，由前端按年月分组）
+ * @param {String} userId - 会员ID
+ * @returns {Object} { list, total }
+ */
+exports.getAttendanceByUser = async (userId) => {
+  const mongoose = require('mongoose');
+  if (!mongoose.Types.ObjectId.isValid(userId)) {
+    throw new Error('参数格式错误');
+  }
+
+  // 直接从 Attendance 表查询该会员的所有签到记录
+  const records = await Attendance.find({ user_id: userId })
+    .populate({
+      path: 'schedule_id',
+      select: 'course_name start_time end_time date store_id dance_style_id coach_id status',
+      populate: [
+        { path: 'store_id', select: 'name' },
+        { path: 'dance_style_id', select: 'name' },
+        { path: 'coach_id', select: 'name' },
+      ],
+    })
+    .sort({ check_in_time: -1 })
+    .lean();
+
+  // 格式化返回数据，优先从 schedule_id 取值，回退到快照字段
+  const list = records.map(att => {
+    const sch = att.schedule_id;
+    return {
+      _id: att._id,
+      schedule_id: sch ? sch._id : null,
+      date: sch ? sch.date : att.date,
+      course_name: sch ? sch.course_name : att.course_name,
+      start_time: sch ? sch.start_time : att.start_time,
+      end_time: sch ? sch.end_time : att.end_time,
+      coach_name: sch && sch.coach_id ? sch.coach_id.name : att.coach_name,
+      store_name: sch && sch.store_id ? sch.store_id.name : att.store_name,
+      check_in_time: att.check_in_time,
+      check_in_method: att.check_in_method,
+      source: att.source,
+      credits_cost: att.credits_cost || 0,
+      remark: att.remark || '',
+      created_at: att.created_at,
+    };
+  });
+
+  return { list, total: list.length };
+};
+
 exports.getMemberCheckinProfile = async (userId) => {
   const mongoose = require('mongoose');
   if (!mongoose.Types.ObjectId.isValid(userId)) {

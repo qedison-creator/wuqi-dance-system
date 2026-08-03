@@ -45,6 +45,7 @@ Page({
           currentStore: app.globalData.currentStore || null,
           isAdmin: userInfo.role === 'super_admin',
           isStoreManager: userInfo.role === 'store_manager',
+          managedStoresText: this._buildManagedStoresText(userInfo),
           permAccount: app.hasPermission('account'),
           permConfig: app.hasPermission('config'),
           permLog: app.hasPermission('log'),
@@ -64,12 +65,34 @@ Page({
           currentStore: app.globalData.currentStore || null,
           isAdmin: userInfo.role === 'super_admin',
           isStoreManager: userInfo.role === 'store_manager',
+          managedStoresText: this._buildManagedStoresText(userInfo),
           permAccount: app.hasPermission('account'),
           permConfig: app.hasPermission('config'),
           permLog: app.hasPermission('log'),
         });
       }
     }
+  },
+
+  // 构建账号可管理门店描述文本
+  _buildManagedStoresText(userInfo) {
+    if (!userInfo) return '';
+    const role = userInfo.role;
+    if (role === 'super_admin' || role === 'reviewer') {
+      return '全部门店';
+    }
+    if (role === 'store_manager') {
+      const stores = userInfo.store_ids || [];
+      if (stores.length === 0) return '未分配门店';
+      const names = stores.map(s => (s && s.name) ? s.name : String(s)).filter(Boolean);
+      return names.join('、') || '未分配门店';
+    }
+    if (role === 'staff') {
+      const store = userInfo.store_id;
+      if (store && store.name) return store.name;
+      return '未绑定门店';
+    }
+    return '';
   },
 
   /**

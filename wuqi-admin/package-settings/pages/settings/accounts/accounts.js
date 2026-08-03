@@ -1,4 +1,5 @@
 const { request } = require('../../../../utils/request');
+const wsClient = require('../../../../utils/websocket-client');
 
 Page({
   data: {
@@ -24,13 +25,24 @@ Page({
     },
     storeCheckboxes: [],
     storeSelectAll: false,
-    deleting: false // 防抖标志位
+    deleting: false, // 防抖标志位
+    onlineStatusMap: {} // userId -> isOnline（仅超管维护，用于在线状态小圆点）
   },
 
   onShow() {
     this.loadStores();
     this.loadAccounts();
     this.getCurrentUserRole();
+    // 超管订阅账号在线状态推送
+    this._subscribeOnlineStatus();
+  },
+
+  onHide() {
+    this._unsubscribeOnlineStatus();
+  },
+
+  onUnload() {
+    this._unsubscribeOnlineStatus();
   },
 
   getCurrentUserRole() {
@@ -41,6 +53,88 @@ Page({
         currentUserRole: userInfo.role,
         currentUserId: userInfo._id || userInfo.id || ''
       });
+    }
+  },
+
+  // ========== 在线状态实时订阅（仅超管） ==========
+  _subscribeOnlineStatus() {
+    const app = getApp();
+    const userInfo = app.globalData.userInfo;
+    if (!userInfo || userInfo.role !== 'super_admin') return;
+
+    // 首次加载：通过 HTTP 接口获取所有账号初始在线状态
+    this._fetchInitialOnlineStatus();
+
+    // 订阅 WebSocket 在线状态变化事件
+    wsClient.connect({
+      onMessage: {
+        account_online_status: (data) => {
+          this._applyOnlineStatusUpdate(data);
+        }
+      },
+      onFallback: () => {
+        // WebSocket 不可用时降级为重新拉取一次全量在线状态
+        this._fetchInitialOnlineStatus();
+      }
+    });
+  },
+
+  _unsubscribeOnlineStatus() {
+    const app = getApp();
+    const userInfo = app.globalData.userInfo;
+    if (!userInfo || userInfo.role !== 'super_admin') return;
+    wsClient.disconnect();
+  },
+
+  // 拉取初始在线状态映射，并合并到 accounts 列表
+  _fetchInitialOnlineStatus() {
+    request({ url: '/accounts/online-status', method: 'GET' }).then(res => {
+      const list = (res.data && Array.isArray(res.data)) ? res.data : [];
+      const onlineMap = {};
+      list.forEach(item => {
+        onlineMap[String(item.userId)] = !!item.isOnline;
+      });
+      this.setData({ onlineStatusMap: onlineMap });
+      // 同步更新已加载的 accounts 列表中的 is_online 字段
+      this._syncOnlineStatusToAccounts();
+    }).catch(() => {});
+  },
+
+  // 收到 WebSocket 推送的在线状态变化，局部更新 onlineStatusMap 和对应 account
+  _applyOnlineStatusUpdate(data) {
+    if (!data || !data.userId) return;
+    const userId = String(data.userId);
+    const isOnline = !!data.isOnline;
+
+    // 更新 onlineStatusMap
+    this.setData({
+      [`onlineStatusMap.${userId}`]: isOnline
+    });
+
+    // 同步更新 accounts 列表中对应账号的 is_online 字段（局部更新，避免整列表刷新）
+    const accounts = this.data.accounts;
+    const idx = accounts.findIndex(a => String(a._id) === userId);
+    if (idx >= 0) {
+      this.setData({ [`accounts[${idx}].is_online`]: isOnline });
+    }
+  },
+
+  // 将 onlineStatusMap 同步到已加载的 accounts 列表
+  _syncOnlineStatusToAccounts() {
+    const onlineMap = this.data.onlineStatusMap;
+    const accounts = this.data.accounts;
+    if (!accounts || accounts.length === 0) return;
+
+    // 找出所有 is_online 字段需要更新的账号，批量 setData
+    const updates = {};
+    accounts.forEach((acc, idx) => {
+      const newStatus = !!onlineMap[String(acc._id)];
+      if (acc.is_online !== newStatus) {
+        updates[`accounts[${idx}].is_online`] = newStatus;
+      }
+    });
+    if (Object.keys(updates).length > 0) {
+      this.setData(updates);
     }
   },
 
@@ -60,6 +154,7 @@ Page({
         'staff': '员工',
         'reviewer': '审核员'
       };
+      const onlineMap = this.data.onlineStatusMap;
       const processedList = list.map(item => ({
         ...item,
         roleName: roleMap[item.role] || item.role,
@@ -73,6 +168,8 @@ Page({
           : (item.permissions && item.permissions.length > 0
             ? (item.permissions[0] === '*' ? '全部' : item.permissions.length + '项')
             : '未配置'),
+        // 在线状态：仅超管角色才显示，其他角色统一为 false（不渲染）
+        is_online: !!onlineMap[String(item._id)]
       }));
       this.setData({ accounts: processedList });
     }).catch(() => {});
@@ -264,7 +361,7 @@ Page({
       wx.showToast({ title: '正在删除中，请稍候', icon: 'none' });
       return;
     }
-    
+
     const { id } = e.currentTarget.dataset;
     wx.showModal({
       title: '确认删除',

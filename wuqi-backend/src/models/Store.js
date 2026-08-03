@@ -15,6 +15,8 @@ const storeSchema = new mongoose.Schema({
     start: { type: String, default: '09:00' },
     end: { type: String, default: '22:00' },
   },
+  // 门店级默认豁免次数（为空时使用全局默认配置 default_exemption_count）
+  default_exemption_count: { type: Number, default: null },
   status: { type: String, enum: ['active', 'disabled'], required: true, default: 'active' },
 }, { timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' } });
 

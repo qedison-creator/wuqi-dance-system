@@ -1,6 +1,6 @@
 const app = getApp();
 const { request } = require('../../../../utils/request');
-const { cropImageToCircle } = require('../../../../utils/util');
+const { cropImageToCircle, cropImageSafe } = require('../../../../utils/util');
 
 Page({
   data: {
@@ -86,23 +86,21 @@ Page({
       mediaType: ['image'],
       sourceType: ['album', 'camera'],
       sizeType: ['original'],
-      success: (res) => {
+      success: async (res) => {
         const tempFilePath = res.tempFiles[0].tempFilePath;
-        // 调用裁剪接口，类似微信换头像的体验
-
-        wx.cropImage({
-          src: tempFilePath,
-          cropScale: '1:1',
-          success: (cropRes) => {
-            self.cropAndUpload(cropRes.tempFilePath);
-          },
-          fail: (err) => {
-            if (err.errMsg && err.errMsg.indexOf('cancel') > -1) {
-              return;
-            }
-            self.cropAndUpload(tempFilePath);
+        // 裁剪：1:1正方形，开发者工具不支持时自动跳过裁剪
+        let filePath = tempFilePath;
+        try {
+          filePath = await cropImageSafe(tempFilePath, '1:1');
+        } catch (cropErr) {
+          // 用户取消裁剪：静默处理
+          if (cropErr.errMsg && cropErr.errMsg.indexOf('cancel') > -1) {
+            return;
           }
-        });
+          // 其他异常：跳过裁剪继续上传（兜底）
+          console.warn('裁剪异常，使用原图', cropErr);
+        }
+        self.cropAndUpload(filePath);
       },
       fail: (err) => {
         // 用户取消 - 静默处理

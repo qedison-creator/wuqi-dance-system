@@ -64,7 +64,7 @@
     <button id="agree-btn" class="bg-upload-area {{uploadingBg ? 'uploading' : ''}}" open-type="agreePrivacyAuthorization" bindagreeprivacyauthorization="onPrivacyAgreed" bindtap="onChooseBgImage">
       <view class="bg-upload-icon">+</view>
       <text class="bg-upload-text">{{uploadingBg ? '上传中...' : '上传新背景图'}}</text>
-      <text class="bg-upload-hint">建议A4竖版比例（2:3），自动压缩</text>
+      <text class="bg-upload-hint">建议A4竖版比例（3:4），自动压缩</text>
     </button>
 
     <!-- 背景图列表 -->

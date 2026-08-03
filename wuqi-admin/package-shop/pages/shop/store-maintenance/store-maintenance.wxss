@@ -30,6 +30,11 @@
   border: 1rpx solid var(--border);
 }
 
+.store-card-highlight {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 2rpx rgba(197, 116, 75, 0.2);
+}
+
 .store-card:active {
   background: var(--border);
   border-color: var(--color-primary);

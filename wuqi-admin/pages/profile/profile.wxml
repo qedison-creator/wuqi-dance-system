@@ -15,7 +15,9 @@
         <view class="profile-role-tag">
           <text class="profile-role-text">{{userInfo.role === 'super_admin' ? '超级管理员' : (userInfo.role === 'store_manager' ? '店长' : '员工')}}</text>
         </view>
-        <text class="profile-store" wx:if="{{currentStore}}">{{currentStore.name}}</text>
+        <view class="profile-store-tag" wx:if="{{managedStoresText}}">
+          <text class="profile-store-text">{{managedStoresText}}</text>
+        </view>
       </view>
     </view>
   </view>

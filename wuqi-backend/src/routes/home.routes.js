@@ -1,11 +1,13 @@
 const router = require('express').Router();
 const auth = require('../middleware/auth');
+const storeFilter = require('../middleware/storeFilter');
 const Banner = require('../models/Banner');
 const Coach = require('../models/Coach');
 const DanceStyle = require('../models/DanceStyle');
 const Schedule = require('../models/Schedule');
 const Package = require('../models/Package');
 const Image = require('../models/Image');
+const imageService = require('../services/image.service');
 const User = require('../models/User');
 const Booking = require('../models/Booking');
 const dayjs = require('dayjs');
@@ -69,7 +71,7 @@ router.get('/member', async (req, res, next) => {
 });
 
 // GET /api/v1/home/admin - 管理端首页数据
-router.get('/admin', auth, async (req, res, next) => {
+router.get('/admin', auth, storeFilter(), async (req, res, next) => {
   try {
     const { store_id } = req.query;
     const today = dayjs().tz('Asia/Shanghai').format('YYYY-MM-DD');
@@ -258,17 +260,11 @@ router.get('/packages', async (req, res, next) => {
   }
 });
 
-// GET /api/v1/home/images - 获取首页图片列表
+// GET /api/v1/home/images - 获取首页图片列表（公共画册 + 指定门店画册）
 router.get('/images', async (req, res, next) => {
   try {
-    const { limit } = req.query;
-    let query = Image.find({ show_on_home: true })
-      .populate('coach_ids', 'name avatar_url')
-      .sort({ sort_order: -1, created_at: -1 });
-    if (limit && Number(limit) > 0) {
-      query = query.limit(Number(limit));
-    }
-    const images = await query.exec();
+    const { limit, store_id } = req.query;
+    const images = await imageService.getHomeImages(limit, store_id || null);
     res.json(success(images));
   } catch (err) {
     next(err);

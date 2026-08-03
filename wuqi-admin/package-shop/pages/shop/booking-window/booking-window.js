@@ -15,7 +15,7 @@ Page({
 
   async loadConfig() {
     try {
-      const res = await request({ url: '/config/booking_window_days', method: 'GET' });
+      const res = await request({ url: '/config/booking-window-days', method: 'GET' });
       const config = res.data;
       if (config && config.value !== undefined) {
         const days = String(config.value);
@@ -27,6 +27,7 @@ Page({
       }
     } catch (err) {
       console.error('加载配置失败', err);
+      wx.showToast({ title: '加载配置失败', icon: 'none' });
     }
   },
 
@@ -64,7 +65,7 @@ Page({
 
     try {
       await request({
-        url: '/config/booking_window_days',
+        url: '/config/booking-window-days',
         method: 'PUT',
         data: { config_value: String(days), description: '预约开放窗口（天）' }
       });

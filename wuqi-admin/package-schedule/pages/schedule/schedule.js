@@ -2,13 +2,14 @@ const app = getApp();
 const { request } = require('../../../utils/request');
 const { COURSE_DURATIONS, DEFAULT_DURATION } = require('../../../utils/config');
 const { getBeijingDate, getWeekday } = require('../../../utils/helpers');
-const { getScheduleStatusText, getCancelReasonText } = require('../../../utils/util');
+const { getScheduleStatusText, getCancelReasonText, cropImageSafe } = require('../../../utils/util');
 const { MAX_IMAGE_SIZE, getUploadErrorMessage } = require('../../utils/schedule-helpers');
 
 Page({
   data: {
     stores: [],
     currentStoreId: '',
+    currentStoreName: '',
     currentDate: '',
     dateList: [],
     schedules: [],
@@ -63,7 +64,9 @@ Page({
       source_end_date: '',
       target_start_date: '',
       copyMode: 'weeks',
-      copyCount: 4
+      copyCount: 4,
+      selectedWeekdays: [],  // 星期视图模式下选中的星期（0=周日,1=周一,...6=周六）
+      selectedWeekdayMap: {}  // 星期选中状态映射，用于WXML显示
     },
     // 取消排课原因选择
     showCancelReasonModal: false,
@@ -106,10 +109,10 @@ Page({
   onShow() {
     if (!app.checkAuth()) return;
     this.initDateList();
-    this.loadStores();
+    // 从全局同步门店ID（由店务管理主页 shop.js 统一管理）
+    // syncStoreFromGlobal 内部会触发 loadWeekTemplate 和 loadSchedules
+    this.syncStoreFromGlobal();
     // 如果默认视图是月视图，生成日历
-    // 注意：loadSchedules() 会在 loadStores() 的回调中调用，避免重复请求
-
     if (this.data.viewMode === 'month') {
       this.generateMonthCalendar(this.data.currentMonth);
     }
@@ -128,7 +131,7 @@ Page({
   _startAutoRefresh() {
     this._stopAutoRefresh();
     this._autoRefreshTimer = setInterval(() => {
-      this.loadStores();
+      this.loadSchedules();
     }, 30000);
   },
 
@@ -141,7 +144,7 @@ Page({
 
   // 全局网络恢复回调（由 app.js 的 onNetworkStatusChange 触发）
   onNetworkRestore() {
-    this.loadStores();
+    this.syncStoreFromGlobal();
   },
 
   // 初始化日期列表（历史1年 + 未来3个月）
@@ -596,42 +599,41 @@ Page({
     });
   },
 
-  async loadStores() {
-    try {
-      const res = await request({ url: '/stores', method: 'GET' });
-      if (this._isDestroyed) return;
-      const list = res.data && Array.isArray(res.data.list) ? res.data.list : (Array.isArray(res.data) ? res.data : []);
-      
-
-      
-      // 保存原始门店ID，用于判断是否需要切换
-
-      const originalStoreId = this.data.currentStoreId;
-      
-      // 如果已经有选中的门店，且该门店仍在列表中，则保持当前选择
-
-      let newStoreId = originalStoreId;
-      if (!newStoreId || !list.find(s => s._id === newStoreId)) {
-        // 如果没有选中门店，或选中的门店已不在列表中，则默认选中第一个
-        newStoreId = list.length > 0 ? list[0]._id : '';
-      }
-      
-      this.setData({
-        stores: list,
-        currentStoreId: newStoreId
-      }, async () => {
-        // 设置完门店ID后，先加载星期模板，再加载排课
-        // 只有当门店ID变化时才重新加载模板
-
-        if (originalStoreId !== this.data.currentStoreId) {
-          await this.loadWeekTemplate();
-        }
-        this.loadSchedules();
-      });
-    } catch (err) {
-      console.error('加载门店失败', err);
-      this.loadSchedules();
+  // 从全局同步门店（由店务管理主页 shop.js 统一管理门店选择）
+  syncStoreFromGlobal() {
+    // 单门店角色：固定使用所属门店；多门店角色：读取全局 shopStoreId
+    const defaultStoreId = app.getDefaultStoreId();
+    let newStoreId;
+    if (defaultStoreId) {
+      newStoreId = defaultStoreId;
+    } else {
+      newStoreId = app.getShopStoreId();
     }
+
+    // 从全局门店列表获取门店信息（按当前用户角色过滤）
+    const storeList = app.filterStoresForUser(app.globalData.storeList || []);
+    const matched = storeList.find(s => String(s._id) === String(newStoreId));
+    const newStoreName = matched ? matched.name : '';
+
+    const originalStoreId = this.data.currentStoreId;
+    const storeChanged = originalStoreId !== newStoreId;
+
+    this.setData({
+      stores: storeList,
+      currentStoreId: newStoreId,
+      currentStoreName: newStoreName
+    }, async () => {
+      // 只有当门店ID变化时才重新加载模板，避免不必要的请求
+      if (storeChanged) {
+        // 切换门店时先清空 weekTemplate，避免 loadSchedules 使用旧门店模板显示预览
+        this.setData({
+          weekTemplate: { 0: [], 1: [], 2: [], 3: [], 4: [], 5: [], 6: [] },
+          schedules: []
+        });
+        await this.loadWeekTemplate();
+      }
+      this.loadSchedules();
+    });
   },
 
   async loadSchedules() {
@@ -826,23 +828,6 @@ Page({
     }
   },
 
-  onSwitchStore(e) {
-    const newStoreId = e.currentTarget.dataset.id;
-    // 切换门店时先清空 weekTemplate，避免 loadSchedules 使用旧门店模板显示预览
-
-    this.setData({
-      currentStoreId: newStoreId,
-      weekTemplate: { 0: [], 1: [], 2: [], 3: [], 4: [], 5: [], 6: [] },
-      schedules: []
-    }, () => {
-      // 必须先加载新门店的模板，再加载排课数据，避免模板预览串门店
-
-      this.loadWeekTemplate().then(() => {
-        this.loadSchedules();
-      });
-    });
-  },
-
   onSelectDate(e) {
     this.setData({ currentDate: e.currentTarget.dataset.date }, () => {
       this.loadSchedules();
@@ -995,25 +980,16 @@ Page({
 
         let filePath = file.tempFilePath;
 
-        // 使用微信内置裁剪（固定16:9比例，用户可缩放/拖动）
+        // 裁剪：16:9比例，开发者工具不支持时自动跳过裁剪
         try {
-          if (wx.cropImage) {
-            const cropRes = await new Promise((resolve, reject) => {
-              wx.cropImage({
-                src: filePath,
-                cropScale: '16:9',
-                success: resolve,
-                fail: reject
-              });
-            });
-            filePath = cropRes.tempFilePath;
-          }
+          filePath = await cropImageSafe(filePath, '16:9');
         } catch (cropErr) {
-          // 裁剪失败或用户取消裁剪，使用原图
-
+          // 用户取消裁剪：中断流程
           if (cropErr.errMsg && cropErr.errMsg.indexOf('cancel') !== -1) {
             return;
           }
+          // 其他异常：跳过裁剪继续上传（兜底）
+          console.warn('裁剪异常，使用原图', cropErr);
         }
 
         wx.showLoading({ title: '上传中...' });
@@ -1276,6 +1252,8 @@ Page({
       const editingId = formData._id || (this.data.editPreview ? this.data.editPreview._id : '');
       const conflictingSchedule = schedules.find(s => {
         if (s._id === editingId) return false;  // 排除正在编辑的自身
+        // 排除模板预览项（模板未实际排课，不应阻挡临时增设）
+        if (s.isTemplatePreview) return false;
         // 排除所有非活跃状态的排课（已取消、已下架、已删除、已完成、未开放）
 
         if (['cancelled', 'offline', 'deleted', 'completed', 'not_open'].includes(s.status)) return false;
@@ -1463,7 +1441,7 @@ Page({
       console.error('保存排课失败', err);
       const errMsg = err.message || err.data?.message || '保存失败';
       if (errMsg.length > 15) {
-        wx.showModal({ title: '排课冲突', content: errMsg, showCancel: false, confirmText: '知道了' });
+        wx.showModal({ title: '保存失败', content: errMsg, showCancel: false, confirmText: '知道了' });
       } else {
         wx.showToast({ title: errMsg, icon: 'none' });
       }
@@ -1617,57 +1595,35 @@ Page({
       return;
     }
     const id = e.currentTarget.dataset.id;
-    const bookings = parseInt(e.currentTarget.dataset.bookings) || 0;
     if (!id) {
       wx.showToast({ title: '排课ID不存在', icon: 'none' });
       return;
     }
 
-    // 打开自定义下线排课弹窗
-    this.setData({
-      showOfflineModal: true,
-      offlineScheduleId: id,
-      offlineBookings: bookings,
-      offlineReasonInput: ''
+    wx.showModal({
+      title: '确认下线',
+      content: '下线后课程将不再在会员端和课程表中显示，不影响任何已有记录和数据。',
+      confirmText: '确认下线',
+      confirmColor: '#C5744B',
+      success: async (res) => {
+        if (!res.confirm) return;
+        this.setData({ deleting: true });
+        try {
+          await request({
+            url: `/schedules/${id}/offline`,
+            method: 'PUT',
+            data: {}
+          });
+          wx.showToast({ title: '已下线', icon: 'success' });
+          this.loadSchedules();
+        } catch (err) {
+          console.error('下线排课失败', err);
+          wx.showToast({ title: err.message || '下线失败', icon: 'none' });
+        } finally {
+          this.setData({ deleting: false });
+        }
+      }
     });
-  },
-
-  // 关闭下线排课弹窗
-  onCloseOfflineModal() {
-    this.setData({
-      showOfflineModal: false,
-      offlineScheduleId: '',
-      offlineBookings: 0,
-      offlineReasonInput: ''
-    });
-  },
-
-  // 输入下线原因（可选）
-  onOfflineReasonInput(e) {
-    this.setData({ offlineReasonInput: e.detail.value });
-  },
-
-  // 确认下线排课
-  async onConfirmOfflineSchedule() {
-    const { offlineScheduleId, offlineReasonInput, deleting } = this.data;
-    if (deleting) return;
-
-    this.setData({ deleting: true });
-    try {
-      await request({
-        url: `/schedules/${offlineScheduleId}/offline`,
-        method: 'PUT',
-        data: { reason: offlineReasonInput || '' }
-      });
-      wx.showToast({ title: '已下线', icon: 'success' });
-      this.onCloseOfflineModal();
-      this.loadSchedules();
-    } catch (err) {
-      console.error('下线排课失败', err);
-      wx.showToast({ title: err.message || '下线失败', icon: 'none' });
-    } finally {
-      this.setData({ deleting: false });
-    }
   },
 
   // 上线排课（恢复已下线的排课为可预约状态）
@@ -1995,11 +1951,21 @@ Page({
     }
     const endDate = this._calcTargetEndDate(copyForm.target_start_date, copyForm.copyMode, copyForm.copyCount);
     const modeLabel = copyForm.copyMode === 'weeks' ? '周' : '月';
-    this.setData({
-      copyPreviewText: viewMode === 'day'
-        ? `从 ${this._formatDateShort(copyForm.target_start_date)} 开始，按星期模板复制${copyForm.copyCount}${modeLabel}，至 ${this._formatDateShort(endDate)}`
-        : `从 ${this._formatDateShort(copyForm.target_start_date)} 开始，按${modeLabel}复制${copyForm.copyCount}${modeLabel}，至 ${this._formatDateShort(endDate)}`
-    });
+    if (viewMode === 'day') {
+      let weekdayText = '';
+      if (copyForm.selectedWeekdays && copyForm.selectedWeekdays.length > 0) {
+        const weekdayNames = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+        const selectedNames = copyForm.selectedWeekdays.map(w => weekdayNames[w]);
+        weekdayText = `（${selectedNames.join('、')}）`;
+      }
+      this.setData({
+        copyPreviewText: `从 ${this._formatDateShort(copyForm.target_start_date)} 开始，按星期模板复制${copyForm.copyCount}${modeLabel}${weekdayText}，至 ${this._formatDateShort(endDate)}`
+      });
+    } else {
+      this.setData({
+        copyPreviewText: `从 ${this._formatDateShort(copyForm.target_start_date)} 开始，按${modeLabel}复制${copyForm.copyCount}${modeLabel}，至 ${this._formatDateShort(endDate)}`
+      });
+    }
   },
 
   // 查询源周排课数量（星期视图模式不需要，保留兼容）
@@ -2042,17 +2008,15 @@ Page({
         source_end_date: '',
         target_start_date: targetStartDate,
         copyMode: 'weeks',
-        copyCount: 4
+        copyCount: 4,
+        selectedWeekdays: [],
+        selectedWeekdayMap: {}
       }
     });
     
     // 如果是星期视图模式，立即更新预览文本
-
     if (viewMode === 'day') {
-      const endDate = this._calcTargetEndDate(targetStartDate, 'weeks', 4);
-      this.setData({
-        copyPreviewText: `从 ${this._formatDateShort(targetStartDate)} 开始，按星期模板复制4周，至 ${this._formatDateShort(endDate)}`
-      });
+      this._updatePreviewText();
     }
   },
 
@@ -2340,13 +2304,39 @@ Page({
     }
   },
 
+  // 切换复制弹窗中的星期选择
+  onToggleCopyWeekday(e) {
+    const weekday = Number(e.currentTarget.dataset.weekday);
+    // 没有排课的星期不允许选中
+    const templates = this.data.weekTemplate[weekday] || [];
+    if (templates.filter(t => t.enabled !== false).length === 0) {
+      wx.showToast({ title: '该星期暂无排课', icon: 'none' });
+      return;
+    }
+    const selected = [...this.data.copyForm.selectedWeekdays];
+    const map = { ...this.data.copyForm.selectedWeekdayMap };
+    const idx = selected.indexOf(weekday);
+    if (idx >= 0) {
+      selected.splice(idx, 1);
+      map[weekday] = false;
+    } else {
+      selected.push(weekday);
+      map[weekday] = true;
+    }
+    this.setData({
+      'copyForm.selectedWeekdays': selected,
+      'copyForm.selectedWeekdayMap': map
+    }, () => {
+      this._updatePreviewText();
+    });
+  },
+
   // 下一步
   onCopyNextStep() {
     const { copyStep, copyForm, copySourceCount } = this.data;
 
     if (copyStep === 1) {
       // 验证第1步：源周必须选择且有排课
-
       if (!copyForm.source_start_date || !copyForm.source_end_date) {
         wx.showToast({ title: '请选择源周日期', icon: 'none' });
         return;
@@ -2355,12 +2345,9 @@ Page({
         wx.showToast({ title: '该周暂无排课，请选择有排课的周', icon: 'none' });
         return;
       }
-      // 进入第2步
-
       this.setData({ copyStep: 2 });
     } else if (copyStep === 2) {
       // 验证第2步：目标日期和复制数量
-
       if (!copyForm.target_start_date) {
         wx.showToast({ title: '请选择目标起始周', icon: 'none' });
         return;
@@ -2369,8 +2356,6 @@ Page({
         wx.showToast({ title: '复制数量至少为1', icon: 'none' });
         return;
       }
-      // 进入第3步
-
       this.setData({ copyStep: 3 });
     }
   },
@@ -2393,18 +2378,33 @@ Page({
     // 星期视图模式：逐个日期创建排课
 
     if (viewMode === 'day') {
+      if (!copyForm.target_start_date) {
+        wx.showToast({ title: '请选择目标起始日期', icon: 'none' });
+        return;
+      }
+      if (!copyForm.selectedWeekdays || copyForm.selectedWeekdays.length === 0) {
+        wx.showToast({ title: '请至少选择一个星期', icon: 'none' });
+        return;
+      }
       wx.showLoading({ title: '正在批量排课...', mask: true });
       try {
+        // 计算选中星期的模板课程总数
+        const selectedCount = copyForm.selectedWeekdays.reduce((sum, w) => {
+          const templates = weekTemplate[w] || [];
+          return sum + templates.filter(t => t.enabled !== false).length;
+        }, 0);
+        
         const result = await this.createSchedulesFromTemplate(
           copyForm.target_start_date,
           copyForm.copyMode,
           copyForm.copyCount,
-          weekTemplate
+          weekTemplate,
+          copyForm.selectedWeekdays
         );
         const createdCount = result.totalCreated;
         const skippedErrors = result.skippedErrors || [];
 
-        let content = `成功生成 ${createdCount} 节课（星期模板 ${copySourceCount} 节 × ${copyForm.copyCount} ${copyForm.copyMode === 'weeks' ? '周' : '月'}）`;
+        let content = `成功生成 ${createdCount} 节课（选中星期 ${selectedCount} 节 × ${copyForm.copyCount} ${copyForm.copyMode === 'weeks' ? '周' : '月'}）`;
         if (skippedErrors.length > 0) {
           const showErrors = skippedErrors.slice(0, 5);
           content += `\n\n⚠️ ${skippedErrors.length} 节课因冲突被跳过：`;
@@ -2499,7 +2499,7 @@ Page({
   },
 
   // 从星期模板创建排课
-  async createSchedulesFromTemplate(startDateStr, mode, count, weekTemplate) {
+  async createSchedulesFromTemplate(startDateStr, mode, count, weekTemplate, selectedWeekdays) {
     const { currentStoreId } = this.data;
     let totalCreated = 0;
     const skippedErrors = [];
@@ -2521,6 +2521,9 @@ Page({
         for (let j = 0; j < 7; j++) {
           const date = getBeijingDate(weekStart);
           date.setDate(weekStart.getDate() + j);
+          const dayOfWeek = date.getDay();
+          // 如果指定了选中星期，仅处理选中的星期日期
+          if (selectedWeekdays && selectedWeekdays.length > 0 && !selectedWeekdays.includes(dayOfWeek)) continue;
           datesToProcess.push(date);
         }
       } else {
@@ -2530,6 +2533,9 @@ Page({
         const lastDay = new Date(monthDate.getFullYear(), monthDate.getMonth() + 1, 0).getDate();
         for (let j = 0; j < lastDay; j++) {
           const date = new Date(monthDate.getFullYear(), monthDate.getMonth(), j + 1);
+          const dayOfWeek = date.getDay();
+          // 如果指定了选中星期，仅处理选中的星期日期
+          if (selectedWeekdays && selectedWeekdays.length > 0 && !selectedWeekdays.includes(dayOfWeek)) continue;
           datesToProcess.push(date);
         }
       }

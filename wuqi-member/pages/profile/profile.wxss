@@ -421,6 +421,19 @@ page {
   box-shadow: 0 3rpx 16rpx rgba(212, 120, 110, 0.06);
 }
 
+/* 四列统计卡布局（次卡+时间卡同时展示时） */
+.stats-row.stats-row-4 {
+  padding: 28rpx 8rpx;
+}
+
+.stats-row.stats-row-4 .stat-num {
+  font-size: 38rpx;
+}
+
+.stats-row.stats-row-4 .stat-label {
+  font-size: 22rpx;
+}
+
 .stat-card {
   display: flex;
   flex-direction: column;

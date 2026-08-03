@@ -15,9 +15,13 @@ Page({
     },
     saving: false,
     gettingLocation: false,
+    isSingleStoreRole: false, // 单门店角色隐藏新增门店按钮
+    selectedStoreId: '',      // 全局统一门店选择高亮
   },
 
   onShow() {
+    // 单门店角色不允许新增门店
+    this.setData({ isSingleStoreRole: app.isSingleStoreRole() });
     this.loadStoreList();
   },
 
@@ -27,7 +31,9 @@ Page({
       const list = res.data && res.data.list
         ? res.data.list
         : (Array.isArray(res.data) ? res.data : []);
-      this.setData({ storeList: list });
+      // 从全局统一门店选择读取，高亮匹配的门店
+      const shopStoreId = app.globalData.shopStoreId || '';
+      this.setData({ storeList: list, selectedStoreId: shopStoreId });
     } catch (err) {
       wx.showToast({ title: '加载门店列表失败', icon: 'none' });
     }

@@ -1,10 +1,16 @@
 .pre-member-page {
-  height: 100vh;
+  min-height: 100vh;
   background: #FAF8F5;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
   box-sizing: border-box;
+  padding-bottom: calc(40rpx + env(safe-area-inset-bottom));
+}
+
+/* 顶部固定区域：门店筛选 + 操作栏 + 状态标签 */
+.sticky-header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: #FFFFFF;
 }
 
 /* 门店筛选栏 */
@@ -183,20 +189,16 @@
   background: #B8A98E;
 }
 
-/* 列表区域：内容多时滚动，内容少时不滚动 */
+/* 列表区域：普通文档流，跟随页面滚动 */
 .member-list {
-  flex: 1;
-  min-height: 0;
-  padding: 16rpx 28rpx;
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
+  padding: 16rpx 0;
 }
 
 .member-card {
   background: #FFFFFF;
   border-radius: 16rpx;
   padding: 28rpx;
-  margin-bottom: 20rpx;
+  margin: 0 28rpx 20rpx;
   box-shadow: 0 2rpx 16rpx rgba(139, 126, 106, 0.06);
 }
 
@@ -1017,4 +1019,83 @@
   height: 18rpx;
   border-bottom: 3rpx solid #FFFFFF;
   border-right: 3rpx solid #FFFFFF;
+}
+
+/* ========== 分页：查看更多 / 返回顶部 ========== */
+/* 查看更多按钮（卡片样式，跟随列表流动） */
+.expand-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 28rpx 0;
+  margin: 20rpx 28rpx 0;
+  font-size: 26rpx;
+  color: var(--color-primary, #D4786E);
+  background: #FFFFFF;
+  border-radius: 20rpx;
+  box-shadow: 0 4rpx 16rpx rgba(61,44,46,0.04);
+}
+
+.expand-toggle:active {
+  opacity: 0.7;
+}
+
+.expand-toggle text {
+  margin-right: 10rpx;
+}
+
+.toggle-arrow {
+  width: 0;
+  height: 0;
+  border-left: 10rpx solid transparent;
+  border-right: 10rpx solid transparent;
+  border-top: 12rpx solid var(--color-primary, #D4786E);
+  margin-left: 8rpx;
+  margin-top: 4rpx;
+}
+
+.toggle-arrow.down {
+  border-top: 12rpx solid var(--color-primary, #D4786E);
+  border-bottom: none;
+}
+
+.no-more {
+  padding: 30rpx 0;
+  text-align: center;
+}
+
+.no-more-text {
+  font-size: 24rpx;
+  color: var(--text-tertiary, #999);
+}
+
+/* 返回顶部按钮 */
+.back-to-top {
+  position: fixed;
+  right: 32rpx;
+  bottom: calc(48rpx + env(safe-area-inset-bottom));
+  width: 88rpx;
+  height: 88rpx;
+  border-radius: 50%;
+  background: #FFFFFF;
+  box-shadow: 0 8rpx 24rpx rgba(61,44,46,0.12);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 99;
+  opacity: 0;
+  transform: translateY(20rpx);
+  transition: all 0.3s ease;
+}
+
+.back-to-top.show {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.btt-icon {
+  font-size: 36rpx;
+  color: var(--color-primary, #D4786E);
+  font-weight: 600;
+  line-height: 1;
 }

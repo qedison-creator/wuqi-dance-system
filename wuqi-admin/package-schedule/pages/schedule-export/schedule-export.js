@@ -1,6 +1,6 @@
 const app = getApp();
 const { request } = require('../../../utils/request');
-const { fixImageUrl } = require('../../../utils/util');
+const { fixImageUrl, cropImageSafe } = require('../../../utils/util');
 
 // Canvas 画布尺寸（A4 @ 150DPI）
 const CANVAS_WIDTH = 1240;
@@ -31,7 +31,18 @@ Page({
 
   onLoad(options) {
     const storeId = options.store_id || (app.globalData.currentStore && app.globalData.currentStore._id) || '';
-    const storeName = options.store_name || (app.globalData.currentStore && app.globalData.currentStore.name) || '';
+    // URL 参数中文名 decode：跳转方用 encodeURIComponent 编码，此处必须 decode
+    let storeName = '';
+    if (options.store_name) {
+      try {
+        storeName = decodeURIComponent(options.store_name);
+      } catch (e) {
+        storeName = options.store_name;
+      }
+    }
+    if (!storeName && app.globalData.currentStore && app.globalData.currentStore.name) {
+      storeName = app.globalData.currentStore.name;
+    }
     this.setData({ storeId, storeName });
     this.generateWeekOptions();
     this.loadBackgrounds();
@@ -145,18 +156,14 @@ Page({
       });
       let filePath = chooseRes.tempFiles[0].tempFilePath;
 
-      // 裁剪：A4竖版比例 2:3，用户可缩放/拖动
+      // 裁剪：使用合法比例 3:4（最接近A4竖版），开发者工具不支持时自动跳过裁剪
       try {
-        if (wx.cropImage) {
-          const cropRes = await new Promise((resolve, reject) => {
-            wx.cropImage({ src: filePath, cropScale: '2:3', success: resolve, fail: reject });
-          });
-          filePath = cropRes.tempFilePath;
-        }
+        filePath = await cropImageSafe(filePath, '3:4');
       } catch (cropErr) {
-        // 用户取消裁剪
+        // 用户取消裁剪：中断流程
         if (cropErr.errMsg && cropErr.errMsg.indexOf('cancel') !== -1) return;
-        console.error('裁剪失败', cropErr);
+        // 其他异常：跳过裁剪继续上传（兜底）
+        console.warn('裁剪异常，使用原图', cropErr);
       }
 
       await this.uploadBgImage(filePath);
@@ -527,11 +534,7 @@ Page({
             fileType: 'jpg',
             quality: 0.92,
             success: (res) => {
-              this.setData({
-                exportImagePath: res.tempFilePath,
-                generating: false
-              });
-              wx.showToast({ title: '生成成功', icon: 'success' });
+              this._saveExportImage(res.tempFilePath);
             },
             fail: (err) => {
               console.error('导出图片失败', err);
@@ -751,6 +754,43 @@ Page({
     wx.previewImage({
       urls: [this.data.exportImagePath]
     });
+  },
+
+  // 将Canvas导出的临时文件保存为本地持久化文件
+  // 开发者工具中临时路径以 http://tmp/ 开头，渲染到 <image> 会触发 HTTP 协议警告
+  // 保存后路径变为 wxfile:// 协议，兼容开发者工具和真机
+  _saveExportImage(tempFilePath) {
+    const fs = wx.getFileSystemManager();
+    // 清理上一次保存的本地文件，避免存储空间膨胀
+    if (this._savedExportPath) {
+      try { fs.unlinkSync(this._savedExportPath); } catch (e) { /* 忽略 */ }
+    }
+    fs.saveFile({
+      tempFilePath,
+      success: (saveRes) => {
+        this.setData({
+          exportImagePath: saveRes.savedFilePath,
+          generating: false
+        });
+        this._savedExportPath = saveRes.savedFilePath;
+        wx.showToast({ title: '生成成功', icon: 'success' });
+      },
+      fail: () => {
+        // 保存失败：回退到临时路径（真机上临时路径为 wxfile:// 不会报警告）
+        this.setData({
+          exportImagePath: tempFilePath,
+          generating: false
+        });
+        wx.showToast({ title: '生成成功', icon: 'success' });
+      }
+    });
+  },
+
+  onUnload() {
+    // 页面卸载时清理本地保存的导出图片
+    if (this._savedExportPath) {
+      try { wx.getFileSystemManager().unlinkSync(this._savedExportPath); } catch (e) { /* 忽略 */ }
+    }
   },
 
   _fixImageUrl(url) {

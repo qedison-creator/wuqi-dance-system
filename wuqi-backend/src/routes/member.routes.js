@@ -2,14 +2,30 @@ const router = require('express').Router();
 const auth = require('../middleware/auth');
 const checkPermission = require('../middleware/permission');
 const storeFilter = require('../middleware/storeFilter');
+const checkRecordOwnership = require('../middleware/checkRecordOwnership');
+const User = require('../models/User');
 const memberService = require('../services/member.service');
-const { success, paginate } = require('../utils/response');
+const { success, paginate, error } = require('../utils/response');
+const { assertMemberAccessibleForCheckin } = require('../utils/storeOwnership');
 const { broadcastMemberCountUpdate, sendToUser, broadcastToAdmins } = require('../services/websocket.service');
+
+// 会员归属校验中间件实例（复用 User 模型，校验 :id 对应会员的 store_id 归属）
+const checkMemberOwnership = checkRecordOwnership(User, {
+  recordName: '会员',
+  storeIdField: 'store_id',
+});
+
+// 审核专用归属校验：允许 store_id 为 null 的待审核会员通过（管理员审核时分配门店）
+const checkMemberOwnershipForReview = checkRecordOwnership(User, {
+  recordName: '会员',
+  storeIdField: 'store_id',
+  allowNullStoreId: true,
+});
 
 // ========== 具体命名路由（必须在 /:id 参数化路由之前） ==========
 
 // GET /api/v1/members - 获取会员列表
-router.get('/', auth, checkPermission(['super_admin', 'store_manager', 'staff']), async (req, res, next) => {
+router.get('/', auth, checkPermission(['super_admin', 'store_manager', 'staff']), storeFilter(), async (req, res, next) => {
   try {
     const result = await memberService.getMemberList(req.query);
     const paginatedData = paginate(result.list, result.total, result.page, result.pageSize);
@@ -21,7 +37,7 @@ router.get('/', auth, checkPermission(['super_admin', 'store_manager', 'staff'])
 });
 
 // GET /api/v1/members/stats/overview - 获取会员统计
-router.get('/stats/overview', auth, checkPermission(['super_admin', 'store_manager', 'staff']), async (req, res, next) => {
+router.get('/stats/overview', auth, checkPermission(['super_admin', 'store_manager', 'staff']), storeFilter(), async (req, res, next) => {
   try {
     const { store_id } = req.query;
     const stats = await memberService.getMemberStats(store_id);
@@ -75,7 +91,7 @@ router.get('/info-change/history', auth, checkPermission(['super_admin', 'store_
 });
 
 // GET /api/v1/members/audit-history - 获取会员审核历史记录
-router.get('/audit-history', auth, checkPermission(['super_admin', 'store_manager', 'staff']), async (req, res, next) => {
+router.get('/audit-history', auth, checkPermission(['super_admin', 'store_manager', 'staff']), storeFilter(), async (req, res, next) => {
   try {
     const result = await memberService.getMemberAuditHistory(req.query);
     res.json(success(paginate(result.list, result.total, result.page, result.pageSize)));
@@ -124,7 +140,7 @@ router.post('/info-change/request', auth, checkPermission(['member']), async (re
 // ========== 参数化路由（必须放在最后，避免拦截具体命名路由） ==========
 
 // GET /api/v1/members/:id - 获取会员详情
-router.get('/:id', auth, checkPermission(['super_admin', 'store_manager', 'staff']), async (req, res, next) => {
+router.get('/:id', auth, checkPermission(['super_admin', 'store_manager', 'staff']), storeFilter(), checkMemberOwnership, async (req, res, next) => {
   try {
     const member = await memberService.getMemberById(req.params.id);
     res.json(success(member));
@@ -134,7 +150,7 @@ router.get('/:id', auth, checkPermission(['super_admin', 'store_manager', 'staff
 });
 
 // PUT /api/v1/members/:id - 更新会员信息
-router.put('/:id', auth, checkPermission(['super_admin', 'store_manager']), async (req, res, next) => {
+router.put('/:id', auth, checkPermission(['super_admin', 'store_manager']), storeFilter(), checkMemberOwnership, async (req, res, next) => {
   try {
     const member = await memberService.updateMember(req.params.id, req.body);
     res.json(success(member, '更新会员信息成功'));
@@ -144,7 +160,7 @@ router.put('/:id', auth, checkPermission(['super_admin', 'store_manager']), asyn
 });
 
 // PUT /api/v1/members/:id/status - 启用/禁用会员（黑名单管控）
-router.put('/:id/status', auth, checkPermission(['super_admin', 'store_manager']), async (req, res, next) => {
+router.put('/:id/status', auth, checkPermission(['super_admin', 'store_manager']), storeFilter(), checkMemberOwnership, async (req, res, next) => {
   try {
     const { status } = req.body;
     if (!status || !['active', 'disabled'].includes(status)) {
@@ -158,7 +174,7 @@ router.put('/:id/status', auth, checkPermission(['super_admin', 'store_manager']
 });
 
 // PUT /api/v1/members/:id/review - 审核会员
-router.put('/:id/review', auth, checkPermission(['super_admin', 'store_manager', 'staff']), async (req, res, next) => {
+router.put('/:id/review', auth, checkPermission(['super_admin', 'store_manager', 'staff']), storeFilter(), checkMemberOwnershipForReview, async (req, res, next) => {
   try {
     const { action, reason, store_id } = req.body;
     if (!action || !['approve', 'reject'].includes(action)) {
@@ -167,6 +183,15 @@ router.put('/:id/review', auth, checkPermission(['super_admin', 'store_manager',
     const member = await memberService.reviewMember(req.params.id, action, reason, req.user.id, store_id);
     // 会员审核后通知管理端刷新待审核计数
     broadcastMemberCountUpdate();
+    // WebSocket 推送审核结果给会员端，触发个人中心页面即时更新
+    sendToUser(String(member._id), 'member_review_result', {
+      action,
+      member_status: member.member_status,
+      store_id: member.store_id ? String(member.store_id) : null,
+      member_code: member.member_code || '',
+      reason: reason || '',
+      auditTime: new Date().toISOString()
+    });
     res.json(success(member, action === 'approve' ? '审核通过' : '已拒绝'));
   } catch (err) {
     next(err);
@@ -174,7 +199,7 @@ router.put('/:id/review', auth, checkPermission(['super_admin', 'store_manager',
 });
 
 // PUT /api/v1/members/:id/store - 修改会员门店（管理员）
-router.put('/:id/store', auth, checkPermission(['super_admin', 'store_manager']), async (req, res, next) => {
+router.put('/:id/store', auth, checkPermission(['super_admin', 'store_manager']), storeFilter(), checkMemberOwnership, async (req, res, next) => {
   try {
     const { store_id } = req.body;
     if (!store_id) {
@@ -190,7 +215,7 @@ router.put('/:id/store', auth, checkPermission(['super_admin', 'store_manager'])
 });
 
 // PUT /api/v1/members/:id/exemption - 设置豁免次数
-router.put('/:id/exemption', auth, checkPermission(['super_admin', 'store_manager', 'staff']), async (req, res, next) => {
+router.put('/:id/exemption', auth, checkPermission(['super_admin', 'store_manager', 'staff']), storeFilter(), checkMemberOwnership, async (req, res, next) => {
   try {
     const { exemption_count } = req.body;
     if (exemption_count === undefined || exemption_count === null) {
@@ -204,7 +229,7 @@ router.put('/:id/exemption', auth, checkPermission(['super_admin', 'store_manage
 });
 
 // GET /api/v1/members/:id/exemption-logs - 获取豁免次数使用记录
-router.get('/:id/exemption-logs', auth, checkPermission(['super_admin', 'store_manager', 'staff']), async (req, res, next) => {
+router.get('/:id/exemption-logs', auth, checkPermission(['super_admin', 'store_manager', 'staff']), storeFilter(), checkMemberOwnership, async (req, res, next) => {
   try {
     const { page = 1, pageSize = 20 } = req.query;
     const result = await memberService.getExemptionLogs(req.params.id, page, pageSize);
@@ -215,7 +240,7 @@ router.get('/:id/exemption-logs', auth, checkPermission(['super_admin', 'store_m
 });
 
 // PUT /api/v1/members/:id/suspend - 停卡
-router.put('/:id/suspend', auth, checkPermission(['super_admin', 'store_manager', 'staff']), async (req, res, next) => {
+router.put('/:id/suspend', auth, checkPermission(['super_admin', 'store_manager', 'staff']), storeFilter(), checkMemberOwnership, async (req, res, next) => {
   try {
     const { suspend_days } = req.body;
     if (!suspend_days || suspend_days <= 0) {
@@ -229,7 +254,7 @@ router.put('/:id/suspend', auth, checkPermission(['super_admin', 'store_manager'
 });
 
 // PUT /api/v1/members/:id/unsuspend - 复卡
-router.put('/:id/unsuspend', auth, checkPermission(['super_admin', 'store_manager', 'staff']), async (req, res, next) => {
+router.put('/:id/unsuspend', auth, checkPermission(['super_admin', 'store_manager', 'staff']), storeFilter(), checkMemberOwnership, async (req, res, next) => {
   try {
     const member = await memberService.unsuspendMember(req.params.id, req.user.id);
     res.json(success(member, '复卡成功'));
@@ -239,7 +264,7 @@ router.put('/:id/unsuspend', auth, checkPermission(['super_admin', 'store_manage
 });
 
 // PUT /api/v1/members/:id/assign-code - 分配会员编码
-router.put('/:id/assign-code', auth, checkPermission(['super_admin', 'store_manager', 'staff']), async (req, res, next) => {
+router.put('/:id/assign-code', auth, checkPermission(['super_admin', 'store_manager', 'staff']), storeFilter(), checkMemberOwnership, async (req, res, next) => {
   try {
     const memberCode = await memberService.assignMemberCode(req.params.id);
     res.json(success({ member_code: memberCode }, '会员编码分配成功'));
@@ -263,7 +288,7 @@ router.get('/:id/info-status', auth, checkPermission(['super_admin', 'store_mana
 });
 
 // PUT /api/v1/members/:id/phone-audit - 审核预留手机号修改
-router.put('/:id/phone-audit', auth, checkPermission(['super_admin', 'store_manager']), async (req, res, next) => {
+router.put('/:id/phone-audit', auth, checkPermission(['super_admin', 'store_manager']), storeFilter(), checkMemberOwnership, async (req, res, next) => {
   try {
     const { action, reason } = req.body;
     if (!action || !['approve', 'reject'].includes(action)) {
@@ -284,7 +309,7 @@ router.put('/:id/phone-audit', auth, checkPermission(['super_admin', 'store_mana
 });
 
 // PUT /api/v1/members/:id/info-change-audit - 审核信息修改请求
-router.put('/:id/info-change-audit', auth, checkPermission(['super_admin', 'store_manager']), async (req, res, next) => {
+router.put('/:id/info-change-audit', auth, checkPermission(['super_admin', 'store_manager']), storeFilter(), checkMemberOwnership, async (req, res, next) => {
   try {
     const { action, reason } = req.body;
     if (!action || !['approve', 'reject'].includes(action)) {
@@ -341,12 +366,64 @@ router.delete('/:id', auth, checkPermission(['super_admin']), async (req, res, n
       }
     }
 
-    // 删除会员的预约记录、套餐记录，再删除会员
+    // 删除会员的预约记录（套餐记录保留，仅回填快照，确保套餐录入/激活/延长记录不丢失）
     await Booking.deleteMany({ user_id: req.params.id });
-    const UserPackage = require('../models/UserPackage');
-    await UserPackage.deleteMany({ user_id: req.params.id });
 
-    // 删除会员前，将其快照信息冗余到 OperationLog.metadata，
+    // 会员快照：删除会员前回填到所有关联记录，确保 populate 失败时仍可显示会员信息
+    const memberSnapshot = {
+      real_name: member.real_name || '',
+      nick_name: member.nick_name || '',
+      phone: member.phone || '',
+      wechat_phone: member.wechat_phone || '',
+      member_code: member.member_code || ''
+    };
+
+    // 回填 UserPackage.member_snapshot（仅更新快照为空或不存在的记录）
+    const UserPackage = require('../models/UserPackage');
+    await UserPackage.updateMany(
+      { user_id: member._id, $or: [
+        { 'member_snapshot': { $exists: false } },
+        { 'member_snapshot.real_name': '', 'member_snapshot.nick_name': '' }
+      ]},
+      { $set: { member_snapshot: memberSnapshot } }
+    );
+
+    // 将该会员的所有 active UserPackage 标记为 expired，避免悬空记录被提醒服务误用
+    // 会员被删除后，旧套餐不再参与任何提醒推送（到期/低次数/不活跃）
+    await UserPackage.updateMany(
+      { user_id: member._id, status: 'active' },
+      { $set: { status: 'expired' } }
+    );
+
+    // 为所有 UserPackage 设置包含会员名的 remark（包括 pending/expired/exhausted），
+    // 确保套餐录入记录中已删除会员的姓名可以从 remark 中提取
+    const deleteRemark = (memberSnapshot.real_name || memberSnapshot.nick_name || '已删除会员') + ' 的套餐（会员已删除）';
+    await UserPackage.updateMany(
+      { user_id: member._id, remark: { $in: [null, '', undefined] } },
+      { $set: { remark: deleteRemark } }
+    );
+
+    // 回填 PackageActivation.member_snapshot
+    const PackageActivation = require('../models/PackageActivation');
+    await PackageActivation.updateMany(
+      { user_id: member._id, $or: [
+        { 'member_snapshot': { $exists: false } },
+        { 'member_snapshot.real_name': '', 'member_snapshot.nick_name': '' }
+      ]},
+      { $set: { member_snapshot: memberSnapshot } }
+    );
+
+    // 回填 PackageExtension.member_snapshot
+    const PackageExtension = require('../models/PackageExtension');
+    await PackageExtension.updateMany(
+      { user_id: member._id, $or: [
+        { 'member_snapshot': { $exists: false } },
+        { 'member_snapshot.real_name': '', 'member_snapshot.nick_name': '' }
+      ]},
+      { $set: { member_snapshot: memberSnapshot } }
+    );
+
+    // 将快照信息冗余到 OperationLog.metadata，
     // 避免 populate target_id 为 null 时审核记录显示"未知"
     const OperationLog = require('../models/OperationLog');
     await OperationLog.updateMany(
@@ -376,8 +453,13 @@ router.delete('/:id', auth, checkPermission(['super_admin']), async (req, res, n
 });
 
 // GET /api/v1/members/:id/checkin-profile - 获取会员签到档案
-router.get('/:id/checkin-profile', auth, checkPermission(['super_admin', 'store_manager', 'staff']), async (req, res, next) => {
+// 门店隔离：单门店角色仅可查看所属门店会员，跨门店套餐会员除外
+router.get('/:id/checkin-profile', auth, checkPermission(['super_admin', 'store_manager', 'staff']), storeFilter(), async (req, res, next) => {
   try {
+    const access = await assertMemberAccessibleForCheckin(req.params.id, req.user);
+    if (!access.ok) {
+      return res.status(403).json(error(403, access.reason));
+    }
     const attendanceService = require('../services/attendance.service');
     const profile = await attendanceService.getMemberCheckinProfile(req.params.id);
     res.json(success(profile));

@@ -1,13 +1,30 @@
 const router = require('express').Router();
 const auth = require('../middleware/auth');
+const { optionalAuth } = require('../middleware/auth');
 const checkPermission = require('../middleware/permission');
 const Store = require('../models/Store');
-const { success } = require('../utils/response');
+const { success, error } = require('../utils/response');
+const { getAllowedStoreIds } = require('../utils/storeOwnership');
 
-// GET /api/v1/stores - 获取门店列表(公开)
-router.get('/', async (req, res, next) => {
+// GET /api/v1/stores - 获取门店列表
+// 公开访问（会员端也调用），管理端请求带 Authorization 时按角色过滤门店
+router.get('/', optionalAuth, async (req, res, next) => {
   try {
     const stores = await Store.find({ status: 'active' }).sort({ created_at: -1 });
+
+    // 门店隔离：管理端请求（带认证）且为单门店角色时，仅返回所属门店
+    if (req.user) {
+      const allowedStoreIds = getAllowedStoreIds(req.user);
+      if (allowedStoreIds !== null) {
+        // 单门店角色：仅返回所辖门店
+        if (!allowedStoreIds || allowedStoreIds.length === 0) {
+          return res.json(success([]));
+        }
+        const filtered = stores.filter(s => allowedStoreIds.includes(String(s._id)));
+        return res.json(success(filtered));
+      }
+    }
+
     res.json(success(stores));
   } catch (err) {
     next(err);
@@ -84,8 +101,8 @@ router.get('/:id', async (req, res, next) => {
   }
 });
 
-// POST /api/v1/stores - 新增门店
-router.post('/', auth, checkPermission(['super_admin', 'store_manager']), async (req, res, next) => {
+// POST /api/v1/stores - 新增门店（仅超管）
+router.post('/', auth, checkPermission(['super_admin']), async (req, res, next) => {
   try {
     const { name, address, phone, business_hours, location } = req.body;
     if (!name) {
@@ -99,16 +116,28 @@ router.post('/', auth, checkPermission(['super_admin', 'store_manager']), async 
 });
 
 // PUT /api/v1/stores/:id - 编辑门店
+// 超管可编辑任意门店；单门店角色只能编辑所属门店
 router.put('/:id', auth, checkPermission(['super_admin', 'store_manager']), async (req, res, next) => {
   try {
+    // 门店归属校验：单门店角色只能编辑所属门店
+    const allowedStoreIds = getAllowedStoreIds(req.user);
+    if (allowedStoreIds !== null) {
+      if (!allowedStoreIds || allowedStoreIds.length === 0 || !allowedStoreIds.includes(String(req.params.id))) {
+        return res.status(403).json(error(403, '无权编辑非所属门店'));
+      }
+    }
+
     const store = await Store.findByIdAndUpdate(req.params.id, req.body, { returnDocument: 'after' });
+    if (!store) {
+      return res.status(404).json({ code: 404, message: '门店不存在', data: null });
+    }
     res.json(success(store, '编辑门店成功'));
   } catch (err) {
     next(err);
   }
 });
 
-// DELETE /api/v1/stores/:id - 删除门店
+// DELETE /api/v1/stores/:id - 删除门店（仅超管）
 router.delete('/:id', auth, checkPermission(['super_admin']), async (req, res, next) => {
   try {
     await Store.findByIdAndDelete(req.params.id);

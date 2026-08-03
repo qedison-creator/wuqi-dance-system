@@ -10,6 +10,7 @@ App({
     currentStore: null,
     currentStoreId: '',
     storeList: [],
+    shopStoreId: '',  // 店务管理统一门店ID，子页面读取此字段过滤数据
     baseUrl: config.baseUrl,
     serverBase: config.serverBase,
     privacyResolve: null,
@@ -179,6 +180,85 @@ App({
     const permissions = userInfo.permissions || [];
     if (permissions.indexOf('*') >= 0) return true;
     return permissions.indexOf(moduleId) >= 0;
+  },
+
+  // ========== 门店隔离辅助方法 ==========
+
+  // 提取 store id 字符串（兼容 ObjectId 字符串和 populated 对象）
+  _storeIdToStr(s) {
+    if (!s) return '';
+    if (typeof s === 'object') return String(s._id);
+    return String(s);
+  },
+
+  // 判断当前用户是否为单门店角色（无需门店切换器，固定所属门店）
+  // staff: 单门店；store_manager 且 store_ids 仅1个: 单门店
+  // super_admin/reviewer: 不限门店；store_manager 多门店: 需切换器
+  isSingleStoreRole() {
+    const u = this.globalData.userInfo;
+    if (!u) return false;
+    if (u.role === 'super_admin' || u.role === 'reviewer') return false;
+    if (u.role === 'staff') return true;
+    if (u.role === 'store_manager') {
+      return (u.store_ids || []).length === 1;
+    }
+    return false;
+  },
+
+  // 获取当前用户可访问的门店ID列表（超管/审核员返回 null 表示不限门店）
+  getAllowedStoreIds() {
+    const u = this.globalData.userInfo;
+    if (!u) return [];
+    if (u.role === 'super_admin' || u.role === 'reviewer') return null;
+    if (u.role === 'store_manager') {
+      return (u.store_ids || []).map(s => this._storeIdToStr(s)).filter(Boolean);
+    }
+    if (u.role === 'staff') {
+      const sid = this._storeIdToStr(u.store_id);
+      return sid ? [sid] : [];
+    }
+    return [];
+  },
+
+  // 过滤门店列表为当前用户可访问的（超管/审核员返回原列表）
+  filterStoresForUser(stores) {
+    if (!Array.isArray(stores)) return [];
+    const u = this.globalData.userInfo;
+    if (!u) return stores;
+    if (u.role === 'super_admin' || u.role === 'reviewer') return stores;
+    const allowed = this.getAllowedStoreIds();
+    if (!allowed || allowed.length === 0) return [];
+    return stores.filter(s => allowed.includes(String(s._id)));
+  },
+
+  // 获取单门店角色的默认门店ID（用于自动注入，替代门店切换器）
+  // 非单门店角色返回空字符串
+  getDefaultStoreId() {
+    const u = this.globalData.userInfo;
+    if (!u) return '';
+    if (u.role === 'staff') {
+      return this._storeIdToStr(u.store_id);
+    }
+    if (u.role === 'store_manager') {
+      const storeIds = u.store_ids || [];
+      if (storeIds.length === 1) return this._storeIdToStr(storeIds[0]);
+    }
+    return '';
+  },
+
+  // 获取店务管理统一门店ID（子页面统一读取此字段过滤数据）
+  // 空字符串表示"全部门店"
+  getShopStoreId() {
+    return this.globalData.shopStoreId || '';
+  },
+
+  // 获取店务管理统一门店名称（用于子页面只读展示）
+  getShopStoreName() {
+    const shopStoreId = this.getShopStoreId();
+    if (!shopStoreId) return '全部门店';
+    const storeList = this.globalData.storeList || [];
+    const matched = storeList.find(s => String(s._id) === String(shopStoreId));
+    return matched ? matched.name : '全部门店';
   },
 
   // 获取稳定的设备标识（首次启动时生成UUID并永久存储，同一微信账号下始终一致）

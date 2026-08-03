@@ -30,6 +30,14 @@
   color: var(--text-tertiary);
 }
 
+.page-store {
+  display: block;
+  margin-top: 8rpx;
+  font-size: 24rpx;
+  color: var(--color-primary);
+  font-weight: 500;
+}
+
 .add-btn {
   display: flex;
   align-items: center;
@@ -152,6 +160,39 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* 多门店展示标记 */
+.meta-value.meta-multi-store {
+  color: #722ED1;
+  font-weight: 600;
+}
+
+/* 禁用操作按钮 */
+.action-btn.action-btn-disabled {
+  opacity: 0.4;
+  pointer-events: none;
+}
+
+/* 门店选择 picker 显示样式 */
+.picker-display {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 80rpx;
+  padding: 0 24rpx;
+}
+
+.picker-arrow {
+  font-size: 24rpx;
+  color: var(--text-tertiary);
+}
+
+.form-tip {
+  display: block;
+  font-size: 22rpx;
+  color: var(--text-tertiary);
+  margin-top: 8rpx;
 }
 
 .banner-actions {

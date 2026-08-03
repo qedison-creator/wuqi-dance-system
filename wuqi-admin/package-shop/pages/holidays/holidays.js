@@ -36,18 +36,32 @@ Page({
   onShow() {
     if (!app.checkAuth()) return;
     const userInfo = app.globalData.userInfo;
+    const role = userInfo && userInfo.role;
+    // 超管和店长均可管理放假
+    const canManage = role === 'super_admin' || role === 'store_manager';
+    // 使用标准单门店角色判断
+    const isSingleStore = app.isSingleStoreRole();
+    const defaultStoreId = app.getDefaultStoreId();
+    const storeList = app.globalData.storeList || [];
     this.setData({
-      isAdmin: userInfo && (userInfo.role === 'super_admin'),
-      storeList: app.globalData.storeList || []
+      isAdmin: canManage,
+      isSuperAdmin: role === 'super_admin',
+      isSingleStore: isSingleStore,
+      singleStoreId: isSingleStore ? defaultStoreId : '',
+      singleStoreName: isSingleStore ? (storeList.find(s => String(s._id) === String(defaultStoreId)) || {}).name || '' : '',
+      storeList: storeList
     });
     this.loadHolidays();
   },
 
   async loadHolidays() {
     try {
+      // 从全局统一门店选择读取，过滤放假列表
+      const shopStoreId = app.globalData.shopStoreId || '';
       const res = await request({
         url: '/holidays',
-        method: 'GET'
+        method: 'GET',
+        data: shopStoreId ? { store_id: shopStoreId } : {}
       });
       let list = res.data && res.data.list ? res.data.list : (res.data || []);
       
@@ -93,9 +107,22 @@ Page({
 
   onAdd() {
     if (!this.data.isAdmin) {
-      wx.showToast({ title: '仅超级管理员可操作', icon: 'none' });
+      wx.showToast({ title: '无操作权限', icon: 'none' });
       return;
     }
+    // 单门店角色或全局已选门店：强制指定门店模式，预填所属门店
+    const isSingle = this.data.isSingleStore;
+    const shopStoreId = app.globalData.shopStoreId || '';
+    const useStoreId = isSingle ? this.data.singleStoreId : shopStoreId;
+    const useStoreName = isSingle ? this.data.singleStoreName : (app.getShopStoreName() !== '全部门店' ? app.getShopStoreName() : '');
+
+    // 查找门店在 storeList 中的索引
+    let storePickerIndex = 0;
+    if (useStoreId && this.data.storeList.length > 0) {
+      const idx = this.data.storeList.findIndex(s => String(s._id) === String(useStoreId));
+      if (idx >= 0) storePickerIndex = idx;
+    }
+
     this.setData({
       showAddModal: true,
       formData: {
@@ -103,12 +130,12 @@ Page({
         title: '',
         startDate: '',
         endDate: '',
-        storeScope: 'all',
-        selectedStoreId: '',
+        storeScope: useStoreId ? 'single' : 'all',
+        selectedStoreId: useStoreId,
         reason: ''
       },
-      storePickerIndex: 0,
-      selectedStoreName: ''
+      storePickerIndex,
+      selectedStoreName: useStoreName
     });
   },
 
@@ -204,8 +231,13 @@ Page({
     const { index } = e.currentTarget.dataset;
     const holiday = this.data.holidays[index];
 
-    // 使用后端提供的 store_id_str，如果没有再尝试解析 store_id
+    // 单门店店长不能编辑"全部门店"放假记录
+    if (this.data.isSingleStore && holiday.store_scope === 'all') {
+      wx.showToast({ title: '无权编辑全门店放假记录', icon: 'none' });
+      return;
+    }
 
+    // 使用后端提供的 store_id_str，如果没有再尝试解析 store_id
     let storeId = holiday.store_id_str || '';
     if (!storeId && holiday.store_id) {
       if (typeof holiday.store_id === 'object') {

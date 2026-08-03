@@ -192,16 +192,21 @@ Page({
     const { id, name, storeId } = e.currentTarget.dataset;
     try {
       const res = await request({ url: '/stores' });
-      const storeList = res.data && Array.isArray(res.data.list) ? res.data.list : (Array.isArray(res.data) ? res.data : []);
-      
+      let storeList = res.data && Array.isArray(res.data.list) ? res.data.list : (Array.isArray(res.data) ? res.data : []);
+      // 按当前用户角色过滤可访问门店，单门店管理员只能看到所属门店
+      storeList = app.filterStoresForUser(storeList);
+
       let autoSelectedStoreId = '';
-      if (storeId) {
+      // 单门店角色默认选中所属门店
+      if (app.isSingleStoreRole() && storeList.length === 1) {
+        autoSelectedStoreId = storeList[0]._id;
+      } else if (storeId) {
         const targetStore = storeList.find(s => String(s._id) === String(storeId));
         if (targetStore) {
           autoSelectedStoreId = targetStore._id;
         }
       }
-      
+
       this.setData({
         approveMember: { id, name },
         storeList: storeList,
@@ -240,7 +245,8 @@ Page({
       this.setData({ showStoreModal: false, approveMember: null });
       this.loadPendingMembers();
     } catch (err) {
-      wx.showToast({ title: '操作失败', icon: 'none' });
+      const msg = (err && err.msg) || (err && err.data && err.data.msg) || '操作失败';
+      wx.showToast({ title: msg, icon: 'none' });
     }
   },
 

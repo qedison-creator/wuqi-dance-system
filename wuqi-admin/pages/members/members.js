@@ -46,6 +46,10 @@ Page({
     keyword: '',
     page: 1,
     hasMore: true,
+    visibleCount: 5,
+    currentTotal: 0,
+    showBackToTop: false,
+    backToTopThreshold: 0,
     loading: false,
     storeList: [],
     currentStoreId: '',
@@ -76,7 +80,8 @@ Page({
       remark: ''
     },
     storeListForPicker: [],
-    packageFormStoreIndex: 0
+    packageFormStoreIndex: 0,
+    showStoreSwitcher: true
   },
 
   onShow() {
@@ -88,24 +93,44 @@ Page({
     }
     const userInfo = app.globalData.userInfo || {};
     const isReviewer = userInfo.role === 'reviewer';
-    const currentStore = app.globalData.currentStore;
-    const currentStoreId = currentStore ? currentStore._id : '';
-    const currentStoreName = currentStore ? currentStore.name : '';
-    
+
+    // 门店隔离：单门店角色隐藏门店切换器，固定所属门店
+    const isSingleStore = app.isSingleStoreRole();
+    const defaultStoreId = app.getDefaultStoreId();
+    let currentStoreId;
+    let currentStoreName;
+    if (isSingleStore && defaultStoreId) {
+      currentStoreId = defaultStoreId;
+      const storeList = app.globalData.storeList || [];
+      const found = storeList.find(s => s._id === defaultStoreId);
+      currentStoreName = found ? found.name : '';
+      app.globalData.currentStore = found || null;
+      app.globalData.currentStoreId = defaultStoreId;
+    } else {
+      const currentStore = app.globalData.currentStore;
+      currentStoreId = currentStore ? currentStore._id : '';
+      currentStoreName = currentStore ? currentStore.name : '';
+    }
+
     let activeFilter = this.data.activeFilter;
     const fromReview = app.globalData.fromReviewPage;
     if (fromReview) {
       activeFilter = 'no-package';
       app.globalData.fromReviewPage = false;
     }
-    
+
     this.setData({
       currentStoreId,
       currentStoreName,
+      showStoreSwitcher: !isSingleStore,
       activeFilter,
       members: [],
       page: 1,
       hasMore: true,
+      visibleCount: 5,
+      currentTotal: 0,
+      showBackToTop: false,
+      backToTopThreshold: 0,
       loading: true
     });
 
@@ -113,7 +138,7 @@ Page({
     Promise.all([
       this.loadStoreList(true),
       this.loadInfoChangeCount(),
-      this.loadPendingClaimCount()
+      this.loadPendingClaimCount(currentStoreId)
     ]);
     this._startAutoRefresh();
 
@@ -137,12 +162,23 @@ Page({
             self.loadPendingClaimCount();
             // 刷新待审核计数（轻量级，不重置列表）
             self._refreshPendingCount();
+            // 防抖刷新会员列表，避免短时间内多次推送导致频繁请求
+            self._debouncedRefreshList();
           }
         }
       });
     } catch (e) {
       // WebSocket 不可用时静默降级，_startAutoRefresh 轮询兜底
     }
+  },
+
+  // 防抖刷新会员列表：收到审核推送后保留当前筛选条件重载第一页
+  _debouncedRefreshList() {
+    if (this._listRefreshTimer) clearTimeout(this._listRefreshTimer);
+    this._listRefreshTimer = setTimeout(() => {
+      this.setData({ page: 1, hasMore: true, visibleCount: 5, currentTotal: 0, showBackToTop: false, backToTopThreshold: 0 });
+      this.loadMembers();
+    }, 600);
   },
 
   // 轻量刷新待审核计数，不重置列表和分页
@@ -183,9 +219,11 @@ Page({
         url: '/stores',
         method: 'GET'
       });
-      const list = res.data && res.data.list
+      let list = res.data && res.data.list
         ? res.data.list
         : (Array.isArray(res.data) ? res.data : []);
+      // 门店隔离：按当前用户角色过滤可访问门店
+      list = app.filterStoresForUser(list);
       // 同时更新本地和全局的门店列表
 
       this.setData({ storeList: list });
@@ -232,11 +270,12 @@ Page({
   },
 
   // 加载预建档数量
-  async loadPendingClaimCount() {
+  async loadPendingClaimCount(storeId) {
     try {
       const res = await request({
         url: '/pre-members/stats',
-        method: 'GET'
+        method: 'GET',
+        data: { store_id: storeId !== undefined ? storeId : this.data.currentStoreId }
       });
       const count = res.data && res.data.pending_count ? res.data.pending_count : 0;
       this.setData({ pendingClaimCount: count });
@@ -280,11 +319,15 @@ Page({
       showStorePicker: false,
       members: [],
       page: 1,
-      hasMore: true
+      hasMore: true,
+      visibleCount: 5,
+      currentTotal: 0,
+      showBackToTop: false,
+      backToTopThreshold: 0
     });
     this.loadMembers();
     this.loadInfoChangeCount();
-    this.loadPendingClaimCount();
+    this.loadPendingClaimCount(id);
   },
 
   // ========== 套餐状态筛选 ==========
@@ -304,7 +347,11 @@ Page({
       filterLabel: filterLabelMap[filter] || '全部会员',
       members: [],
       page: 1,
-      hasMore: true
+      hasMore: true,
+      visibleCount: 5,
+      currentTotal: 0,
+      showBackToTop: false,
+      backToTopThreshold: 0
     });
     this.loadMembers();
   },
@@ -325,7 +372,7 @@ Page({
   },
 
   onSearch() {
-    this.setData({ members: [], page: 1, hasMore: true });
+    this.setData({ members: [], page: 1, hasMore: true, visibleCount: 5, currentTotal: 0, showBackToTop: false, backToTopThreshold: 0 });
     this.loadMembers();
   },
 
@@ -344,7 +391,7 @@ Page({
         store_id: this.data.currentStoreId,
         keyword: this.data.keyword,
         page: this.data.page,
-        limit: 20,
+        limit: 5,
         member_status: 'official'
       };
       // 套餐状态筛选
@@ -507,12 +554,19 @@ Page({
       });
 
       const isFirstPage = this.data.page === 1;
+      const mergedList = isFirstPage ? newList : this.data.members.concat(newList);
+      const currentTotal = isFirstPage ? total : this.data.currentTotal;
+      const visibleCount = Math.min(mergedList.length, this.data.page * 5);
       this.setData({
-        members: isFirstPage ? newList : this.data.members.concat(newList),
+        members: mergedList,
         totalMembers: isFirstPage ? total : this.data.totalMembers,
         pendingCount: isFirstPage ? pending : this.data.pendingCount,
-        hasMore: newList.length >= 20,
-        page: this.data.page + 1
+        hasMore: mergedList.length < currentTotal,
+        currentTotal,
+        visibleCount,
+        showBackToTop: false
+      }, () => {
+        if (mergedList.length >= 5) this._calcBackToTopThreshold();
       });
     } catch (err) {
       console.error('加载会员列表失败', err);
@@ -521,8 +575,45 @@ Page({
     }
   },
 
-  onReachBottom() {
-    this.loadMembers();
+  onReachBottom() {},
+
+  // 点击"查看更多"加载下一页
+  onLoadMore() {
+    if (!this.data.hasMore || this.data.loading) return;
+    this.setData({ page: this.data.page + 1 }, () => {
+      this.loadMembers();
+    });
+  },
+
+  // 返回顶部
+  onBackToTop() {
+    this.setData({ showBackToTop: false });
+    wx.pageScrollTo({ scrollTop: 0, duration: 300 });
+  },
+
+  // 滚动监听，控制返回顶部按钮显隐
+  onPageScroll(e) {
+    const threshold = this.data.backToTopThreshold;
+    const shouldShow = threshold > 0 && e.scrollTop > threshold;
+    if (shouldShow !== this.data.showBackToTop) {
+      this.setData({ showBackToTop: shouldShow });
+    }
+  },
+
+  // 计算第5条记录底部位置，作为返回顶部按钮显示阈值
+  _calcBackToTopThreshold() {
+    const query = wx.createSelectorQuery().in(this);
+    query.selectAll('.member-list .member-card').boundingClientRect();
+    query.selectViewport().scrollOffset();
+    query.exec((res) => {
+      const cards = res[0];
+      const scrollOffset = res[1];
+      if (cards && cards[4] && scrollOffset) {
+        this.setData({
+          backToTopThreshold: scrollOffset.scrollTop + cards[4].bottom
+        });
+      }
+    });
   },
 
   onAvatarError(e) {

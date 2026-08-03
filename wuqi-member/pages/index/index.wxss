@@ -978,6 +978,22 @@ page {
   margin-bottom: 24rpx;
 }
 
+.store-empty {
+  padding: 60rpx 0;
+  text-align: center;
+  color: #948284;
+  font-size: 28rpx;
+  margin-bottom: 24rpx;
+}
+
+.store-modal .modal-content {
+  width: 92%;
+  max-width: 680rpx;
+  max-height: 70vh;
+  display: flex;
+  flex-direction: column;
+}
+
 .store-opt {
   display: flex;
   align-items: center;

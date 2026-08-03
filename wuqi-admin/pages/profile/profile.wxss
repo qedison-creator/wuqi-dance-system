@@ -103,9 +103,19 @@
   font-weight: 500;
 }
 
-.profile-store {
-  font-size: 24rpx;
-  color: var(--text-secondary);
+.profile-store-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 4rpx 14rpx;
+  border-radius: 8rpx;
+  background: rgba(197, 116, 75, 0.08);
+  border: 1rpx solid rgba(197, 116, 75, 0.16);
+}
+
+.profile-store-text {
+  font-size: 22rpx;
+  color: var(--color-primary);
+  font-weight: 500;
 }
 
 /* ===== 菜单分组 ===== */

@@ -1,5 +1,6 @@
 const app = getApp();
 const { request } = require('../../../utils/request');
+const { cropImageSafe } = require('../../../utils/util');
 
 // 最大图片上传大小（与后端 multer limits.fileSize 一致）
 
@@ -29,7 +30,6 @@ Page({
   data: {
     activeTab: 'coaches',
     coaches: [],
-    stores: [],
     danceStyles: [],
     // 用于教练弹窗的舞种列表（带selected字段）
     danceStyleList: [],
@@ -43,14 +43,6 @@ Page({
       avatar_url: '',
       sort_order: 0,
       show_on_home: true
-    },
-    // 新增门店弹窗
-    showStoreModal: false,
-    storeForm: {
-      _id: '',
-      name: '',
-      address: '',
-      phone: ''
     },
     // 新增/编辑舞种弹窗
     showDanceStyleModal: false,
@@ -94,8 +86,12 @@ Page({
 
   onShow() {
     if (!app.checkAuth()) return;
+    // 标记当前用户是否为超级管理员（用于教练列表判断是否可操作多门店执教教练）
+    const userInfo = app.globalData.userInfo;
+    this.setData({ isSuperAdmin: userInfo && userInfo.role === 'super_admin' });
+    // 同步全局统一门店选择的门店名称（供页面展示区域使用）
+    this.setData({ currentStoreName: app.getShopStoreName() });
     this.loadCoaches();
-    this.loadStores();
     this.loadDanceStyles();
   },
 
@@ -112,32 +108,34 @@ Page({
       });
       // 后端返回 paginate 格式: { list: [...], total, page, pageSize }
 
-      const list = res.data && Array.isArray(res.data.list) ? res.data.list : (Array.isArray(res.data) ? res.data : []);
+      let list = res.data && Array.isArray(res.data.list) ? res.data.list : (Array.isArray(res.data) ? res.data : []);
+
+      // 前端按全局统一门店选择过滤（后端 GET /coaches/admin 不支持 store_id 查询参数）
+      const shopStoreId = app.globalData.shopStoreId || '';
+      if (shopStoreId) {
+        list = list.filter(coach => {
+          // store_ids 为空或不存在表示多门店执教，所有门店可见
+          if (!coach.store_ids || coach.store_ids.length === 0) return true;
+          // 检查 store_ids 是否包含选中的门店
+          return coach.store_ids.some(sid => String(sid) === String(shopStoreId));
+        });
+      }
+
       // 补全图片路径
 
       const processedList = list.map(coach => ({
         ...coach,
-        avatar_url: this.fixImageUrl(coach.avatar_url)
+        avatar_url: this.fixImageUrl(coach.avatar_url),
+        // 多门店执教教练：store_ids 为空或不存在 = 多门店执教（存量教练默认多门店执教）
+        // store_ids 有值且非空 = 单门店/指定门店执教
+        isMultiStoreCoach: !coach.store_ids || coach.store_ids.length === 0,
+        // 是否可操作：多门店执教教练仅超管可操作（编辑/删除/切换上架）
+        canOperate: !((!coach.store_ids || coach.store_ids.length === 0) && !(app.globalData.userInfo && app.globalData.userInfo.role === 'super_admin'))
       }));
       this.setData({ coaches: processedList });
     } catch (err) {
       console.error('加载教练列表失败', err);
       wx.showToast({ title: '加载教练列表失败', icon: 'none' });
-    }
-  },
-
-  async loadStores() {
-    try {
-      const res = await request({
-        url: '/stores',
-        method: 'GET'
-      });
-      // 后端返回 paginate 格式: { list: [...], total, page, pageSize }
-
-      const list = res.data && Array.isArray(res.data.list) ? res.data.list : (Array.isArray(res.data) ? res.data : []);
-      this.setData({ stores: list });
-    } catch (err) {
-      console.error('加载门店列表失败', err);
     }
   },
 
@@ -202,6 +200,23 @@ Page({
     }, () => {
       this.buildDanceStyleList();
     });
+  },
+
+  // 多门店执教教练对非超管禁用操作的提示
+  onDisabledCoachAction() {
+    wx.showToast({ title: '多门店执教教练仅超级管理员可操作', icon: 'none' });
+  },
+
+  // switch 组件禁用时仍可能触发 change，做兜底拦截
+  onDisabledCoachSwitch(e) {
+    // disabled 状态下 switch 不应变化，但为保险做拦截提示
+    wx.showToast({ title: '多门店执教教练仅超级管理员可操作', icon: 'none' });
+    // 强制恢复原状态（防止 UI 误切换）
+    const { index } = e.currentTarget.dataset;
+    if (index !== undefined) {
+      const coach = this.data.coaches[index];
+      this.setData({ [`coaches[${index}].status`]: coach.status });
+    }
   },
 
   onEditCoach(e) {
@@ -369,18 +384,15 @@ Page({
           wx.showToast({ title: '图片过大，最大支持 10MB', icon: 'none' });
           return;
         }
-        // 裁剪：正方形1:1，用户可缩放/拖动
-
+        // 裁剪：正方形1:1，开发者工具不支持时自动跳过裁剪
         let filePath = file.tempFilePath;
         try {
-          if (wx.cropImage) {
-            const cropRes = await new Promise((resolve, reject) => {
-              wx.cropImage({ src: filePath, cropScale: '1:1', success: resolve, fail: reject });
-            });
-            filePath = cropRes.tempFilePath;
-          }
+          filePath = await cropImageSafe(filePath, '1:1');
         } catch (cropErr) {
+          // 用户取消裁剪：中断流程
           if (cropErr.errMsg && cropErr.errMsg.indexOf('cancel') !== -1) return;
+          // 其他异常：跳过裁剪继续上传（兜底）
+          console.warn('裁剪异常，使用原图', cropErr);
         }
         wx.showLoading({ title: '上传中...' });
         try {
@@ -444,73 +456,6 @@ Page({
         });
       }
     });
-  },
-
-  // ==================== 门店管理 ====================
-  onAddStore() {
-    this.setData({
-      showStoreModal: true,
-      storeForm: {
-        _id: '',
-        name: '',
-        address: '',
-        phone: ''
-      }
-    });
-  },
-
-  onEditStore(e) {
-    const index = e.currentTarget.dataset.index;
-    const store = this.data.stores[index];
-    this.setData({
-      showStoreModal: true,
-      storeForm: {
-        _id: store._id,
-        name: store.name,
-        address: store.address || '',
-        phone: store.phone || ''
-      }
-    });
-  },
-
-  onCloseStoreModal() {
-    this.setData({ showStoreModal: false });
-  },
-
-  onStoreInput(e) {
-    const { field } = e.currentTarget.dataset;
-    this.setData({ [`storeForm.${field}`]: e.detail.value });
-  },
-
-  async onSubmitStore() {
-    const { storeForm } = this.data;
-    if (!storeForm.name) {
-      wx.showToast({ title: '请输入门店名称', icon: 'none' });
-      return;
-    }
-
-    try {
-      if (storeForm._id) {
-        await request({
-          url: `/stores/${storeForm._id}`,
-          method: 'PUT',
-          data: storeForm
-        });
-        wx.showToast({ title: '修改成功', icon: 'success' });
-      } else {
-        await request({
-          url: '/stores',
-          method: 'POST',
-          data: storeForm
-        });
-        wx.showToast({ title: '添加成功', icon: 'success' });
-      }
-      this.setData({ showStoreModal: false });
-      this.loadStores();
-      if (app.getStoreList) app.getStoreList();
-    } catch (err) {
-      console.error('保存门店失败', err);
-    }
   },
 
   // ==================== 舞种管理 ====================

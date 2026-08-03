@@ -119,6 +119,14 @@
   flex-shrink: 0;
 }
 
+.coach-tags-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8rpx;
+  margin-bottom: 6rpx;
+}
+
 .coach-home-tag {
   font-size: 22rpx;
   padding: 4rpx 14rpx;
@@ -185,42 +193,21 @@
   color: var(--color-warning);
 }
 
-.store-list {
-  display: flex;
-  flex-direction: column;
-  margin-top: 20rpx;
+/* 禁用状态按钮：多门店执教教练对非超管不可操作 */
+.action-btn-disabled {
+  opacity: 0.4;
+  pointer-events: none;
 }
 
-.store-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 24rpx;
-  margin-bottom: 20rpx;
-}
-
-.store-info {
-  flex: 1;
-}
-
-.store-name {
-  font-size: 30rpx;
-  color: var(--text-primary);
-  font-weight: bold;
-  display: block;
-  margin-bottom: 10rpx;
-}
-
-.store-address, .store-phone {
-  font-size: 26rpx;
-  color: var(--text-secondary);
-  display: block;
-  margin-bottom: 6rpx;
-}
-
-.store-actions {
-  display: flex;
-  align-items: center;
+/* 多门店执教标签 */
+.coach-multi-store-tag {
+  display: inline-block;
+  padding: 2rpx 12rpx;
+  font-size: 20rpx;
+  color: #fff;
+  background-color: #722ED1;
+  border-radius: 6rpx;
+  line-height: 1.6;
 }
 
 .modal-header {

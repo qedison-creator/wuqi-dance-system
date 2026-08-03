@@ -3,10 +3,14 @@
   <view class="section card">
     <view class="section-title">
       <text class="title-icon"></text>
-      <text class="title-text">全局默认设置</text>
+      <text class="title-text">{{currentStore ? '门店默认设置' : '全局默认设置'}}</text>
     </view>
     <view class="section-desc">
-      <text>新注册会员的默认豁免次数</text>
+      <text wx:if="{{currentStore}}">{{currentStore.name}} 新注册会员的默认豁免次数</text>
+      <text wx:else>所有门店新注册会员的默认豁免次数（未单独设置的门店将继承此值）</text>
+    </view>
+    <view wx:if="{{currentStore && isExemptionInherited}}" class="inherit-tag">
+      <text>当前继承全局设置，修改后将覆盖为门店独立配置</text>
     </view>
     <view class="config-item">
       <view class="config-label-row">
@@ -34,9 +38,10 @@
       <text class="title-text">会员豁免次数</text>
     </view>
     <view class="section-desc">
-      <text>搜索并设置单个会员的豁免次数</text>
+      <text wx:if="{{currentStore}}">仅显示 {{currentStore.name}} 的会员</text>
+      <text wx:else>搜索并设置单个会员的豁免次数</text>
     </view>
-    
+
     <!-- 搜索框 -->
     <view class="search-box">
       <input type="text" placeholder="输入会员姓名或手机号搜索" value="{{searchKeyword}}" bindinput="onSearchInput" confirm-type="search" bindconfirm="searchMembers" />
@@ -73,4 +78,5 @@
       <text>提示：豁免次数用于会员超时取消预约时免除扣次数</text>
     </view>
   </view>
+
 </view>

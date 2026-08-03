@@ -66,7 +66,7 @@ router.put('/:id/activate', auth, checkPermission(['member']), async (req, res, 
 });
 
 // DELETE /api/v1/packages/user/:id - 删除用户套餐(super_admin/store_manager/staff)
-router.delete('/user/:id', auth, checkPermission(['super_admin', 'store_manager', 'staff']), async (req, res, next) => {
+router.delete('/user/:id', auth, checkPermission(['super_admin', 'store_manager', 'staff']), storeFilter(), async (req, res, next) => {
   try {
     const result = await packageService.deleteUserPackage(req.params.id, req.user.id);
     res.json(success(result, '删除套餐成功'));
@@ -112,13 +112,13 @@ router.get('/extension-records', auth, checkPermission(['super_admin', 'store_ma
 });
 
 // PUT /api/v1/packages/:id/extend - 延长套餐有效期
-router.put('/:id/extend', auth, checkPermission(['super_admin', 'store_manager', 'staff']), async (req, res, next) => {
+router.put('/:id/extend', auth, checkPermission(['super_admin', 'store_manager', 'staff']), storeFilter(), async (req, res, next) => {
   try {
-    const { extend_days, reason } = req.body;
+    const { extend_days, reason, extend_value, extend_unit } = req.body;
     if (!extend_days || extend_days <= 0) {
       return res.status(400).json({ code: 400, message: '延长天数必须大于0', data: null });
     }
-    const pkg = await packageService.extendPackage(req.params.id, extend_days, req.user.id, req.user.nick_name || req.user.username, { reason });
+    const pkg = await packageService.extendPackage(req.params.id, extend_days, req.user.id, req.user.nick_name || req.user.username, { reason, extend_value, extend_unit });
     res.json(success(pkg, '延长套餐成功'));
   } catch (err) {
     next(err);
@@ -126,7 +126,7 @@ router.put('/:id/extend', auth, checkPermission(['super_admin', 'store_manager',
 });
 
 // PUT /api/v1/packages/extension-records/:id/revoke - 撤销套餐延长
-router.put('/extension-records/:id/revoke', auth, checkPermission(['super_admin', 'store_manager']), async (req, res, next) => {
+router.put('/extension-records/:id/revoke', auth, checkPermission(['super_admin', 'store_manager']), storeFilter(), async (req, res, next) => {
   try {
     const { reason } = req.body;
     const pkg = await packageService.revokePackageExtension(req.params.id, req.user.id, req.user.nick_name || req.user.username, reason);
@@ -153,7 +153,7 @@ router.get('/member-status/:user_id', auth, checkPermission(['super_admin', 'sto
 });
 
 // PUT /api/v1/packages/refresh-status - 刷新会员套餐状态
-router.put('/refresh-status', auth, checkPermission(['super_admin', 'store_manager', 'staff']), async (req, res, next) => {
+router.put('/refresh-status', auth, checkPermission(['super_admin', 'store_manager', 'staff']), storeFilter(), async (req, res, next) => {
   try {
     const { user_id } = req.body;
     if (!user_id) {
@@ -209,7 +209,7 @@ router.get('/package-extensions', auth, checkPermission(['super_admin', 'store_m
 // ========== 参数化路由（必须放在最后，避免拦截具体命名路由） ==========
 
 // GET /api/v1/packages/:id - 获取套餐模板详情(admin/staff)
-router.get('/:id', auth, checkPermission(['admin', 'staff', 'super_admin', 'store_manager']), async (req, res, next) => {
+router.get('/:id', auth, checkPermission(['admin', 'staff', 'super_admin', 'store_manager']), storeFilter(), async (req, res, next) => {
   try {
     const pkg = await packageService.getPackageById(req.params.id);
     res.json(success(pkg));
@@ -219,7 +219,7 @@ router.get('/:id', auth, checkPermission(['admin', 'staff', 'super_admin', 'stor
 });
 
 // PUT /api/v1/packages/:id - 编辑套餐(admin/staff)
-router.put('/:id', auth, checkPermission(['super_admin', 'store_manager', 'staff']), async (req, res, next) => {
+router.put('/:id', auth, checkPermission(['super_admin', 'store_manager', 'staff']), storeFilter(), async (req, res, next) => {
   try {
     const pkg = await packageService.updatePackage(req.params.id, req.body);
     res.json(success(pkg, '更新套餐成功'));

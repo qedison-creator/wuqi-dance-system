@@ -55,6 +55,7 @@ Page({
   data: {
     stores: [],
     currentStoreId: '',
+    showStoreSwitcher: true,
     todayDate: '',
     todayDateText: '',
     todaySchedules: [],
@@ -82,6 +83,9 @@ Page({
       this.getTabBar().setData({ selected: 1 });
     }
     this.initDates();
+
+    // 门店隔离：单门店角色隐藏门店切换器
+    this.setData({ showStoreSwitcher: !app.isSingleStoreRole() });
 
     // 接收首页跳转携带的门店信息
     app.globalData = app.globalData || {};
@@ -191,24 +195,44 @@ Page({
   async loadStores() {
     try {
       const res = await request({ url: '/stores', method: 'GET' });
-      const list = res.data && Array.isArray(res.data.list) ? res.data.list : (Array.isArray(res.data) ? res.data : []);
+      let list = res.data && Array.isArray(res.data.list) ? res.data.list : (Array.isArray(res.data) ? res.data : []);
+
+      // 门店隔离：按当前用户角色过滤可访问门店
+      const app = getApp();
+      list = app.filterStoresForUser(list);
 
       // 优先使用首页跳转携带的门店ID
       const pendingStoreId = this._pendingStoreId;
       this._pendingStoreId = null;
 
+      // 单门店角色：强制使用所属门店，忽略外部传入
+      const defaultStoreId = app.getDefaultStoreId();
+
       const originalStoreId = this.data.currentStoreId;
       let storeId;
-      if (pendingStoreId !== null && pendingStoreId !== undefined) {
+      if (defaultStoreId) {
+        // 单门店角色固定所属门店
+        storeId = defaultStoreId;
+        app.globalData.shopStoreId = storeId;
+      } else if (pendingStoreId !== null && pendingStoreId !== undefined) {
         // 首页跳转携带的门店ID（空字符串表示全部门店，但 operations 必须有具体门店，取第一个）
         storeId = pendingStoreId && list.find(s => s._id === pendingStoreId)
           ? pendingStoreId
           : (list.length > 0 ? list[0]._id : '');
       } else {
-        // 正常逻辑：保持原门店或选第一个
-        storeId = originalStoreId;
-        if (!storeId || !list.find(s => s._id === storeId)) {
-          storeId = list.length > 0 ? list[0]._id : '';
+        // 优先从全局统一门店选择恢复（与首页/店务管理共享选中状态）
+        const shopStoreId = app.globalData.shopStoreId || '';
+        if (shopStoreId && list.find(s => String(s._id) === String(shopStoreId))) {
+          storeId = shopStoreId;
+        } else if (!shopStoreId && list.length > 0) {
+          // 全局为"全部门店"时，operations 需要具体门店，取第一个
+          storeId = list[0]._id;
+        } else {
+          // 回退到本页上次选中
+          storeId = originalStoreId;
+          if (!storeId || !list.find(s => s._id === storeId)) {
+            storeId = list.length > 0 ? list[0]._id : '';
+          }
         }
       }
 
@@ -228,6 +252,8 @@ Page({
     const id = e.currentTarget.dataset.id;
     const { currentStoreId, currentDate, todayDate } = this.data;
     if (id === currentStoreId) return;
+    // 同步到全局统一门店选择（与首页/店务管理共享）
+    getApp().globalData.shopStoreId = id;
     this.setData({ currentStoreId: id }, () => {
       this.loadTodaySchedules();
       this.loadMonthSchedules(this.data.currentMonth);

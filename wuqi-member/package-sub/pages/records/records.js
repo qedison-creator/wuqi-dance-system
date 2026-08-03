@@ -58,8 +58,6 @@ Page({
   onLoad(options) {
     if (!auth.requireLogin()) return;
 
-    // 等待 App 初始化完成（getUserInfo 可能尚未返回）
-    const initPromise = app.globalData._initPromise;
     const doLoad = () => {
       if (options.tab) {
         const tab = options.tab;

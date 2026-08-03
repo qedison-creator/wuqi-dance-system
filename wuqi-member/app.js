@@ -171,17 +171,42 @@ App({
     const { request } = require('./utils/request');
     // 冷启动或自愈重试时静默（不弹 toast），由自愈机制处理
     const silent = isColdStart || coldStartRetry > 0;
+    // skipAuthRedirect: 401 时不立即强制登出，由 catch 中的静默重登逻辑处理
     return request({
       url: '/auth/me',
       method: 'GET',
-      silent: silent
+      silent: silent,
+      skipAuthRedirect: true
     }).then(res => {
       this.globalData.userInfo = res.data;
       this.globalData.userInfoLastFetch = Date.now(); // 更新缓存时间
       this._tryMatchStoreForUser();
     }).catch((err) => {
-      // 认证失败（401/403）已在 request.js 中强制登出，不再重试
+      // 认证失败（401/403）：尝试静默重新登录后重试一次
       if (err && (err.code === 401 || err.code === 403)) {
+        // 防止无限循环：仅首次失败时尝试重登
+        if (!this._reLoginAttempted) {
+          this._reLoginAttempted = true;
+          // 保存旧 user_id，用于判断原用户是否被删除
+          const oldUserId = this.globalData.userInfo && this.globalData.userInfo._id;
+          console.log('[App] getUserInfo 认证失败，尝试静默重新登录');
+          this.silentReLogin().then((newUserInfo) => {
+            this._reLoginAttempted = false;
+            // 比较 user_id：不同说明原用户被管理端删除，wx-login 创建了新游客用户
+            // 此时需真正登出，避免被删除会员以新身份继续使用
+            if (oldUserId && newUserInfo && newUserInfo._id && String(oldUserId) !== String(newUserInfo._id)) {
+              console.log('[App] 原用户已被删除，静默重登创建了新用户，执行登出');
+              this.forceLogoutAndRedirect('账号已失效，请重新登录', silent);
+              return;
+            }
+            // user_id 相同（token 过期）或无旧 user_id（首次登录）：正常使用
+            this.getUserInfo(true, 0, false);
+          }).catch(() => {
+            this._reLoginAttempted = false;
+            // 重登失败：真正登出并跳转
+            this.forceLogoutAndRedirect('账号已失效，请重新登录', silent);
+          });
+        }
         return;
       }
       // 网络错误自愈：最多重试 3 次，间隔 2s
@@ -215,10 +240,14 @@ App({
   // retryCount: 冷启动自愈重试次数（内部使用）
   // isColdStart: 标记为冷启动调用，第一次失败静默不弹 toast
   getStoreList(retryCount = 0, isColdStart = false) {
+    // 同一次启动中复用门店列表请求，避免 onLaunch 和首页 onShow 并发双请求
+    if (retryCount === 0 && this._storeListPromise) {
+      return this._storeListPromise;
+    }
     const { request } = require('./utils/request');
     // 冷启动或自愈重试时静默（不弹 toast）
     const silent = isColdStart || retryCount > 0;
-    request({
+    const promise = request({
       url: '/stores',
       method: 'GET',
       silent: silent
@@ -233,13 +262,21 @@ App({
       } else if (!this.globalData.defaultStoreSet) {
         this.determineDefaultStore();
       }
-    }).catch(() => {
+      return list;
+    }).catch((err) => {
       // 网络错误自愈：最多重试 3 次，间隔 2s
       if (retryCount < 3) {
         console.log(`[App] getStoreList 冷启动自愈重试 ${retryCount + 1}/3`);
-        setTimeout(() => this.getStoreList(retryCount + 1, isColdStart), 2000);
+        return new Promise((resolve) => {
+          setTimeout(() => {
+            this.getStoreList(retryCount + 1, isColdStart).then(resolve);
+          }, 2000);
+        });
       }
+      return [];
     });
+    if (retryCount === 0) this._storeListPromise = promise;
+    return promise;
   },
 
   // 统一匹配用户门店
@@ -450,6 +487,66 @@ App({
     this.globalData.currentStore = store;
     this.globalData.defaultStoreSet = true;
     wx.setStorageSync('currentStore', store);
+  },
+
+  // 静默重新登录：token 失效时用 wx.login 重新获取 token，用户无感知
+  // 适用场景：重新编译后 token 过期、后端重启导致 token 失效等
+  // 返回 Promise，resolve 表示重登成功，reject 表示重登失败（需真正登出）
+  silentReLogin() {
+    if (this._silentReLoginPromise) {
+      return this._silentReLoginPromise;
+    }
+    console.log('[App] token 失效，尝试静默重新登录');
+    this._silentReLoginPromise = new Promise((resolve, reject) => {
+      wx.login({
+        success: (loginRes) => {
+          if (!loginRes.code) {
+            console.error('[App] wx.login 未获取到 code');
+            this._silentReLoginPromise = null;
+            reject(new Error('wx.login 失败'));
+            return;
+          }
+          const { request } = require('./utils/request');
+          // wx-login 是登录接口，不需要 token，使用 silent 避免提示
+          // skipAuthRedirect: 避免 wx-login 异常时触发 forceLogoutAndRedirect
+          request({
+            url: '/auth/wx-login',
+            method: 'POST',
+            data: { code: loginRes.code },
+            silent: true,
+            retry: 0,
+            skipAuthRedirect: true
+          }).then(res => {
+            const { token, userInfo } = res.data;
+            if (token) {
+              wx.setStorageSync('token', token);
+              this.globalData.token = token;
+              this.globalData.userInfo = userInfo;
+              this.globalData.userInfoLastFetch = Date.now();
+              // 登录状态令牌自增，通知页面刷新数据
+              this.globalData.loginStateToken = (this.globalData.loginStateToken || 0) + 1;
+              console.log('[App] 静默重新登录成功');
+              this._silentReLoginPromise = null;
+              resolve(userInfo);
+            } else {
+              console.error('[App] 静默重新登录未返回 token');
+              this._silentReLoginPromise = null;
+              reject(new Error('未返回 token'));
+            }
+          }).catch((err) => {
+            console.error('[App] 静默重新登录失败:', err);
+            this._silentReLoginPromise = null;
+            reject(err);
+          });
+        },
+        fail: (err) => {
+          console.error('[App] wx.login 失败:', err);
+          this._silentReLoginPromise = null;
+          reject(err);
+        }
+      });
+    });
+    return this._silentReLoginPromise;
   },
 
   // 认证失效（账号被删除/禁用、token 过期等）时强制登出并回到启动页

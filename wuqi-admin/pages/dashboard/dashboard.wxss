@@ -128,7 +128,15 @@
 }
 
 .hf-store:active {
-  background: rgba(212,120,110,0.08);
+  background: rgba(255,255,255,0.95);
+}
+
+.hf-store.disabled {
+  opacity: 0.92;
+}
+
+.hf-store.disabled:active {
+  background: rgba(255,255,255,0.95);
 }
 
 .hfs-icon {

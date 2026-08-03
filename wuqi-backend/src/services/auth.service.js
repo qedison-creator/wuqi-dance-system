@@ -13,6 +13,9 @@ const generateToken = (user) => {
     role: user.role,
     nick_name: user.nick_name,
     permissions: user.permissions || [],
+    // 门店关联字段（ObjectId 需转为字符串，storeFilter 中间件依赖）
+    store_id: user.store_id ? String(user.store_id) : null,
+    store_ids: (user.store_ids || []).map(s => String(s)),
   };
   return jwt.sign(payload, config.jwtSecret, { expiresIn: config.jwtExpiresIn });
 };
@@ -102,13 +105,24 @@ exports.wxLogin = async (code, storeId, clientType = 'member', profileData = {})
   // ===== 预建档匹配结束 =====
 
   if (!user) {
-    // 读取配置的默认豁免次数（默认2次）
+    // 读取默认豁免次数：优先使用门店级配置，其次全局配置，最后默认2次
     let defaultExemptionCount = 2;
     try {
-      const Config = require('../models/Config');
-      const configDoc = await Config.findOne({ key: 'default_exemption_count' });
-      if (configDoc && configDoc.value) {
-        defaultExemptionCount = parseInt(configDoc.value) || 2;
+      // 先查门店级配置
+      if (storeId) {
+        const Store = require('../models/Store');
+        const store = await Store.findById(storeId).select('default_exemption_count');
+        if (store && store.default_exemption_count !== null && store.default_exemption_count !== undefined) {
+          defaultExemptionCount = store.default_exemption_count;
+        }
+      }
+      // 门店未单独配置时回退全局配置
+      if (defaultExemptionCount === 2) {
+        const Config = require('../models/Config');
+        const configDoc = await Config.findOne({ key: 'default_exemption_count' });
+        if (configDoc && configDoc.value) {
+          defaultExemptionCount = parseInt(configDoc.value) || 2;
+        }
       }
     } catch (configErr) {
       console.error('[微信登录] 读取豁免次数配置失败，使用默认值2:', configErr.message);

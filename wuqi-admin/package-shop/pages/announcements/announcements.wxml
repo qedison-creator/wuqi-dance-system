@@ -7,15 +7,6 @@
     </view>
   </view>
 
-  <view class="controls">
-    <picker class="picker" mode="selector" range="{{storeList}}" range-key="name" value="{{storeIndex}}" bindchange="onStoreChange">
-      <view class="picker-wrap">
-        <text class="picker-label">{{currentStoreFilter}}</text>
-        <view class="picker-arrow"></view>
-      </view>
-    </picker>
-  </view>
-
   <view class="list" wx:if="{{announcements.length > 0}}">
     <view class="list-item {{item.status === 'inactive' ? 'inactive' : ''}}" wx:for="{{announcements}}" wx:key="_id">
       <view class="item-row">
@@ -65,7 +56,7 @@
         <text class="form-label">公告内容</text>
         <textarea class="form-textarea" placeholder="请输入公告内容" value="{{formContent}}" bindinput="onContentInput" maxlength="500"></textarea>
       </view>
-      <view class="form-item">
+      <view class="form-item" wx:if="{{!isSingleStoreRole}}">
         <text class="form-label">适用门店</text>
         <picker mode="selector" range="{{storeOptions}}" range-key="name" value="{{formStoreIndex}}" bindchange="onFormStoreChange">
           <view class="form-picker">

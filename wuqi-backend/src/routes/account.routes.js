@@ -2,9 +2,55 @@ const router = require('express').Router();
 const auth = require('../middleware/auth');
 const checkPermission = require('../middleware/permission');
 const { checkModulePermission } = require('../middleware/permission');
+const storeFilter = require('../middleware/storeFilter');
 const User = require('../models/User');
 const Config = require('../models/Config');
 const { success, paginate } = require('../utils/response');
+const { getAllowedStoreIds } = require('../utils/storeOwnership');
+const websocketService = require('../services/websocket.service');
+
+/**
+ * 判断目标账号是否与当前用户所辖门店有归属交集
+ * - 超管/审核员：直接通过（返回 true）
+ * - 店长/员工：账号 store_ids 与 allowedStoreIds 有交集，或 store_id 在 allowedStoreIds 内
+ */
+function hasAccountStoreOverlap(account, reqUser) {
+  const allowedStoreIds = getAllowedStoreIds(reqUser);
+  if (allowedStoreIds === null) return true; // 超管/审核员
+  if (!allowedStoreIds || allowedStoreIds.length === 0) return false;
+
+  // 优先检查 store_ids 数组
+  const accountStoreIds = (account.store_ids || []).map(s => String(s));
+  if (accountStoreIds.length > 0) {
+    return accountStoreIds.some(id => allowedStoreIds.includes(id));
+  }
+  // 回退检查 store_id 单值
+  if (account.store_id) {
+    return allowedStoreIds.includes(String(account.store_id));
+  }
+  return false;
+}
+
+/**
+ * 校验 store_ids 是否为当前用户所辖门店的子集（用于创建/编辑账号）
+ * @returns {string[]} 校验通过的 store_ids（字符串数组）
+ */
+function validateStoreIdsForUser(storeIds, reqUser) {
+  const allowedStoreIds = getAllowedStoreIds(reqUser);
+  if (allowedStoreIds === null) {
+    // 超管：任意 store_ids（含空数组=审核员）
+    return Array.isArray(storeIds) ? storeIds.map(String) : [];
+  }
+  if (!allowedStoreIds || allowedStoreIds.length === 0) {
+    throw new Error('您的账号未分配门店，无法操作账号');
+  }
+  const requested = Array.isArray(storeIds) ? storeIds.map(String) : [];
+  const isSubset = requested.every(id => allowedStoreIds.includes(id));
+  if (!isSubset) {
+    throw new Error('无权为非所属门店分配账号');
+  }
+  return requested;
+}
 
 const DEFAULT_ROLE_PERMISSIONS = {
   super_admin: {
@@ -29,20 +75,77 @@ const DEFAULT_ROLE_PERMISSIONS = {
   },
 };
 
+// GET /api/v1/accounts/online-status - 获取所有账号的在线状态（仅超管，审核员不可见）
+// 首次加载时由前端调用，后续通过 WebSocket 'account_online_status' 事件推送增量更新
+router.get('/online-status', auth, async (req, res, next) => {
+  try {
+    // 严格限制：仅超级管理员可访问（审核员虽然权限为*，但不应看到其他账号在线状态）
+    if (req.user.role !== 'super_admin') {
+      return res.status(403).json({ code: 403, message: '权限不足', data: null });
+    }
+
+    // 获取所有管理端账号（不含会员）
+    const accounts = await User.find({
+      user_type: { $in: ['admin', 'staff'] }
+    }).select('_id nick_name username role').lean();
+
+    // 从 WebSocket 连接池获取在线用户ID集合
+    const onlineUserIds = new Set(websocketService.getOnlineUserIds());
+
+    const result = accounts.map(acc => ({
+      userId: String(acc._id),
+      isOnline: onlineUserIds.has(String(acc._id)),
+      nick_name: acc.nick_name,
+      username: acc.username,
+      role: acc.role
+    }));
+
+    res.json(success(result));
+  } catch (err) {
+    next(err);
+  }
+});
+
 // GET /api/v1/accounts - 获取子账号列表
-router.get('/', auth, checkModulePermission('account'), async (req, res, next) => {
+router.get('/', auth, checkModulePermission('account'), storeFilter(), async (req, res, next) => {
   try {
     const { status, keyword, page = 1, pageSize = 20 } = req.query;
     const filter = {
       user_type: { $in: ['admin', 'staff'] },
     };
 
+    // 门店隔离：店长/员工只能查看所辖门店的账号（不含超管/审核员）
+    const allowedStoreIds = getAllowedStoreIds(req.user);
+    if (allowedStoreIds !== null) {
+      if (!allowedStoreIds || allowedStoreIds.length === 0) {
+        // 无门店权限：空结果
+        return res.json(success(paginate([], 0, page, pageSize)));
+      }
+      // 排除超管和审核员（店长不可见）
+      filter.role = { $in: ['store_manager', 'staff'] };
+      // store_ids 与 allowedStoreIds 有交集，或 store_id 在 allowedStoreIds 内
+      filter.$and = [
+        {
+          $or: [
+            { store_ids: { $in: allowedStoreIds } },
+            { store_id: { $in: allowedStoreIds } },
+          ],
+        },
+      ];
+    }
+
     if (status) filter.status = status;
     if (keyword) {
-      filter.$or = [
+      // 合并 keyword 的 $or 与门店过滤的 $and
+      const keywordOr = [
         { username: { $regex: keyword, $options: 'i' } },
         { nick_name: { $regex: keyword, $options: 'i' } },
       ];
+      if (filter.$and) {
+        filter.$and.push({ $or: keywordOr });
+      } else {
+        filter.$or = keywordOr;
+      }
     }
 
     const list = await User.find(filter)
@@ -155,7 +258,7 @@ router.put('/roles/:roleId', auth, checkPermission(['super_admin']), async (req,
 });
 
 // POST /api/v1/accounts - 新增子账号
-router.post('/', auth, checkModulePermission('account'), async (req, res, next) => {
+router.post('/', auth, checkModulePermission('account'), storeFilter(), async (req, res, next) => {
   try {
     const { username, password, nick_name, role, store_ids } = req.body;
 
@@ -177,6 +280,18 @@ router.post('/', auth, checkModulePermission('account'), async (req, res, next) 
     const existing = await User.findOne({ username });
     if (existing) throw new Error('账号名已存在');
 
+    // 门店隔离：校验 store_ids 归属（审核员 store_ids 强制为空数组）
+    let finalStoreIds;
+    if (role === 'reviewer') {
+      finalStoreIds = [];
+    } else {
+      finalStoreIds = validateStoreIdsForUser(store_ids, req.user);
+      // 店长/员工创建账号必须有至少一个门店
+      if (currentRole !== 'super_admin' && finalStoreIds.length === 0) {
+        throw new Error('请为账号选择所属门店');
+      }
+    }
+
     let permissions = [];
     if (role !== 'super_admin') {
       let config = await Config.findOne({ key: 'role_permissions' });
@@ -194,7 +309,7 @@ router.post('/', auth, checkModulePermission('account'), async (req, res, next) 
       nick_name: nick_name || username,
       user_type: role === 'store_manager' ? 'admin' : 'staff',
       role,
-      store_ids: role === 'reviewer' ? [] : (store_ids || []),
+      store_ids: finalStoreIds,
       permissions,
       status: 'active',
     });
@@ -209,7 +324,7 @@ router.post('/', auth, checkModulePermission('account'), async (req, res, next) 
 });
 
 // PUT /api/v1/accounts/:id - 编辑子账号
-router.put('/:id', auth, checkModulePermission('account'), async (req, res, next) => {
+router.put('/:id', auth, checkModulePermission('account'), storeFilter(), async (req, res, next) => {
   try {
     const account = await User.findById(req.params.id);
     if (!account) throw new Error('账号不存在');
@@ -257,7 +372,7 @@ router.put('/:id', auth, checkModulePermission('account'), async (req, res, next
 });
 
 // PUT /api/v1/accounts/:id/status - 启用/禁用账号
-router.put('/:id/status', auth, checkModulePermission('account'), async (req, res, next) => {
+router.put('/:id/status', auth, checkModulePermission('account'), storeFilter(), async (req, res, next) => {
   try {
     const { status } = req.body;
     if (!status || !['active', 'disabled'].includes(status)) {
@@ -290,7 +405,7 @@ router.put('/:id/status', auth, checkModulePermission('account'), async (req, re
 });
 
 // PUT /api/v1/accounts/:id/reset-password - 重置密码
-router.put('/:id/reset-password', auth, checkModulePermission('account'), async (req, res, next) => {
+router.put('/:id/reset-password', auth, checkModulePermission('account'), storeFilter(), async (req, res, next) => {
   try {
     const { new_password } = req.body;
     if (!new_password || new_password.length < 6) {
@@ -321,7 +436,7 @@ router.put('/:id/reset-password', auth, checkModulePermission('account'), async 
 });
 
 // DELETE /api/v1/accounts/:id - 删除账号
-router.delete('/:id', auth, checkModulePermission('account'), async (req, res, next) => {
+router.delete('/:id', auth, checkModulePermission('account'), storeFilter(), async (req, res, next) => {
   try {
     const account = await User.findById(req.params.id);
     if (!account) throw new Error('账号不存在');

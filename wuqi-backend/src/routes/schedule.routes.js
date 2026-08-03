@@ -3,9 +3,16 @@ const auth = require('../middleware/auth');
 const { optionalAuth } = require('../middleware/auth');
 const checkPermission = require('../middleware/permission');
 const storeFilter = require('../middleware/storeFilter');
+const checkRecordOwnership = require('../middleware/checkRecordOwnership');
+const Schedule = require('../models/Schedule');
 const scheduleService = require('../services/schedule.service');
 const { broadcastCourseUpdate } = require('../services/websocket.service');
 const { success, paginate } = require('../utils/response');
+
+// 排课归属校验中间件实例
+const checkScheduleOwnership = checkRecordOwnership(Schedule, {
+  recordName: '排课',
+});
 
 // GET /api/v1/schedules - 获取排课列表(会员可匿名浏览)
 router.get('/', storeFilter(), async (req, res, next) => {
@@ -30,7 +37,7 @@ router.get('/weekly/:storeId', auth, async (req, res, next) => {
 });
 
 // POST /api/v1/schedules/copy-week - 复制周排课
-router.post('/copy-week', auth, checkPermission(['super_admin', 'store_manager', 'staff']), async (req, res, next) => {
+router.post('/copy-week', auth, checkPermission(['super_admin', 'store_manager', 'staff']), storeFilter(), async (req, res, next) => {
   try {
     const result = await scheduleService.copyScheduleWeeks(req.body, req.user.id);
     // 复制排课成功后广播课程更新
@@ -44,7 +51,7 @@ router.post('/copy-week', auth, checkPermission(['super_admin', 'store_manager',
 });
 
 // POST /api/v1/schedules/batch-delete - 批量删除排课
-router.post('/batch-delete', auth, checkPermission(['super_admin', 'store_manager']), async (req, res, next) => {
+router.post('/batch-delete', auth, checkPermission(['super_admin', 'store_manager']), storeFilter(), async (req, res, next) => {
   try {
     const result = await scheduleService.batchDeleteSchedules(req.body, req.user.id);
     res.json(success(result, `批量删除完成，共删除${result.deleted_count}节课`));
@@ -54,7 +61,7 @@ router.post('/batch-delete', auth, checkPermission(['super_admin', 'store_manage
 });
 
 // POST /api/v1/schedules/batch-cancel - 批量取消排课
-router.post('/batch-cancel', auth, checkPermission(['super_admin', 'store_manager']), async (req, res, next) => {
+router.post('/batch-cancel', auth, checkPermission(['super_admin', 'store_manager']), storeFilter(), async (req, res, next) => {
   try {
     const result = await scheduleService.batchCancelSchedules(req.body, req.user.id);
     res.json(success(result, `批量取消完成，共取消${result.cancelled_count}节课`));
@@ -86,7 +93,7 @@ router.post('/', auth, checkPermission(['super_admin', 'store_manager', 'staff']
 });
 
 // POST /api/v1/schedules/batch-create - 批量创建排课
-router.post('/batch-create', auth, checkPermission(['super_admin', 'store_manager']), async (req, res) => {
+router.post('/batch-create', auth, checkPermission(['super_admin', 'store_manager']), storeFilter(), async (req, res) => {
   try {
     const { schedules } = req.body;
     if (!schedules || !Array.isArray(schedules) || schedules.length === 0) {
@@ -115,7 +122,7 @@ router.post('/batch-create', auth, checkPermission(['super_admin', 'store_manage
 });
 
 // PUT /api/v1/schedules/:id - 编辑排课
-router.put('/:id', auth, checkPermission(['super_admin', 'store_manager', 'staff']), async (req, res, next) => {
+router.put('/:id', auth, checkPermission(['super_admin', 'store_manager', 'staff']), storeFilter(), checkScheduleOwnership, async (req, res, next) => {
   try {
     const schedule = await scheduleService.updateSchedule(req.params.id, req.body, req.user.id);
     res.json(success(schedule, '编辑排课成功'));
@@ -125,7 +132,7 @@ router.put('/:id', auth, checkPermission(['super_admin', 'store_manager', 'staff
 });
 
 // PUT /api/v1/schedules/:id/cancel - 取消排课
-router.put('/:id/cancel', auth, checkPermission(['super_admin', 'store_manager', 'staff']), async (req, res, next) => {
+router.put('/:id/cancel', auth, checkPermission(['super_admin', 'store_manager', 'staff']), storeFilter(), checkScheduleOwnership, async (req, res, next) => {
   try {
     const { reason } = req.body;
     const schedule = await scheduleService.cancelSchedule(req.params.id, req.user.id, reason);
@@ -136,7 +143,7 @@ router.put('/:id/cancel', auth, checkPermission(['super_admin', 'store_manager',
 });
 
 // PUT /api/v1/schedules/:id/offline - 下架排课
-router.put('/:id/offline', auth, checkPermission(['super_admin', 'store_manager']), async (req, res, next) => {
+router.put('/:id/offline', auth, checkPermission(['super_admin', 'store_manager']), storeFilter(), checkScheduleOwnership, async (req, res, next) => {
   try {
     const { reason } = req.body;
     const schedule = await scheduleService.offlineSchedule(req.params.id, reason, req.user.id);
@@ -147,7 +154,7 @@ router.put('/:id/offline', auth, checkPermission(['super_admin', 'store_manager'
 });
 
 // PUT /api/v1/schedules/:id/online - 上线排课（恢复已下线的排课）
-router.put('/:id/online', auth, checkPermission(['super_admin', 'store_manager']), async (req, res, next) => {
+router.put('/:id/online', auth, checkPermission(['super_admin', 'store_manager']), storeFilter(), checkScheduleOwnership, async (req, res, next) => {
   try {
     const schedule = await scheduleService.onlineSchedule(req.params.id, req.user.id);
     res.json(success(schedule, '上线排课成功'));
@@ -157,7 +164,7 @@ router.put('/:id/online', auth, checkPermission(['super_admin', 'store_manager']
 });
 
 // DELETE /api/v1/schedules/:id - 删除排课
-router.delete('/:id', auth, checkPermission(['super_admin', 'store_manager']), async (req, res, next) => {
+router.delete('/:id', auth, checkPermission(['super_admin', 'store_manager']), storeFilter(), checkScheduleOwnership, async (req, res, next) => {
   try {
     const result = await scheduleService.deleteSchedule(req.params.id, req.user.id);
     res.json(success(result, '删除排课成功'));
@@ -167,7 +174,7 @@ router.delete('/:id', auth, checkPermission(['super_admin', 'store_manager']), a
 });
 
 // GET /api/v1/schedules/:id/bookings - 获取预约名单
-router.get('/:id/bookings', auth, checkPermission(['super_admin', 'store_manager', 'staff']), async (req, res, next) => {
+router.get('/:id/bookings', auth, checkPermission(['super_admin', 'store_manager', 'staff']), storeFilter(), checkScheduleOwnership, async (req, res, next) => {
   try {
     const bookings = await scheduleService.getScheduleBookings(req.params.id);
     res.json(success(bookings));
@@ -177,7 +184,7 @@ router.get('/:id/bookings', auth, checkPermission(['super_admin', 'store_manager
 });
 
 // PUT /api/v1/schedules/:id/check-in - 标记上课
-router.put('/:id/check-in', auth, checkPermission(['super_admin', 'store_manager', 'staff']), async (req, res, next) => {
+router.put('/:id/check-in', auth, checkPermission(['super_admin', 'store_manager', 'staff']), storeFilter(), checkScheduleOwnership, async (req, res, next) => {
   try {
     const { user_ids } = req.body;
     if (!user_ids || !Array.isArray(user_ids) || user_ids.length === 0) {

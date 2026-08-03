@@ -1,3 +1,4 @@
+const mongoose = require('mongoose');
 const Package = require('../models/Package');
 const UserPackage = require('../models/UserPackage');
 const PackageActivation = require('../models/PackageActivation');
@@ -86,6 +87,37 @@ exports.getMyPackage = async (userId) => {
     timeCardUsage = await calcTimeCardUsage(activePackage);
   }
 
+  // 为所有 active 且未停卡的套餐构建统计信息（支持次卡+时间卡同时展示）
+  const activePackages = packages.filter(p => p.status === 'active' && !p.is_suspended);
+  const activeStats = await Promise.all(activePackages.map(async (pkg) => {
+    const stat = {
+      _id: pkg._id,
+      package_type: pkg.package_type,
+      package_name: pkg.remark || (pkg.package_type === 'count_card' ? '次卡' : '时间卡'),
+    };
+    if (pkg.package_type === 'count_card') {
+      stat.remaining = pkg.remaining_credits || 0;
+      stat.label = '次卡剩余';
+      stat.isUnlimited = false;
+    } else if (pkg.package_type === 'time_card') {
+      const usage = await calcTimeCardUsage(pkg);
+      if (pkg.daily_limit) {
+        stat.remaining = usage.daily_remaining !== null ? usage.daily_remaining : pkg.daily_limit;
+        stat.label = '今日剩余';
+        stat.isUnlimited = false;
+      } else if (pkg.weekly_limit) {
+        stat.remaining = usage.weekly_remaining !== null ? usage.weekly_remaining : pkg.weekly_limit;
+        stat.label = '本周剩余';
+        stat.isUnlimited = false;
+      } else {
+        stat.remaining = -1;
+        stat.label = '不限次数';
+        stat.isUnlimited = true;
+      }
+    }
+    return stat;
+  }));
+
   return {
     current: activePackage || null,
     pending: pendingPackages,
@@ -93,6 +125,7 @@ exports.getMyPackage = async (userId) => {
     hasSuspended: suspendedPackages.length > 0,
     history: packages,
     timeCardUsage,
+    activeStats,
   };
 };
 
@@ -149,6 +182,61 @@ async function calcTimeCardUsage(userPackage) {
 }
 
 // 录入套餐(为用户分配套餐) — 不自动过期旧套餐，新套餐状态为pending
+// 辅助函数：为激活记录/延长记录构建会员和套餐快照
+// 优先使用 UserPackage 自身的 member_snapshot/package_snapshot（录入时保存），
+// 缺失时实时查询 User 和 Package 填充
+exports._buildActivationSnapshot = async (userPackage) => {
+  let memberSnapshot = {};
+  let packageSnapshot = {};
+
+  // 会员快照：优先用 UserPackage 已有快照
+  if (userPackage.member_snapshot && (userPackage.member_snapshot.real_name || userPackage.member_snapshot.nick_name)) {
+    memberSnapshot = {
+      real_name: userPackage.member_snapshot.real_name || '',
+      nick_name: userPackage.member_snapshot.nick_name || '',
+      phone: userPackage.member_snapshot.phone || '',
+      wechat_phone: userPackage.member_snapshot.wechat_phone || '',
+      member_code: userPackage.member_snapshot.member_code || '',
+    };
+  } else {
+    // 快照缺失时实时查询
+    try {
+      const memberDoc = await User.findById(userPackage.user_id).select('real_name nick_name phone wechat_phone member_code').lean();
+      if (memberDoc) {
+        memberSnapshot = {
+          real_name: memberDoc.real_name || '',
+          nick_name: memberDoc.nick_name || '',
+          phone: memberDoc.phone || '',
+          wechat_phone: memberDoc.wechat_phone || '',
+          member_code: memberDoc.member_code || '',
+        };
+      }
+    } catch (e) { /* 静默忽略 */ }
+  }
+
+  // 套餐快照：优先用 UserPackage 已有快照，再查 Package
+  let packageName = '';
+  if (userPackage.package_snapshot && userPackage.package_snapshot.name) {
+    packageName = userPackage.package_snapshot.name;
+  } else if (userPackage.package_id) {
+    try {
+      const packageDoc = await Package.findById(userPackage.package_id).select('name').lean();
+      if (packageDoc) packageName = packageDoc.name || '';
+    } catch (e) { /* 静默忽略 */ }
+  }
+  packageSnapshot = {
+    name: packageName,
+    package_type: userPackage.package_type || '',
+    total_credits: userPackage.total_credits || 0,
+    duration_value: userPackage.duration_value || 0,
+    duration_unit: userPackage.duration_unit || '',
+    start_date: userPackage.start_date || null,
+    end_date: userPackage.end_date || null,
+  };
+
+  return { member_snapshot: memberSnapshot, package_snapshot: packageSnapshot };
+};
+
 exports.createPackage = async (data, operatorId) => {
   const { user_id, package_id, store_id, extra_store_ids, package_type, total_credits, duration_value, duration_unit, daily_limit, weekly_limit, remark } = data;
 
@@ -159,6 +247,20 @@ exports.createPackage = async (data, operatorId) => {
 
   const autoActivateAt = new Date();
   autoActivateAt.setMonth(autoActivateAt.getMonth() + 2);
+
+  // 保存会员和套餐快照，即使后续被删除记录信息也不丢失
+  const [memberDoc, packageDoc] = await Promise.all([
+    User.findById(user_id).select('real_name nick_name phone wechat_phone member_code').lean(),
+    package_id ? Package.findById(package_id).select('name').lean() : null,
+  ]);
+  const memberSnapshot = memberDoc ? {
+    real_name: memberDoc.real_name || '',
+    nick_name: memberDoc.nick_name || '',
+    phone: memberDoc.phone || '',
+    wechat_phone: memberDoc.wechat_phone || '',
+    member_code: memberDoc.member_code || '',
+  } : {};
+  const packageSnapshot = packageDoc ? { name: packageDoc.name || '' } : {};
 
   const userPackage = await UserPackage.create({
     user_id,
@@ -178,6 +280,8 @@ exports.createPackage = async (data, operatorId) => {
     status: 'pending',
     remark: remark || '',
     created_by: operatorId,
+    member_snapshot: memberSnapshot,
+    package_snapshot: packageSnapshot,
   });
 
   // 记录操作日志
@@ -226,6 +330,9 @@ exports.activatePackageById = async (packageId, userId, options = {}) => {
     await pkg.save();
     console.log('[Package] 套餐保存成功');
 
+    // 构建激活记录快照（优先使用 UserPackage 已有快照，缺失时实时查询）
+    const activationSnapshot = await exports._buildActivationSnapshot(pkg);
+
     try {
       await PackageActivation.create({
         user_package_id: pkg._id,
@@ -237,6 +344,8 @@ exports.activatePackageById = async (packageId, userId, options = {}) => {
         activated_by: options.activated_by || userId,
         activated_at: now,
         remark: options.remark || '',
+        member_snapshot: activationSnapshot.member_snapshot,
+        package_snapshot: activationSnapshot.package_snapshot,
       });
     } catch (actErr) {
       console.error('[Package] 记录激活日志失败:', actErr.message);
@@ -323,6 +432,9 @@ exports.checkAutoActivation = async () => {
 
     await pkg.save();
 
+    // 构建激活记录快照
+    const autoActivationSnapshot = await exports._buildActivationSnapshot(pkg);
+
     try {
       await PackageActivation.create({
         user_package_id: pkg._id,
@@ -333,6 +445,8 @@ exports.checkAutoActivation = async () => {
         activated_by: null,
         activated_at: now,
         remark: '自动激活(超时未使用)',
+        member_snapshot: autoActivationSnapshot.member_snapshot,
+        package_snapshot: autoActivationSnapshot.package_snapshot,
       });
     } catch (actErr) {
       console.error('[Package] 记录自动激活日志失败:', actErr.message);
@@ -521,12 +635,19 @@ exports.getActivationRecords = async (query) => {
     await exports.backfillActivationRecords();
   }
 
+  // 回填历史记录中缺失的快照数据（幂等，已修复的记录快速跳过）
+  try {
+    await exports.repairActivationSnapshots();
+  } catch (e) {
+    // 忽略修复失败，不影响查询
+  }
+
   const filter = {};
   if (store_id) filter.store_id = store_id;
 
   const list = await PackageActivation.find(filter)
     .populate('user_id', 'nick_name real_name phone')
-    .populate('user_package_id', 'package_type total_credits duration_value duration_unit start_date end_date')
+    .populate('user_package_id', 'member_snapshot package_snapshot package_type total_credits duration_value duration_unit start_date end_date created_by remark')
     .populate('package_id', 'name')
     .populate('activated_by', 'nick_name username')
     .populate('store_id', 'name')
@@ -537,25 +658,75 @@ exports.getActivationRecords = async (query) => {
   const total = await PackageActivation.countDocuments(filter);
 
   const records = list.map(r => {
-    const user = r.user_id || {};
-    const pkg = r.user_package_id || {};
+    const user = r.user_id;
+    const pkg = r.user_package_id;
     const operator = r.activated_by || {};
-    const typeMap = { first_booking: 'booking', manual_force: 'manual' };
+    const typeMap = { first_booking: 'booking', manual_force: 'manual', default: 'default' };
+    // 预建档/批量导入的会员套餐由管理员创建（created_by 存在），
+    // backfill 时被误标为 first_booking + "系统补录"，
+    // 此处修正为"默认激活" + "管理员录入"
+    let displayType = typeMap[r.activation_type] || r.activation_type;
+    let displayRemark = r.remark || '';
+    if (r.remark === '系统补录' && pkg && pkg.created_by) {
+      displayType = 'default';
+      displayRemark = '管理员录入';
+    }
+    // 会员自主激活（first_booking 且 activated_by 是会员自己）：不显示操作人
+    // 会员自主激活无需多此一举标注操作人，谁都知道是用户自主激活的
+    const isSelfActivated = r.activation_type === 'first_booking'
+      && r.activated_by && user && String(r.activated_by._id) === String(user._id);
+    const operatorName = isSelfActivated ? '' : (operator.nick_name || operator.username || '');
+    // 会员信息：user_id populate > UserPackage.member_snapshot > PackageActivation.member_snapshot > UserPackage.remark提取
+    const snapshot = r.member_snapshot || {};
+    const pkgSnapshot = r.package_snapshot || {};
+    const upMemberSnapshot = (pkg && pkg.member_snapshot) ? pkg.member_snapshot : {};
+    const upPkgSnapshot = (pkg && pkg.package_snapshot) ? pkg.package_snapshot : {};
+    let userRealName = (user && (user.real_name || user.nick_name))
+      ? (user.real_name || user.nick_name)
+      : (upMemberSnapshot.real_name || upMemberSnapshot.nick_name || snapshot.real_name || snapshot.nick_name || '');
+    // 兜底：从 UserPackage.remark 提取（格式："张三 的套餐（会员已删除）"）
+    if (!userRealName && pkg && pkg.remark) {
+      const nameMatch = pkg.remark.match(/^(.+?)\s*的套餐/);
+      if (nameMatch && nameMatch[1] && nameMatch[1] !== '已删除会员') {
+        userRealName = nameMatch[1].trim();
+      }
+    }
+    if (!userRealName) userRealName = '未知会员';
+    const userDeleted = !user;
+    // 套餐信息：populate 失败时回退到快照
+    let packageName = '';
+    let effectiveDate = null;
+    let expireDate = null;
+    if (pkg) {
+      // UserPackage 存在时，优先使用 package_id populate 的名称，再回退到快照
+      packageName = (r.package_id && r.package_id.name) ? r.package_id.name : (upPkgSnapshot.name || pkgSnapshot.name || '');
+      if (!packageName) {
+        packageName = pkg.package_type === 'count_card' ? `${pkg.total_credits}次卡` : `${pkg.duration_value || ''}${pkg.duration_unit === 'month' ? '个月' : '天'}时间卡`;
+      }
+      effectiveDate = pkg.start_date || r.activated_at;
+      expireDate = pkg.end_date || null;
+    } else {
+      // UserPackage 也不存在，使用快照
+      packageName = pkgSnapshot.name || (pkgSnapshot.package_type === 'count_card' ? `${pkgSnapshot.total_credits}次卡` : `${pkgSnapshot.duration_value || ''}${pkgSnapshot.duration_unit === 'month' ? '个月' : '天'}时间卡`);
+      effectiveDate = pkgSnapshot.start_date || r.activated_at;
+      expireDate = pkgSnapshot.end_date || null;
+    }
     return {
       _id: r._id,
-      user_name: user.nick_name || user.real_name || '未知会员',
-      user_real_name: user.real_name || '',
-      user_nick_name: user.nick_name || '',
-      user_phone: user.phone || '',
-      package_name: r.package_id ? (r.package_id.name || '') : (pkg.package_type === 'count_card' ? `${pkg.total_credits}次卡` : `${pkg.duration_value || ''}${pkg.duration_unit === 'month' ? '个月' : '天'}时间卡`),
-      type: typeMap[r.activation_type] || r.activation_type,
+      user_name: userRealName,
+      user_real_name: (user && user.real_name) ? user.real_name : (upMemberSnapshot.real_name || snapshot.real_name || ''),
+      user_nick_name: (user && user.nick_name) ? user.nick_name : (upMemberSnapshot.nick_name || snapshot.nick_name || ''),
+      user_phone: (user && user.phone) ? user.phone : (upMemberSnapshot.phone || snapshot.phone || ''),
+      user_deleted: userDeleted,
+      package_name: packageName,
+      type: displayType,
       activation_type: r.activation_type,
-      effective_date: pkg.start_date || r.activated_at,
-      expire_date: pkg.end_date || null,
+      effective_date: effectiveDate,
+      expire_date: expireDate,
       created_at: r.created_at,
       activated_at: r.activated_at,
-      operator_name: operator.nick_name || operator.username || '',
-      remark: r.remark || '',
+      operator_name: operatorName,
+      remark: displayRemark,
     };
   });
 
@@ -568,9 +739,16 @@ exports.getExtensionRecords = async (query) => {
   if (store_id) filter.store_id = store_id;
   filter.operation_type = 'extend';
 
+  // 回填历史记录中缺失的快照数据（幂等，已修复的记录快速跳过）
+  try {
+    await exports.repairExtensionSnapshots();
+  } catch (e) {
+    // 忽略修复失败，不影响查询
+  }
+
   const list = await PackageExtension.find(filter)
     .populate('user_id', 'nick_name real_name phone')
-    .populate('user_package_id', 'package_type total_credits duration_value duration_unit end_date')
+    .populate('user_package_id', 'member_snapshot package_snapshot package_type total_credits duration_value duration_unit end_date remark')
     .populate('package_id', 'name')
     .populate('operated_by', 'nick_name username')
     .populate('store_id', 'name')
@@ -582,20 +760,43 @@ exports.getExtensionRecords = async (query) => {
   const total = await PackageExtension.countDocuments(filter);
 
   const records = list.map(r => {
-    const user = r.user_id || {};
-    const pkg = r.package_id || {};
+    const user = r.user_id;
+    const pkg = r.package_id;
+    const up = r.user_package_id;
     const operator = r.operated_by || {};
     const holiday = r.holiday_id || {};
     const typeMap = { extend: 'manual', revoke: 'system' };
     let displayType = typeMap[r.operation_type] || 'manual';
     if (holiday && holiday.name) displayType = 'holiday';
+    // 会员信息：user_id populate > UserPackage.member_snapshot > PackageExtension.member_snapshot > UserPackage.remark提取
+    const snapshot = r.member_snapshot || {};
+    const pkgSnapshot = r.package_snapshot || {};
+    const upMemberSnapshot = (up && up.member_snapshot) ? up.member_snapshot : {};
+    const upPkgSnapshot = (up && up.package_snapshot) ? up.package_snapshot : {};
+    let userRealName = (user && (user.real_name || user.nick_name))
+      ? (user.real_name || user.nick_name)
+      : (upMemberSnapshot.real_name || upMemberSnapshot.nick_name || snapshot.real_name || snapshot.nick_name || '');
+    // 兜底：从 UserPackage.remark 提取（格式："张三 的套餐（会员已删除）"）
+    if (!userRealName && up && up.remark) {
+      const nameMatch = up.remark.match(/^(.+?)\s*的套餐/);
+      if (nameMatch && nameMatch[1] && nameMatch[1] !== '已删除会员') {
+        userRealName = nameMatch[1].trim();
+      }
+    }
+    if (!userRealName) userRealName = '未知会员';
+    // 套餐名：package_id populate > UserPackage.package_snapshot > PackageExtension.package_snapshot
+    let packageName = (pkg && pkg.name) ? pkg.name : (upPkgSnapshot.name || pkgSnapshot.name || '');
+    if (!packageName && up) {
+      packageName = up.package_type === 'count_card' ? `${up.total_credits}次卡` : `${up.duration_value || ''}${up.duration_unit === 'month' ? '个月' : '天'}时间卡`;
+    }
     return {
       _id: r._id,
-      user_name: user.nick_name || user.real_name || '未知会员',
-      user_real_name: user.real_name || '',
-      user_nick_name: user.nick_name || '',
-      user_phone: user.phone || '',
-      package_name: pkg.name || '',
+      user_name: userRealName,
+      user_real_name: (user && user.real_name) ? user.real_name : (upMemberSnapshot.real_name || snapshot.real_name || ''),
+      user_nick_name: (user && user.nick_name) ? user.nick_name : (upMemberSnapshot.nick_name || snapshot.nick_name || ''),
+      user_phone: (user && user.phone) ? user.phone : (upMemberSnapshot.phone || snapshot.phone || ''),
+      user_deleted: !user,
+      package_name: packageName,
       type: displayType,
       operation_type: r.operation_type,
       extend_days: r.extend_days || 0,
@@ -626,6 +827,13 @@ exports.extendPackage = async (packageId, extendDays, operatorId, operatorName, 
   }
   await userPackage.save();
 
+  // 构建延长记录快照
+  const extendSnapshot = await exports._buildActivationSnapshot(userPackage);
+
+  // 延长原始输入值与单位（day/month），便于前端准确还原显示
+  const extendValue = Number(options.extend_value) || extendDays;
+  const extendUnit = options.extend_unit === 'month' ? 'month' : 'day';
+
   await PackageExtension.create({
     user_package_id: packageId,
     user_id: userPackage.user_id,
@@ -633,12 +841,20 @@ exports.extendPackage = async (packageId, extendDays, operatorId, operatorName, 
     store_id: userPackage.store_id || options.store_id,
     operation_type: 'extend',
     extend_days: extendDays,
+    extend_value: extendValue,
+    extend_unit: extendUnit,
     original_expire_at: originalEnd,
     new_expire_at: newEnd,
     holiday_id: options.holiday_id || null,
     operated_by: operatorId,
     reason: options.reason || '',
     remark: options.remark || '',
+    member_snapshot: extendSnapshot.member_snapshot,
+    package_snapshot: {
+      name: extendSnapshot.package_snapshot.name,
+      package_type: extendSnapshot.package_snapshot.package_type,
+      total_credits: extendSnapshot.package_snapshot.total_credits,
+    },
   });
 
   await logService.createLog({
@@ -762,6 +978,8 @@ exports.backfillActivationRecords = async () => {
     }
 
     const activationType = pkg.activated_at ? 'first_booking' : 'manual_force';
+    // 构建激活记录快照
+    const backfillSnapshot = await exports._buildActivationSnapshot(pkg);
 
     await PackageActivation.create({
       user_package_id: pkg._id,
@@ -772,6 +990,8 @@ exports.backfillActivationRecords = async () => {
       activated_by: null,
       activated_at: pkg.activated_at || pkg.start_date || pkg.created_at,
       remark: '系统补录',
+      member_snapshot: backfillSnapshot.member_snapshot,
+      package_snapshot: backfillSnapshot.package_snapshot,
     });
     created++;
   }
@@ -779,11 +999,391 @@ exports.backfillActivationRecords = async () => {
   return { created, skipped, total: activatedPackages.length };
 };
 
+// 清理历史遗留的虚假 UserPackage 记录（由旧版 repairDeletedUserPackages 创建）
+// 这些记录 status='expired'、remaining_credits=0、remark='已删除会员套餐记录恢复'，
+// 数据不真实，且套餐录入已改为从 PackageActivation 日志表查询，不再需要这些记录
+exports.cleanupFakeRepairRecords = async () => {
+  try {
+    const result = await UserPackage.deleteMany({
+      remark: '已删除会员套餐记录恢复'
+    });
+    if (result.deletedCount > 0) {
+      console.log(`[cleanupFakeRepairRecords] 清理了 ${result.deletedCount} 条虚假恢复记录`);
+    }
+    return { deleted: result.deletedCount };
+  } catch (err) {
+    console.error('[cleanupFakeRepairRecords] 清理失败:', err);
+    return { deleted: 0 };
+  }
+};
+
+// 修复历史 PackageActivation 记录中缺失的快照数据
+// 从关联的 UserPackage 记录中回填 member_snapshot 和 package_snapshot
+// UserPackage 在创建时就保存了会员和套餐快照，是真实数据源
+// 注意：MongoDB 查询 { 'member_snapshot.real_name': '' } 不匹配 member_snapshot 字段不存在的旧文档，
+// 必须同时用 $exists: false 捕获这些记录
+exports.repairActivationSnapshots = async () => {
+  const BATCH_SIZE = 100;
+  let repairedMember = 0;
+  let repairedPackage = 0;
+  let hasMore = true;
+  let skip = 0;
+
+  while (hasMore) {
+    const records = await PackageActivation.find({
+      $or: [
+        { 'member_snapshot': { $exists: false } },
+        { 'member_snapshot.real_name': '', 'member_snapshot.nick_name': '' },
+        { 'package_snapshot': { $exists: false } },
+        { 'package_snapshot.name': '', 'package_snapshot.package_type': '' },
+      ]
+    })
+    .limit(BATCH_SIZE)
+    .skip(skip)
+    .lean();
+
+    if (records.length === 0) {
+      hasMore = false;
+      break;
+    }
+
+    const upIds = records.map(r => r.user_package_id).filter(Boolean);
+    const userIds = records.map(r => r.user_id).filter(Boolean);
+    const [userPackages, users] = await Promise.all([
+      UserPackage.find({ _id: { $in: upIds } })
+        .select('member_snapshot package_snapshot package_type total_credits duration_value duration_unit remark')
+        .lean(),
+      User.find({ _id: { $in: userIds } })
+        .select('real_name nick_name phone wechat_phone member_code')
+        .lean()
+    ]);
+    const upMap = {};
+    userPackages.forEach(up => { upMap[String(up._id)] = up; });
+    const userMap = {};
+    users.forEach(u => { userMap[String(u._id)] = u; });
+
+    const bulkOps = [];
+    for (const record of records) {
+      const upId = record.user_package_id ? String(record.user_package_id) : '';
+      const up = upMap[upId];
+      const updateFields = {};
+
+      const hasMemberSnapshot = record.member_snapshot && (record.member_snapshot.real_name || record.member_snapshot.nick_name);
+      const hasPackageSnapshot = record.package_snapshot && (record.package_snapshot.name || record.package_snapshot.package_type);
+
+      // 回填 member_snapshot
+      if (!hasMemberSnapshot) {
+        let memberData = null;
+
+        // 优先级1: UserPackage.member_snapshot（创建套餐时保存的快照）
+        if (up && up.member_snapshot && (up.member_snapshot.real_name || up.member_snapshot.nick_name)) {
+          memberData = up.member_snapshot;
+        }
+        // 优先级2: User 表直查（会员可能未被物理删除，或软删除仍保留数据）
+        if (!memberData) {
+          const uid = record.user_id ? String(record.user_id) : '';
+          const userDoc = userMap[uid];
+          if (userDoc && (userDoc.real_name || userDoc.nick_name)) {
+            memberData = {
+              real_name: userDoc.real_name || '',
+              nick_name: userDoc.nick_name || '',
+              phone: userDoc.phone || '',
+              wechat_phone: userDoc.wechat_phone || '',
+              member_code: userDoc.member_code || '',
+            };
+          }
+        }
+        // 优先级3: 从 UserPackage.remark 提取会员名（删除会员时 remark 格式："张三 的套餐（会员已删除）"）
+        if (!memberData && up && up.remark) {
+          const nameMatch = up.remark.match(/^(.+?)\s*的套餐/);
+          if (nameMatch && nameMatch[1] && nameMatch[1] !== '已删除会员') {
+            memberData = {
+              real_name: nameMatch[1].trim(),
+              nick_name: '',
+              phone: '',
+              wechat_phone: '',
+              member_code: '',
+            };
+          }
+        }
+
+        if (memberData) {
+          updateFields['member_snapshot'] = memberData;
+          repairedMember++;
+        }
+      }
+
+      // 回填 package_snapshot
+      if (!hasPackageSnapshot && up) {
+        const upPs = up.package_snapshot || {};
+        updateFields['package_snapshot'] = {
+          name: upPs.name || '',
+          package_type: up.package_type || upPs.package_type || '',
+          total_credits: up.total_credits || upPs.total_credits || 0,
+          duration_value: up.duration_value || upPs.duration_value || 0,
+          duration_unit: up.duration_unit || upPs.duration_unit || '',
+        };
+        repairedPackage++;
+      }
+
+      if (Object.keys(updateFields).length > 0) {
+        bulkOps.push({
+          updateOne: {
+            filter: { _id: record._id },
+            update: { $set: updateFields }
+          }
+        });
+      }
+    }
+
+    if (bulkOps.length > 0) {
+      await PackageActivation.bulkWrite(bulkOps);
+    }
+
+    skip += BATCH_SIZE;
+  }
+
+  console.log(`[repairActivationSnapshots] 回填完成: member_snapshot=${repairedMember}, package_snapshot=${repairedPackage}`);
+  return { repaired_member_snapshot: repairedMember, repaired_package_snapshot: repairedPackage };
+};
+
+// 修复历史 PackageExtension 记录中缺失的快照数据
+// 从关联的 UserPackage 记录中回填 member_snapshot 和 package_snapshot
+// 注意：MongoDB 查询 { 'member_snapshot.real_name': '' } 不匹配 member_snapshot 字段不存在的旧文档
+exports.repairExtensionSnapshots = async () => {
+  const BATCH_SIZE = 100;
+  let repairedMember = 0;
+  let repairedPackage = 0;
+  let hasMore = true;
+  let skip = 0;
+
+  while (hasMore) {
+    const records = await PackageExtension.find({
+      $or: [
+        { 'member_snapshot': { $exists: false } },
+        { 'member_snapshot.real_name': '', 'member_snapshot.nick_name': '' },
+        { 'package_snapshot': { $exists: false } },
+        { 'package_snapshot.name': '', 'package_snapshot.package_type': '' },
+      ]
+    })
+    .limit(BATCH_SIZE)
+    .skip(skip)
+    .lean();
+
+    if (records.length === 0) {
+      hasMore = false;
+      break;
+    }
+
+    const upIds = records.map(r => r.user_package_id).filter(Boolean);
+    const userIds = records.map(r => r.user_id).filter(Boolean);
+    const [userPackages, users] = await Promise.all([
+      UserPackage.find({ _id: { $in: upIds } })
+        .select('member_snapshot package_snapshot package_type total_credits remark')
+        .lean(),
+      User.find({ _id: { $in: userIds } })
+        .select('real_name nick_name phone wechat_phone member_code')
+        .lean()
+    ]);
+    const upMap = {};
+    userPackages.forEach(up => { upMap[String(up._id)] = up; });
+    const userMap = {};
+    users.forEach(u => { userMap[String(u._id)] = u; });
+
+    const bulkOps = [];
+    for (const record of records) {
+      const upId = record.user_package_id ? String(record.user_package_id) : '';
+      const up = upMap[upId];
+      const updateFields = {};
+
+      const hasMemberSnapshot = record.member_snapshot && (record.member_snapshot.real_name || record.member_snapshot.nick_name);
+      const hasPackageSnapshot = record.package_snapshot && (record.package_snapshot.name || record.package_snapshot.package_type);
+
+      // 回填 member_snapshot
+      if (!hasMemberSnapshot) {
+        let memberData = null;
+
+        // 优先级1: UserPackage.member_snapshot
+        if (up && up.member_snapshot && (up.member_snapshot.real_name || up.member_snapshot.nick_name)) {
+          memberData = up.member_snapshot;
+        }
+        // 优先级2: User 表直查
+        if (!memberData) {
+          const uid = record.user_id ? String(record.user_id) : '';
+          const userDoc = userMap[uid];
+          if (userDoc && (userDoc.real_name || userDoc.nick_name)) {
+            memberData = {
+              real_name: userDoc.real_name || '',
+              nick_name: userDoc.nick_name || '',
+              phone: userDoc.phone || '',
+              wechat_phone: userDoc.wechat_phone || '',
+              member_code: userDoc.member_code || '',
+            };
+          }
+        }
+        // 优先级3: 从 UserPackage.remark 提取
+        if (!memberData && up && up.remark) {
+          const nameMatch = up.remark.match(/^(.+?)\s*的套餐/);
+          if (nameMatch && nameMatch[1] && nameMatch[1] !== '已删除会员') {
+            memberData = {
+              real_name: nameMatch[1].trim(),
+              nick_name: '',
+              phone: '',
+              wechat_phone: '',
+              member_code: '',
+            };
+          }
+        }
+
+        if (memberData) {
+          updateFields['member_snapshot'] = memberData;
+          repairedMember++;
+        }
+      }
+
+      // 回填 package_snapshot
+      if (!hasPackageSnapshot && up) {
+        const upPs = up.package_snapshot || {};
+        updateFields['package_snapshot'] = {
+          name: upPs.name || '',
+          package_type: up.package_type || upPs.package_type || '',
+          total_credits: up.total_credits || upPs.total_credits || 0,
+        };
+        repairedPackage++;
+      }
+
+      if (Object.keys(updateFields).length > 0) {
+        bulkOps.push({
+          updateOne: {
+            filter: { _id: record._id },
+            update: { $set: updateFields }
+          }
+        });
+      }
+    }
+
+    if (bulkOps.length > 0) {
+      await PackageExtension.bulkWrite(bulkOps);
+    }
+
+    skip += BATCH_SIZE;
+  }
+
+  console.log(`[repairExtensionSnapshots] 回填完成: member_snapshot=${repairedMember}, package_snapshot=${repairedPackage}`);
+  return { repaired_member_snapshot: repairedMember, repaired_package_snapshot: repairedPackage };
+};
+
+// 修复历史 UserPackage 记录中缺失的 member_snapshot
+// 从 User 表（存在则取真实数据）或 remark 字段（已删除会员）回填会员快照
+// 确保即使会员被删除，套餐录入记录也能显示真实会员姓名
+exports.repairUserPackageMemberSnapshots = async () => {
+  const BATCH_SIZE = 100;
+  let repaired = 0;
+  let skip = 0;
+  let hasMore = true;
+
+  while (hasMore) {
+    const userPackages = await UserPackage.find({
+      $or: [
+        { 'member_snapshot': { $exists: false } },
+        { 'member_snapshot.real_name': '', 'member_snapshot.nick_name': '' }
+      ]
+    })
+    .select('user_id member_snapshot remark')
+    .skip(skip)
+    .limit(BATCH_SIZE)
+    .lean();
+
+    if (userPackages.length === 0) {
+      hasMore = false;
+      break;
+    }
+
+    const userIds = userPackages.map(up => up.user_id).filter(Boolean);
+    const users = await User.find({ _id: { $in: userIds } })
+      .select('real_name nick_name phone wechat_phone member_code')
+      .lean();
+    const userMap = {};
+    users.forEach(u => { userMap[String(u._id)] = u; });
+
+    const bulkOps = [];
+    for (const up of userPackages) {
+      const uid = up.user_id ? String(up.user_id) : '';
+      const user = userMap[uid];
+      let memberData = null;
+
+      if (user && (user.real_name || user.nick_name)) {
+        // 用户存在：使用真实数据
+        memberData = {
+          real_name: user.real_name || '',
+          nick_name: user.nick_name || '',
+          phone: user.phone || '',
+          wechat_phone: user.wechat_phone || '',
+          member_code: user.member_code || '',
+        };
+      } else if (up.remark) {
+        // 用户已删除：从 remark 提取会员名（格式："张三 的套餐（会员已删除）"）
+        const nameMatch = up.remark.match(/^(.+?)\s*的套餐/);
+        if (nameMatch && nameMatch[1] && nameMatch[1] !== '已删除会员') {
+          memberData = {
+            real_name: nameMatch[1].trim(),
+            nick_name: '',
+            phone: '',
+            wechat_phone: '',
+            member_code: '',
+          };
+        }
+      }
+
+      if (memberData) {
+        bulkOps.push({
+          updateOne: {
+            filter: { _id: up._id },
+            update: { $set: { member_snapshot: memberData } }
+          }
+        });
+      }
+    }
+
+    if (bulkOps.length > 0) {
+      const result = await UserPackage.bulkWrite(bulkOps);
+      repaired += result.modifiedCount;
+    }
+
+    skip += BATCH_SIZE;
+  }
+
+  console.log(`[repairUserPackageMemberSnapshots] 修复了 ${repaired} 条UserPackage记录的member_snapshot`);
+  return { repaired };
+};
+
 // 获取套餐录入记录
+// 直接从 UserPackage 表查询：UserPackage 每条记录就是一次套餐录入，包含完整的真实数据
+// （package_type, total_credits, duration_value, created_at, created_by, member_snapshot 等）
+// UserPackage 记录不会被删除（删除会员时仅标记为 expired），数据完整可靠
 exports.getEntryRecords = async (query) => {
   const { page = 1, pageSize = 20, store_id } = query;
-  const filter = { created_by: { $ne: null } }; // 只显示有人为录入的
-  if (store_id) filter.store_id = store_id;
+
+  // 清理历史遗留的虚假记录（幂等，无虚假记录时快速返回）
+  try {
+    await exports.cleanupFakeRepairRecords();
+  } catch (e) {
+    // 忽略清理失败，不影响查询
+  }
+
+  // 回填缺失的 member_snapshot（幂等，已修复则快速跳过）
+  try {
+    await exports.repairUserPackageMemberSnapshots();
+  } catch (e) {
+    console.error('[getEntryRecords] repairUserPackageMemberSnapshots 失败:', e.message);
+  }
+
+  // 直接从 UserPackage 表查询，排除已被 cleanupFakeRepairRecords 清理的虚假记录
+  const filter = { remark: { $ne: '已删除会员套餐记录恢复' } };
+  if (store_id) {
+    // 将 store_id 字符串转为 ObjectId，确保与 MongoDB 中 ObjectId 类型字段匹配
+    filter.store_id = mongoose.isValidObjectId(store_id) ? new mongoose.Types.ObjectId(store_id) : store_id;
+  }
 
   const list = await UserPackage.find(filter)
     .populate('user_id', 'nick_name real_name phone')
@@ -796,25 +1396,58 @@ exports.getEntryRecords = async (query) => {
 
   const total = await UserPackage.countDocuments(filter);
 
-  const records = list.map(userPackage => {
-    const user = userPackage.user_id || {};
-    const pkg = userPackage.package_id || {};
-    const operator = userPackage.created_by || {};
+  const records = list.map(up => {
+    const user = up.user_id;
+    const pkg = up.package_id;
+    const operator = up.created_by || {};
+    const snapshot = up.member_snapshot || {};
+    const pkgSnapshot = up.package_snapshot || {};
+
+    // 会员名称优先级：user_id populate > member_snapshot > remark提取
+    let userRealName = (user && (user.real_name || user.nick_name))
+      ? (user.real_name || user.nick_name)
+      : (snapshot.real_name || snapshot.nick_name || '');
+    // 兜底：从 remark 提取（格式："张三 的套餐（会员已删除）"）
+    if (!userRealName && up.remark) {
+      const nameMatch = up.remark.match(/^(.+?)\s*的套餐/);
+      if (nameMatch && nameMatch[1] && nameMatch[1] !== '已删除会员') {
+        userRealName = nameMatch[1].trim();
+      }
+    }
+    if (!userRealName) userRealName = '未知会员';
+
+    // 套餐名称优先级：package_id populate > package_snapshot.name > 从字段拼接
+    let packageName = (pkg && pkg.name) ? pkg.name : (pkgSnapshot.name || '');
+    if (!packageName) {
+      if (up.package_type === 'count_card') {
+        packageName = `${up.total_credits || 0}次卡`;
+      } else if (up.package_type === 'time_card') {
+        packageName = `${up.duration_value || ''}${up.duration_unit === 'month' ? '个月' : '天'}时间卡`;
+      }
+    }
+
+    // 套餐类型/课时/时长：直接从 UserPackage 字段获取（真实数据）
+    const packageType = up.package_type || '';
+    const totalCredits = up.total_credits || 0;
+    const durationValue = up.duration_value || 0;
+    const durationUnit = up.duration_unit || '';
+
     return {
-      _id: userPackage._id,
-      user_name: user.nick_name || user.real_name || '未知会员',
-      user_real_name: user.real_name || '',
-      user_nick_name: user.nick_name || '',
-      user_phone: user.phone || '',
-      package_name: pkg.name || (userPackage.package_type === 'count_card' ? `${userPackage.total_credits}次卡` : `${userPackage.duration_value || ''}${userPackage.duration_unit === 'month' ? '个月' : '天'}时间卡`),
-      package_type: userPackage.package_type,
-      total_credits: userPackage.total_credits,
-      duration_value: userPackage.duration_value,
-      duration_unit: userPackage.duration_unit,
-      created_at: userPackage.created_at,
+      _id: up._id,
+      user_name: userRealName,
+      user_real_name: (user && user.real_name) ? user.real_name : (snapshot.real_name || ''),
+      user_nick_name: (user && user.nick_name) ? user.nick_name : (snapshot.nick_name || ''),
+      user_phone: (user && user.phone) ? user.phone : (snapshot.phone || ''),
+      user_deleted: !user,
+      package_name: packageName,
+      package_type: packageType,
+      total_credits: totalCredits,
+      duration_value: durationValue,
+      duration_unit: durationUnit,
+      created_at: up.created_at,  // 录入时间=UserPackage创建时间
       operator_name: operator.nick_name || operator.username || '',
-      remark: userPackage.remark || '',
-      status: userPackage.status,
+      remark: up.remark || '',
+      status: up.status || 'active',
     };
   });
 

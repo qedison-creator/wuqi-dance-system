@@ -5,17 +5,89 @@ const Schedule = require('../models/Schedule');
 const Booking = require('../models/Booking');
 const User = require('../models/User');
 const logService = require('./log.service');
+const { getAllowedStoreIds } = require('../utils/storeOwnership');
+
+/**
+ * 校验薪酬配置的门店归属（店长/员工只能操作所属门店的配置，不能操作全局配置 store_id=null）
+ * @param {Object} salary - 薪酬配置记录
+ * @param {Object} reqUser - req.user 对象
+ * @param {string} [action='操作'] - 操作描述
+ */
+function assertCanManageSalary(salary, reqUser, action = '操作') {
+  if (!salary) return;
+  const allowedStoreIds = getAllowedStoreIds(reqUser);
+  // 超管/审核员：通过
+  if (allowedStoreIds === null) return;
+
+  // 全局配置（store_id 为空，多门店执教教练配置）：仅超管可操作
+  if (!salary.store_id) {
+    throw new Error(`多门店执教教练的薪酬配置仅超级管理员可${action}`);
+  }
+
+  // 校验配置所属门店在允许范围内
+  if (!allowedStoreIds.includes(String(salary.store_id))) {
+    throw new Error(`无权${action}非所属门店的薪酬配置`);
+  }
+}
+
+/**
+ * 校验教练是否可在指定门店执教（用于创建薪酬配置时校验教练归属）
+ * - 多门店执教教练（store_ids 为空）：可在任何门店配置薪酬（仅超管可操作）
+ * - 门店独占教练：store_ids 必须包含该门店
+ */
+async function assertCoachCanManageAtStore(coachId, storeId, reqUser, action = '配置') {
+  const coach = await Coach.findById(coachId).select('name store_ids');
+  if (!coach) throw new Error('教练不存在');
+
+  const allowedStoreIds = getAllowedStoreIds(reqUser);
+  // 超管：可操作任意教练
+  if (allowedStoreIds === null) return coach;
+
+  // 店长/员工：教练 store_ids 必须是 allowedStoreIds 的子集（即教练完全归属当前用户所辖门店）
+  const storeIds = coach.store_ids;
+  // 多门店执教教练（store_ids 为空）：仅超管可配置薪酬
+  if (!storeIds || !Array.isArray(storeIds) || storeIds.length === 0) {
+    throw new Error(`多门店执教教练"${coach.name}"的薪酬配置仅超级管理员可${action}`);
+  }
+  const isSubset = storeIds.every(s => allowedStoreIds.includes(String(s)));
+  if (!isSubset) {
+    throw new Error(`无权${action}非所属门店教练"${coach.name}"的薪酬`);
+  }
+  return coach;
+}
 
 // 获取教练薪酬配置列表
-exports.getCoachSalaryList = async (query) => {
+exports.getCoachSalaryList = async (query, reqUser) => {
   const { coach_id, store_id, is_active, page = 1, pageSize = 20 } = query;
   const filter = {};
 
   if (coach_id) filter.coach_id = coach_id;
-  if (store_id) {
-    filter.$or = [{ store_id: store_id }, { store_id: null }];
+
+  // 门店过滤：
+  // - 超管/审核员（allowedStoreIds 为 null）：按 query.store_id 过滤（若传），否则返回全部（含全局配置 store_id=null）
+  // - 店长/员工：只返回所属门店的配置（不含全局配置 store_id=null）
+  const allowedStoreIds = getAllowedStoreIds(reqUser);
+  if (allowedStoreIds === null) {
+    // 超管/审核员
+    if (store_id) filter.store_id = store_id;
+  } else {
+    // 店长/员工：限定为所属门店（store_id 不能为 null）
+    if (allowedStoreIds.length === 0) {
+      // 无门店权限：强制空结果
+      filter._id = { $exists: false };
+    } else if (allowedStoreIds.length === 1) {
+      filter.store_id = allowedStoreIds[0];
+    } else {
+      filter.store_id = { $in: allowedStoreIds };
+    }
   }
-  if (is_active !== undefined) filter.is_active = is_active === 'true';
+
+  // 默认只返回启用中的配置（is_active: true），除非显式传入 is_active 参数
+  if (is_active !== undefined) {
+    filter.is_active = is_active === 'true';
+  } else {
+    filter.is_active = true;
+  }
 
   const list = await CoachSalary.find(filter)
     .populate('coach_id', 'name')
@@ -30,46 +102,101 @@ exports.getCoachSalaryList = async (query) => {
 };
 
 // 获取教练薪酬配置详情
-exports.getCoachSalaryById = async (id) => {
+exports.getCoachSalaryById = async (id, reqUser) => {
   const salary = await CoachSalary.findById(id)
     .populate('coach_id', 'name')
     .populate('store_id', 'name')
     .populate('created_by', 'nick_name');
   if (!salary) throw new Error('薪酬配置不存在');
+  // 校验归属
+  assertCanManageSalary(salary, reqUser, '查看');
   return salary;
 };
 
 // 创建教练薪酬配置
-exports.createCoachSalary = async (data, operatorId) => {
+exports.createCoachSalary = async (data, operatorId, reqUser) => {
   try {
-    console.log('[createCoachSalary] 开始创建薪酬配置');
-    console.log('[createCoachSalary] 输入数据:', data);
-    console.log('[createCoachSalary] operatorId:', operatorId);
-
-    const { coach_id, store_id, duration, salary_rate, effective_from, remark } = data;
+    const { coach_id, duration, salary_rate, effective_from, remark } = data;
 
     // 验证必填字段
     if (!coach_id) throw new Error('教练ID不能为空');
     if (!duration || duration <= 0) throw new Error('课程时长必须大于0');
     if (salary_rate === undefined || salary_rate < 0) throw new Error('薪酬标准不能为负数');
 
-    console.log('[createCoachSalary] 验证通过，开始检查教练是否存在');
+    // 计算 store_id：
+    // - 超管：可用 data.store_id（含 null=多门店执教教练全局配置）
+    // - 店长/员工：强制为所属门店（单门店）或 data.store_id 必须在允许范围内（多门店店长）
+    const allowedStoreIds = getAllowedStoreIds(reqUser);
+    let finalStoreId;
+    if (allowedStoreIds === null) {
+      // 超管：使用 data.store_id，未传则 null（多门店执教教练配置）
+      finalStoreId = data.store_id || null;
+    } else if (allowedStoreIds.length === 0) {
+      throw new Error('您的账号未分配门店，无法创建薪酬配置');
+    } else {
+      // 店长/员工：store_id 必须为所属门店之一，不能为 null
+      const requested = data.store_id ? String(data.store_id) : null;
+      if (requested) {
+        if (!allowedStoreIds.includes(requested)) {
+          throw new Error('无权为非所属门店创建薪酬配置');
+        }
+        finalStoreId = requested;
+      } else {
+        // 未传 store_id：单门店默认为所属门店；多门店店长必须明确指定
+        if (allowedStoreIds.length === 1) {
+          finalStoreId = allowedStoreIds[0];
+        } else {
+          throw new Error('请选择薪酬配置所属门店');
+        }
+      }
+    }
 
-    // 检查教练是否存在
-    const coach = await Coach.findById(coach_id);
-    if (!coach) throw new Error('教练不存在');
+    // 校验教练归属（店长/员工只能为所属门店教练创建配置；多门店执教教练配置仅超管可创建）
+    const coach = await assertCoachCanManageAtStore(coach_id, finalStoreId, reqUser, '配置');
 
-    console.log('[createCoachSalary] 教练存在:', coach.name);
-
-    // 检查是否已存在相同配置
-    const existing = await CoachSalary.findOne({
+    // 检查是否已存在相同配置（按教练+门店+时长唯一）
+    // 注意：唯一索引 { coach_id, store_id, duration } 包含软删除记录，
+    // 因此需检查所有记录（含 is_active: false），若存在则恢复而非新建，避免 E11000 冲突
+    const existingAny = await CoachSalary.findOne({
       coach_id,
       duration,
-      is_active: true
+      store_id: finalStoreId
     });
-    if (existing) throw new Error('已存在相同时长的薪酬配置');
+    if (existingAny) {
+      if (existingAny.is_active) {
+        throw new Error('已存在相同门店相同时长的薪酬配置');
+      }
+      // 恢复已软删除的配置（更新薪酬、生效日期等，重新启用）
+      existingAny.salary_rate = Number(salary_rate);
+      existingAny.effective_from = effective_from ? new Date(effective_from) : new Date();
+      existingAny.effective_to = undefined;
+      existingAny.is_active = true;
+      existingAny.remark = remark;
+      existingAny.created_by = operatorId;
+      await existingAny.save();
 
-    console.log('[createCoachSalary] 没有重复配置，准备创建');
+      // 记录操作日志
+      try {
+        const operator = await User.findById(operatorId);
+        const operatorName = operator ? (operator.nick_name || operator.username || '未知') : '未知';
+        await logService.createLog({
+          operator_id: operatorId,
+          operator_name: operatorName,
+          action: 'create',
+          module: 'coach_salary',
+          target_id: existingAny._id,
+          detail: `恢复教练薪酬配置: ${coach.name}, 时长${duration}分钟, 标准${salary_rate}元/节`,
+          store_id: finalStoreId,
+        });
+      } catch (logErr) {
+        console.error('[createCoachSalary] 记录操作日志失败:', logErr.message);
+      }
+
+      const restoredSalary = await CoachSalary.findById(existingAny._id)
+        .populate('coach_id', 'name')
+        .populate('store_id', 'name');
+      return restoredSalary;
+    }
 
     // 获取操作者信息
     let operatorName = '系统';
@@ -82,11 +209,9 @@ exports.createCoachSalary = async (data, operatorId) => {
       console.warn('[createCoachSalary] 获取操作者信息失败:', err.message);
     }
 
-    console.log('[createCoachSalary] 操作者:', operatorName);
-
     const salaryData = {
       coach_id,
-      store_id: store_id || null,
+      store_id: finalStoreId,
       duration: Number(duration),
       salary_rate: Number(salary_rate),
       effective_from: effective_from ? new Date(effective_from) : new Date(),
@@ -94,11 +219,8 @@ exports.createCoachSalary = async (data, operatorId) => {
       created_by: operatorId
     };
 
-    console.log('[createCoachSalary] 准备创建的数据:', salaryData);
-
     // 创建薪酬配置
     const salary = await CoachSalary.create(salaryData);
-    console.log('[createCoachSalary] 创建成功，ID:', salary._id);
 
     // 记录操作日志 - 即使失败也不要影响主流程
     try {
@@ -108,32 +230,32 @@ exports.createCoachSalary = async (data, operatorId) => {
         action: 'create',
         module: 'coach_salary',
         target_id: salary._id,
-        detail: `创建教练薪酬配置: ${coach.name}, 时长${duration}分钟, 标准${salary_rate}元/节`
+        detail: `创建教练薪酬配置: ${coach.name}, 时长${duration}分钟, 标准${salary_rate}元/节`,
+        store_id: finalStoreId,
       });
-      console.log('[createCoachSalary] 操作日志记录成功');
     } catch (logErr) {
       console.error('[createCoachSalary] 记录操作日志失败:', logErr.message);
     }
 
     // 重新查询以获取populated数据
-    console.log('[createCoachSalary] 重新查询populated数据');
     const newSalary = await CoachSalary.findById(salary._id)
       .populate('coach_id', 'name')
       .populate('store_id', 'name');
 
-    console.log('[createCoachSalary] 完成');
     return newSalary;
   } catch (err) {
     console.error('[createCoachSalary] 创建失败:', err);
-    console.error('[createCoachSalary] 错误堆栈:', err.stack);
     throw err;
   }
 };
 
 // 更新教练薪酬配置
-exports.updateCoachSalary = async (id, data, operatorId) => {
+exports.updateCoachSalary = async (id, data, operatorId, reqUser) => {
   const salary = await CoachSalary.findById(id);
   if (!salary) throw new Error('薪酬配置不存在');
+
+  // 校验归属
+  assertCanManageSalary(salary, reqUser, '编辑');
 
   const operator = await User.findById(operatorId);
   const operatorName = operator ? (operator.nick_name || operator.username || '未知') : '未知';
@@ -157,7 +279,8 @@ exports.updateCoachSalary = async (id, data, operatorId) => {
     action: 'update',
     module: 'coach_salary',
     target_id: salary._id,
-    detail: '更新教练薪酬配置'
+    detail: '更新教练薪酬配置',
+    store_id: salary.store_id,
   });
 
   const updatedSalary = await CoachSalary.findById(id)
@@ -168,9 +291,12 @@ exports.updateCoachSalary = async (id, data, operatorId) => {
 };
 
 // 删除教练薪酬配置
-exports.deleteCoachSalary = async (id, operatorId) => {
+exports.deleteCoachSalary = async (id, operatorId, reqUser) => {
   const salary = await CoachSalary.findById(id);
   if (!salary) throw new Error('薪酬配置不存在');
+
+  // 校验归属
+  assertCanManageSalary(salary, reqUser, '删除');
 
   const operator = await User.findById(operatorId);
   const operatorName = operator ? (operator.nick_name || operator.username || '未知') : '未知';
@@ -185,16 +311,70 @@ exports.deleteCoachSalary = async (id, operatorId) => {
     action: 'delete',
     module: 'coach_salary',
     target_id: id,
-    detail: '删除教练薪酬配置'
+    detail: '删除教练薪酬配置',
+    store_id: salary.store_id,
   });
 
   return { success: true };
 };
 
+// 批量删除教练薪酬配置（删除该教练的所有时长配置）
+// 用于"删除整教练配置"场景：传入多个 salary ID，逐个校验归属后软删除
+exports.batchDeleteCoachSalary = async (ids, operatorId, reqUser) => {
+  if (!Array.isArray(ids) || ids.length === 0) {
+    throw new Error('请提供要删除的配置ID');
+  }
+
+  const operator = await User.findById(operatorId);
+  const operatorName = operator ? (operator.nick_name || operator.username || '未知') : '未知';
+
+  const results = [];
+  for (const id of ids) {
+    try {
+      const salary = await CoachSalary.findById(id);
+      if (!salary) {
+        results.push({ id, success: false, message: '配置不存在' });
+        continue;
+      }
+      // 校验归属
+      assertCanManageSalary(salary, reqUser, '删除');
+      salary.is_active = false;
+      salary.effective_to = new Date();
+      await salary.save();
+
+      await logService.createLog({
+        operator_id: operatorId,
+        operator_name: operatorName,
+        action: 'delete',
+        module: 'coach_salary',
+        target_id: id,
+        detail: '批量删除教练薪酬配置',
+        store_id: salary.store_id,
+      });
+
+      results.push({ id, success: true });
+    } catch (err) {
+      results.push({ id, success: false, message: err.message });
+    }
+  }
+
+  const failedCount = results.filter(r => !r.success).length;
+  return { success: failedCount === 0, results, failedCount };
+};
+
 // 获取教练薪酬统计列表
-exports.getCoachSalaryStats = async (query) => {
+exports.getCoachSalaryStats = async (query, reqUser) => {
   const { coach_id, store_id, status, start_date, end_date, page = 1, pageSize = 20 } = query;
   const filter = {};
+
+  // 门店隔离：单门店角色只能查看所属门店数据
+  const allowedStoreIds = getAllowedStoreIds(reqUser);
+  if (allowedStoreIds !== null) {
+    if (!allowedStoreIds || allowedStoreIds.length === 0) {
+      return { list: [], total: 0, page: Number(page), pageSize: Number(pageSize) };
+    }
+    filter.store_id = { $in: allowedStoreIds };
+  }
 
   if (coach_id) filter.coach_id = coach_id;
   if (store_id) filter.store_id = store_id;
@@ -232,28 +412,19 @@ exports.createSalaryStat = async (scheduleId, operatorId) => {
 
   const duration = schedule.duration || 75;
 
-  // 优先查找没有门店限制的配置（共用教练），按时长精确匹配
+  // 优先查找门店专属配置（同教练不同门店薪资不同），按时长精确匹配
   let salary = await CoachSalary.findOne({
     coach_id: schedule.coach_id,
-    store_id: null,
+    store_id: schedule.store_id,
     duration: duration,
     is_active: true
   }).sort({ effective_from: -1 });
 
   if (!salary) {
-    // 查找该教练任意时长的通用配置
+    // 查找多门店执教通用配置（store_id为null），按时长精确匹配
     salary = await CoachSalary.findOne({
       coach_id: schedule.coach_id,
       store_id: null,
-      is_active: true
-    }).sort({ effective_from: -1 });
-  }
-
-  if (!salary) {
-    // 如果没有通用配置，再查找有门店限制的配置
-    salary = await CoachSalary.findOne({
-      coach_id: schedule.coach_id,
-      store_id: schedule.store_id,
       duration: duration,
       is_active: true
     }).sort({ effective_from: -1 });
@@ -264,6 +435,15 @@ exports.createSalaryStat = async (scheduleId, operatorId) => {
     salary = await CoachSalary.findOne({
       coach_id: schedule.coach_id,
       store_id: schedule.store_id,
+      is_active: true
+    }).sort({ effective_from: -1 });
+  }
+
+  if (!salary) {
+    // 查找该教练任意时长的通用配置
+    salary = await CoachSalary.findOne({
+      coach_id: schedule.coach_id,
+      store_id: null,
       is_active: true
     }).sort({ effective_from: -1 });
   }
@@ -357,12 +537,19 @@ exports.cancelSalaryStat = async (id, operatorId, reason = '') => {
 };
 
 // 获取薪酬汇总数据
-exports.getSalarySummary = async (query) => {
+exports.getSalarySummary = async (query, reqUser) => {
   const { coach_id, store_id, start_date, end_date } = query;
+
+  // 门店隔离：单门店角色只能查看所属门店数据
+  const allowedStoreIds = getAllowedStoreIds(reqUser);
+  const storeFilterCond = allowedStoreIds !== null
+    ? (allowedStoreIds && allowedStoreIds.length > 0 ? { store_id: { $in: allowedStoreIds } } : { _id: { $exists: false } })
+    : null;
 
   const settledFilter = { status: 'settled' };
   if (coach_id) settledFilter.coach_id = coach_id;
   if (store_id) settledFilter.store_id = store_id;
+  if (storeFilterCond) Object.assign(settledFilter, storeFilterCond);
   if (start_date || end_date) {
     settledFilter.class_date = {};
     if (start_date) settledFilter.class_date.$gte = new Date(start_date);
@@ -372,6 +559,7 @@ exports.getSalarySummary = async (query) => {
   const pendingFilter = { status: 'pending' };
   if (coach_id) pendingFilter.coach_id = coach_id;
   if (store_id) pendingFilter.store_id = store_id;
+  if (storeFilterCond) Object.assign(pendingFilter, storeFilterCond);
 
   const settledStats = await CoachSalaryStat.find(settledFilter);
   const pendingCount = await CoachSalaryStat.countDocuments(pendingFilter);
@@ -390,35 +578,56 @@ exports.getSalarySummary = async (query) => {
 };
 
 // 批量生成薪酬统计账单
-exports.generateSalaryBill = async (startDate, endDate, preview = false, operatorId = null, coachIds = null) => {
+exports.generateSalaryBill = async (startDate, endDate, preview = false, operatorId = null, coachIds = null, reqUser = null, storeId = null) => {
   const start = new Date(startDate);
   const end = new Date(endDate);
   const Attendance = require('../models/Attendance');
-  
+
+  // 门店隔离：单门店角色只能基于所属门店的签到数据生成账单（复用课时统计/月度薪酬的过滤逻辑）
+  const allowedStoreIds = reqUser ? getAllowedStoreIds(reqUser) : null;
+
   // 只统计有签到的排课（有人上课教练才算干活，排除豁免取消）
-  const attendanceRecords = await Attendance.find({
+  const attendanceFilter = {
     date: {
       $gte: startDate,
       $lte: endDate
     },
     check_in_method: { $nin: ['exempt_cancel', 'cancelled_after_checkin'] },
-  }).select('schedule_id');
-  
+  };
+  // 单门店角色：仅统计所属门店的签到记录
+  if (allowedStoreIds !== null) {
+    if (!allowedStoreIds || allowedStoreIds.length === 0) {
+      return { bill: [], settled_warning: '', total_amount: 0 };
+    }
+    attendanceFilter.store_id = { $in: allowedStoreIds };
+  } else if (storeId) {
+    // 超管/审核员选了具体门店：按该门店过滤
+    attendanceFilter.store_id = storeId;
+  }
+  const attendanceRecords = await Attendance.find(attendanceFilter).select('schedule_id');
+
   const attendedScheduleIds = [...new Set(attendanceRecords.map(a => a.schedule_id.toString()))];
-  
+
   if (attendedScheduleIds.length === 0) {
     return { bill: [], settled_warning: '', total_amount: 0 };
   }
-  
+
   const scheduleFilter = {
     _id: { $in: attendedScheduleIds },
     coach_id: { $ne: null }
   };
+  // 单门店角色：仅查询所属门店的排课（防止 attendance store_id 缺失时跨门店）
+  if (allowedStoreIds !== null) {
+    scheduleFilter.store_id = { $in: allowedStoreIds };
+  } else if (storeId) {
+    // 超管/审核员选了具体门店：按该门店过滤
+    scheduleFilter.store_id = storeId;
+  }
   // 支持只生成选中教练的账单
   if (coachIds && Array.isArray(coachIds) && coachIds.length > 0) {
     scheduleFilter.coach_id = { $in: coachIds };
   }
-  
+
   const schedules = await Schedule.find(scheduleFilter).populate('coach_id', 'name');
 
   if (schedules.length === 0) {
@@ -437,11 +646,14 @@ exports.generateSalaryBill = async (startDate, endDate, preview = false, operato
     }
     
     if (!coachStats[coachId].items[duration]) {
-      coachStats[coachId].items[duration] = { duration, count: 0, schedule_ids: [] };
+      coachStats[coachId].items[duration] = { duration, count: 0, schedule_ids: [], store_ids: new Set() };
     }
     
     coachStats[coachId].items[duration].count++;
     coachStats[coachId].items[duration].schedule_ids.push(schedule._id.toString());
+    if (schedule.store_id) {
+      coachStats[coachId].items[duration].store_ids.add(schedule.store_id.toString());
+    }
   }
 
   const allScheduleIds = [];
@@ -468,14 +680,40 @@ exports.generateSalaryBill = async (startDate, endDate, preview = false, operato
     const coachBill = { coach_id: coachId, coach_name: stats.coach_name, items: [] };
 
     for (const [duration, item] of Object.entries(stats.items)) {
-      let salary = await CoachSalary.findOne({
-        coach_id: coachId,
-        store_id: null,
-        duration: parseInt(duration),
-        is_active: true
-      }).sort({ effective_from: -1 });
+      const storeIds = [...item.store_ids];
+      let salary = null;
+
+      // 单一门店：优先查找门店专属配置
+      if (storeIds.length === 1) {
+        salary = await CoachSalary.findOne({
+          coach_id: coachId,
+          store_id: storeIds[0],
+          duration: parseInt(duration),
+          is_active: true
+        }).sort({ effective_from: -1 });
+      }
 
       if (!salary) {
+        // 查找多门店执教通用配置
+        salary = await CoachSalary.findOne({
+          coach_id: coachId,
+          store_id: null,
+          duration: parseInt(duration),
+          is_active: true
+        }).sort({ effective_from: -1 });
+      }
+
+      if (!salary && storeIds.length === 1) {
+        // 查找该门店任意时长的配置
+        salary = await CoachSalary.findOne({
+          coach_id: coachId,
+          store_id: storeIds[0],
+          is_active: true
+        }).sort({ effective_from: -1 });
+      }
+
+      if (!salary) {
+        // 回退：查找任意配置
         salary = await CoachSalary.findOne({
           coach_id: coachId,
           duration: parseInt(duration),
@@ -578,37 +816,58 @@ exports.generateSalaryBill = async (startDate, endDate, preview = false, operato
 
 /**
  * 获取生成的账单列表
+ * 门店隔离：单门店角色（店长/员工）只能查看自己生成的账单（账单数据来源于门店隔离后的课时统计）
  */
-exports.getBillList = async (query) => {
+exports.getBillList = async (query, reqUser) => {
   const { page = 1, pageSize = 20 } = query;
   const SalaryBill = require('../models/SalaryBill');
 
-  const list = await SalaryBill.find()
+  // 单门店角色：只能查看自己生成的账单（生成时已按所属门店过滤数据）
+  const allowedStoreIds = getAllowedStoreIds(reqUser);
+  let filter = {};
+  if (allowedStoreIds !== null) {
+    if (!allowedStoreIds || allowedStoreIds.length === 0) {
+      return { list: [], total: 0, page: Number(page), pageSize: Number(pageSize) };
+    }
+    filter.generated_by = reqUser.id;
+  }
+
+  const list = await SalaryBill.find(filter)
     .sort({ created_at: -1 })
     .skip((page - 1) * pageSize)
     .limit(Number(pageSize));
 
-  const total = await SalaryBill.countDocuments();
+  const total = await SalaryBill.countDocuments(filter);
   return { list, total, page: Number(page), pageSize: Number(pageSize) };
 };
 
 /**
  * 获取单个账单详情
  */
-exports.getBillDetail = async (id) => {
+exports.getBillDetail = async (id, reqUser) => {
   const SalaryBill = require('../models/SalaryBill');
   const bill = await SalaryBill.findById(id);
   if (!bill) throw new Error('账单不存在');
+  // 单门店角色只能查看自己生成的账单
+  const allowedStoreIds = getAllowedStoreIds(reqUser);
+  if (allowedStoreIds !== null && String(bill.generated_by) !== String(reqUser.id)) {
+    throw new Error('无权查看非本人生成的账单');
+  }
   return bill;
 };
 
 /**
  * 删除账单
  */
-exports.deleteBill = async (id) => {
+exports.deleteBill = async (id, reqUser) => {
   const SalaryBill = require('../models/SalaryBill');
   const bill = await SalaryBill.findById(id);
   if (!bill) throw new Error('账单不存在');
+  // 单门店角色只能删除自己生成的账单
+  const allowedStoreIds = getAllowedStoreIds(reqUser);
+  if (allowedStoreIds !== null && String(bill.generated_by) !== String(reqUser.id)) {
+    throw new Error('无权删除非本人生成的账单');
+  }
   await SalaryBill.deleteOne({ _id: id });
   return { success: true };
 };
@@ -622,7 +881,7 @@ exports.deleteBill = async (id) => {
  * @param {Object} query - { year?, coach_id?, store_id? }
  * @returns {Object} { years: [{ year, yearLabel, months: [{ monthKey, monthLabel, totalAmount, coaches: [{ coach_id, coach_name, durations: [{ duration, count, rate, amount }], total_amount }] }] }] }
  */
-exports.getMonthlySalaryBreakdown = async (query) => {
+exports.getMonthlySalaryBreakdown = async (query, reqUser) => {
   const { coach_id, store_id } = query;
   const Attendance = require('../models/Attendance');
 
@@ -631,6 +890,15 @@ exports.getMonthlySalaryBreakdown = async (query) => {
   if (coach_id) attendanceFilter.coach_id = coach_id;
   if (store_id) attendanceFilter.store_id = store_id;
   attendanceFilter.check_in_method = { $nin: ['exempt_cancel', 'cancelled_after_checkin'] };
+
+  // 门店隔离：单门店角色只能查看所属门店数据
+  const allowedStoreIds = getAllowedStoreIds(reqUser);
+  if (allowedStoreIds !== null) {
+    if (!allowedStoreIds || allowedStoreIds.length === 0) {
+      return { years: [] };
+    }
+    attendanceFilter.store_id = { $in: allowedStoreIds };
+  }
 
   const attendances = await Attendance.find(attendanceFilter)
     .select('schedule_id coach_id store_id date course_name start_time end_time duration coach_name store_name check_in_time');
@@ -711,9 +979,13 @@ exports.getMonthlySalaryBreakdown = async (query) => {
 
     const coach = yearsMap[cls.year].monthsMap[cls.monthKey].coachesMap[cls.coachId];
     if (!coach.durationsMap[cls.duration]) {
-      coach.durationsMap[cls.duration] = { duration: cls.duration, count: 0 };
+      coach.durationsMap[cls.duration] = { duration: cls.duration, count: 0, store_counts: {} };
     }
     coach.durationsMap[cls.duration].count++;
+    if (cls.storeId && cls.storeId !== '_none') {
+      coach.durationsMap[cls.duration].store_counts[cls.storeId] =
+        (coach.durationsMap[cls.duration].store_counts[cls.storeId] || 0) + 1;
+    }
   });
 
   // 步骤4：批量查询所有教练的薪酬配置（按coach_id + duration匹配）
@@ -723,19 +995,26 @@ exports.getMonthlySalaryBreakdown = async (query) => {
     )
   )];
 
-  // 一次查询所有相关教练的配置
+  // 一次查询所有相关教练的配置（含已停用配置，按生效日期匹配历史课程薪资）
   const salaryConfigs = await CoachSalary.find({
-    coach_id: { $in: allCoachIds },
-    is_active: true
+    coach_id: { $in: allCoachIds }
   }).sort({ effective_from: -1 });
 
-  // 构建 (coach_id + duration) → rate 的映射（取最新配置）
-  const rateMap = {};
+  // 构建 store-aware rate 映射：门店专属配置和多门店通用配置分别存储
+  const rateMapSpecific = {};  // key: `${coach_id}_${store_id}_${duration}` → rate
+  const rateMapGeneric = {};   // key: `${coach_id}_${duration}` → rate（store_id为null的通用配置）
   const coachesWithConfig = new Set();
   salaryConfigs.forEach(cfg => {
-    const key = `${cfg.coach_id.toString()}_${cfg.duration}`;
-    if (!rateMap[key]) {
-      rateMap[key] = cfg.salary_rate;
+    if (cfg.store_id) {
+      const key = `${cfg.coach_id.toString()}_${cfg.store_id.toString()}_${cfg.duration}`;
+      if (!rateMapSpecific[key]) {
+        rateMapSpecific[key] = cfg.salary_rate;
+      }
+    } else {
+      const key = `${cfg.coach_id.toString()}_${cfg.duration}`;
+      if (!rateMapGeneric[key]) {
+        rateMapGeneric[key] = cfg.salary_rate;
+      }
     }
     coachesWithConfig.add(cfg.coach_id.toString());
   });
@@ -753,13 +1032,41 @@ exports.getMonthlySalaryBreakdown = async (query) => {
             .map(c => {
               const durations = Object.values(c.durationsMap)
                 .map(d => {
-                  const key = `${c.coach_id}_${d.duration}`;
-                  const rate = rateMap[key] || 0;
+                  // 按门店计算金额：同一时长在不同门店可能有不同薪酬费率
+                  const storeEntries = Object.entries(d.store_counts || {});
+                  let amount = 0;
+                  let displayRate = 0;
+                  let rateForAll = null; // 用于判断所有门店是否同一费率
+
+                  if (storeEntries.length === 0) {
+                    // 无门店信息，使用通用配置
+                    const genericKey = `${c.coach_id}_${d.duration}`;
+                    displayRate = rateMapGeneric[genericKey] || 0;
+                    amount = d.count * displayRate;
+                  } else {
+                    // 按门店分别计算
+                    for (const [storeId, storeCount] of storeEntries) {
+                      const specificKey = `${c.coach_id}_${storeId}_${d.duration}`;
+                      const genericKey = `${c.coach_id}_${d.duration}`;
+                      const rate = rateMapSpecific[specificKey] !== undefined
+                        ? rateMapSpecific[specificKey]
+                        : (rateMapGeneric[genericKey] || 0);
+                      amount += storeCount * rate;
+                      if (rateForAll === null) {
+                        rateForAll = rate;
+                      } else if (rateForAll !== rate) {
+                        rateForAll = -1; // 标记费率不一致
+                      }
+                    }
+                    // 展示费率：所有门店一致时显示该费率，不一致时显示0（前端可特殊处理）
+                    displayRate = rateForAll === -1 ? 0 : (rateForAll || 0);
+                  }
+
                   return {
                     duration: d.duration,
                     count: d.count,
-                    rate,
-                    amount: Math.round(d.count * rate * 100) / 100
+                    rate: Math.round(displayRate * 100) / 100,
+                    amount: Math.round(amount * 100) / 100
                   };
                 })
                 .sort((a, b) => a.duration - b.duration);
@@ -801,7 +1108,7 @@ exports.getMonthlySalaryBreakdown = async (query) => {
  * @param {Object} query - { year?, coach_id?, store_id? }
  * @returns {Object} { months: [{ month, label, coaches: [{ coach_name, total_classes, durations: [{duration, count}], records: [{...}] }] }] }
  */
-exports.getClassHoursStats = async (query) => {
+exports.getClassHoursStats = async (query, reqUser) => {
   const { coach_id, store_id } = query;
   const Attendance = require('../models/Attendance');
   const Coach = require('../models/Coach');
@@ -813,6 +1120,15 @@ exports.getClassHoursStats = async (query) => {
   if (store_id) attendanceFilter.store_id = store_id;
   // 豁免取消和签到后取消的签到不计入课时统计
   attendanceFilter.check_in_method = { $nin: ['exempt_cancel', 'cancelled_after_checkin'] };
+
+  // 门店隔离：单门店角色只能查看所属门店数据
+  const allowedStoreIds = getAllowedStoreIds(reqUser);
+  if (allowedStoreIds !== null) {
+    if (!allowedStoreIds || allowedStoreIds.length === 0) {
+      return { years: [], summary: { total_years: 0, total_classes: 0 } };
+    }
+    attendanceFilter.store_id = { $in: allowedStoreIds };
+  }
 
   const attendances = await Attendance.find(attendanceFilter)
     .select('schedule_id coach_id store_id date course_name start_time end_time duration coach_name store_name check_in_time');

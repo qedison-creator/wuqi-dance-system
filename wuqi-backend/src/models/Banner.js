@@ -9,10 +9,13 @@ const bannerSchema = new mongoose.Schema({
   start_date: { type: String },
   end_date: { type: String },
   status: { type: String, enum: ['active', 'disabled'], required: true, default: 'active' },
+  // 门店归属：null=多门店展示（存量默认值，仅超管可操作）；ObjectId=指定门店展示
+  store_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Store', default: null },
 }, { timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' } });
 
 bannerSchema.index({ sort_order: 1 });
 bannerSchema.index({ status: 1 });
 bannerSchema.index({ created_at: -1 });
+bannerSchema.index({ store_id: 1 });
 
 module.exports = mongoose.model('Banner', bannerSchema);

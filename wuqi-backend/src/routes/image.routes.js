@@ -3,6 +3,9 @@ const router = express.Router();
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const auth = require('../middleware/auth');
+const checkPermission = require('../middleware/permission');
+const storeFilter = require('../middleware/storeFilter');
 const imageService = require('../services/image.service');
 const { success, error } = require('../utils/response');
 
@@ -25,18 +28,18 @@ const upload = multer({
   }
 });
 
-// GET /api/v1/images - 管理端列表（支持 coach_id、show_on_home 筛选）
-router.get('/', async (req, res, next) => {
+// GET /api/v1/images - 管理端图片列表（需登录 + 门店隔离）
+router.get('/', auth, checkPermission(['super_admin', 'store_manager', 'staff']), storeFilter(), async (req, res, next) => {
   try {
-    const result = await imageService.getList(req.query);
+    const result = await imageService.getList(req.query, req.storeFilter || {});
     res.json(success(result));
   } catch (err) {
     next(err);
   }
 });
 
-// POST /api/v1/images - 上传图片
-router.post('/', upload.single('image'), async (req, res, next) => {
+// POST /api/v1/images - 上传图片（需登录 + 管理端角色 + 门店隔离）
+router.post('/', auth, checkPermission(['super_admin', 'store_manager', 'staff']), storeFilter(), upload.single('image'), async (req, res, next) => {
   try {
     if (!req.file) {
       return res.status(400).json(error('请选择图片'));
@@ -48,10 +51,10 @@ router.post('/', upload.single('image'), async (req, res, next) => {
   }
 });
 
-// PUT /api/v1/images/:id - 编辑图片
-router.put('/:id', async (req, res, next) => {
+// PUT /api/v1/images/:id - 编辑图片（需登录 + 管理端角色 + 门店隔离）
+router.put('/:id', auth, checkPermission(['super_admin', 'store_manager', 'staff']), storeFilter(), async (req, res, next) => {
   try {
-    const image = await imageService.update(req.params.id, req.body);
+    const image = await imageService.update(req.params.id, req.body, req.user);
     if (!image) return res.status(404).json(error('图片不存在'));
     res.json(success(image));
   } catch (err) {
@@ -59,10 +62,10 @@ router.put('/:id', async (req, res, next) => {
   }
 });
 
-// DELETE /api/v1/images/:id - 删除图片
-router.delete('/:id', async (req, res, next) => {
+// DELETE /api/v1/images/:id - 删除图片（需登录 + 管理端角色 + 门店隔离）
+router.delete('/:id', auth, checkPermission(['super_admin', 'store_manager', 'staff']), storeFilter(), async (req, res, next) => {
   try {
-    await imageService.remove(req.params.id);
+    await imageService.remove(req.params.id, req.user);
     res.json(success(null, '删除成功'));
   } catch (err) {
     next(err);

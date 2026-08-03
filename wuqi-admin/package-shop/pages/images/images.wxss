@@ -142,6 +142,16 @@
   white-space: nowrap;
 }
 
+.ic-gallery-tag {
+  display: inline-block;
+  font-size: 20rpx;
+  color: #D4786E;
+  background: rgba(212, 120, 110, 0.10);
+  padding: 2rpx 12rpx;
+  border-radius: 6rpx;
+  margin-top: 4rpx;
+}
+
 .ic-coach {
   font-size: 24rpx;
   color: #D4786E;

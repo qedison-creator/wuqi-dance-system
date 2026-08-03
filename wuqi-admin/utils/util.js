@@ -214,13 +214,15 @@ const debounce = (func, wait) => {
 // 数据库存的是 /uploads/avatars/xxx.webp 这样的相对路径，前端直接用会被当作小程序本地资源加载导致 500
 const fixImageUrl = (url) => {
   if (!url) return '';
-  if (url.startsWith('https://') || url.startsWith('http://')) return url;
+  // 已是完整 URL：强制升级 HTTP 为 HTTPS（微信小程序不再支持 HTTP 协议图片）
+  if (url.startsWith('https://')) return url;
+  if (url.startsWith('http://')) return url.replace(/^http:\/\//, 'https://');
   try {
     const config = require('../config/index.js');
     const serverBase = config.serverBase || '';
-    if (url.startsWith('//')) return serverBase.replace(/^https?:/, '') + url;
-    if (url.startsWith('/')) return serverBase + url;
-    return serverBase + '/' + url;
+    if (url.startsWith('//')) return (serverBase.replace(/^https?:/, '') + url).replace(/^http:\/\//, 'https://');
+    if (url.startsWith('/')) return (serverBase + url).replace(/^http:\/\//, 'https://');
+    return (serverBase + '/' + url).replace(/^http:\/\//, 'https://');
   } catch (e) {
     return url;
   }
@@ -275,6 +277,50 @@ const cropImageToCircle = (filePath, outputSize = 200) => {
   });
 };
 
+/**
+ * 安全裁剪图片（带兜底机制）
+ * 优先调用 wx.cropImage 进行裁剪，失败时根据错误类型处理：
+ * - 用户取消裁剪（cancel）：抛出错误，调用方可识别并中断
+ * - 开发者工具不支持 / 其他错误：跳过裁剪，返回原图（兜底，保证流程继续）
+ * @param {string} filePath - 原图临时路径
+ * @param {string} cropScale - 裁剪比例（仅支持 16:9/9:16/4:3/3:4/5:4/4:5/1:1）
+ * @returns {Promise<string>} 裁剪后图片路径（或原图路径）
+ */
+const cropImageSafe = (filePath, cropScale) => {
+  return new Promise((resolve, reject) => {
+    // wx.cropImage 不存在：直接返回原图
+    if (!wx.cropImage) {
+      resolve(filePath);
+      return;
+    }
+    // 开发者工具环境：wx.cropImage 不支持调试，直接跳过裁剪，避免触发 HTTP 临时路径警告
+    try {
+      const sysInfo = wx.getSystemInfoSync();
+      if (sysInfo && sysInfo.platform === 'devtools') {
+        console.warn('[cropImageSafe] 开发者工具环境跳过裁剪，使用原图');
+        resolve(filePath);
+        return;
+      }
+    } catch (e) { /* 忽略，继续尝试裁剪 */ }
+    wx.cropImage({
+      src: filePath,
+      cropScale: cropScale,
+      success: (res) => resolve(res.tempFilePath),
+      fail: (err) => {
+        const errMsg = (err.errMsg || '').toLowerCase();
+        // 用户主动取消裁剪：抛出错误，调用方可中断
+        if (errMsg.indexOf('cancel') !== -1) {
+          reject(err);
+          return;
+        }
+        // 其他失败（含开发者工具不支持）：跳过裁剪，返回原图兜底
+        console.warn('裁剪跳过，使用原图:', err.errMsg || err);
+        resolve(filePath);
+      }
+    });
+  });
+};
+
 module.exports = {
   getBeijingDate,
   formatDate,
@@ -299,5 +345,6 @@ module.exports = {
   showModal,
   debounce,
   fixImageUrl,
-  cropImageToCircle
+  cropImageToCircle,
+  cropImageSafe
 };

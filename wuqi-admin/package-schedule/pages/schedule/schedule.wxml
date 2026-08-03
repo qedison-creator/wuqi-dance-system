@@ -1,16 +1,5 @@
-<page-meta page-style="{{showAddModal || showManageModal || showCopyModal || showCancelReasonModal || showOfflineModal || showTimePicker ? 'overflow: hidden;' : ''}}"/>
+<page-meta page-style="{{showAddModal || showManageModal || showCopyModal || showCancelReasonModal || showTimePicker ? 'overflow: hidden;' : ''}}"/>
 <view class="schedule-page">
-  <!-- 门店切换 -->
-  <view class="store-tabs">
-    <scroll-view scroll-x class="store-scroll">
-      <view class="store-list">
-        <view class="store-item {{currentStoreId === item._id ? 'active' : ''}}" wx:for="{{stores}}" wx:key="_id" data-id="{{item._id}}" bindtap="onSwitchStore">
-          <text>{{item.name}}</text>
-        </view>
-      </view>
-    </scroll-view>
-  </view>
-
   <!-- 视图切换栏 -->
   <view class="view-mode-bar">
     <view class="view-mode-tabs">
@@ -148,7 +137,7 @@
           <!-- 已取消/已下线状态显示对应按钮 -->
           <!-- 已下线状态：显示上线 + 删除按钮 -->
           <block wx:if="{{item.status === 'offline'}}">
-            <view class="action-btn primary" data-id="{{item._id}}" bindtap="onOnlineSchedule">
+            <view class="action-btn primary" wx:if="{{!item.isHistory}}" data-id="{{item._id}}" bindtap="onOnlineSchedule">
               <text>上线</text>
             </view>
             <view class="action-btn danger" data-id="{{item._id}}" data-bookings="{{item.current_bookings || 0}}" bindtap="onDeleteSchedule">
@@ -159,13 +148,18 @@
           <view class="action-btn danger" wx:elif="{{item.status === 'cancelled'}}" data-id="{{item._id}}" data-bookings="{{item.current_bookings || 0}}" bindtap="onDeleteSchedule">
             <text>删除</text>
           </view>
-          <!-- 已结束课程：查看上课记录 -->
-          <view class="action-btn history-action" wx:elif="{{item.isHistory || item.status === 'completed'}}" data-id="{{item._id}}" bindtap="onViewAttendance">
-            <text>上课记录</text>
-          </view>
-          <!-- 正常状态显示下线+取消按钮 -->
-          <block wx:else>
+          <!-- 已结束课程：查看上课记录 + 下线 -->
+          <block wx:elif="{{item.isHistory || item.status === 'completed'}}">
+            <view class="action-btn history-action" data-id="{{item._id}}" bindtap="onViewAttendance">
+              <text>上课记录</text>
+            </view>
             <view class="action-btn warning" data-id="{{item._id}}" data-bookings="{{item.current_bookings || 0}}" bindtap="onOfflineSchedule">
+              <text>下线</text>
+            </view>
+          </block>
+          <!-- 正常状态：无预约时显示下线+取消，有预约时仅显示取消 -->
+          <block wx:else>
+            <view class="action-btn warning" wx:if="{{(item.current_bookings || 0) === 0}}" data-id="{{item._id}}" data-bookings="{{item.current_bookings || 0}}" bindtap="onOfflineSchedule">
               <text>下线</text>
             </view>
             <view class="action-btn danger" data-id="{{item._id}}" data-bookings="{{item.current_bookings || 0}}" bindtap="onCancelSchedule">
@@ -496,7 +490,7 @@
       </view>
 
       <scroll-view class="modal-body-scroll" scroll-y="true" show-scrollbar="false" enhanced="true">
-        <!-- 步骤指示器：根据视图模式调整 -->
+        <!-- 月视图：步骤指示器 -->
         <view class="step-bar" wx:if="{{viewMode === 'month'}}">
           <view class="step-item {{copyStep >= 1 ? 'active' : ''}}">
             <view class="step-dot">1</view>
@@ -511,17 +505,6 @@
           <view class="step-item {{copyStep >= 3 ? 'active' : ''}}">
             <view class="step-dot">3</view>
             <text class="step-text">确认</text>
-          </view>
-        </view>
-        <view class="step-bar" wx:else>
-          <view class="step-item {{copyStep >= 1 ? 'active' : ''}}">
-            <view class="step-dot">1</view>
-            <text class="step-text">确认模板</text>
-          </view>
-          <view class="step-line {{copyStep >= 2 ? 'active' : ''}}"></view>
-          <view class="step-item {{copyStep >= 2 ? 'active' : ''}}">
-            <view class="step-dot">2</view>
-            <text class="step-text">复制范围</text>
           </view>
         </view>
 
@@ -554,25 +537,8 @@
           </view>
         </view>
 
-        <!-- 星期视图：第1步：确认模板 -->
-        <view class="step-content" wx:if="{{copyStep === 1 && viewMode === 'day'}}">
-          <view class="step-desc">
-            <text class="desc-text">确认星期模板排课</text>
-          </view>
-          <view class="template-preview">
-            <text class="template-label">模板课程总数</text>
-            <text class="template-count">{{copySourceCount}} 节课</text>
-            <view class="template-weekdays">
-              <view class="template-weekday-item" wx:for="{{weekdayList}}" wx:key="index">
-                <text class="weekday-name">{{item.name}}</text>
-                <text class="weekday-count">{{weekTemplate[item.weekday] ? weekTemplate[item.weekday].length : 0}} 节</text>
-              </view>
-            </view>
-          </view>
-        </view>
-
-        <!-- 第2步：选择复制范围（两个模式共用） -->
-        <view class="step-content" wx:if="{{copyStep === 2 || (copyStep === 1 && viewMode === 'day') }}">
+        <!-- 月视图：第2步：选择复制范围 -->
+        <view class="step-content" wx:if="{{copyStep === 2 && viewMode === 'month'}}">
           <view class="step-desc">
             <text class="desc-text">选择复制到未来的范围</text>
           </view>
@@ -618,7 +584,6 @@
             </view>
             <text class="stepper-hint">{{copyForm.copyMode === 'weeks' ? '最多24周' : '最多12个月'}}</text>
           </view>
-          <!-- 实时预览 -->
           <view class="copy-preview-card" wx:if="{{copyPreviewText}}">
             <text class="preview-label">复制预览</text>
             <text class="preview-value">{{copyPreviewText}}</text>
@@ -660,6 +625,70 @@
             <text class="confirm-notice-item">•生成后可在排课列表中编辑</text>
           </view>
         </view>
+
+        <!-- 星期视图：一个弹窗，所有内容在一起 -->
+        <view class="step-content" wx:if="{{viewMode === 'day'}}">
+          <view class="step-desc">
+            <text class="desc-text">选择要复制的星期</text>
+          </view>
+          <view class="template-preview">
+            <view class="template-weekdays">
+              <view class="template-weekday-item {{copyForm.selectedWeekdayMap[item.weekday] ? 'selected' : ''}} {{!weekTemplate[item.weekday] || weekTemplate[item.weekday].length === 0 ? 'disabled' : ''}}" wx:for="{{weekdayList}}" wx:key="index" data-weekday="{{item.weekday}}" bindtap="onToggleCopyWeekday">
+                <view class="weekday-checkbox {{copyForm.selectedWeekdayMap[item.weekday] ? 'checked' : ''}}">
+                  <text wx:if="{{copyForm.selectedWeekdayMap[item.weekday]}}">✓</text>
+                </view>
+                <text class="weekday-name">{{item.name}}</text>
+                <text class="weekday-count">{{weekTemplate[item.weekday] ? weekTemplate[item.weekday].length : 0}} 节</text>
+              </view>
+            </view>
+          </view>
+          <view class="form-group" style="margin-top: 24rpx;">
+            <text class="form-label">目标起始日</text>
+            <picker mode="date" value="{{copyForm.target_start_date}}" bindchange="onCopyFormChange" data-field="target_start_date">
+              <view class="input-field picker-field">
+                <text class="{{copyForm.target_start_date ? '' : 'placeholder'}}">{{copyForm.target_start_date || '请选择'}}</text>
+              </view>
+            </picker>
+          </view>
+          <view class="form-group">
+            <text class="form-label">复制方式</text>
+            <view class="copy-mode-list">
+              <view class="copy-mode-item {{copyForm.copyMode === 'weeks' ? 'active' : ''}}" bindtap="onCopyModeChange" data-mode="weeks">
+                <text class="mode-icon"></text>
+                <view class="mode-info">
+                  <text class="mode-name">按周复制</text>
+                  <text class="mode-desc">每周重复相同的排课</text>
+                </view>
+              </view>
+              <view class="copy-mode-item {{copyForm.copyMode === 'months' ? 'active' : ''}}" bindtap="onCopyModeChange" data-mode="months">
+                <text class="mode-icon"></text>
+                <view class="mode-info">
+                  <text class="mode-name">按月复制</text>
+                  <text class="mode-desc">每月重复相同的排课</text>
+                </view>
+              </view>
+            </view>
+          </view>
+          <view class="form-group">
+            <text class="form-label">{{copyForm.copyMode === 'weeks' ? '复制周数' : '复制月数'}}</text>
+            <view class="stepper">
+              <view class="stepper-btn" bindtap="onStepperMinus">
+                <text>-</text>
+              </view>
+              <view class="stepper-value">
+                <text>{{copyForm.copyCount}}</text>
+              </view>
+              <view class="stepper-btn" bindtap="onStepperPlus">
+                <text>+</text>
+              </view>
+            </view>
+            <text class="stepper-hint">{{copyForm.copyMode === 'weeks' ? '最多24周' : '最多12个月'}}</text>
+          </view>
+          <view class="copy-preview-card" wx:if="{{copyPreviewText}}">
+            <text class="preview-label">复制预览</text>
+            <text class="preview-value">{{copyPreviewText}}</text>
+          </view>
+        </view>
       </scroll-view>
 
       <!-- 底部按钮：根据视图模式调整 -->
@@ -676,11 +705,8 @@
           <view class="btn-secondary" bindtap="onCloseCopyModal">
             <text>取消</text>
           </view>
-          <view class="btn-primary" bindtap="onSubmitCopy" wx:if="{{copyForm.target_start_date}}">
+          <view class="btn-primary" bindtap="onSubmitCopy">
             <text>确认复制</text>
-          </view>
-          <view class="btn-primary disabled" wx:else>
-            <text>请选择起始日期</text>
           </view>
         </block>
       </view>
@@ -722,26 +748,5 @@
   </view>
 
   <!-- 下线排课弹窗 -->
-  <view class="modal-mask" wx:if="{{showOfflineModal}}" bindtap="onCloseOfflineModal" catchtouchmove="preventTouchMove">
-    <view class="modal-content cancel-reason-modal" catchtap="onModalTap">
-      <view class="modal-header">
-        <text class="modal-title">下线排课</text>
-        <view class="modal-close" bindtap="onCloseOfflineModal">×</view>
-      </view>
-      <view class="modal-body-scroll">
-        <view class="warning-box">
-          <text class="warning-icon">!</text>
-          <text class="warning-text">{{offlineBookings > 0 ? '该课程已有 ' + offlineBookings + ' 人预约，下线后将自动退还课时并通知会员。' : '当前无会员预约，下线后课程将不再展示。'}}</text>
-        </view>
-        <view class="form-group" style="margin-top: 24rpx;">
-          <text class="form-label">下线原因（可选）</text>
-          <textarea class="input-field" placeholder="请输入下线原因，便于后续追溯" value="{{offlineReasonInput}}" data-field="offlineReasonInput" bindinput="onOfflineReasonInput" maxlength="50" auto-height></textarea>
-        </view>
-      </view>
-      <view class="modal-buttons">
-        <view class="btn-secondary" bindtap="onCloseOfflineModal"><text>取消</text></view>
-        <view class="btn-danger" bindtap="onConfirmOfflineSchedule"><text>确认下线</text></view>
-      </view>
-    </view>
-  </view>
+  <!-- 下线排课使用 wx.showModal，无需自定义弹窗 -->
 </view>

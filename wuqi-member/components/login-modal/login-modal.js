@@ -76,6 +76,11 @@ Component({
             code: sessionCode,
             phone_code: phoneCode
           };
+          // 携带用户当前选择的门店，确保新注册用户归属正确门店，该门店管理员可审核
+          const currentStore = app.globalData.currentStore;
+          if (currentStore && currentStore._id) {
+            reqData.store_id = currentStore._id;
+          }
 
           if (!baseUrl) {
             setTimeout(() => {

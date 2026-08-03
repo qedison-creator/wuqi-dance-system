@@ -23,33 +23,88 @@ Page({
     // 多选
     selectMode: false,
     selectedIds: [],
-    selectAll: false
+    selectAll: false,
+    // 画册归属
+    isSuperAdmin: false,         // 是否超管（可切换公共/门店画册）
+    currentStoreName: '',        // 当前选中门店名称
+    formStoreId: '',             // 弹窗中选中的画册归属：'' = 公共画册；有值 = 门店画册
+    showGalleryPicker: false,    // 画册选择面板
+    galleryOptions: [],          // 画册可选项 [{ value: '', label: '公共画册' }, { value: 'xxx', label: '门店画册' }]
   },
 
   onShow() {
+    this._initGalleryContext();
     this.loadData();
+  },
+
+  // 初始化画册上下文：判断角色、当前门店、可选项
+  _initGalleryContext() {
+    const userInfo = app.globalData.userInfo || {};
+    const isSuperAdmin = userInfo.role === 'super_admin';
+    const shopStoreId = app.globalData.shopStoreId || '';
+    // 画册上下文下：未选门店 = 公共画册，currentStoreName 置空
+    let currentStoreName = '';
+    if (shopStoreId) {
+      const storeList = app.globalData.storeList || [];
+      const matched = storeList.find(s => String(s._id) === String(shopStoreId));
+      currentStoreName = matched ? matched.name : '';
+    }
+
+    // 画册可选项：超管在选中门店时可切换公共/门店画册
+    let galleryOptions = [];
+    if (isSuperAdmin) {
+      galleryOptions = [
+        { value: '', label: '公共画册' },
+      ];
+      if (shopStoreId) {
+        galleryOptions.push({ value: shopStoreId, label: (currentStoreName || '当前门店') + ' 画册' });
+      }
+    }
+
+    this.setData({ isSuperAdmin, currentStoreName, galleryOptions });
   },
 
   async loadData() {
     this.setData({ loading: true });
     try {
+      const shopStoreId = app.globalData.shopStoreId || '';
       const params = { pageSize: 100 };
       if (this.data.filterCoachId) params.coach_id = this.data.filterCoachId;
       if (this.data.filterShowHome !== '') params.show_on_home = this.data.filterShowHome;
 
+      // 按统一门店选择过滤图片：
+      // - 选中具体门店：传 store_id，仅显示该门店画册
+      // - 未选门店（超管"全部门店"）：传 gallery_type=public，仅显示公共画册
+      if (shopStoreId) {
+        params.store_id = shopStoreId;
+      } else {
+        params.gallery_type = 'public';
+      }
+
       const [imageRes, coachRes] = await Promise.all([
         api.images.getList(params),
-        api.coaches.getList({ pageSize: 100 })
+        api.coaches.getList({ pageSize: 100, store_id: shopStoreId })
       ]);
       const rawImages = imageRes.data || {};
-      const list = rawImages.list || rawImages.data || [];
+      let list = rawImages.list || rawImages.data || [];
       const serverBase = config.serverBase || '';
+
+      // 教练列表按统一门店选择过滤
+      const coachData = coachRes.data || {};
+      let coachList = coachData.list || coachData.data || [];
+      if (shopStoreId) {
+        coachList = coachList.filter(coach => {
+          // store_ids 为空或不存在表示多门店执教，所有门店可见
+          if (!coach.store_ids || coach.store_ids.length === 0) return true;
+          return coach.store_ids.some(sid => String(sid) === String(shopStoreId));
+        });
+      }
+
       list.forEach(item => {
         if (item.created_at) {
           item.created_at = item.created_at.substring(0, 10);
         }
         // 拼接完整图片URL
-
         if (item.thumbnail_url && !item.thumbnail_url.startsWith('http')) {
           item.thumbnail_url = serverBase + item.thumbnail_url;
         }
@@ -58,9 +113,14 @@ Page({
         }
         // 拼接教练名
         item.coachNames = (item.coach_ids || []).map(c => c.name || '').filter(Boolean).join(' / ');
+        // 画册归属标签
+        if (item.store_id) {
+          const storeObj = typeof item.store_id === 'object' ? item.store_id : null;
+          item.galleryLabel = storeObj && storeObj.name ? storeObj.name + ' 画册' : '门店画册';
+        } else {
+          item.galleryLabel = '公共画册';
+        }
       });
-      const coachData = coachRes.data || {};
-      const coachList = coachData.list || coachData.data || [];
       this.setData({ list, coachList, loading: false });
       this._syncSelectedState();
     } catch (err) {
@@ -90,6 +150,8 @@ Page({
 
   // 显示上传弹窗
   onShowAdd() {
+    // 默认画册归属：选中门店 → 门店画册；未选门店（超管） → 公共画册
+    const shopStoreId = app.globalData.shopStoreId || '';
     this.setData({
       showModal: true,
       editingId: null,
@@ -97,6 +159,8 @@ Page({
       formTitle: '',
       formShowHome: true,
       showCoachPicker: false,
+      showGalleryPicker: false,
+      formStoreId: shopStoreId,
       cropMode: ''
     });
     this._initCoachChecked([]);
@@ -106,15 +170,35 @@ Page({
   onShowEdit(e) {
     const item = e.currentTarget.dataset.item;
     const coachIds = (item.coach_ids || []).map(c => typeof c === 'string' ? c : c._id);
+    // 编辑时回填画册归属：item.store_id 为对象时取 _id，为 null/空时为公共画册
+    let formStoreId = '';
+    if (item.store_id) {
+      formStoreId = typeof item.store_id === 'object' ? (item.store_id._id || '') : String(item.store_id);
+    }
     this.setData({
       showModal: true,
       editingId: item._id,
       tempImagePath: '',
       formTitle: item.title || '',
       formShowHome: item.show_on_home !== false,
-      showCoachPicker: false
+      showCoachPicker: false,
+      showGalleryPicker: false,
+      formStoreId
     });
     this._initCoachChecked(coachIds);
+  },
+
+  // 切换画册选择面板
+  onToggleGalleryPicker() {
+    // 仅超管可切换
+    if (!this.data.isSuperAdmin) return;
+    this.setData({ showGalleryPicker: !this.data.showGalleryPicker });
+  },
+
+  // 选择画册归属
+  onGallerySelect(e) {
+    const value = e.currentTarget.dataset.value || '';
+    this.setData({ formStoreId: value, showGalleryPicker: false });
   },
 
   // 关闭弹窗
@@ -237,7 +321,7 @@ Page({
 
   // 提交
   async onSubmit() {
-    const { formTitle, formCoachIds, editingId, tempImagePath, formShowHome } = this.data;
+    const { formTitle, formCoachIds, editingId, tempImagePath, formShowHome, formStoreId } = this.data;
 
     if (!formTitle.trim()) {
       wx.showToast({ title: '请输入图片名称', icon: 'none' });
@@ -249,7 +333,8 @@ Page({
         await api.images.update(editingId, {
           title: formTitle.trim(),
           coach_ids: formCoachIds,
-          show_on_home: formShowHome
+          show_on_home: formShowHome,
+          store_id: formStoreId
         });
         wx.showToast({ title: '更新成功', icon: 'success' });
       } else {
@@ -269,7 +354,8 @@ Page({
             formData: {
               title: formTitle.trim(),
               coach_ids: formCoachIds.join(','),
-              show_on_home: String(formShowHome)
+              show_on_home: String(formShowHome),
+              store_id: formStoreId
             },
             success: (res) => {
               try {

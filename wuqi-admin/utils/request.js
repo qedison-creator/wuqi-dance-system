@@ -93,10 +93,12 @@ const request = (options) => {
         }
         // 业务错误或重试耗尽 → 提示并拒绝
         // 审核员只读 403：已在 _rawRequest 中处理，此处跳过 toast 避免重复提示
+        // 非200业务错误（已有statusCode）：已在 _rawRequest 中显示过 toast，此处跳过避免重复提示
         const app2 = getApp();
         const role = app2 && app2.globalData && app2.globalData.userInfo && app2.globalData.userInfo.role;
         const isReviewer403 = role === 'reviewer' && err && err.statusCode === 403;
-        if (!silent && !isReviewer403) {
+        const isHandledBusinessError = err && err.statusCode;
+        if (!silent && !isReviewer403 && !isHandledBusinessError) {
           const isTimeout = err.errMsg && err.errMsg.indexOf('timeout') !== -1;
           wx.showToast({
             title: isTimeout ? '请求超时，请重试' : '网络连接失败',

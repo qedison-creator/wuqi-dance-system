@@ -3,7 +3,6 @@
   <!-- 页面头部 -->
   <view class="page-header">
     <view class="header-left">
-      <text class="page-title">轮播图管理</text>
       <text class="page-desc">管理小程序首页轮播图展示</text>
     </view>
     <view class="add-btn" bindtap="onAddBanner">
@@ -36,15 +35,20 @@
           <text class="meta-label">链接</text>
           <text class="meta-value link">{{item.link_url || '无'}}</text>
         </view>
+        <view class="meta-item">
+          <text class="meta-label">门店</text>
+          <text class="meta-value {{item.is_multi_store ? 'meta-multi-store' : ''}}">{{item.store_label}}</text>
+        </view>
       </view>
       <view class="banner-actions">
-        <view class="action-btn primary" data-id="{{item._id}}" bindtap="onEditBanner">
+        <!-- 多门店展示对非超管禁用操作按钮（置灰且不可点击） -->
+        <view class="action-btn primary {{item.can_operate ? '' : 'action-btn-disabled'}}" data-id="{{item._id}}" bindtap="{{item.can_operate ? 'onEditBanner' : 'onDisabledBannerAction'}}">
           <text>编辑</text>
         </view>
-        <view class="action-btn {{item.status === 'active' ? 'warning' : 'success'}}" data-id="{{item._id}}" data-index="{{index}}" bindtap="onToggleStatus">
+        <view class="action-btn {{item.status === 'active' ? 'warning' : 'success'}} {{item.can_operate ? '' : 'action-btn-disabled'}}" data-id="{{item._id}}" data-index="{{index}}" bindtap="{{item.can_operate ? 'onToggleStatus' : 'onDisabledBannerAction'}}">
           <text>{{item.status === 'active' ? '禁用' : '启用'}}</text>
         </view>
-        <view class="action-btn danger" data-id="{{item._id}}" bindtap="onDeleteBanner">
+        <view class="action-btn danger {{item.can_operate ? '' : 'action-btn-disabled'}}" data-id="{{item._id}}" bindtap="{{item.can_operate ? 'onDeleteBanner' : 'onDisabledBannerAction'}}">
           <text>删除</text>
         </view>
       </view>
@@ -112,6 +116,17 @@
             <switch checked="{{formData.status === 'active'}}" color="#FFCC00" bindchange="onStatusChange" />
           </view>
         </view>
+      </view>
+
+      <view class="form-group" wx:if="{{!isSingleStoreRole}}">
+        <text class="form-label">展示门店</text>
+        <picker bindchange="onStoreChange" value="{{storeIndex}}" range="{{storeOptions}}" range-key="name">
+          <view class="form-input picker-display">
+            <text>{{storeOptions[storeIndex].name || '请选择'}}</text>
+            <text class="picker-arrow">▾</text>
+          </view>
+        </picker>
+        <text class="form-tip">"多门店展示"将在所有门店显示，仅超级管理员可编辑</text>
       </view>
 
       </scroll-view>

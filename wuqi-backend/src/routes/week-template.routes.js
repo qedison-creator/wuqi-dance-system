@@ -3,6 +3,7 @@ const router = express.Router();
 const weekTemplateService = require('../services/week-template.service');
 const auth = require('../middleware/auth');
 const checkPermission = require('../middleware/permission');
+const storeFilter = require('../middleware/storeFilter');
 
 router.get('/', auth, checkPermission(['super_admin', 'store_manager', 'staff']), async (req, res) => {
   try {
@@ -34,7 +35,7 @@ router.post('/', auth, checkPermission(['super_admin', 'store_manager']), async 
   }
 });
 
-router.put('/weekday', auth, checkPermission(['super_admin', 'store_manager']), async (req, res) => {
+router.put('/weekday', auth, checkPermission(['super_admin', 'store_manager']), storeFilter(), async (req, res) => {
   try {
     const { store_id, weekday, schedules } = req.body;
     if (!store_id || weekday === undefined || schedules === undefined) {
@@ -49,7 +50,7 @@ router.put('/weekday', auth, checkPermission(['super_admin', 'store_manager']), 
   }
 });
 
-router.delete('/weekday', auth, checkPermission(['super_admin', 'store_manager']), async (req, res) => {
+router.delete('/weekday', auth, checkPermission(['super_admin', 'store_manager']), storeFilter(), async (req, res) => {
   try {
     const { store_id, weekday, index } = req.query;
     if (!store_id || weekday === undefined || index === undefined) {

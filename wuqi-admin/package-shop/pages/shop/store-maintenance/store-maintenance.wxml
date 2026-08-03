@@ -1,14 +1,15 @@
 <view class="page">
   <view class="page-header">
     <text class="page-title">门店维护</text>
-    <view class="add-btn" bindtap="onAddStore" wx:if="{{!editingStore}}">
+    <!-- 单门店角色不允许新增门店 -->
+    <view class="add-btn" bindtap="onAddStore" wx:if="{{!editingStore && !isSingleStoreRole}}">
       <text>+ 新增门店</text>
     </view>
   </view>
 
   <block wx:if="{{!editingStore}}">
     <view class="store-list">
-      <view class="store-card" wx:for="{{storeList}}" wx:key="_id" data-store="{{item}}" bindtap="onEditStore">
+      <view class="store-card {{selectedStoreId && item._id === selectedStoreId ? 'store-card-highlight' : ''}}" wx:for="{{storeList}}" wx:key="_id" data-store="{{item}}" bindtap="onEditStore">
         <view class="sc-header">
           <text class="sc-name">{{item.name}}</text>
           <view class="sc-edit-btn">

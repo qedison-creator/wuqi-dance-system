@@ -91,16 +91,28 @@ Page({
     // 更新正式会员状态（控制课程时间等敏感信息显示）
     const userInfo = app.globalData.userInfo || {};
     this.setData({
-      isOfficial: userInfo.member_status === 'official',
-      storeList: app.globalData.storeList,
-      currentStore: app.globalData.currentStore
+      isOfficial: userInfo.member_status === 'official'
     });
-    if (!this.data.currentStore && this.data.storeList.length > 0) {
-      app.globalData.currentStore = this.data.storeList[0];
-      this.setData({ currentStore: this.data.storeList[0] });
+
+    // 同步读取门店数据：真机冷启动时 getStoreList 可能尚未返回，下方会异步兜底
+    let storeList = app.globalData.storeList || [];
+    let currentStore = app.globalData.currentStore;
+    // currentStore 未就绪但门店列表已加载：先用 list[0] 作为临时默认，让首页快速渲染
+    // 注意：不写回 app.globalData.currentStore，避免干扰 determineDefaultStore 的异步匹配
+    if (!currentStore && storeList.length > 0) {
+      currentStore = storeList[0];
     }
+    this.setData({ storeList, currentStore });
+
     this.updateGreeting();
     this.updateContentPadding();
+
+    // 如果 globalData.currentStore 还没就绪（会员场景 determineDefaultStore 异步匹配中），
+    // 异步等待就绪后再刷新，避免首页一直显示临时默认门店
+    if (!app.globalData.currentStore) {
+      this.waitForCurrentStore();
+    }
+
     const currentStoreId = this.data.currentStore ? this.data.currentStore._id : '';
     // 检测登录状态变化（登录/退出登录/切换账号），变化时强制刷新首页数据
     const loginStateToken = app.globalData.loginStateToken || 0;
@@ -128,8 +140,47 @@ Page({
     this.startAnnounceFlip();
   },
 
+  // 异步等待 app.globalData.currentStore 就绪（会员场景 determineDefaultStore 异步匹配中）
+  // 就绪后若与临时默认门店不同，刷新 currentStore 并重新加载首页数据
+  waitForCurrentStore() {
+    if (this._storeWaitTimer) clearInterval(this._storeWaitTimer);
+    let attempts = 0;
+    const maxAttempts = 20; // 最多等待 4 秒（200ms × 20）
+    this._storeWaitTimer = setInterval(() => {
+      attempts++;
+      const ready = app.globalData.currentStore;
+      if (ready) {
+        clearInterval(this._storeWaitTimer);
+        this._storeWaitTimer = null;
+        const oldStoreId = this.data.currentStore ? this.data.currentStore._id : '';
+        const newStoreId = ready._id;
+        // 同步最新门店列表和匹配后的 currentStore
+        this.setData({
+          currentStore: ready,
+          storeList: app.globalData.storeList || []
+        });
+        // 门店发生变化时重新加载首页数据
+        if (oldStoreId !== newStoreId) {
+          // 重置画廊加载状态，使画廊按新门店重新加载
+          this._galleryLoaded = false;
+          this._galleryLoading = false;
+          this.setData({ _lastStoreId: newStoreId });
+          this.loadHomeData();
+        }
+      } else if (attempts >= maxAttempts) {
+        // 超时：停止等待，保持当前临时默认门店
+        clearInterval(this._storeWaitTimer);
+        this._storeWaitTimer = null;
+      }
+    }, 200);
+  },
+
   onHide() {
     this.stopAnnounceFlip();
+    if (this._storeWaitTimer) {
+      clearInterval(this._storeWaitTimer);
+      this._storeWaitTimer = null;
+    }
   },
 
   onReady() {
@@ -312,7 +363,8 @@ Page({
     if (this._galleryLoading || this._galleryLoaded) return;
     this._galleryLoading = true;
     try {
-      const res = await request({ url: '/home/images', silent: true });
+      const storeId = this.data.currentStore ? this.data.currentStore._id : '';
+      const res = await request({ url: '/home/images', data: { store_id: storeId }, silent: true });
       const rawImages = res.data || [];
       const imageList = Array.isArray(rawImages) ? rawImages : (rawImages.data || rawImages.list || []);
       const images = imageList.map(img => {
@@ -524,6 +576,9 @@ Page({
     app.globalData.userManuallySelectedStore = true;  // 标记本次运行期间不再自动匹配
     app.globalData.pendingRelocate = false;
     wx.setStorageSync('currentStore', store);
+    // 切换门店后重置画廊加载状态，使画廊按新门店重新加载
+    this._galleryLoaded = false;
+    this._galleryLoading = false;
     this.setData({ currentStore: store, showStoreModal: false });
     this.loadHomeData();
   },

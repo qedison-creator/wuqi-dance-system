@@ -195,119 +195,125 @@
       </view>
     </view>
   </view>
-</view>
 
-<view class="modal-mask" wx:if="{{showStoreModal}}" bindtap="onCloseStoreModal">
-  <view class="modal-content" catchtap="onModalTap">
-    <view class="modal-title-text">选择门店</view>
-    <view class="store-list">
-      <view class="store-opt {{currentStore && currentStore._id === item._id ? 'active' : ''}}" wx:for="{{storeList}}" wx:key="_id" data-store="{{item}}" bindtap="onSelectStore">
-        <view class="store-opt-left">
-          <text class="store-opt-name">{{item.name}}</text>
-          <text class="store-opt-distance" wx:if="{{item.distance !== undefined && item.distance !== null}}">{{fmt.distance(item.distance)}}</text>
+  <!-- 门店选择弹窗：放在 page 容器内，避免真机 fixed 定位相对外层异常 -->
+  <view class="modal-mask store-modal" wx:if="{{showStoreModal}}" bindtap="onCloseStoreModal">
+    <view class="modal-content" catchtap="onModalTap">
+      <view class="modal-title-text">选择门店</view>
+      <view class="store-list" wx:if="{{storeList.length > 0}}">
+        <view class="store-opt {{currentStore && currentStore._id === item._id ? 'active' : ''}}" wx:for="{{storeList}}" wx:key="_id" data-store="{{item}}" bindtap="onSelectStore">
+          <view class="store-opt-left">
+            <text class="store-opt-name">{{item.name}}</text>
+            <text class="store-opt-distance" wx:if="{{item.distance !== undefined && item.distance !== null}}">{{fmt.distance(item.distance)}}</text>
+          </view>
+          <view class="store-opt-check" wx:if="{{currentStore && currentStore._id === item._id}}"></view>
         </view>
-        <view class="store-opt-check" wx:if="{{currentStore && currentStore._id === item._id}}"></view>
       </view>
+      <view class="store-empty" wx:else>
+        <text>暂无门店数据</text>
+      </view>
+      <view class="modal-close-btn" bindtap="onCloseStoreModal">关闭</view>
     </view>
-    <view class="modal-close-btn" bindtap="onCloseStoreModal">关闭</view>
   </view>
-</view>
 
-<view class="modal-mask announce-modal" wx:if="{{ showAnnounceModal }}" catchtouchmove="onPreventMove">
-  <view class="am-wrapper" catchtouchmove="onPreventMove">
-    <view class="am-stack" style="transform: translateX({{stackShift}}rpx);">
-      <view class="am-card am-card-below" wx:for="{{ announces }}" wx:key="_id" wx:if="{{ idx > announceSwiperIndex }}" wx:for-index="idx" wx:for-item="card" style="transform: translateX({{idx * stackEdgeWidth}}rpx); z-index: {{10 - (idx - announceSwiperIndex)}};">
-        <view class="am-header">
-          <view class="am-badge">
-            <view class="am-badge-icon"></view>
-            <text class="am-badge-text">公告</text>
-          </view>
-        </view>
-        <view class="am-body">
-          <text class="am-title">{{card.title}}</text>
-          <view class="am-line"></view>
-          <scroll-view class="am-content" scroll-y enhanced show-scrollbar="{{ false }}">
-            <text class="am-text">{{card.content}}</text>
-          </scroll-view>
-        </view>
-        <view class="am-footer">
-          <view class="am-date-wrap">
-            <view class="am-date-dot"></view>
-            <text class="am-date">{{card.createdAtDisplay}}</text>
-          </view>
-        </view>
-      </view>
-      <view class="am-card am-card-return" wx:if="{{returnCardVisible}}" style="transform: translateX({{(announceSwiperIndex - 1) * stackEdgeWidth}}rpx) translateX({{returnCardOffsetX}}px); transition: {{isDragging ? 'none' : 'transform 300ms ease'}}; z-index: 25;">
-        <view class="am-header">
-          <view class="am-badge">
-            <view class="am-badge-icon"></view>
-            <text class="am-badge-text">公告</text>
-          </view>
-          <text class="am-page" wx:if="{{ hasMultipleAnnounces }}">{{ announceSwiperIndex }}/{{ announces.length }}</text>
-        </view>
-        <view class="am-body">
-          <text class="am-title">{{ announces[announceSwiperIndex - 1].title }}</text>
-          <view class="am-line"></view>
-          <scroll-view class="am-content" scroll-y enhanced show-scrollbar="{{ false }}">
-            <text class="am-text">{{ announces[announceSwiperIndex - 1].content }}</text>
-          </scroll-view>
-        </view>
-        <view class="am-footer">
-          <view class="am-date-wrap">
-            <view class="am-date-dot"></view>
-            <text class="am-date">{{ announces[announceSwiperIndex - 1].createdAtDisplay }}</text>
-          </view>
-        </view>
-      </view>
-      <view class="am-card-front" style="transform: translateX({{announceSwiperIndex * stackEdgeWidth}}rpx); z-index: 20;">
-        <view class="am-card am-card-drag" style="transform: translateX({{cardOffsetX}}px); transition: {{isDragging ? 'none' : 'transform 300ms ease, opacity 300ms ease'}}; opacity: {{cardOpacity}};" bindtouchstart="onCardTouchStart" bindtouchmove="onCardTouchMove" bindtouchend="onCardTouchEnd">
+  <!-- 公告弹窗 -->
+  <view class="modal-mask announce-modal" wx:if="{{ showAnnounceModal }}" catchtouchmove="onPreventMove">
+    <view class="am-wrapper" catchtouchmove="onPreventMove">
+      <view class="am-stack" style="transform: translateX({{stackShift}}rpx);">
+        <view class="am-card am-card-below" wx:for="{{ announces }}" wx:key="_id" wx:if="{{ idx > announceSwiperIndex }}" wx:for-index="idx" wx:for-item="card" style="transform: translateX({{idx * stackEdgeWidth}}rpx); z-index: {{10 - (idx - announceSwiperIndex)}};">
           <view class="am-header">
             <view class="am-badge">
               <view class="am-badge-icon"></view>
               <text class="am-badge-text">公告</text>
             </view>
-            <text class="am-page" wx:if="{{ hasMultipleAnnounces }}">{{ announceSwiperIndex + 1 }}/{{ announces.length }}</text>
           </view>
           <view class="am-body">
-            <text class="am-title">{{ announces[announceSwiperIndex].title }}</text>
+            <text class="am-title">{{card.title}}</text>
             <view class="am-line"></view>
             <scroll-view class="am-content" scroll-y enhanced show-scrollbar="{{ false }}">
-              <text class="am-text">{{ announces[announceSwiperIndex].content }}</text>
+              <text class="am-text">{{card.content}}</text>
             </scroll-view>
           </view>
           <view class="am-footer">
             <view class="am-date-wrap">
               <view class="am-date-dot"></view>
-              <text class="am-date">{{ announces[announceSwiperIndex].createdAtDisplay }}</text>
+              <text class="am-date">{{card.createdAtDisplay}}</text>
+            </view>
+          </view>
+        </view>
+        <view class="am-card am-card-return" wx:if="{{returnCardVisible}}" style="transform: translateX({{(announceSwiperIndex - 1) * stackEdgeWidth}}rpx) translateX({{returnCardOffsetX}}px); transition: {{isDragging ? 'none' : 'transform 300ms ease'}}; z-index: 25;">
+          <view class="am-header">
+            <view class="am-badge">
+              <view class="am-badge-icon"></view>
+              <text class="am-badge-text">公告</text>
+            </view>
+            <text class="am-page" wx:if="{{ hasMultipleAnnounces }}">{{ announceSwiperIndex }}/{{ announces.length }}</text>
+          </view>
+          <view class="am-body">
+            <text class="am-title">{{ announces[announceSwiperIndex - 1].title }}</text>
+            <view class="am-line"></view>
+            <scroll-view class="am-content" scroll-y enhanced show-scrollbar="{{ false }}">
+              <text class="am-text">{{ announces[announceSwiperIndex - 1].content }}</text>
+            </scroll-view>
+          </view>
+          <view class="am-footer">
+            <view class="am-date-wrap">
+              <view class="am-date-dot"></view>
+              <text class="am-date">{{ announces[announceSwiperIndex - 1].createdAtDisplay }}</text>
+            </view>
+          </view>
+        </view>
+        <view class="am-card-front" style="transform: translateX({{announceSwiperIndex * stackEdgeWidth}}rpx); z-index: 20;">
+          <view class="am-card am-card-drag" style="transform: translateX({{cardOffsetX}}px); transition: {{isDragging ? 'none' : 'transform 300ms ease, opacity 300ms ease'}}; opacity: {{cardOpacity}};" bindtouchstart="onCardTouchStart" bindtouchmove="onCardTouchMove" bindtouchend="onCardTouchEnd">
+            <view class="am-header">
+              <view class="am-badge">
+                <view class="am-badge-icon"></view>
+                <text class="am-badge-text">公告</text>
+              </view>
+              <text class="am-page" wx:if="{{ hasMultipleAnnounces }}">{{ announceSwiperIndex + 1 }}/{{ announces.length }}</text>
+            </view>
+            <view class="am-body">
+              <text class="am-title">{{ announces[announceSwiperIndex].title }}</text>
+              <view class="am-line"></view>
+              <scroll-view class="am-content" scroll-y enhanced show-scrollbar="{{ false }}">
+                <text class="am-text">{{ announces[announceSwiperIndex].content }}</text>
+              </scroll-view>
+            </view>
+            <view class="am-footer">
+              <view class="am-date-wrap">
+                <view class="am-date-dot"></view>
+                <text class="am-date">{{ announces[announceSwiperIndex].createdAtDisplay }}</text>
+              </view>
             </view>
           </view>
         </view>
       </view>
-    </view>
-    <view class="am-close-btn" bindtap="onCloseAnnounceModal">
-      <view class="am-close-ring">
-        <view class="am-close-x"></view>
+      <view class="am-close-btn" bindtap="onCloseAnnounceModal">
+        <view class="am-close-ring">
+          <view class="am-close-x"></view>
+        </view>
+        <text class="am-close-label">关闭</text>
       </view>
-      <text class="am-close-label">关闭</text>
     </view>
   </view>
-</view>
 
-<login-modal visible="{{showLoginModal}}" bind:close="onLoginModalClose" bind:success="onLoginSuccess"></login-modal>
+  <login-modal visible="{{showLoginModal}}" bind:close="onLoginModalClose" bind:success="onLoginSuccess"></login-modal>
 
-<view class="modal-mask" wx:if="{{showLocationAuthModal}}" catchtap="">
-  <view class="lam-card">
-    <view class="lam-icon-wrap">
-      <view class="lam-icon"></view>
-    </view>
-    <text class="lam-title">开启位置服务</text>
-    <text class="lam-desc">授权位置信息后，为您智能匹配距离最近的门店，推荐附近的课程和教练。</text>
-    <view class="lam-btns">
-      <view class="lam-btn lam-btn-cancel" bindtap="onLocationAuthCancel">
-        <text>暂不</text>
+  <!-- 位置授权弹窗 -->
+  <view class="modal-mask" wx:if="{{showLocationAuthModal}}" catchtap="">
+    <view class="lam-card">
+      <view class="lam-icon-wrap">
+        <view class="lam-icon"></view>
       </view>
-      <view class="lam-btn lam-btn-confirm" bindtap="onLocationAuthConfirm">
-        <text>去授权</text>
+      <text class="lam-title">开启位置服务</text>
+      <text class="lam-desc">授权位置信息后，为您智能匹配距离最近的门店，推荐附近的课程和教练。</text>
+      <view class="lam-btns">
+        <view class="lam-btn lam-btn-cancel" bindtap="onLocationAuthCancel">
+          <text>暂不</text>
+        </view>
+        <view class="lam-btn lam-btn-confirm" bindtap="onLocationAuthConfirm">
+          <text>去授权</text>
+        </view>
       </view>
     </view>
   </view>

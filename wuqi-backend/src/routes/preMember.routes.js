@@ -4,10 +4,18 @@ const fs = require('fs');
 const multer = require('multer');
 const auth = require('../middleware/auth');
 const checkPermission = require('../middleware/permission');
+const storeFilter = require('../middleware/storeFilter');
+const checkRecordOwnership = require('../middleware/checkRecordOwnership');
+const User = require('../models/User');
 const preMemberService = require('../services/preMember.service');
 const Store = require('../models/Store');
 const { success, paginate } = require('../utils/response');
 const { broadcastMemberCountUpdate } = require('../services/websocket.service');
+
+// 预建档记录归属校验中间件实例（复用 User 模型）
+const checkPreMemberOwnership = checkRecordOwnership(User, {
+  recordName: '预建档记录',
+});
 
 // ========== 批量导入数据清洗 ==========
 
@@ -247,7 +255,7 @@ const excelUpload = multer({
 // ========== 预建档管理接口 ==========
 
 // GET /api/v1/pre-members/stats - 预建档数量统计
-router.get('/stats', auth, checkPermission(['super_admin', 'store_manager', 'staff']), async (req, res, next) => {
+router.get('/stats', auth, checkPermission(['super_admin', 'store_manager', 'staff']), storeFilter(), async (req, res, next) => {
   try {
     const storeId = req.query.store_id || (req.user.role !== 'super_admin' ? req.user.store_id : null);
     const result = await preMemberService.getPreMemberStats(storeId);
@@ -258,7 +266,7 @@ router.get('/stats', auth, checkPermission(['super_admin', 'store_manager', 'sta
 });
 
 // GET /api/v1/pre-members/template - 下载导入模板（必须在 /:id 之前定义）
-router.get('/template', auth, checkPermission(['super_admin', 'store_manager', 'staff']), (req, res, next) => {
+router.get('/template', auth, checkPermission(['super_admin', 'store_manager', 'staff']), storeFilter(), (req, res, next) => {
   try {
     const xlsx = require('xlsx');
     const templateData = [
@@ -297,7 +305,7 @@ router.get('/template', auth, checkPermission(['super_admin', 'store_manager', '
 });
 
 // GET /api/v1/pre-members - 预建档列表
-router.get('/', auth, checkPermission(['super_admin', 'store_manager', 'staff']), async (req, res, next) => {
+router.get('/', auth, checkPermission(['super_admin', 'store_manager', 'staff']), storeFilter(), async (req, res, next) => {
   try {
     const result = await preMemberService.getPreMemberList(req.query);
     const paginatedData = paginate(result.list, result.total, result.page, result.pageSize);
@@ -308,7 +316,7 @@ router.get('/', auth, checkPermission(['super_admin', 'store_manager', 'staff'])
 });
 
 // GET /api/v1/pre-members/:id - 预建档详情
-router.get('/:id', auth, checkPermission(['super_admin', 'store_manager', 'staff']), async (req, res, next) => {
+router.get('/:id', auth, checkPermission(['super_admin', 'store_manager', 'staff']), storeFilter(), checkPreMemberOwnership, async (req, res, next) => {
   try {
     const User = require('../models/User');
     const UserPackage = require('../models/UserPackage');
@@ -328,7 +336,7 @@ router.get('/:id', auth, checkPermission(['super_admin', 'store_manager', 'staff
 });
 
 // POST /api/v1/pre-members - 新建预建档
-router.post('/', auth, checkPermission(['super_admin', 'store_manager', 'staff']), async (req, res, next) => {
+router.post('/', auth, checkPermission(['super_admin', 'store_manager', 'staff']), storeFilter(), async (req, res, next) => {
   try {
     const user = await preMemberService.createPreMember(req.body, req.user.id);
     broadcastMemberCountUpdate();
@@ -339,7 +347,7 @@ router.post('/', auth, checkPermission(['super_admin', 'store_manager', 'staff']
 });
 
 // PUT /api/v1/pre-members/:id - 编辑预建档
-router.put('/:id', auth, checkPermission(['super_admin', 'store_manager', 'staff']), async (req, res, next) => {
+router.put('/:id', auth, checkPermission(['super_admin', 'store_manager', 'staff']), storeFilter(), checkPreMemberOwnership, async (req, res, next) => {
   try {
     const user = await preMemberService.updatePreMember(req.params.id, req.body, req.user.id);
     res.json(success(user, '预建档更新成功'));
@@ -349,7 +357,7 @@ router.put('/:id', auth, checkPermission(['super_admin', 'store_manager', 'staff
 });
 
 // DELETE /api/v1/pre-members/:id - 删除预建档
-router.delete('/:id', auth, checkPermission(['super_admin', 'store_manager', 'staff']), async (req, res, next) => {
+router.delete('/:id', auth, checkPermission(['super_admin', 'store_manager', 'staff']), storeFilter(), checkPreMemberOwnership, async (req, res, next) => {
   try {
     await preMemberService.deletePreMember(req.params.id);
     broadcastMemberCountUpdate();
@@ -360,7 +368,7 @@ router.delete('/:id', auth, checkPermission(['super_admin', 'store_manager', 'st
 });
 
 // POST /api/v1/pre-members/batch-delete - 批量删除预建档
-router.post('/batch-delete', auth, checkPermission(['super_admin', 'store_manager', 'staff']), async (req, res, next) => {
+router.post('/batch-delete', auth, checkPermission(['super_admin', 'store_manager', 'staff']), storeFilter(), async (req, res, next) => {
   try {
     const { ids } = req.body || {};
     const result = await preMemberService.batchDeletePreMembers(ids);
@@ -375,7 +383,7 @@ router.post('/batch-delete', auth, checkPermission(['super_admin', 'store_manage
 });
 
 // POST /api/v1/pre-members/import - 批量导入预建档
-router.post('/import', auth, checkPermission(['super_admin', 'store_manager', 'staff']), excelUpload.single('file'), async (req, res, next) => {
+router.post('/import', auth, checkPermission(['super_admin', 'store_manager', 'staff']), storeFilter(), excelUpload.single('file'), async (req, res, next) => {
   try {
     if (!req.file) {
       return res.status(400).json({ code: 400, message: '请上传 Excel 文件' });

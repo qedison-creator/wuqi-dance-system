@@ -42,7 +42,12 @@
             <view class="role-badge {{item.role}}">
               <text>{{item.roleName || item.role}}</text>
             </view>
-            <view class="status-dot {{item.status === 'active' ? 'active' : 'disabled'}}"></view>
+            <!-- 在线状态小圆点：仅超管可见，绿色=在线，灰色=离线 -->
+            <view wx:if="{{currentUserRole === 'super_admin'}}"
+                  class="online-dot {{item.is_online ? 'online' : 'offline'}}"></view>
+            <!-- 账号启用/禁用状态标识（保留原 status-dot 用于内部状态展示，仅对非超管或本账号显示） -->
+            <view wx:if="{{currentUserRole !== 'super_admin'}}"
+                  class="status-dot {{item.status === 'active' ? 'active' : 'disabled'}}"></view>
           </view>
           <text class="account-detail">账号: {{item.username}}</text>
           <text class="account-detail" wx:if="{{item.storeNames}}">门店: {{item.storeNames}}</text>

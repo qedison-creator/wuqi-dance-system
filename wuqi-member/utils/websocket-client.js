@@ -25,6 +25,7 @@ const HEARTBEAT_TIMEOUT = 5000;    // 心跳响应超时（毫秒）
 const RECONNECT_DELAYS = [2000, 5000, 10000]; // 重连递增延迟
 const MAX_RECONNECT = 5;           // 最大重连次数
 const FALLBACK_POLL_INTERVAL = 60000; // 降级轮询间隔（毫秒）
+const CONNECT_TIMEOUT = 10000;     // 连接建立超时（毫秒）
 
 // 根据 HTTP baseUrl 推导 WebSocket 地址
 function getWsUrl() {
@@ -39,11 +40,15 @@ function getWsUrl() {
 let socketTask = null;
 let isConnected = false;
 let isConnecting = false;
+let isDisconnecting = false;       // 是否正在主动断开（防止 onClose 误触重连）
+let isHandlingDisconnect = false;   // 防重入标志：onError/onClose 可能同时触发
 let reconnectCount = 0;
+let connectionId = 0;              // 连接代次：每次新建连接递增，用于忽略旧连接的回调
 let heartbeatTimer = null;
 let heartbeatTimeoutTimer = null;
 let reconnectTimer = null;
 let fallbackPollTimer = null;
+let connectTimeoutTimer = null;     // 连接建立超时定时器
 
 // 事件处理器映射：{ event: handler }
 let messageHandlers = {};
@@ -71,21 +76,34 @@ function connect(options = {}) {
   const token = wx.getStorageSync('token');
   if (!token) return;
 
+  // 先清理旧连接：关闭旧 socketTask 并置空，避免"未完成的操作"
+  _closeSocketTask();
+
   isConnecting = true;
+  isDisconnecting = false;
+  isHandlingDisconnect = false;
+  const myId = ++connectionId;  // 本次连接的唯一标识
   const url = getWsUrl();
 
   socketTask = wx.connectSocket({
     url,
     fail: (err) => {
+      if (myId !== connectionId) return;  // 旧连接的回调，忽略
       console.error('[WebSocket] 连接请求失败:', err);
       isConnecting = false;
+      _clearConnectTimeout();
       _handleDisconnect();
     }
   });
 
+  // 连接建立超时保护：超时未 onOpen 则主动关闭重连
+  _startConnectTimeout();
+
   // 连接打开
   socketTask.onOpen(() => {
+    if (myId !== connectionId) return;  // 旧连接的回调，忽略
     isConnecting = false;
+    _clearConnectTimeout();
     // 记录是否为重连（在重置 reconnectCount 之前判断）
     const isReconnect = reconnectCount > 0;
     isConnected = true;
@@ -98,7 +116,6 @@ function connect(options = {}) {
     _startHeartbeat();
 
     // 重连后发送 sync 请求，同步断连期间缺失的状态
-    // 服务端收到后会将 last_version 之后的状态重新推送（如有）
     if (isReconnect) {
       try {
         const lastVersion = wx.getStorageSync('ws_last_version') || 0;
@@ -117,6 +134,7 @@ function connect(options = {}) {
 
   // 接收消息
   socketTask.onMessage((res) => {
+    if (myId !== connectionId) return;  // 旧连接的回调，忽略
     try {
       const msg = JSON.parse(res.data);
 
@@ -129,7 +147,7 @@ function connect(options = {}) {
       // 连接确认
       if (msg.type === 'connected') return;
 
-      // 重连后状态同步响应：服务端版本号更新时触发降级轮询拉取最新状态
+      // 重连后状态同步响应
       if (msg.type === 'sync_ack') {
         if (msg.need_refresh && fallbackPollCallback) {
           try {
@@ -148,15 +166,22 @@ function connect(options = {}) {
     }
   });
 
-  // 连接关闭
+  // 连接关闭：统一在此处理断连逻辑
   socketTask.onClose(() => {
+    if (myId !== connectionId) return;  // 旧连接的回调，忽略
+    // 主动断开时不触发重连
+    if (isDisconnecting) {
+      isConnecting = false;
+      _clearConnectTimeout();
+      return;
+    }
     _handleDisconnect();
   });
 
-  // 连接错误：降级为 warn（已有自动重连+降级轮询机制，连接失败不影响功能）
+  // 连接错误：仅记录日志，断连处理交给 onClose 统一处理
   socketTask.onError((err) => {
+    if (myId !== connectionId) return;  // 旧连接的回调，忽略
     console.warn('[WebSocket] 连接错误（将自动降级为轮询）:', err && err.errMsg ? err.errMsg : err);
-    _handleDisconnect();
   });
 }
 
@@ -164,19 +189,19 @@ function connect(options = {}) {
  * 主动断开连接，清理所有定时器
  */
 function disconnect() {
+  isDisconnecting = true;
+  connectionId++;  // 使所有旧连接的回调失效
   _stopHeartbeat();
   _stopReconnect();
   _stopFallbackPoll();
+  _clearConnectTimeout();
   reconnectCount = 0;
 
-  if (socketTask) {
-    try {
-      socketTask.close({ code: 1000, reason: '客户端主动关闭' });
-    } catch (e) {}
-    socketTask = null;
-  }
+  _closeSocketTask();
+
   isConnected = false;
   isConnecting = false;
+  isHandlingDisconnect = false;
 }
 
 /**
@@ -192,6 +217,40 @@ function getConnectionStatus() {
 // ========== 内部方法 ==========
 
 /**
+ * 关闭旧 socketTask 并置空引用
+ */
+function _closeSocketTask() {
+  if (socketTask) {
+    try {
+      socketTask.close({ code: 1000, reason: '清理旧连接' });
+    } catch (e) {}
+    socketTask = null;
+  }
+}
+
+/**
+ * 连接建立超时保护
+ */
+function _startConnectTimeout() {
+  _clearConnectTimeout();
+  connectTimeoutTimer = setTimeout(() => {
+    if (isConnecting && !isConnected) {
+      console.warn('[WebSocket] 连接建立超时，主动关闭重连');
+      _closeSocketTask();
+      isConnecting = false;
+      _handleDisconnect();
+    }
+  }, CONNECT_TIMEOUT);
+}
+
+function _clearConnectTimeout() {
+  if (connectTimeoutTimer) {
+    clearTimeout(connectTimeoutTimer);
+    connectTimeoutTimer = null;
+  }
+}
+
+/**
  * 启动心跳保活
  */
 function _startHeartbeat() {
@@ -203,12 +262,16 @@ function _startHeartbeat() {
     socketTask.send({
       data: JSON.stringify({ type: 'ping', timestamp: Date.now() }),
       fail: () => {
+        // 发送失败：socket 可能已断开，先关闭再处理断连
+        _closeSocketTask();
         _handleDisconnect();
       }
     });
 
     // 启动心跳超时检测
     heartbeatTimeoutTimer = setTimeout(() => {
+      // 心跳超时：socket 无响应，先关闭再处理断连
+      _closeSocketTask();
       _handleDisconnect();
     }, HEARTBEAT_TIMEOUT);
   }, HEARTBEAT_INTERVAL);
@@ -231,11 +294,27 @@ function _clearHeartbeatTimeout() {
 
 /**
  * 处理连接断开：停止心跳、尝试重连或降级轮询
+ * 注意：本函数不关闭 socketTask（onClose 触发时 socket 已关闭，再调 close() 会报错）
+ * 需要主动关闭 socket 的场景（心跳超时、连接超时）请在调用本函数前执行 _closeSocketTask()
  */
 function _handleDisconnect() {
+  // 防重入：避免 onClose/心跳超时/发送失败 重复触发
+  if (isHandlingDisconnect) return;
+  isHandlingDisconnect = true;
+
   _stopHeartbeat();
+  _clearConnectTimeout();
+  // 不调 _closeSocketTask()：onClose 触发时 socket 已关闭，再调 close() 会报 "closed before established"
+  socketTask = null;
+  connectionId++;  // 使旧连接的后续回调（onError/onClose）全部失效
   isConnected = false;
   isConnecting = false;
+
+  // 主动断开时不触发重连
+  if (isDisconnecting) {
+    isHandlingDisconnect = false;
+    return;
+  }
 
   // 尝试重连
   if (reconnectCount < MAX_RECONNECT) {
@@ -244,6 +323,11 @@ function _handleDisconnect() {
     // 超过最大重连次数，降级为轮询
     _startFallbackPoll();
   }
+
+  // 重置防重入标志（延迟，确保本轮事件处理完毕）
+  setTimeout(() => {
+    isHandlingDisconnect = false;
+  }, 500);
 }
 
 /**

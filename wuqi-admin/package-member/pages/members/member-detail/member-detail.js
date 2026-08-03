@@ -24,6 +24,22 @@ const getBookingStatusText = (status) => {
   return BOOKING_STATUS_TEXT_MAP[status] || '已取消';
 };
 
+// 签到方式文案映射
+const CHECK_IN_METHOD_LABEL_MAP = {
+  scan: '扫码签到',
+  auto: '自动签到',
+  onsite: '现场签到',
+  admin: '后台签到',
+  exempt_cancel: '豁免取消',
+  cancelled_after_checkin: '课程中取消'
+};
+const SOURCE_LABEL_MAP = {
+  member: '正常签到',
+  booking: '正常签到',
+  onsite: '现场签到',
+  admin: '后台签到'
+};
+
 Page({
   data: {
     memberId: '',
@@ -70,7 +86,25 @@ Page({
     loading: false,
     // 手机号脱敏
     isReviewer: false,      // 审核员只能查看脱敏手机号
-    showFullPhone: false    // 是否展示全号码（审核员不可切换）
+    showFullPhone: false,    // 是否展示全号码（审核员不可切换）
+    // 延长有效期弹窗
+    showExtendModal: false,
+    extendingPackageId: '',
+    extendForm: {
+      extend_value: '',
+      extend_unit: 'day',
+      current_end: '',
+      reason: ''
+    },
+    // 记录TAB：booking=预约记录, attendance=上课记录
+    recordTab: 'booking',
+    // 上课记录
+    attendanceTotal: 0,
+    attendanceGroups: [],
+    attendanceLoading: false,
+    attendanceLoaded: false,
+    // 预约记录分组
+    bookingGroups: []
   },
 
   onLoad(options) {
@@ -89,7 +123,12 @@ Page({
   },
 
   onPullDownRefresh() {
+    // 重置上课记录状态，下拉刷新后重新加载
+    this.setData({ attendanceLoaded: false, attendanceTotal: 0, attendanceGroups: [], bookingGroups: [] });
     this.loadMemberDetail().finally(() => {
+      if (this.data.recordTab === 'attendance') {
+        this.loadAttendanceRecords();
+      }
       wx.stopPullDownRefresh();
     });
   },
@@ -181,6 +220,19 @@ Page({
         if (!pkg.is_activated && pkg.auto_activate_at) {
           pkg.auto_activate_at_display = this.formatDate(pkg.auto_activate_at);
         }
+        // 格式化延长记录日期与单位
+        if (pkg.extensions && pkg.extensions.length > 0) {
+          pkg.extensions = pkg.extensions.map(ext => {
+            const unitText = ext.extend_unit === 'month' ? '月' : '天';
+            const operatorName = ext.operator_name || '管理员';
+            const reasonText = ext.reason ? ' 原因：' + ext.reason : '';
+            return {
+              ...ext,
+              created_at_display: ext.created_at ? this.formatDate(ext.created_at) : '',
+              extend_text: `${ext.created_at ? this.formatDate(ext.created_at) : ''} ${operatorName} 延长 +${ext.extend_value || ext.extend_days || 0}${unitText}${reasonText}`
+            };
+          });
+        }
         return pkg;
       });
 
@@ -217,11 +269,15 @@ Page({
       member.reserve_phone_masked = maskPhone(member.reserve_phone_raw);
       member.wechat_phone_masked = maskPhone(member.wechat_phone_raw);
 
+      // 预约记录按年月分组
+      const bookingGroups = this._groupBookingsByYearMonth(bookings || []);
+
       this.setData({
         member: member,
         packages: packages,
         bookings: bookings || [],
         displayBookings: (bookings || []).slice(0, 5), // 只显示前5条
+        bookingGroups,
         memberStatusText: statusText,
         memberStatusClass: statusClass,
         hasActivePackage: hasActive,
@@ -229,9 +285,26 @@ Page({
         showFullPhone: false,  // 每次加载详情重置为脱敏显示
         loading: false
       });
+
+      // 预加载上课记录总数（用于角标即时显示，不阻塞页面渲染）
+      this.fetchAttendanceCount();
     }).catch(err => {
       console.error('加载会员详情失败', err);
       this.setData({ loading: false });
+    });
+  },
+
+  /**
+   * 预加载上课记录总数（仅获取数量用于TAB角标显示）
+   */
+  fetchAttendanceCount() {
+    request({
+      url: `/attendance/member/${this.data.memberId}`,
+      method: 'GET'
+    }).then(res => {
+      this.setData({ attendanceTotal: (res.data && res.data.total) || 0 });
+    }).catch(err => {
+      console.error('获取上课记录总数失败', err);
     });
   },
 
@@ -1024,6 +1097,170 @@ Page({
     });
   },
 
+  /**
+   * 切换记录TAB
+   */
+  onSwitchRecordTab(e) {
+    const tab = e.currentTarget.dataset.tab;
+    if (tab === this.data.recordTab) return;
+    this.setData({ recordTab: tab });
+    // 首次切换到上课记录时加载数据
+    if (tab === 'attendance' && !this.data.attendanceLoaded) {
+      this.loadAttendanceRecords();
+    }
+  },
+
+  /**
+   * 加载上课记录
+   */
+  loadAttendanceRecords() {
+    this.setData({ attendanceLoading: true });
+    request({
+      url: `/attendance/member/${this.data.memberId}`,
+      method: 'GET'
+    }).then(res => {
+      const list = (res.data && res.data.list) || [];
+      const total = (res.data && res.data.total) || 0;
+
+      // 格式化每条记录
+      const formatted = list.map(att => {
+        const dateStr = att.date || '';
+        const weekDayStr = dateStr ? this.getWeekDay(dateStr) : '';
+        const checkInTime = att.check_in_time ? this.formatTime(att.check_in_time) : '';
+
+        // 签到方式文案
+        let sourceLabel = CHECK_IN_METHOD_LABEL_MAP[att.check_in_method]
+          || SOURCE_LABEL_MAP[att.source]
+          || '签到';
+
+        // 课程中取消特殊处理
+        const isCancelledAfterCheckin = att.check_in_method === 'cancelled_after_checkin';
+        let creditsCost = att.credits_cost || 0;
+        if (isCancelledAfterCheckin) creditsCost = 0;
+
+        let cancelReasonText = '';
+        if (isCancelledAfterCheckin) {
+          cancelReasonText = att.remark ? '课程中因' + att.remark + '取消' : '课程中取消';
+        }
+
+        return {
+          ...att,
+          dateStr,
+          weekDayStr,
+          checkInTime,
+          sourceLabel,
+          isCancelledAfterCheckin,
+          credits_cost: creditsCost,
+          cancelReasonText
+        };
+      });
+
+      // 按年月分组
+      const groups = this._groupAttendanceByMonth(formatted);
+
+      this.setData({
+        attendanceTotal: total,
+        attendanceGroups: groups,
+        attendanceLoading: false,
+        attendanceLoaded: true
+      });
+    }).catch(err => {
+      console.error('加载上课记录失败', err);
+      this.setData({ attendanceLoading: false, attendanceLoaded: true });
+    });
+  },
+
+  /**
+   * 通用：按年月分组记录（年→月两层结构）
+   */
+  _groupByYearMonth(records, getDateStr) {
+    const yearMap = {};
+    records.forEach(item => {
+      const dateStr = getDateStr(item);
+      if (!dateStr) return;
+      const parts = dateStr.substring(0, 7).split('-'); // YYYY-MM
+      const year = parts[0];
+      const month = parts[1];
+      if (!yearMap[year]) {
+        yearMap[year] = { year, yearLabel: `${year}年`, months: {}, totalCount: 0 };
+      }
+      const monthKey = `${year}-${month}`;
+      if (!yearMap[year].months[monthKey]) {
+        yearMap[year].months[monthKey] = {
+          monthKey,
+          monthLabel: `${parseInt(month)}月`,
+          items: [],
+          expanded: false
+        };
+      }
+      yearMap[year].months[monthKey].items.push(item);
+      yearMap[year].totalCount++;
+    });
+
+    // 转为数组并排序
+    return Object.values(yearMap)
+      .sort((a, b) => b.year.localeCompare(a.year))
+      .map(yg => ({
+        ...yg,
+        months: Object.values(yg.months).sort((a, b) => b.monthKey.localeCompare(a.monthKey))
+      }));
+  },
+
+  /**
+   * 按年月分组预约记录
+   */
+  _groupBookingsByYearMonth(bookings) {
+    return this._groupByYearMonth(bookings, b => b.schedule_id ? b.schedule_id.date : b.booking_date);
+  },
+
+  /**
+   * 按年月分组上课记录
+   */
+  _groupAttendanceByMonth(records) {
+    return this._groupByYearMonth(records, att => att.dateStr);
+  },
+
+  /**
+   * 折叠/展开某月预约记录
+   */
+  onToggleBookingMonth(e) {
+    const { year, month } = e.currentTarget.dataset;
+    const bookingGroups = this.data.bookingGroups.map(yg => {
+      if (yg.year !== year) return yg;
+      return {
+        ...yg,
+        months: yg.months.map(m => m.monthKey === month ? { ...m, expanded: !m.expanded } : m)
+      };
+    });
+    this.setData({ bookingGroups });
+  },
+
+  /**
+   * 折叠/展开某月上课记录
+   */
+  onToggleAttendanceMonth(e) {
+    const { year, month } = e.currentTarget.dataset;
+    const attendanceGroups = this.data.attendanceGroups.map(yg => {
+      if (yg.year !== year) return yg;
+      return {
+        ...yg,
+        months: yg.months.map(m => m.monthKey === month ? { ...m, expanded: !m.expanded } : m)
+      };
+    });
+    this.setData({ attendanceGroups });
+  },
+
+  /**
+   * 格式化时间为 HH:mm
+   */
+  formatTime(dateStr) {
+    if (!dateStr) return '';
+    const d = getBeijingDate(dateStr);
+    const hours = String(d.getHours()).padStart(2, '0');
+    const minutes = String(d.getMinutes()).padStart(2, '0');
+    return `${hours}:${minutes}`;
+  },
+
   // ========== 删除会员 ==========
   onDeleteMember() {
     this.setData({ showDeleteModal: true, deleteConfirmName: '' });
@@ -1055,11 +1292,97 @@ Page({
       wx.hideLoading();
       wx.showToast({ title: '会员已删除', icon: 'success' });
       setTimeout(() => {
-        wx.navigateBack();
+        const pages = getCurrentPages();
+        if (pages.length > 1) {
+          wx.navigateBack();
+        } else {
+          wx.reLaunch({ url: '/package-member/pages/members/members' });
+        }
       }, 1500);
     } catch (err) {
       wx.hideLoading();
       wx.showToast({ title: err.data?.message || '删除失败', icon: 'none' });
+    }
+  },
+
+  // ========== 延长服务有效期 ==========
+  onExtendPackage(e) {
+    const { id, end } = e.currentTarget.dataset;
+    this.setData({
+      showExtendModal: true,
+      extendingPackageId: id,
+      extendForm: {
+        extend_value: '',
+        extend_unit: 'day',
+        current_end: end || '无',
+        reason: ''
+      }
+    });
+  },
+
+  onCloseExtendModal() {
+    this.setData({
+      showExtendModal: false,
+      extendingPackageId: '',
+      extendForm: {
+        extend_value: '',
+        extend_unit: 'day',
+        current_end: '',
+        reason: ''
+      }
+    });
+  },
+
+  onExtendFormInput(e) {
+    const { field } = e.currentTarget.dataset;
+    this.setData({ [`extendForm.${field}`]: e.detail.value });
+  },
+
+  onExtendUnitChange(e) {
+    const { unit } = e.currentTarget.dataset;
+    this.setData({ 'extendForm.extend_unit': unit });
+  },
+
+  async onConfirmExtendPackage() {
+    const { extendingPackageId, extendForm } = this.data;
+    const { extend_value, extend_unit, reason } = extendForm;
+
+    const numValue = Number(extend_value);
+    if (!extend_value || isNaN(numValue) || numValue <= 0) {
+      wx.showToast({ title: '请输入有效的延长时长', icon: 'none' });
+      return;
+    }
+    if (!Number.isInteger(numValue)) {
+      wx.showToast({ title: '延长时长需为整数', icon: 'none' });
+      return;
+    }
+    if (numValue > 3650) {
+      wx.showToast({ title: '单次延长不能超过10年', icon: 'none' });
+      return;
+    }
+
+    // 月按30天换算为天
+    const extendDays = extend_unit === 'month' ? numValue * 30 : numValue;
+
+    wx.showLoading({ title: '处理中...', mask: true });
+    try {
+      await request({
+        url: `/packages/${extendingPackageId}/extend`,
+        method: 'PUT',
+        data: {
+          extend_days: extendDays,
+          extend_value: numValue,
+          extend_unit: extend_unit,
+          reason
+        }
+      });
+      wx.hideLoading();
+      wx.showToast({ title: '延长成功', icon: 'success' });
+      this.setData({ showExtendModal: false, extendingPackageId: '' });
+      this.loadMemberDetail();
+    } catch (err) {
+      wx.hideLoading();
+      wx.showToast({ title: (err.data && err.data.message) || '延长失败', icon: 'none' });
     }
   }
 });

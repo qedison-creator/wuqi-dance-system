@@ -252,6 +252,9 @@ exports.getRevenueStats = async (query) => {
   const { store_id, start_date, end_date } = query;
   const filter = {};
 
+  // 修复 BUG：store_id 解构后未加入 filter，导致营收统计跨门店聚合
+  if (store_id) filter.store_id = store_id;
+
   if (start_date && end_date) {
     filter.created_at = { $gte: new Date(start_date), $lte: new Date(end_date + ' 23:59:59') };
   }
@@ -274,24 +277,32 @@ exports.getRevenueStats = async (query) => {
 exports.getCoachStats = async (storeId) => {
   const Coach = require('../models/Coach');
   const filter = { is_deleted: { $ne: true } };
+  // 注意：Coach 模型当前无 store_id 字段，阶段五会改为 store_ids 多门店执教模型
+  // 暂时不按 store_id 过滤 Coach，仅按 store_id 过滤 Schedule 和 Booking
   if (storeId) filter.store_id = storeId;
 
   const coaches = await Coach.find(filter).select('name avatar_url');
 
   const result = [];
   for (const coach of coaches) {
-    const scheduleCount = await Schedule.countDocuments({
+    // 修复：Schedule 统计加 store_id 过滤，避免跨店统计
+    const scheduleFilter = {
       coach_id: coach._id,
       status: { $in: ['available', 'full'] },
-    });
+    };
+    if (storeId) scheduleFilter.store_id = storeId;
+
+    const scheduleCount = await Schedule.countDocuments(scheduleFilter);
+
+    // 修复：Booking 聚合加 store_id 过滤，避免跨店统计
+    const bookingMatch = {
+      coach_id: coach._id,
+      status: 'completed',
+    };
+    if (storeId) bookingMatch.store_id = storeId;
 
     const bookingStats = await Booking.aggregate([
-      {
-        $match: {
-          coach_id: coach._id,
-          status: 'completed',
-        },
-      },
+      { $match: bookingMatch },
       {
         $group: {
           _id: null,

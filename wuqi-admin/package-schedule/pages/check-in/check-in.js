@@ -44,8 +44,18 @@ Page({
       // 过滤：排除已取消、已结束、已下架、已删除、未开放的课程，只保留可签到的
 
       const excludedStatuses = ['cancelled', 'completed', 'offline', 'deleted', 'not_open'];
+      // 单门店角色：仅显示所属门店的排课（课程自带 store_id，直接判断即可）
+      const app = getApp();
+      const defaultStoreId = (app.isSingleStoreRole && app.isSingleStoreRole())
+        ? (app.getDefaultStoreId ? app.getDefaultStoreId() : '')
+        : '';
       const schedules = (data || [])
         .filter(s => !excludedStatuses.includes(s.status))
+        .filter(s => {
+          if (!defaultStoreId) return true;
+          const sid = s.store_id ? (s.store_id._id ? String(s.store_id._id) : String(s.store_id)) : '';
+          return sid === String(defaultStoreId);
+        })
         .map(s => ({
           ...s,
           timeStr: `${s.start_time || ''} - ${s.end_time || ''}`,
@@ -176,7 +186,13 @@ Page({
       wx.hideLoading();
       if (res.data && res.data.member_code) {
         const memberCode = res.data.member_code;
+        const memberId = res.data.member_id;
         this.setData({ memberCode, encryptedToken });
+        // 扫码场景：直接用 member_id 调签到档案接口，由后端做门店归属校验
+        // （避免 /members?keyword= 列表接口的门店过滤导致搜不到非本门店会员）
+        if (memberId) {
+          return this.loadMemberProfileById(memberId);
+        }
         return this.loadMemberProfile(memberCode);
       } else {
         throw new Error('无效的签到码');
@@ -189,6 +205,22 @@ Page({
         wx.showToast({ title: err.message, icon: 'none' });
       }
       throw err;
+    });
+  },
+
+  // 扫码场景：按 member_id 直接加载签到档案（后端做门店归属校验，非本门店会员返回 403）
+  loadMemberProfileById(memberId) {
+    wx.showLoading({ title: '加载会员信息...' });
+    return request({
+      url: `/members/${memberId}/checkin-profile`,
+    }).then(res => {
+      wx.hideLoading();
+      this.showProfilePopup(res.data || {}, false);
+    }).catch((err) => {
+      wx.hideLoading();
+      // 门店隔离拦截：显示后端错误提示（如"非本门店会员，无权限查看会员信息"），不显示空档案
+      const msg = (err && err.message) || '加载会员档案失败';
+      wx.showToast({ title: msg, icon: 'none', duration: 2500 });
     });
   },
 
@@ -218,25 +250,20 @@ Page({
         }).then(profileRes => {
           wx.hideLoading();
           this.showProfilePopup(profileRes.data || {}, false);
-        }).catch(() => {
+        }).catch((err) => {
           wx.hideLoading();
-          this.showProfilePopup({
-            member: found,
-            packages: [],
-            today_bookings: [],
-          }, false);
+          // 门店隔离拦截：显示后端错误提示，不显示空档案
+          const msg = (err && err.message) || '加载会员档案失败';
+          wx.showToast({ title: msg, icon: 'none', duration: 2500 });
         });
       } else {
         wx.hideLoading();
-        this.showProfilePopup({
-          member: found,
-          packages: [],
-          today_bookings: [],
-        }, false);
+        wx.showToast({ title: '会员信息异常', icon: 'none' });
       }
-    }).catch(() => {
+    }).catch((err) => {
       wx.hideLoading();
-      wx.showToast({ title: '查询会员失败', icon: 'none' });
+      const msg = (err && err.message) || '查询会员失败';
+      wx.showToast({ title: msg, icon: 'none' });
     });
   },
 
@@ -252,9 +279,10 @@ Page({
     }).then(res => {
       wx.hideLoading();
       this.showProfilePopup(res.data || {}, false);
-    }).catch(() => {
+    }).catch((err) => {
       wx.hideLoading();
-      wx.showToast({ title: '加载会员档案失败', icon: 'none' });
+      const msg = (err && err.message) || '加载会员档案失败';
+      wx.showToast({ title: msg, icon: 'none', duration: 2500 });
     });
   },
 

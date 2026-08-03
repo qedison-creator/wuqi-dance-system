@@ -66,7 +66,17 @@ Page({
     selectedIds: [],         // 已选中的预建档 ID 列表
     allSelected: false,      // 当前列表中可删除项是否已全部选中（半选/全选状态）
     // 手机号脱敏
-    isReviewer: false        // 审核员只能查看脱敏手机号，不可切换为全号码
+    isReviewer: false,        // 审核员只能查看脱敏手机号，不可切换为全号码
+    // 门店隔离：单门店角色隐藏门店切换器
+    showStoreSwitcher: true,
+    // 分页相关
+    page: 1,
+    pageSize: 5,
+    hasMore: true,
+    visibleCount: 5,
+    currentTotal: 0,
+    showBackToTop: false,
+    backToTopThreshold: 0
   },
 
   onLoad() {
@@ -77,7 +87,17 @@ Page({
     // 读取当前用户角色，判断是否为审核员（脱敏角色）
     const app = getApp();
     const userInfo = (app && app.globalData && app.globalData.userInfo) || {};
-    this.setData({ isReviewer: userInfo.role === 'reviewer' });
+    // 门店隔离：单门店角色固定所属门店
+    const isSingleStore = app.isSingleStoreRole();
+    const defaultStoreId = app.getDefaultStoreId();
+    const updateData = { isReviewer: userInfo.role === 'reviewer', showStoreSwitcher: !isSingleStore, page: 1, hasMore: true, visibleCount: 5, currentTotal: 0, showBackToTop: false, backToTopThreshold: 0 };
+    if (isSingleStore && defaultStoreId && this.data.currentStoreId !== defaultStoreId) {
+      const storeList = app.globalData.storeList || [];
+      const found = storeList.find(s => String(s._id) === String(defaultStoreId));
+      updateData.currentStoreId = defaultStoreId;
+      updateData.currentStoreName = found ? found.name : '';
+    }
+    this.setData(updateData);
     this.loadList();
     this._connectWebSocket();
   },
@@ -91,6 +111,7 @@ Page({
   },
 
   onPullDownRefresh() {
+    this.setData({ page: 1, hasMore: true, visibleCount: 5, currentTotal: 0, showBackToTop: false, backToTopThreshold: 0 });
     this.loadList().finally(() => {
       wx.stopPullDownRefresh();
     });
@@ -98,8 +119,11 @@ Page({
 
   async loadStoreList() {
     try {
+      const app = getApp();
       const res = await request({ url: '/stores', method: 'GET' });
-      const rawList = res.data && res.data.list ? res.data.list : (Array.isArray(res.data) ? res.data : []);
+      let rawList = res.data && res.data.list ? res.data.list : (Array.isArray(res.data) ? res.data : []);
+      // 门店隔离：按当前用户角色过滤可访问门店
+      rawList = app.filterStoresForUser(rawList);
       const list = rawList.map(s => ({ ...s, _id: _normalizeStoreId(s._id) }));
       this.setData({
         storeList: list,
@@ -117,14 +141,16 @@ Page({
         store_id: this.data.currentStoreId,
         keyword: this.data.keyword,
         status: this.data.currentStatus,
-        pageSize: 100
+        page: this.data.page,
+        pageSize: this.data.pageSize
       };
       // 并发拉取列表和数量统计
       const [res, statsRes] = await Promise.all([
         request({ url: '/pre-members', method: 'GET', data: params }),
         request({ url: '/pre-members/stats', method: 'GET', data: { store_id: this.data.currentStoreId } }).catch(() => null)
       ]);
-      const list = res.data && res.data.list ? res.data.list : [];
+      const newList = res.data && res.data.list ? res.data.list : [];
+      const total = res.data && res.data.total ? res.data.total : newList.length;
       // 手机号脱敏处理：保留原始手机号供切换显示，脱敏号默认展示
       const maskPhone = (p) => {
         if (p && p.length === 11) {
@@ -133,7 +159,7 @@ Page({
         return p || '';
       };
       // 格式化显示
-      const formattedList = list.map(item => {
+      const formattedList = newList.map(item => {
         const reservePhoneRaw = item.reserve_phone || '';
         return {
           ...item,
@@ -147,13 +173,24 @@ Page({
           package_text: this._formatPackageText(item.packages)
         };
       });
+      // 分页处理：第一页替换，后续页追加
+      const isFirstPage = this.data.page === 1;
+      const list = isFirstPage ? formattedList : this.data.list.concat(formattedList);
+      const visibleCount = Math.min(list.length, this.data.page * this.data.pageSize);
+      const hasMore = list.length < total;
       const statsData = statsRes && statsRes.data ? statsRes.data : {};
       this.setData({
-        list: formattedList,
+        list,
         loading: false,
+        hasMore,
+        currentTotal: total,
+        visibleCount,
         pendingCount: statsData.pending_count || 0,
         claimedCount: statsData.claimed_count || 0,
-        allCount: statsData.all_count || 0
+        allCount: statsData.all_count || 0,
+        showBackToTop: false
+      }, () => {
+        if (list.length >= 5) this._calcBackToTopThreshold();
       });
       // 列表刷新后同步批量管理状态（清理已不存在的选中项并更新全选标记 + 重算 _selected）
       // 容错：热重载可能导致新方法尚未注入到已存在的 Page 实例，此时跳过避免阻断列表加载
@@ -182,13 +219,50 @@ Page({
 
   // WebSocket 推送防抖：避免短时间内多次刷新列表
   _debouncedLoadList() {
-    if (this._preMemberRefreshTimer) {
-      clearTimeout(this._preMemberRefreshTimer);
-    }
-    this._preMemberRefreshTimer = setTimeout(() => {
-      this._preMemberRefreshTimer = null;
+    // WebSocket 推送刷新：保持当前页码，不重置分页
+    clearTimeout(this._debounceTimer);
+    this._debounceTimer = setTimeout(() => {
       this.loadList();
     }, 500);
+  },
+
+  // 点击"查看更多"加载下一页
+  onLoadMore() {
+    if (!this.data.hasMore || this.data.loading) return;
+    this.setData({ page: this.data.page + 1 }, () => {
+      this.loadList();
+    });
+  },
+
+  // 返回顶部
+  onBackToTop() {
+    this.setData({ showBackToTop: false });
+    wx.pageScrollTo({ scrollTop: 0, duration: 300 });
+  },
+
+  // 滚动监听，控制返回顶部按钮显隐
+  onPageScroll(e) {
+    const threshold = this.data.backToTopThreshold;
+    const shouldShow = threshold > 0 && e.scrollTop > threshold;
+    if (shouldShow !== this.data.showBackToTop) {
+      this.setData({ showBackToTop: shouldShow });
+    }
+  },
+
+  // 计算第5条记录底部位置，作为返回顶部按钮显示阈值
+  _calcBackToTopThreshold() {
+    const query = wx.createSelectorQuery().in(this);
+    query.selectAll('.member-list .member-card').boundingClientRect();
+    query.selectViewport().scrollOffset();
+    query.exec((res) => {
+      const cards = res[0];
+      const scrollOffset = res[1];
+      if (cards && cards[4] && scrollOffset) {
+        this.setData({
+          backToTopThreshold: scrollOffset.scrollTop + cards[4].bottom
+        });
+      }
+    });
   },
 
   _formatDate(dateStr) {
@@ -223,7 +297,13 @@ Page({
     const store = this.data.storeList.find(s => s._id === id);
     this.setData({
       currentStoreId: id,
-      currentStoreName: store ? store.name : ''
+      currentStoreName: store ? store.name : '',
+      page: 1,
+      hasMore: true,
+      visibleCount: 5,
+      currentTotal: 0,
+      showBackToTop: false,
+      backToTopThreshold: 0
     });
     this.loadList();
   },
@@ -234,17 +314,26 @@ Page({
   },
 
   onSearch() {
+    this.setData({ page: 1, hasMore: true, visibleCount: 5, currentTotal: 0, showBackToTop: false, backToTopThreshold: 0 });
     this.loadList();
   },
 
   onClearSearch() {
-    this.setData({ keyword: '' });
+    this.setData({ keyword: '', page: 1, hasMore: true, visibleCount: 5, currentTotal: 0, showBackToTop: false, backToTopThreshold: 0 });
     this.loadList();
   },
 
   // 状态标签切换
   onStatusTabChange(e) {
-    this.setData({ currentStatus: e.currentTarget.dataset.status });
+    this.setData({
+      currentStatus: e.currentTarget.dataset.status,
+      page: 1,
+      hasMore: true,
+      visibleCount: 5,
+      currentTotal: 0,
+      showBackToTop: false,
+      backToTopThreshold: 0
+    });
     this.loadList();
   },
 
@@ -610,7 +699,7 @@ Page({
       }
       wx.hideLoading();
       wx.showToast({ title: editingId ? '更新成功' : '创建成功', icon: 'success' });
-      this.setData({ showFormModal: false, editingId: '' });
+      this.setData({ showFormModal: false, editingId: '', page: 1, hasMore: true, visibleCount: 5, currentTotal: 0, showBackToTop: false });
       this.loadList();
     } catch (err) {
       wx.hideLoading();
@@ -630,6 +719,7 @@ Page({
           try {
             await request({ url: `/pre-members/${id}`, method: 'DELETE' });
             wx.showToast({ title: '删除成功', icon: 'success' });
+            this.setData({ page: 1, hasMore: true, visibleCount: 5, currentTotal: 0, showBackToTop: false });
             this.loadList();
           } catch (err) {
             wx.showToast({ title: err.message || '删除失败', icon: 'none' });
@@ -740,7 +830,7 @@ Page({
           wx.showToast({ title: `删除${successCount}条成功`, icon: 'success' });
         }
         // 退出批量模式并刷新列表
-        this.setData({ batchMode: false, selectedIds: [], allSelected: false });
+        this.setData({ batchMode: false, selectedIds: [], allSelected: false, page: 1, hasMore: true, visibleCount: 5, currentTotal: 0, showBackToTop: false });
         this.loadList();
       }
     });

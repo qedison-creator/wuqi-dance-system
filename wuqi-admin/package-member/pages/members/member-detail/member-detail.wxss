@@ -1,6 +1,5 @@
 .member-detail-page {
   padding: 20rpx;
-  padding-bottom: 200rpx;
   background-color: var(--bg-input);
 }
 
@@ -171,6 +170,10 @@
 
 .member-actions {
   margin-top: 16rpx;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16rpx;
 }
 
 .toggle-status-btn {
@@ -192,6 +195,30 @@
   background-color: var(--color-success-bg);
   color: var(--color-success);
   border: 1rpx solid rgba(52, 199, 89, 0.2);
+}
+
+.inline-suspend-btn {
+  display: inline-flex;
+  align-items: center;
+  padding: 10rpx 24rpx;
+  border-radius: var(--radius-md);
+  font-size: 24rpx;
+  font-weight: 500;
+  background: var(--color-danger-bg);
+  color: var(--color-danger);
+  border: 1rpx solid rgba(196, 75, 75, 0.3);
+}
+
+.inline-unsuspend-btn {
+  display: inline-flex;
+  align-items: center;
+  padding: 10rpx 24rpx;
+  border-radius: var(--radius-md);
+  font-size: 24rpx;
+  font-weight: 500;
+  background: var(--color-primary-bg);
+  color: var(--color-primary);
+  border: 1rpx solid rgba(196, 102, 62, 0.3);
 }
 
 .section {
@@ -391,6 +418,20 @@
   background: var(--color-primary-bg);
 }
 
+.package-extend-btn {
+  padding: 6rpx 16rpx;
+  border: 2rpx solid #4CAF93;
+  border-radius: var(--radius-lg);
+  font-size: 22rpx;
+  color: #4CAF93;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.package-extend-btn:active {
+  background: rgba(76, 175, 147, 0.1);
+}
+
 .package-delete-btn {
   padding: 6rpx 16rpx;
   border: 2rpx solid rgba(196, 75, 75, 0.4);
@@ -432,6 +473,27 @@
 .package-pending {
   color: var(--color-warning);
   font-style: normal;
+}
+
+.package-extensions {
+  display: flex;
+  flex-direction: column;
+  gap: 4rpx;
+  margin-top: 8rpx;
+  padding: 12rpx 16rpx;
+  background: rgba(76, 175, 147, 0.06);
+  border-radius: var(--radius-md);
+}
+
+.extension-item {
+  display: flex;
+  align-items: center;
+}
+
+.extension-text {
+  font-size: 22rpx;
+  color: #4CAF93;
+  line-height: 1.5;
 }
 
 .booking-item {
@@ -494,6 +556,11 @@
 
 .detail-value.booking-time-text {
   color: var(--text-tertiary);
+}
+
+.detail-value.highlight {
+  color: var(--color-primary);
+  font-weight: 500;
 }
 
 .course-time-wrap {
@@ -1129,4 +1196,238 @@
   color: var(--text-tertiary) !important;
   box-shadow: none !important;
   pointer-events: none;
+}
+
+/* ========== 预约/上课记录卡片容器 ========== */
+.record-container {
+  background: var(--bg-card);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+  overflow: hidden;
+}
+
+.record-body {
+  padding: 0 24rpx 24rpx;
+}
+
+.record-container .empty-state {
+  background: transparent;
+  box-shadow: none;
+  border-radius: 0;
+  padding: 60rpx 20rpx;
+  margin-bottom: 0;
+}
+
+.record-tabs {
+  display: flex;
+  position: relative;
+  background: #F5F0EB;
+  border-radius: 20rpx;
+  padding: 6rpx;
+  margin: 20rpx 20rpx 0;
+  border-bottom: none;
+}
+
+.record-tab {
+  flex: 1;
+  text-align: center;
+  padding: 18rpx 0;
+  font-size: 28rpx;
+  color: #B5A5A5;
+  border-radius: 16rpx;
+  position: relative;
+  z-index: 2;
+  transition: color 0.3s ease;
+}
+
+.record-tab.active {
+  color: #FFFFFF;
+  font-weight: 600;
+}
+
+.record-tab.active::after {
+  display: none;
+}
+
+.tab-slider {
+  position: absolute;
+  top: 6rpx;
+  left: 6rpx;
+  width: calc(50% - 4rpx);
+  height: calc(100% - 12rpx);
+  background: linear-gradient(135deg, #C5744B, #D9A98C);
+  border-radius: 16rpx;
+  z-index: 1;
+  transition: all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+  box-shadow: 0 4rpx 16rpx rgba(197, 116, 75, 0.25);
+}
+
+.tab-slider.pos1 {
+  transform: translateX(100%);
+}
+
+.tab-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 8rpx;
+  width: 40rpx;
+  height: 40rpx;
+  padding: 0;
+  border-radius: 50%;
+  font-size: 22rpx;
+  font-weight: 500;
+  background: rgba(181, 165, 165, 0.15);
+  color: #B5A5A5;
+  vertical-align: middle;
+  transition: all 0.3s ease;
+}
+
+.record-tab.active .tab-badge {
+  background: #FFFFFF;
+  color: #C5744B;
+}
+
+/* ========== 年月分组容器（参考 booking-summary） ========== */
+.year-list {
+  display: flex;
+  flex-direction: column;
+  gap: 24rpx;
+}
+
+.year-group {
+  background: #FFFFFF;
+  border-radius: 24rpx;
+  box-shadow: 0 2rpx 12rpx rgba(44,36,22,0.04);
+  overflow: hidden;
+}
+
+.year-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 24rpx 24rpx 12rpx;
+}
+
+.year-label {
+  font-size: 34rpx;
+  color: #2C2416;
+  font-weight: 700;
+}
+
+.year-count {
+  font-size: 24rpx;
+  color: #948284;
+  flex-shrink: 0;
+  margin-left: 16rpx;
+}
+
+.month-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8rpx;
+}
+
+.month-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20rpx 24rpx;
+}
+
+.month-header-left {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  min-width: 0;
+}
+
+.month-toggle {
+  font-size: 24rpx;
+  color: #B8AFA4;
+  margin-right: 12rpx;
+  transition: transform 200ms ease;
+}
+
+.month-toggle.expanded {
+  transform: rotate(90deg);
+}
+
+.month-label {
+  font-size: 30rpx;
+  color: #2C2416;
+  font-weight: 600;
+}
+
+.month-count {
+  font-size: 24rpx;
+  color: #948284;
+  flex-shrink: 0;
+  margin-left: 16rpx;
+}
+
+.month-content {
+  padding: 0 24rpx 16rpx;
+}
+
+/* ========== 上课记录卡片 ========== */
+.attendance-item {
+  padding: 24rpx;
+  margin-bottom: 16rpx;
+}
+
+.attendance-item-body {
+  display: flex;
+  flex-direction: column;
+  gap: 16rpx;
+}
+
+.attendance-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.attendance-course {
+  font-size: 30rpx;
+  font-weight: 500;
+  color: var(--text-primary);
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.attendance-source {
+  flex-shrink: 0;
+  margin-left: 16rpx;
+  padding: 6rpx 16rpx;
+  border-radius: var(--radius-xl);
+  font-size: 22rpx;
+}
+
+.attendance-source.method-scan {
+  background: rgba(77, 184, 160, 0.1);
+  color: #4DB8A0;
+}
+
+.attendance-source.method-auto {
+  background: var(--color-primary-bg);
+  color: var(--color-primary);
+}
+
+.attendance-source.method-onsite {
+  background: rgba(232, 152, 94, 0.1);
+  color: #E8985E;
+}
+
+.attendance-source.method-admin {
+  background: rgba(123, 158, 179, 0.1);
+  color: #7B9EB3;
+}
+
+.attendance-source.method-cancelled_after_checkin {
+  background: rgba(154, 140, 141, 0.1);
+  color: #9A8C8D;
 }

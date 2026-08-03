@@ -152,6 +152,20 @@ const startScheduler = () => {
               continue;
             }
 
+            // 检查用户是否仍有该课程的有效预约，已取消的不发提醒
+            const Booking = require('../models/Booking');
+            const activeBooking = await Booking.findOne({
+              schedule_id: task.schedule_id,
+              user_id: task.user_id,
+              status: 'booked'
+            });
+            if (!activeBooking) {
+              task.processed = 'done';
+              await task.save();
+              processedCount++;
+              continue;
+            }
+
             const user = await User.findById(task.user_id);
             if (user && user.openid) {
               const reminderType = task.type === 'class_reminder_1h' ? '1h' : '30m';

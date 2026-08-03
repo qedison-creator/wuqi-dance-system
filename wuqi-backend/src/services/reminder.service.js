@@ -122,6 +122,7 @@ async function checkPackageExpireReminders() {
     if (!pkg.user_id || !pkg.user_id.openid) continue;
 
     if (pkg.user_id.status === 'disabled') continue;
+    if (pkg.user_id.member_status !== 'official') continue;  // 仅正式会员
     if (pkg.is_suspended) continue;
     if (pkg.status !== 'active') continue;
 
@@ -188,6 +189,10 @@ async function checkCountCardLowReminders() {
       console.log(`[Reminder] 跳过套餐 ${pkg._id}: 用户已禁用`);
       continue;
     }
+    if (pkg.user_id.member_status !== 'official') {
+      console.log(`[Reminder] 跳过套餐 ${pkg._id}: 非正式会员`);
+      continue;
+    }
     if (pkg.is_suspended) {
       console.log(`[Reminder] 跳过套餐 ${pkg._id}: 套餐已暂停`);
       continue;
@@ -239,7 +244,8 @@ async function checkInactiveMemberReminders() {
   const users = await User.find({
     _id: { $in: inactiveUserIds },
     openid: { $exists: true, $ne: '' },
-    status: { $ne: 'disabled' }
+    status: { $ne: 'disabled' },
+    member_status: 'official'  // 仅正式会员才发不活跃提醒，排除游客/注册未审核用户
   });
 
   let sentCount = 0;

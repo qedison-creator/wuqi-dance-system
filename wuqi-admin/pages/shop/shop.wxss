@@ -122,6 +122,53 @@
   margin-top: 2rpx;
 }
 
+/* ===== 门店选择器 ===== */
+.store-switcher-bar {
+  margin: 16rpx 0 4rpx;
+  padding: 0 8rpx;
+}
+
+.store-switcher-inner {
+  display: flex;
+  align-items: center;
+  background: linear-gradient(145deg, #FFFFFF 0%, #FEF9F8 100%);
+  border-radius: 20rpx;
+  padding: 20rpx 28rpx;
+  border: 1rpx solid rgba(197, 116, 75, 0.15);
+  box-shadow: 0 2rpx 12rpx rgba(44, 36, 22, 0.04);
+  transition: background 150ms ease;
+}
+
+.store-switcher-inner:active {
+  background: rgba(197, 116, 75, 0.04);
+}
+
+.store-switcher-icon {
+  width: 32rpx;
+  height: 32rpx;
+  margin-right: 16rpx;
+  flex-shrink: 0;
+}
+
+.store-switcher-name {
+  flex: 1;
+  font-size: 28rpx;
+  font-weight: 600;
+  color: #2C2416;
+  letter-spacing: 1rpx;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.store-switcher-arrow {
+  width: 24rpx;
+  height: 24rpx;
+  flex-shrink: 0;
+  opacity: 0.3;
+  transform: rotate(90deg);
+}
+
 /* ===== 箭头 ===== */
 .menu-arrow {
   width: 24rpx;

@@ -3,6 +3,7 @@ const router = express.Router();
 const { success } = require('../utils/response');
 const auth = require('../middleware/auth');
 const checkPermission = require('../middleware/permission');
+const storeFilter = require('../middleware/storeFilter');
 const User = require('../models/User');
 const { sendToUser } = require('../services/websocket.service');
 
@@ -50,7 +51,7 @@ function clearScanTimeout(token) {
 }
 
 // GET /api/v1/qrcode/qrcode-token - 会员端获取动态二维码token
-router.get('/qrcode-token', auth, checkPermission(['member', 'super_admin', 'store_manager', 'staff']), async (req, res) => {
+router.get('/qrcode-token', auth, checkPermission(['member', 'super_admin', 'store_manager', 'staff']), storeFilter(), async (req, res) => {
   try {
     const user = await User.findById(req.user.id).select('member_code');
     if (!user) {
@@ -78,7 +79,7 @@ router.get('/qrcode-token', auth, checkPermission(['member', 'super_admin', 'sto
 });
 
 // POST /api/v1/qrcode/verify - 管理端扫码验证会员二维码token
-router.post('/verify', auth, checkPermission(['super_admin', 'store_manager', 'staff']), async (req, res) => {
+router.post('/verify', auth, checkPermission(['super_admin', 'store_manager', 'staff']), storeFilter(), async (req, res) => {
   try {
     const { token } = req.body;
     if (!token) {
@@ -137,6 +138,7 @@ router.post('/verify', auth, checkPermission(['super_admin', 'store_manager', 's
 
     res.json(success({
       member_code: stored.member_code,
+      member_id: stored.member_id,
       timestamp: stored.createdAt,
     }));
   } catch (error) {
@@ -146,7 +148,7 @@ router.post('/verify', auth, checkPermission(['super_admin', 'store_manager', 's
 });
 
 // POST /api/v1/qrcode/view-only - 管理端仅查看会员信息（不签到）
-router.post('/view-only', auth, checkPermission(['super_admin', 'store_manager', 'staff']), async (req, res) => {
+router.post('/view-only', auth, checkPermission(['super_admin', 'store_manager', 'staff']), storeFilter(), async (req, res) => {
   try {
     const { token } = req.body;
     if (!token) {
@@ -183,7 +185,7 @@ router.post('/view-only', auth, checkPermission(['super_admin', 'store_manager',
 });
 
 // POST /api/v1/qrcode/clear-scan - 管理端关闭扫码弹窗时清理扫码状态
-router.post('/clear-scan', auth, checkPermission(['super_admin', 'store_manager', 'staff']), async (req, res) => {
+router.post('/clear-scan', auth, checkPermission(['super_admin', 'store_manager', 'staff']), storeFilter(), async (req, res) => {
   try {
     const { token } = req.body;
     if (token) {

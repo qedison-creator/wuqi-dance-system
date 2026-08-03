@@ -85,7 +85,12 @@ Page({
       greeting: getGreeting(),
       theme: theme
     });
-    this.loadUserInfo();
+    this.initLoad();
+  },
+
+  // 等待用户信息就绪后再加载门店，避免单门店角色首次进入被误判为多门店
+  async initLoad() {
+    await this.loadUserInfoAsync();
     this.loadStores();
   },
 
@@ -95,14 +100,26 @@ Page({
     this.setData({ heroBackgroundUrl: '' });
   },
 
-  onShow() {
+  async onShow() {
     if (app.checkAuth && !app.checkAuth()) return;
     if (typeof this.getTabBar === 'function' && this.getTabBar()) {
       this.getTabBar().setData({ selected: 0 });
     }
     this.setData({ greeting: getGreeting(), theme: getTheme() });
     this._failCount = 0;  // 页面恢复可见时重置失败计数
-    this.loadUserInfo();
+    // 先确保用户信息就绪，否则单门店角色判断可能因 userInfo 未加载而误判
+    await this.loadUserInfoAsync();
+
+    // 门店隔离：单门店角色首次进入时，先确保 currentStore 为所属门店
+    // 避免 loadAllData 用空 storeId 拉取到全部门店数据
+    if (app.isSingleStoreRole() && !this.data.currentStore) {
+      // 等 loadStores 设置完 currentStore 后再 loadAllData
+      this.setData({ loadingSkeleton: true });
+      this.loadStores();
+      this._startAutoRefresh();
+      this._connectWebSocket();
+      return;
+    }
 
     // 5 秒内返回首页且已有待办数据，直接复用，避免反复请求导致卡片闪烁/等待
     const now = Date.now();
@@ -205,6 +222,25 @@ Page({
     this.applyUserInfo(userInfo);
   },
 
+  // Promise 化加载用户信息，供初始化流程等待
+  loadUserInfoAsync() {
+    return new Promise((resolve) => {
+      if (!app.globalData.userInfo) {
+        request({ url: '/auth/me', method: 'GET' }).then(res => {
+          const data = res.data || {};
+          app.globalData.userInfo = data;
+          this.applyUserInfo(data.admin ? data.admin : data);
+          resolve();
+        }).catch(() => resolve());
+      } else {
+        const raw = app.globalData.userInfo;
+        const userInfo = raw.admin ? raw.admin : raw;
+        this.applyUserInfo(userInfo);
+        resolve();
+      }
+    });
+  },
+
   applyUserInfo(userInfo) {
     const roleNameMap = {
       'super_admin': '超级管理员',
@@ -223,25 +259,59 @@ Page({
         url: '/stores',
         method: 'GET'
       });
-      const list = res.data && res.data.list
+      let list = res.data && res.data.list
         ? res.data.list
         : (Array.isArray(res.data) ? res.data : []);
-      const storeList = [{ _id: '', name: '全部门店' }].concat(list);
-      const currentStore = this.data.currentStore;
+
+      // 门店隔离：单门店角色（店长/员工）按所属门店过滤
+      list = app.filterStoresForUser(list);
+      const isSingleStore = app.isSingleStoreRole();
+      const defaultStoreId = app.getDefaultStoreId();
+
+      let storeList;
       let currentStoreIndex = 0;
       let currentStoreName = '全部门店';
-      if (currentStore && currentStore._id) {
-        const idx = storeList.findIndex(s => s._id === currentStore._id);
-        if (idx >= 0) {
-          currentStoreIndex = idx;
-          currentStoreName = storeList[idx].name;
+      let currentStore = null;
+
+      if (isSingleStore) {
+        // 单门店角色：仅显示所属门店，不显示"全部门店"选项
+        storeList = list;
+        const matched = list.find(s => String(s._id) === String(defaultStoreId));
+        if (matched) {
+          currentStore = matched;
+          currentStoreName = matched.name;
+          currentStoreIndex = list.findIndex(s => String(s._id) === String(matched._id));
+        } else if (list.length > 0) {
+          currentStore = list[0];
+          currentStoreName = list[0].name;
+        }
+      } else {
+        // 多门店角色（超管/审核员/多门店店长）：保留"全部门店"选项
+        storeList = [{ _id: '', name: '全部门店' }].concat(list);
+        // 优先从全局统一门店选择恢复（与店务管理/运营管理共享选中状态）
+        const shopStoreId = app.globalData.shopStoreId || '';
+        let restoreId = shopStoreId;
+        // 回退到本页上次选中
+        if (!restoreId) {
+          const prev = this.data.currentStore;
+          if (prev && prev._id) restoreId = prev._id;
+        }
+        if (restoreId || restoreId === '') {
+          const idx = storeList.findIndex(s => String(s._id) === String(restoreId));
+          if (idx >= 0) {
+            currentStoreIndex = idx;
+            currentStoreName = storeList[idx].name;
+            currentStore = storeList[idx];
+          }
         }
       }
+
       this.setData({
         storeList,
         currentStoreIndex,
         currentStoreName,
-        currentStore: currentStoreIndex > 0 ? storeList[currentStoreIndex] : null
+        currentStore,
+        isSingleStoreRole: isSingleStore
       }, () => {
         this.loadAllData();
       });
@@ -501,6 +571,8 @@ Page({
   },
 
   onOpenStoreModal() {
+    // 单门店角色不允许打开门店选择器
+    if (app.isSingleStoreRole()) return;
     this.setData({ showStoreModal: true });
   },
 
@@ -512,9 +584,12 @@ Page({
     const index = parseInt(e.currentTarget.dataset.index);
     const storeList = this.data.storeList;
     const store = storeList[index];
+    const newStore = store && store._id ? store : null;
+    // 同步到全局统一门店选择（与店务管理/运营管理共享）
+    app.globalData.shopStoreId = newStore ? newStore._id : '';
     this.setData({
       currentStoreIndex: index,
-      currentStore: store && store._id ? store : null,
+      currentStore: newStore,
       currentStoreName: store ? store.name : '全部门店',
       showStoreModal: false,
       loadingSkeleton: true
@@ -527,9 +602,12 @@ Page({
     const index = parseInt(e.detail.value);
     const storeList = this.data.storeList;
     const store = storeList[index];
+    const newStore = store && store._id ? store : null;
+    // 同步到全局统一门店选择（与店务管理/运营管理共享）
+    app.globalData.shopStoreId = newStore ? newStore._id : '';
     this.setData({
       currentStoreIndex: index,
-      currentStore: store && store._id ? store : null,
+      currentStore: newStore,
       currentStoreName: store ? store.name : '全部门店',
       loadingSkeleton: true
     }, () => {
@@ -864,8 +942,20 @@ Page({
   async onAuditApprove(e) {
     const { id, name, storeId } = e.currentTarget.dataset;
     try {
+      const app = getApp();
       const res = await request({ url: '/stores' });
-      const storeList = res.data && Array.isArray(res.data.list) ? res.data.list : (Array.isArray(res.data) ? res.data : []);
+      let storeList = res.data && Array.isArray(res.data.list) ? res.data.list : (Array.isArray(res.data) ? res.data : []);
+      // 门店隔离：按当前用户角色过滤可访问门店
+      storeList = app.filterStoresForUser(storeList);
+
+      // 单门店角色：直接用所属门店，跳过弹窗直接审核
+      const defaultStoreId = app.getDefaultStoreId();
+      if (app.isSingleStoreRole() && defaultStoreId) {
+        this.setData({ auditApproveMember: { id, name } });
+        await this._doAuditApprove(id, defaultStoreId);
+        return;
+      }
+
       let autoSelectedStoreId = '';
       if (storeId) {
         const targetStore = storeList.find(s => String(s._id) === String(storeId));
@@ -879,6 +969,24 @@ Page({
       });
     } catch (err) {
       wx.showToast({ title: '获取门店失败', icon: 'none' });
+    }
+  },
+
+  // 单门店角色直接审核通过（跳过门店选择弹窗）
+  async _doAuditApprove(id, storeId) {
+    try {
+      await request({
+        url: `/pre-members/${id}/audit`,
+        method: 'POST',
+        data: { action: 'approve', store_id: storeId }
+      });
+      wx.showToast({ title: '已通过', icon: 'success' });
+      this.setData({ showAuditStoreModal: false, auditApproveMember: null });
+      if (typeof this._loadPendingAuditMembers === 'function') {
+        this._loadPendingAuditMembers(this.data.expandedTodo);
+      }
+    } catch (err) {
+      wx.showToast({ title: err.message || '操作失败', icon: 'none' });
     }
   },
 

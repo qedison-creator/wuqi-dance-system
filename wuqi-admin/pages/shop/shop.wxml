@@ -1,4 +1,13 @@
 <view class="shop-page">
+  <!-- 门店选择器 -->
+  <view class="store-switcher-bar" wx:if="{{showStoreSwitcher}}" bindtap="onStoreSwitcherTap">
+    <view class="store-switcher-inner">
+      <image class="store-switcher-icon" src="/images/icons/shop-store.svg" mode="aspectFit" decoding="async"></image>
+      <text class="store-switcher-name">{{selectedStoreName}}</text>
+      <image class="store-switcher-arrow" src="/images/icons/chevron-right.svg" mode="aspectFit" decoding="async"></image>
+    </view>
+  </view>
+
   <!-- 运营管理 -->
   <view class="menu-section">
     <view class="menu-section-title">运营管理</view>

@@ -14,10 +14,11 @@
       </view>
       <view class="hero-foot">
         <text class="hf-date">{{currentDate}}</text>
-        <view class="hf-store" bindtap="onOpenStoreModal">
+        <!-- 单门店角色隐藏门店选择器，仅显示门店名称 -->
+        <view class="hf-store {{isSingleStoreRole ? 'disabled' : ''}}" bindtap="{{isSingleStoreRole ? '' : 'onOpenStoreModal'}}">
           <text class="hfs-icon">⌂</text>
           <text class="hfs-label">{{currentStoreName}}</text>
-          <text class="hfs-arrow">▾</text>
+          <text class="hfs-arrow" wx:if="{{!isSingleStoreRole}}">▾</text>
         </view>
       </view>
     </view>

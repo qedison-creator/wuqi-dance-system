@@ -3,6 +3,7 @@ const UserPackage = require('../models/UserPackage');
 const Booking = require('../models/Booking');
 const ExemptionLog = require('../models/ExemptionLog');
 const logService = require('./log.service');
+const mongoose = require('mongoose');
 const dayjs = require('dayjs');
 const utc = require('dayjs/plugin/utc');
 const timezone = require('dayjs/plugin/timezone');
@@ -14,6 +15,9 @@ const BEIJING_TZ = 'Asia/Shanghai';
 exports.getMemberList = async (query) => {
   const { status, keyword, store_id, member_status, package_active, package_suspended, package_expired, package_pending, package_exhausted, no_package, no_store, page = 1, pageSize = 20 } = query;
   const filter = { user_type: 'member' };
+
+  // 将字符串 store_id 转为 ObjectId，供聚合查询使用
+  const storeObjectId = store_id && mongoose.isValidObjectId(store_id) ? new mongoose.Types.ObjectId(store_id) : null;
 
   if (status) filter.status = status;
   if (member_status) filter.member_status = member_status;
@@ -107,9 +111,8 @@ exports.getMemberList = async (query) => {
     // 未录套餐：正式会员且没有任何套餐记录
     filter.member_status = 'official';
     // 使用聚合查询：查找没有套餐的会员
-    const mongoose = require('mongoose');
     const pipeline = [
-      { $match: filter },
+      { $match: storeObjectId ? { ...filter, store_id: storeObjectId } : filter },
       { $lookup: { from: 'userpackages', localField: '_id', foreignField: 'user_id', as: 'pkg_count' } },
       { $match: { pkg_count: { $size: 0 } } },
       { $project: { pkg_count: 0 } }
@@ -162,10 +165,31 @@ exports.getMemberById = async (id) => {
   const packageService = require('./package.service');
   await packageService.refreshPackageStatus(id);
 
-  // 获取会员套餐
+  // 获取会员套餐（使用 lean 返回普通对象，确保可附加 extensions 字段）
   const packages = await UserPackage.find({ user_id: id })
     .populate('store_id', 'name')
-    .sort({ created_at: -1 });
+    .sort({ created_at: -1 })
+    .lean();
+
+  // 为每个套餐加载延长记录
+  const PackageExtension = require('../models/PackageExtension');
+  for (const pkg of packages) {
+    const extensions = await PackageExtension.find({
+      user_package_id: pkg._id,
+      operation_type: 'extend',
+    })
+      .populate('operated_by', 'nick_name username')
+      .sort({ created_at: -1 });
+    pkg.extensions = extensions.map(ext => ({
+      _id: ext._id,
+      extend_days: ext.extend_days || 0,
+      extend_value: ext.extend_value || ext.extend_days || 0,
+      extend_unit: ext.extend_unit || 'day',
+      created_at: ext.created_at,
+      operator_name: (ext.operated_by && (ext.operated_by.nick_name || ext.operated_by.username)) || '',
+      reason: ext.reason || ext.remark || '',
+    }));
+  }
 
   // 获取预约记录
   const bookings = await Booking.find({ user_id: id })

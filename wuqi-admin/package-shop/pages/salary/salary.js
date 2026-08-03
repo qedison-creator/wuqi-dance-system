@@ -102,13 +102,17 @@ Page({
 
   async loadConfigList() {
     try {
+      const shopStoreId = app.globalData.shopStoreId || '';
+      const params = {
+        page: this.data.page,
+        pageSize: this.data.pageSize,
+        is_active: true
+      };
+      if (shopStoreId) params.store_id = shopStoreId;
       const res = await request({
         url: '/coach-salaries',
         method: 'GET',
-        data: {
-          page: this.data.page,
-          pageSize: this.data.pageSize
-        }
+        data: params
       });
       const result = res.data || {};
       const list = result.list || [];
@@ -147,15 +151,18 @@ Page({
   async loadStatsList() {
     try {
       const { startDate, endDate } = this.data.statForm;
+      const shopStoreId = app.globalData.shopStoreId || '';
+      const params = {
+        page: this.data.page,
+        pageSize: this.data.pageSize,
+        start_date: startDate,
+        end_date: endDate
+      };
+      if (shopStoreId) params.store_id = shopStoreId;
       const res = await request({
         url: '/coach-salaries/stats/list',
         method: 'GET',
-        data: {
-          page: this.data.page,
-          pageSize: this.data.pageSize,
-          start_date: startDate,
-          end_date: endDate
-        }
+        data: params
       });
       const result = res.data || {};
       this.setData({ 
@@ -171,13 +178,16 @@ Page({
   async loadStatsSummary() {
     try {
       const { startDate, endDate } = this.data.statForm;
+      const shopStoreId = app.globalData.shopStoreId || '';
+      const params = {
+        start_date: startDate,
+        end_date: endDate
+      };
+      if (shopStoreId) params.store_id = shopStoreId;
       const res = await request({
         url: '/coach-salaries/stats/summary',
         method: 'GET',
-        data: {
-          start_date: startDate,
-          end_date: endDate
-        }
+        data: params
       });
       this.setData({ statsSummary: res.data });
     } catch (err) {
@@ -292,6 +302,8 @@ Page({
     wx.showLoading({ title: '保存中...' });
     
     try {
+      // 从全局门店选择读取store_id（超管选了具体门店则按该门店创建配置，未选则创建多门店执教通用配置）
+      const shopStoreId = app.globalData.shopStoreId || '';
       const promises = validItems.map(item => {
         const submitData = {
           coach_id: selectedCoachId,
@@ -300,18 +312,20 @@ Page({
           effective_from: commonForm.effective_from,
           remark: commonForm.remark
         };
-        
+        // 仅在有选中的具体门店时传递store_id
+        if (shopStoreId) submitData.store_id = shopStoreId;
+
         if (item.id) {
-          return request({ 
-            url: `/coach-salaries/${item.id}`, 
-            method: 'PUT', 
-            data: submitData 
+          return request({
+            url: `/coach-salaries/${item.id}`,
+            method: 'PUT',
+            data: submitData
           });
         } else {
-          return request({ 
-            url: '/coach-salaries', 
-            method: 'POST', 
-            data: submitData 
+          return request({
+            url: '/coach-salaries',
+            method: 'POST',
+            data: submitData
           });
         }
       });
@@ -364,17 +378,32 @@ Page({
   },
 
   onDeleteConfig(e) {
-    const id = e.currentTarget.dataset.id;
+    const coachGroup = e.currentTarget.dataset.item;
+    // 收集该教练组的所有配置ID
+    const ids = (coachGroup.configs || []).map(c => c._id).filter(Boolean);
+    if (ids.length === 0) {
+      wx.showToast({ title: '无可删除的配置', icon: 'none' });
+      return;
+    }
+    const coachName = coachGroup.coach_name || '该教练';
     wx.showModal({
       title: '确认删除',
-      content: '确定要删除这个薪酬配置吗？',
+      content: `确定要删除「${coachName}」的全部薪酬配置吗？共${ids.length}条配置，删除后不可恢复。`,
+      confirmColor: '#C44B4B',
       success: (res) => {
         if (res.confirm) {
-          request({ url: `/coach-salaries/${id}`, method: 'DELETE' }).then(() => {
+          wx.showLoading({ title: '删除中...' });
+          request({
+            url: '/coach-salaries/batch-delete',
+            method: 'POST',
+            data: { ids }
+          }).then(() => {
+            wx.hideLoading();
             wx.showToast({ title: '删除成功', icon: 'success' });
             this.loadConfigList();
-          }).catch(() => {
-            wx.showToast({ title: '删除失败', icon: 'none' });
+          }).catch((err) => {
+            wx.hideLoading();
+            wx.showToast({ title: err.message || '删除失败', icon: 'none' });
           });
         }
       }
@@ -538,15 +567,17 @@ Page({
     }
     
     wx.showLoading({ title: '生成预览中...' });
-    
+
     try {
+      const shopStoreId = app.globalData.shopStoreId || '';
       const res = await request({
         url: '/coach-salaries/stats/generate',
         method: 'POST',
         data: {
           start_date: startDate,
           end_date: endDate,
-          preview: true
+          preview: true,
+          ...(shopStoreId ? { store_id: shopStoreId } : {})
         }
       });
       
@@ -583,9 +614,13 @@ Page({
 
   async loadBillList() {
     try {
+      const shopStoreId = app.globalData.shopStoreId || '';
+      const params = {};
+      if (shopStoreId) params.store_id = shopStoreId;
       const res = await request({
         url: '/coach-salaries/stats/bills',
-        method: 'GET'
+        method: 'GET',
+        data: params
       });
       if (res.data) {
         // 预格式化日期，生成唯一标题
@@ -723,7 +758,7 @@ Page({
             wx.showToast({ title: '已删除', icon: 'success' });
             this.loadBillList();
           } catch (err) {
-            wx.showToast({ title: '删除失败', icon: 'none' });
+            wx.showToast({ title: err.message || '删除失败', icon: 'none' });
           }
         }
       }
@@ -761,8 +796,9 @@ Page({
     }
     
     wx.showLoading({ title: '生成账单中...' });
-    
+
     try {
+      const shopStoreId = app.globalData.shopStoreId || '';
       const res = await request({
         url: '/coach-salaries/stats/generate',
         method: 'POST',
@@ -770,7 +806,8 @@ Page({
           start_date: startDate,
           end_date: endDate,
           preview: false,
-          coach_ids: selectedCoachIds
+          coach_ids: selectedCoachIds,
+          ...(shopStoreId ? { store_id: shopStoreId } : {})
         }
       });
       
@@ -800,9 +837,13 @@ Page({
 
   async loadClassHours() {
     try {
+      const shopStoreId = app.globalData.shopStoreId || '';
+      const params = {};
+      if (shopStoreId) params.store_id = shopStoreId;
       const res = await request({
         url: '/coach-salaries/stats/class-hours',
-        method: 'GET'
+        method: 'GET',
+        data: params
       });
       if (res.data) {
         const { years, summary } = res.data;
@@ -842,9 +883,13 @@ Page({
 
   async loadSalaryMonthly() {
     try {
+      const shopStoreId = app.globalData.shopStoreId || '';
+      const params = {};
+      if (shopStoreId) params.store_id = shopStoreId;
       const res = await request({
         url: '/coach-salaries/stats/monthly-salary',
-        method: 'GET'
+        method: 'GET',
+        data: params
       });
       if (res.data) {
         const years = (res.data.years || []).map(year => ({

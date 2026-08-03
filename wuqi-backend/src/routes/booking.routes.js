@@ -2,9 +2,17 @@ const router = require('express').Router();
 const auth = require('../middleware/auth');
 const checkPermission = require('../middleware/permission');
 const storeFilter = require('../middleware/storeFilter');
+const checkRecordOwnership = require('../middleware/checkRecordOwnership');
+const Booking = require('../models/Booking');
 const bookingService = require('../services/booking.service');
 const coachSalaryService = require('../services/coach-salary.service');
-const { success, paginate } = require('../utils/response');
+const { success, paginate, error: errorResp } = require('../utils/response');
+const { assertMemberAccessibleForCheckin } = require('../utils/storeOwnership');
+
+// 预约记录归属校验中间件实例
+const checkBookingOwnership = checkRecordOwnership(Booking, {
+  recordName: '预约记录',
+});
 
 // ========== 具体命名路由（必须在 /:id 参数化路由之前） ==========
 
@@ -131,7 +139,7 @@ router.put('/waitlist/confirm/:id', auth, checkPermission(['member']), async (re
 });
 
 // PUT /api/v1/bookings/waitlist/:id/promote - 候补转正（管理端）
-router.put('/waitlist/:id/promote', auth, checkPermission(['super_admin', 'store_manager', 'staff']), async (req, res, next) => {
+router.put('/waitlist/:id/promote', auth, checkPermission(['super_admin', 'store_manager', 'staff']), storeFilter(), async (req, res, next) => {
   try {
     const result = await bookingService.promoteWaitlist(req.params.id, req.user.id);
     res.json(success(result, '候补转正成功'));
@@ -161,7 +169,7 @@ const { verifyToken } = require('../utils/crypto');
 const attendanceService = require('../services/attendance.service');
 
 // POST /api/v1/bookings/check-in - 扫码签到（支持正常签到 + 现场临时签到 + 批量）
-router.post('/check-in', auth, checkPermission(['super_admin', 'store_manager', 'staff']), async (req, res, next) => {
+router.post('/check-in', auth, checkPermission(['super_admin', 'store_manager', 'staff']), storeFilter(), async (req, res, next) => {
   try {
     const { schedule_ids, schedule_id, user_id, encrypted_token, onsite } = req.body;
 
@@ -178,6 +186,12 @@ router.post('/check-in', auth, checkPermission(['super_admin', 'store_manager', 
 
     if (!userId) {
       return res.status(400).json({ code: 400, message: '缺少user_id参数', data: null });
+    }
+
+    // 门店隔离：单门店角色只能为所属门店会员或跨门店套餐会员签到
+    const access = await assertMemberAccessibleForCheckin(userId, req.user);
+    if (!access.ok) {
+      return res.status(403).json(errorResp(403, access.reason));
     }
 
     const ids = schedule_ids || (schedule_id ? [schedule_id] : []);
@@ -198,7 +212,7 @@ router.post('/check-in', auth, checkPermission(['super_admin', 'store_manager', 
 });
 
 // POST /api/v1/bookings/batch-check-in - 批量签到
-router.post('/batch-check-in', auth, checkPermission(['super_admin', 'store_manager', 'staff']), async (req, res, next) => {
+router.post('/batch-check-in', auth, checkPermission(['super_admin', 'store_manager', 'staff']), storeFilter(), async (req, res, next) => {
   try {
     const { schedule_id, user_ids } = req.body;
     if (!schedule_id || !user_ids || !Array.isArray(user_ids)) {
@@ -212,7 +226,7 @@ router.post('/batch-check-in', auth, checkPermission(['super_admin', 'store_mana
 });
 
 // GET /api/v1/bookings/check-in-records/:schedule_id - 获取课程签到记录
-router.get('/check-in-records/:schedule_id', auth, checkPermission(['super_admin', 'store_manager', 'staff']), async (req, res, next) => {
+router.get('/check-in-records/:schedule_id', auth, checkPermission(['super_admin', 'store_manager', 'staff']), storeFilter(), async (req, res, next) => {
   try {
     const records = await bookingService.getCheckInRecords(req.params.schedule_id);
     res.json(success(records));
@@ -222,7 +236,7 @@ router.get('/check-in-records/:schedule_id', auth, checkPermission(['super_admin
 });
 
 // POST /api/v1/bookings/check-low-attendance - 检查并取消低人数课程
-router.post('/check-low-attendance', auth, checkPermission(['super_admin', 'store_manager', 'staff']), async (req, res, next) => {
+router.post('/check-low-attendance', auth, checkPermission(['super_admin', 'store_manager', 'staff']), storeFilter(), async (req, res, next) => {
   try {
     const { schedule_id } = req.body;
     const result = await bookingService.checkAndCancelLowAttendance(schedule_id, req.user.id);
@@ -233,7 +247,7 @@ router.post('/check-low-attendance', auth, checkPermission(['super_admin', 'stor
 });
 
 // POST /api/v1/bookings/batch-check-low-attendance - 批量检查低人数课程
-router.post('/batch-check-low-attendance', auth, checkPermission(['super_admin', 'store_manager', 'staff']), async (req, res, next) => {
+router.post('/batch-check-low-attendance', auth, checkPermission(['super_admin', 'store_manager', 'staff']), storeFilter(), async (req, res, next) => {
   try {
     const { hours_before = 2 } = req.body;
     const results = await bookingService.batchCheckLowAttendance(hours_before);
@@ -244,7 +258,7 @@ router.post('/batch-check-low-attendance', auth, checkPermission(['super_admin',
 });
 
 // POST /api/v1/bookings/auto-check-in/:schedule_id - 手动触发自动签到（管理端）
-router.post('/auto-check-in/:schedule_id', auth, checkPermission(['super_admin', 'store_manager', 'staff']), async (req, res, next) => {
+router.post('/auto-check-in/:schedule_id', auth, checkPermission(['super_admin', 'store_manager', 'staff']), storeFilter(), async (req, res, next) => {
   try {
     const result = await bookingService.autoCheckIn(req.params.schedule_id);
     res.json(success(result, `自动签到完成: 处理${result.processed}个预约, ${result.checked_in}个已签到`));
@@ -290,11 +304,16 @@ router.get('/check-in-status/:user_id', async (req, res, next) => {
 });
 
 // POST /api/v1/bookings/onsite-check-in - 线下现场签到（无预约也可补签，即时扣课时）
-router.post('/onsite-check-in', auth, checkPermission(['super_admin', 'store_manager', 'staff']), async (req, res, next) => {
+router.post('/onsite-check-in', auth, checkPermission(['super_admin', 'store_manager', 'staff']), storeFilter(), async (req, res, next) => {
   try {
     const { schedule_id, user_id, user_package_id } = req.body;
     if (!schedule_id || !user_id) {
       return res.status(400).json({ code: 400, message: '缺少 schedule_id 或 user_id 参数', data: null });
+    }
+    // 门店隔离：单门店角色只能为所属门店会员或跨门店套餐会员现场签到
+    const access = await assertMemberAccessibleForCheckin(user_id, req.user);
+    if (!access.ok) {
+      return res.status(403).json(errorResp(403, access.reason));
     }
     const result = await bookingService.onsiteCheckIn(schedule_id, user_id, req.user.id, user_package_id);
     res.json(success(result, '现场签到成功'));
@@ -306,7 +325,7 @@ router.post('/onsite-check-in', auth, checkPermission(['super_admin', 'store_man
 // ========== 参数化路由（必须放在最后，避免拦截具体命名路由） ==========
 
 // GET /api/v1/bookings/:schedule_id/waitlist - 管理端获取指定排课的候补名单
-router.get('/:schedule_id/waitlist', auth, checkPermission(['super_admin', 'store_manager', 'staff']), async (req, res, next) => {
+router.get('/:schedule_id/waitlist', auth, checkPermission(['super_admin', 'store_manager', 'staff']), storeFilter(), async (req, res, next) => {
   try {
     const list = await bookingService.getScheduleWaitlist(req.params.schedule_id);
     res.json(success(list));
@@ -316,7 +335,7 @@ router.get('/:schedule_id/waitlist', auth, checkPermission(['super_admin', 'stor
 });
 
 // GET /api/v1/bookings/:id - 获取预约详情
-router.get('/:id', auth, checkPermission(['super_admin', 'store_manager', 'staff']), async (req, res, next) => {
+router.get('/:id', auth, checkPermission(['super_admin', 'store_manager', 'staff']), storeFilter(), checkBookingOwnership, async (req, res, next) => {
   try {
     const booking = await bookingService.getBookingById(req.params.id);
     res.json(success(booking));
@@ -326,7 +345,7 @@ router.get('/:id', auth, checkPermission(['super_admin', 'store_manager', 'staff
 });
 
 // PUT /api/v1/bookings/:id/admin-cancel - 管理员手动取消
-router.put('/:id/admin-cancel', auth, checkPermission(['super_admin', 'store_manager', 'staff']), async (req, res, next) => {
+router.put('/:id/admin-cancel', auth, checkPermission(['super_admin', 'store_manager', 'staff']), storeFilter(), checkBookingOwnership, async (req, res, next) => {
   try {
     const { reason } = req.body;
     const booking = await bookingService.adminCancelBooking(req.params.id, reason, req.user.id);

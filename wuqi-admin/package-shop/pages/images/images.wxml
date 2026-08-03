@@ -2,7 +2,7 @@
   <view class="page-header">
     <view class="ph-left">
       <text class="ph-title">此间画面</text>
-      <text class="ph-desc">管理图片作品</text>
+      <text class="ph-desc">{{currentStoreName ? currentStoreName + ' 画册' : '公共画册'}}</text>
     </view>
     <view class="ph-right">
       <view class="btn-add" bindtap="onShowAdd">+ 上传图片</view>
@@ -52,6 +52,7 @@
         </view>
         <view class="ic-info">
           <text class="ic-title">{{item.title || '未命名'}}</text>
+          <text class="ic-gallery-tag">{{item.galleryLabel}}</text>
           <text class="ic-coach" wx:if="{{item.coachNames}}">{{item.coachNames}}</text>
           <text class="ic-coach muted" wx:else>未关联教练</text>
           <text class="ic-size" wx:if="{{item.width && item.height}}">{{item.width}}×{{item.height}}（{{item.orientation === 'portrait' ? '竖屏' : item.orientation === 'square' ? '方形' : '横屏'}}）</text>
@@ -101,6 +102,21 @@
       <view class="form-item">
         <text class="fi-label">图片名称</text>
         <input class="fi-input" placeholder="请输入图片名称" value="{{formTitle}}" bindinput="onTitleInput" />
+      </view>
+
+      <view class="form-item form-item-col">
+        <text class="fi-label">所属画册</text>
+        <view class="fi-coach-trigger" bindtap="onToggleGalleryPicker">
+          <text class="{{formStoreId ? '' : 'fi-placeholder'}}">{{formStoreId ? (currentStoreName || '当前门店') + ' 画册' : '公共画册'}}</text>
+          <view class="fi-arrow {{showGalleryPicker ? 'up' : ''}}" wx:if="{{isSuperAdmin}}"></view>
+        </view>
+        <!-- 画册选择面板（仅超管可切换） -->
+        <view class="fi-coach-panel" wx:if="{{showGalleryPicker && isSuperAdmin}}">
+          <view class="fcp-item" wx:for="{{galleryOptions}}" wx:key="value" bindtap="onGallerySelect" data-value="{{item.value}}">
+            <view class="fcp-check {{formStoreId === item.value ? 'checked' : ''}}">{{formStoreId === item.value ? '√' : ''}}</view>
+            <text class="fcp-name">{{item.label}}</text>
+          </view>
+        </view>
       </view>
 
       <view class="form-item form-item-col">

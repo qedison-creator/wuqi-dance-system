@@ -1,66 +1,69 @@
 <view class="pre-member-page">
-  <!-- 门店筛选栏 -->
-  <view class="store-bar">
-    <text class="store-bar-label">门店</text>
-    <scroll-view class="store-scroll" scroll-x enhanced show-scrollbar="{{false}}" enable-flex>
-      <view class="store-chips">
-        <view class="store-chip {{currentStoreId === '' ? 'store-chip-active' : ''}}" data-id="" bindtap="onStoreFilterChange">
-          <text class="store-chip-text">全部</text>
+  <!-- 顶部固定区域：门店筛选 + 操作栏 + 状态标签 -->
+  <view class="sticky-header">
+    <!-- 门店筛选栏 -->
+    <view class="store-bar" wx:if="{{showStoreSwitcher}}">
+      <text class="store-bar-label">门店</text>
+      <scroll-view class="store-scroll" scroll-x enhanced show-scrollbar="{{false}}" enable-flex>
+        <view class="store-chips">
+          <view class="store-chip {{currentStoreId === '' ? 'store-chip-active' : ''}}" data-id="" bindtap="onStoreFilterChange">
+            <text class="store-chip-text">全部</text>
+          </view>
+          <view class="store-chip {{currentStoreId === item._id ? 'store-chip-active' : ''}}" wx:for="{{storeList}}" wx:key="_id" data-id="{{item._id}}" bindtap="onStoreFilterChange">
+            <text class="store-chip-text">{{item.name}}</text>
+          </view>
         </view>
-        <view class="store-chip {{currentStoreId === item._id ? 'store-chip-active' : ''}}" wx:for="{{storeList}}" wx:key="_id" data-id="{{item._id}}" bindtap="onStoreFilterChange">
-          <text class="store-chip-text">{{item.name}}</text>
+      </scroll-view>
+    </view>
+
+    <!-- 操作栏：搜索 + 批量管理 + 批量导入 + 新建 -->
+    <view class="action-bar">
+      <view class="search-input-wrap">
+        <text class="search-icon">搜</text>
+        <input class="search-input" placeholder="搜索姓名/手机号" value="{{keyword}}" bindinput="onSearchInput" confirm-type="search" bindconfirm="onSearch" />
+        <view class="search-clear" wx:if="{{keyword}}" catchtap="onClearSearch">
+          <text>×</text>
         </view>
       </view>
-    </scroll-view>
-  </view>
-
-  <!-- 操作栏：搜索 + 批量管理 + 批量导入 + 新建 -->
-  <view class="action-bar">
-    <view class="search-input-wrap">
-      <text class="search-icon">搜</text>
-      <input class="search-input" placeholder="搜索姓名/手机号" value="{{keyword}}" bindinput="onSearchInput" confirm-type="search" bindconfirm="onSearch" />
-      <view class="search-clear" wx:if="{{keyword}}" catchtap="onClearSearch">
-        <text>×</text>
+      <view class="action-btns">
+        <!-- 批量管理模式下隐藏这些按钮，避免与底部操作栏冲突 -->
+        <block wx:if="{{!batchMode}}">
+          <view class="btn-import" bindtap="onEnterBatchMode">
+            <text class="btn-import-text">批量管理</text>
+          </view>
+          <view class="btn-import" bindtap="onGoImport">
+            <text class="btn-import-text">批量导入</text>
+          </view>
+          <view class="btn-create" bindtap="onCreatePreMember">
+            <text class="btn-create-text">+ 新建</text>
+          </view>
+        </block>
+        <block wx:else>
+          <view class="btn-exit-batch" bindtap="onExitBatchMode">
+            <text class="btn-import-text">退出管理</text>
+          </view>
+        </block>
       </view>
     </view>
-    <view class="action-btns">
-      <!-- 批量管理模式下隐藏这些按钮，避免与底部操作栏冲突 -->
-      <block wx:if="{{!batchMode}}">
-        <view class="btn-import" bindtap="onEnterBatchMode">
-          <text class="btn-import-text">批量管理</text>
-        </view>
-        <view class="btn-import" bindtap="onGoImport">
-          <text class="btn-import-text">批量导入</text>
-        </view>
-        <view class="btn-create" bindtap="onCreatePreMember">
-          <text class="btn-create-text">+ 新建</text>
-        </view>
-      </block>
-      <block wx:else>
-        <view class="btn-exit-batch" bindtap="onExitBatchMode">
-          <text class="btn-import-text">退出管理</text>
-        </view>
-      </block>
-    </view>
-  </view>
 
-  <!-- 状态筛选标签 -->
-  <view class="status-tabs">
-    <view class="status-tab {{currentStatus === 'pending' ? 'active' : ''}}" data-status="pending" bindtap="onStatusTabChange">
-      <text>待认领</text>
-      <view class="tab-badge" wx:if="{{pendingCount > 0}}">{{pendingCount}}</view>
-    </view>
-    <view class="status-tab {{currentStatus === 'claimed' ? 'active' : ''}}" data-status="claimed" bindtap="onStatusTabChange">
-      <text>已认领</text>
-    </view>
-    <view class="status-tab {{currentStatus === 'all' ? 'active' : ''}}" data-status="all" bindtap="onStatusTabChange">
-      <text>全部</text>
+    <!-- 状态筛选标签 -->
+    <view class="status-tabs">
+      <view class="status-tab {{currentStatus === 'pending' ? 'active' : ''}}" data-status="pending" bindtap="onStatusTabChange">
+        <text>待认领</text>
+        <view class="tab-badge" wx:if="{{pendingCount > 0}}">{{pendingCount}}</view>
+      </view>
+      <view class="status-tab {{currentStatus === 'claimed' ? 'active' : ''}}" data-status="claimed" bindtap="onStatusTabChange">
+        <text>已认领</text>
+      </view>
+      <view class="status-tab {{currentStatus === 'all' ? 'active' : ''}}" data-status="all" bindtap="onStatusTabChange">
+        <text>全部</text>
+      </view>
     </view>
   </view>
 
   <!-- 列表 -->
   <view class="member-list {{batchMode ? 'member-list-batch' : ''}}" wx:if="{{!loading && list.length > 0}}">
-    <view class="member-card {{batchMode && item.member_status === 'pending_claim' ? 'member-card-selectable' : ''}} {{batchMode && item._selected ? 'member-card-selected' : ''}}" wx:for="{{list}}" wx:key="_id" data-id="{{item._id}}" catchtap="onCardTap">
+    <view class="member-card {{batchMode && item.member_status === 'pending_claim' ? 'member-card-selectable' : ''}} {{batchMode && item._selected ? 'member-card-selected' : ''}}" wx:for="{{list}}" wx:key="_id" wx:if="{{index < visibleCount}}" data-id="{{item._id}}" catchtap="onCardTap">
       <view class="member-card-top">
         <!-- 批量管理模式下，仅 pending_claim 状态显示复选框；其他状态显示禁用占位以保持对齐 -->
         <view class="batch-checkbox-wrap" wx:if="{{batchMode}}">
@@ -119,6 +122,15 @@
         </block>
       </view>
     </view>
+    <!-- 查看更多按钮（在列表内部，跟随内容流动） -->
+    <view class="expand-toggle" wx:if="{{!loading && hasMore}}" bindtap="onLoadMore">
+      <text>查看更多 ({{currentTotal - visibleCount}}位)</text>
+      <view class="toggle-arrow down"></view>
+    </view>
+    <!-- 没有更多数据提示 -->
+    <view class="no-more" wx:if="{{!hasMore && !loading && currentTotal > 0}}">
+      <text class="no-more-text">没有更多数据了</text>
+    </view>
   </view>
 
   <!-- 空状态 -->
@@ -146,6 +158,11 @@
         <text class="batch-delete-btn-text">删除选中</text>
       </view>
     </view>
+  </view>
+
+  <!-- 返回顶部按钮 -->
+  <view class="back-to-top {{showBackToTop ? 'show' : ''}}" wx:if="{{showBackToTop}}" bindtap="onBackToTop">
+    <text class="btt-icon">↑</text>
   </view>
 </view>
 

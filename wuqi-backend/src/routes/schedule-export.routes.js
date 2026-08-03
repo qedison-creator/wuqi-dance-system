@@ -1,12 +1,13 @@
 const router = require('express').Router();
 const auth = require('../middleware/auth');
 const checkPermission = require('../middleware/permission');
-const { success, fail } = require('../utils/response');
+const storeFilter = require('../middleware/storeFilter');
+const { success, error } = require('../utils/response');
 const ScheduleExportConfig = require('../models/ScheduleExportConfig');
 const scheduleService = require('../services/schedule.service');
 
 // 获取当前激活的背景图配置
-router.get('/background', auth, async (req, res, next) => {
+router.get('/background', auth, storeFilter(), async (req, res, next) => {
   try {
     const config = await ScheduleExportConfig.findOne({ is_active: true }).sort({ updated_at: -1 });
     res.json(success(config, '获取背景图配置成功'));
@@ -16,7 +17,7 @@ router.get('/background', auth, async (req, res, next) => {
 });
 
 // 获取所有背景图列表
-router.get('/backgrounds', auth, async (req, res, next) => {
+router.get('/backgrounds', auth, storeFilter(), async (req, res, next) => {
   try {
     const list = await ScheduleExportConfig.find().sort({ created_at: -1 }).lean();
     res.json(success(list, '获取背景图列表成功'));
@@ -26,11 +27,11 @@ router.get('/backgrounds', auth, async (req, res, next) => {
 });
 
 // 上传新背景图（设置URL为激活）
-router.post('/background', auth, checkPermission(['super_admin', 'store_manager', 'staff']), async (req, res, next) => {
+router.post('/background', auth, checkPermission(['super_admin', 'store_manager', 'staff']), storeFilter(), async (req, res, next) => {
   try {
     const { background_url, background_name } = req.body;
     if (!background_url) {
-      return res.status(400).json(errorResponse(400, '缺少 background_url 参数'));
+      return res.status(400).json(error(400, '缺少 background_url 参数'));
     }
 
     // 将之前的激活记录设为非激活
@@ -50,11 +51,11 @@ router.post('/background', auth, checkPermission(['super_admin', 'store_manager'
 });
 
 // 设置某背景图为激活
-router.put('/background/:id/activate', auth, checkPermission(['super_admin', 'store_manager', 'staff']), async (req, res, next) => {
+router.put('/background/:id/activate', auth, checkPermission(['super_admin', 'store_manager', 'staff']), storeFilter(), async (req, res, next) => {
   try {
     const config = await ScheduleExportConfig.findById(req.params.id);
     if (!config) {
-      return res.status(404).json(fail('背景图不存在'));
+      return res.status(404).json(error(404, '背景图不存在'));
     }
 
     await ScheduleExportConfig.updateMany({ is_active: true }, { is_active: false });
@@ -68,11 +69,11 @@ router.put('/background/:id/activate', auth, checkPermission(['super_admin', 'st
 });
 
 // 删除背景图
-router.delete('/background/:id', auth, checkPermission(['super_admin', 'store_manager', 'staff']), async (req, res, next) => {
+router.delete('/background/:id', auth, checkPermission(['super_admin', 'store_manager', 'staff']), storeFilter(), async (req, res, next) => {
   try {
     const config = await ScheduleExportConfig.findById(req.params.id);
     if (!config) {
-      return res.status(404).json(errorResponse(404, '背景图不存在'));
+      return res.status(404).json(error(404, '背景图不存在'));
     }
 
     const wasActive = config.is_active;
@@ -94,11 +95,11 @@ router.delete('/background/:id', auth, checkPermission(['super_admin', 'store_ma
 });
 
 // 获取周课程表导出数据
-router.get('/week-export', auth, async (req, res, next) => {
+router.get('/week-export', auth, storeFilter(), async (req, res, next) => {
   try {
     const { store_id, start_date, end_date } = req.query;
     if (!start_date || !end_date) {
-      return res.status(400).json(errorResponse(400, '缺少 start_date 或 end_date 参数'));
+      return res.status(400).json(error(400, '缺少 start_date 或 end_date 参数'));
     }
 
     const data = await scheduleService.getWeekExportData(store_id, start_date, end_date);

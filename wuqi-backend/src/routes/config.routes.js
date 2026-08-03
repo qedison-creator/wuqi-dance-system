@@ -2,10 +2,21 @@ const router = require('express').Router();
 const auth = require('../middleware/auth');
 const checkPermission = require('../middleware/permission');
 const { checkModulePermission } = require('../middleware/permission');
-const { success } = require('../utils/response');
+const storeFilter = require('../middleware/storeFilter');
+const { success, error } = require('../utils/response');
 const { getMessageTemplates, setMessageTemplates, getReminderSettings, setReminderSettings, getCancelReasons } = require('../config/messageConfig');
 const Config = require('../models/Config');
+const Store = require('../models/Store');
 const TemplateFieldMapping = require('../models/TemplateFieldMapping');
+
+// 获取全局默认豁免次数（Config 表中的 default_exemption_count）
+const getGlobalExemptionCount = async () => {
+  const config = await Config.findOne({ key: 'default_exemption_count' });
+  if (config && config.value !== undefined && config.value !== null) {
+    return parseInt(config.value) || 3;
+  }
+  return 3;
+};
 
 // GET /api/v1/config - 获取所有配置
 router.get('/', auth, checkModulePermission('config'), async (req, res, next) => {
@@ -446,6 +457,143 @@ router.get('/public/booking-window', async (req, res, next) => {
     const config = await Config.findOne({ key: 'booking_window_days' });
     const days = config ? parseInt(config.value, 10) || 7 : 7;
     res.json(success({ booking_window_days: days }));
+  } catch (err) {
+    next(err);
+  }
+});
+
+// GET /api/v1/config/default_exemption_count - 获取默认豁免次数（店务管理功能，店长可访问）
+// 支持 store_id 查询参数：传入时返回门店级配置（门店未单独配置则返回全局默认值+is_inherited=true）
+// 注意：必须在 /:key 通用路由之前定义，否则会被 /:key 捕获
+router.get('/default_exemption_count', auth, checkModulePermission('exemption'), storeFilter(), async (req, res, next) => {
+  try {
+    const { store_id } = req.query;
+
+    // 无 store_id：返回全局配置
+    if (!store_id) {
+      const config = await Config.findOne({ key: 'default_exemption_count' });
+      if (!config) {
+        const defaultConfig = DEFAULT_CONFIGS.find(c => c.key === 'default_exemption_count');
+        if (defaultConfig) {
+          return res.json(success({ key: defaultConfig.key, value: defaultConfig.value, description: defaultConfig.description, scope: 'global' }));
+        }
+        return res.status(404).json({ code: 404, message: '配置不存在', data: null });
+      }
+      return res.json(success({ ...config.toObject(), scope: 'global' }));
+    }
+
+    // 有 store_id：返回门店级配置（门店未单独配置时回退全局默认）
+    const store = await Store.findById(store_id).select('name default_exemption_count');
+    if (!store) {
+      return res.status(404).json({ code: 404, message: '门店不存在', data: null });
+    }
+    const globalValue = await getGlobalExemptionCount();
+    if (store.default_exemption_count !== null && store.default_exemption_count !== undefined) {
+      return res.json(success({
+        key: 'default_exemption_count',
+        value: String(store.default_exemption_count),
+        description: `${store.name} 默认豁免次数`,
+        scope: 'store',
+        store_id,
+        store_name: store.name,
+        is_inherited: false
+      }));
+    }
+    // 门店未单独配置，返回全局默认值并标记为继承
+    return res.json(success({
+      key: 'default_exemption_count',
+      value: String(globalValue),
+      description: '新注册会员默认豁免次数（继承全局设置）',
+      scope: 'store',
+      store_id,
+      store_name: store.name,
+      is_inherited: true
+    }));
+  } catch (err) {
+    next(err);
+  }
+});
+
+// PUT /api/v1/config/default_exemption_count - 更新默认豁免次数（店务管理功能，店长可访问）
+// 支持 body.store_id：传入时更新门店级配置（storeFilter 会校验门店归属），否则更新全局配置
+router.put('/default_exemption_count', auth, checkModulePermission('exemption'), storeFilter(), async (req, res, next) => {
+  try {
+    const { config_value, store_id } = req.body;
+
+    // 无 store_id：更新全局配置
+    if (!store_id) {
+      let config = await Config.findOne({ key: 'default_exemption_count' });
+      if (config) {
+        config.value = String(config_value);
+        await config.save();
+      } else {
+        config = await Config.create({
+          key: 'default_exemption_count',
+          value: String(config_value),
+          description: '新注册会员默认豁免次数'
+        });
+      }
+      return res.json(success({ ...config.toObject(), scope: 'global' }, '配置更新成功'));
+    }
+
+    // 有 store_id：更新门店级配置（storeFilter 已校验门店归属权限）
+    const store = await Store.findById(store_id).select('name default_exemption_count');
+    if (!store) {
+      return res.status(404).json({ code: 404, message: '门店不存在', data: null });
+    }
+    store.default_exemption_count = parseInt(config_value);
+    await store.save();
+    return res.json(success({
+      key: 'default_exemption_count',
+      value: String(store.default_exemption_count),
+      description: `${store.name} 默认豁免次数`,
+      scope: 'store',
+      store_id,
+      store_name: store.name,
+      is_inherited: false
+    }, '门店配置更新成功'));
+  } catch (err) {
+    next(err);
+  }
+});
+
+// GET /api/v1/config/booking-window-days - 获取预约开放窗口（店务管理功能，店长可访问）
+// 注意：必须在 /:key 通用路由之前定义，否则会被 /:key 捕获
+router.get('/booking-window-days', auth, checkModulePermission('booking'), async (req, res, next) => {
+  try {
+    const config = await Config.findOne({ key: 'booking_window_days' });
+    if (!config) {
+      const defaultConfig = DEFAULT_CONFIGS.find(c => c.key === 'booking_window_days');
+      if (defaultConfig) {
+        return res.json(success({ key: defaultConfig.key, value: defaultConfig.value, description: defaultConfig.description }));
+      }
+      return res.status(404).json({ code: 404, message: '配置不存在', data: null });
+    }
+    res.json(success(config));
+  } catch (err) {
+    next(err);
+  }
+});
+
+// PUT /api/v1/config/booking-window-days - 更新预约开放窗口（店务管理功能，店长可访问）
+router.put('/booking-window-days', auth, checkModulePermission('booking'), async (req, res, next) => {
+  try {
+    const { config_value } = req.body;
+    if (!config_value) {
+      return res.status(400).json({ code: 400, message: 'config_value 不能为空', data: null });
+    }
+    let config = await Config.findOne({ key: 'booking_window_days' });
+    if (config) {
+      config.value = String(config_value);
+      await config.save();
+    } else {
+      config = await Config.create({
+        key: 'booking_window_days',
+        value: String(config_value),
+        description: '预约开放窗口（天），会员只能预约N天内的课程'
+      });
+    }
+    res.json(success(config, '配置更新成功'));
   } catch (err) {
     next(err);
   }

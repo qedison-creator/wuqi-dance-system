@@ -1095,7 +1095,7 @@ exports.adminCancelBooking = async (bookingId, reason, operatorId) => {
   }
 
   // 更新排课预约人数
-  const schedule = await Schedule.findById(booking.schedule_id).populate('coach_id', 'name');
+  const schedule = await Schedule.findById(booking.schedule_id).populate('coach_id', 'name').populate('store_id', 'name');
   if (schedule) {
     schedule.current_bookings = Math.max(0, schedule.current_bookings - 1);
     if (schedule.status === 'full') schedule.status = 'available';
@@ -1135,6 +1135,14 @@ exports.adminCancelBooking = async (bookingId, reason, operatorId) => {
     } catch (notifyErr) {
       console.error('[Booking] 发送管理员取消通知失败:', notifyErr.message);
     }
+
+    // 清理该用户对该课程的提醒 PendingTask，避免取消后仍收到开课提醒
+    await PendingTask.deleteMany({
+      schedule_id: schedule._id,
+      user_id: booking.user_id,
+      type: { $in: ['class_reminder_1h', 'class_reminder_30m'] },
+      processed: 'pending'
+    });
   }
 
   // 记录操作日志

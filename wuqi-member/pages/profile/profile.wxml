@@ -66,7 +66,7 @@
     </view>
 
     <view class="stats-section" wx:if="{{userInfo.member_status === 'official'}}">
-      <view class="stats-row">
+      <view class="stats-row {{showExtraStat ? 'stats-row-4' : ''}}">
         <view class="stat-card stat-clickable" bindtap="onStatTap" data-tab="booking">
           <text class="stat-num">{{statsReady ? stats.totalBookings : '--'}}</text>
           <text class="stat-label">待上课</text>
@@ -77,10 +77,25 @@
           <text class="stat-label">已上课</text>
         </view>
         <view class="stat-divider"></view>
-        <view class="stat-card">
-          <text class="stat-num {{stats.remainingClasses === -1 ? 'stat-infinity' : ''}}">{{statsReady ? (stats.remainingClasses === -1 ? '∞' : stats.remainingClasses) : '--'}}</text>
-          <text class="stat-label">{{stats.remainingClasses === -1 ? '不限次数' : '本周剩余'}}</text>
-        </view>
+        <!-- 单个活跃套餐：显示对应统计 -->
+        <block wx:if="{{!showExtraStat}}">
+          <view class="stat-card">
+            <text class="stat-num {{activeStats[0].isUnlimited ? 'stat-infinity' : ''}}">{{statsReady ? (activeStats.length > 0 ? (activeStats[0].isUnlimited ? '∞' : activeStats[0].remaining) : '--') : '--'}}</text>
+            <text class="stat-label">{{activeStats.length > 0 ? activeStats[0].label : '本周剩余'}}</text>
+          </view>
+        </block>
+        <!-- 多个活跃套餐：增加统计卡，两种套餐同时显示 -->
+        <block wx:if="{{showExtraStat}}">
+          <view class="stat-card">
+            <text class="stat-num {{activeStats[0].isUnlimited ? 'stat-infinity' : ''}}">{{statsReady ? (activeStats[0].isUnlimited ? '∞' : activeStats[0].remaining) : '--'}}</text>
+            <text class="stat-label">{{activeStats[0].label}}</text>
+          </view>
+          <view class="stat-divider"></view>
+          <view class="stat-card">
+            <text class="stat-num {{activeStats[1].isUnlimited ? 'stat-infinity' : ''}}">{{statsReady ? (activeStats[1].isUnlimited ? '∞' : activeStats[1].remaining) : '--'}}</text>
+            <text class="stat-label">{{activeStats[1].label}}</text>
+          </view>
+        </block>
       </view>
     </view>
 

@@ -47,22 +47,30 @@ const _rawRequest = (options) => {
             reject(res.data);
           }
         } else if (res.statusCode === 401 || res.statusCode === 403) {
-          // 账号被删除/禁用、token 过期等认证失败：强制登出并回到启动页
-          // 防止被删除会员继续浏览本地缓存数据
-          const message = (res.data && res.data.message) || (res.statusCode === 403 ? '无权访问' : '账号已失效，请重新登录');
-          if (app && typeof app.forceLogoutAndRedirect === 'function') {
-            app.forceLogoutAndRedirect(message, silent);
-          } else {
-            wx.removeStorageSync('token');
-            if (app && app.globalData) {
-              app.globalData.token = '';
+          // 账号被删除/禁用、token 过期等认证失败
+          // skipAuthRedirect=true 时仅清除 token 并 reject，由调用方决定后续处理（如自动重登）
+          const skipAuthRedirect = options.skipAuthRedirect === true;
+          // 先清除本地 token，避免后续请求携带失效 token
+          wx.removeStorageSync('token');
+          if (app && app.globalData) {
+            app.globalData.token = '';
+            // skipAuthRedirect 模式下保留 userInfo，供 silentReLogin 比较新旧 user_id
+            if (!skipAuthRedirect) {
               app.globalData.userInfo = null;
             }
-            if (!silent) {
-              wx.showToast({ title: message, icon: 'none' });
+          }
+          if (!skipAuthRedirect) {
+            // 默认行为：强制登出并回到启动页，防止被删除会员继续浏览本地缓存数据
+            const message = (res.data && res.data.message) || (res.statusCode === 403 ? '无权访问' : '账号已失效，请重新登录');
+            if (app && typeof app.forceLogoutAndRedirect === 'function') {
+              app.forceLogoutAndRedirect(message, silent);
+            } else {
+              if (!silent) {
+                wx.showToast({ title: message, icon: 'none' });
+              }
             }
           }
-          reject({ code: res.statusCode, message });
+          reject({ code: res.statusCode, message: (res.data && res.data.message) || '认证失败' });
         } else {
           const errMsg = (res.data && res.data.message) || `请求失败(${res.statusCode})`;
           // 500等HTTP错误也让业务代码自己处理提示

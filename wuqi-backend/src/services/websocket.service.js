@@ -96,10 +96,22 @@ function initWebSocketServer(server) {
     }
 
     // 注册连接到连接池（同账号多端在线用 Set 存储）
+    // 记录连接建立前是否已有连接，用于判断是否需要广播"上线"事件
+    const hadExistingConnection = connectionPool.has(userId) && connectionPool.get(userId).size > 0;
     if (!connectionPool.has(userId)) {
       connectionPool.set(userId, new Set());
     }
     connectionPool.get(userId).add(ws);
+
+    // 首次上线（之前无连接）时广播上线状态给超管
+    // 异步执行，避免阻塞连接建立流程
+    if (!hadExistingConnection) {
+      setImmediate(() => {
+        broadcastAccountOnlineStatus(userId, true).catch(err => {
+          console.error('[WebSocket] 广播账号上线状态失败:', err.message);
+        });
+      });
+    }
 
     // 在 ws 对象上标记 userId 和心跳时间，便于后续清理
     ws._userId = userId;
@@ -202,6 +214,7 @@ function initWebSocketServer(server) {
 
 /**
  * 从连接池移除指定连接，清理定时器
+ * 当某用户的最后一个连接断开时，广播离线状态给超管
  */
 function removeConnection(ws) {
   if (ws._heartbeatTimer) {
@@ -215,8 +228,98 @@ function removeConnection(ws) {
     conns.delete(ws);
     if (conns.size === 0) {
       connectionPool.delete(userId);
+      // 该用户所有连接均已断开，广播离线状态给超管
+      // 异步执行，避免阻塞连接关闭流程
+      setImmediate(() => {
+        broadcastAccountOnlineStatus(userId, false).catch(err => {
+          console.error('[WebSocket] 广播账号离线状态失败:', err.message);
+        });
+      });
     }
   }
+}
+
+/**
+ * 判断用户是否在线（在连接池中且至少有一个活跃连接）
+ * @param {string} userId - 用户ID
+ * @returns {boolean}
+ */
+function isUserOnline(userId) {
+  if (!userId) return false;
+  const conns = connectionPool.get(String(userId));
+  return !!(conns && conns.size > 0);
+}
+
+/**
+ * 获取所有在线用户ID列表
+ * @returns {string[]}
+ */
+function getOnlineUserIds() {
+  return Array.from(connectionPool.keys());
+}
+
+/**
+ * 广播账号在线状态变化事件给超级管理员
+ * 仅推送给 role === 'super_admin' 的在线连接
+ *
+ * @param {string} userId - 状态变化的用户ID
+ * @param {boolean} isOnline - true=上线 / false=下线
+ * @param {Object} [userSnapshot] - 用户信息快照（nick_name/username/role），可选
+ * @returns {Promise<number>} 推送到的连接数
+ */
+async function broadcastAccountOnlineStatus(userId, isOnline, userSnapshot) {
+  if (!userId) return 0;
+
+  // 动态引入 User 模型，避免循环依赖（websocket.service 在 app 启动时即加载）
+  let snapshot = userSnapshot || {};
+  if (!snapshot.nick_name && !snapshot.username) {
+    try {
+      const User = require('../models/User');
+      const user = await User.findById(userId).select('nick_name username role').lean();
+      if (user) {
+        snapshot = {
+          nick_name: user.nick_name,
+          username: user.username,
+          role: user.role
+        };
+      }
+    } catch (e) {
+      // 查询失败不阻塞广播，使用空快照
+    }
+  }
+
+  const message = JSON.stringify({
+    event: 'account_online_status',
+    updateTime: new Date().toISOString(),
+    data: {
+      userId: String(userId),
+      isOnline: !!isOnline,
+      nick_name: snapshot.nick_name || null,
+      username: snapshot.username || null,
+      role: snapshot.role || null
+    }
+  });
+
+  let sentCount = 0;
+  for (const [onlineUserId, conns] of connectionPool.entries()) {
+    // 仅推送给在线的超级管理员（按 ws._role 判断，无需查库）
+    let isSuperAdmin = false;
+    for (const ws of conns) {
+      if (ws._role === 'super_admin') {
+        isSuperAdmin = true;
+        break;
+      }
+    }
+    if (!isSuperAdmin) continue;
+
+    for (const ws of conns) {
+      if (ws.readyState === 1) {
+        ws.send(message);
+        sentCount++;
+      }
+    }
+  }
+  return sentCount;
 }
 
 /**
@@ -365,6 +468,9 @@ module.exports = {
   broadcastToAdmins,
   sendToUser,
   broadcastMemberCountUpdate,
+  broadcastAccountOnlineStatus,
+  isUserOnline,
+  getOnlineUserIds,
   getOnlineCount,
   getUserVersion,
   getUserEventIds

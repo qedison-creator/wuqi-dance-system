@@ -23,6 +23,32 @@ function timeToMinutes(timeStr) {
   return h * 60 + m;
 }
 
+/**
+ * 校验教练是否可在指定门店执教（多门店执教模型）
+ * - 教练 store_ids 为空/不存在（多门店执教）：可在任何门店排课
+ * - 教练 store_ids 包含该门店：可在该门店排课
+ * - 否则：拒绝（防止用非所属门店教练排课）
+ *
+ * @param {string} coachId - 教练ID
+ * @param {string} storeId - 门店ID
+ * @throws {Error} 校验失败抛出业务错误
+ */
+async function assertCoachCanTeachAtStore(coachId, storeId) {
+  if (!coachId || !storeId) return;
+  const coach = await Coach.findById(coachId).select('name store_ids');
+  if (!coach) {
+    throw new Error('教练不存在');
+  }
+  const storeIds = coach.store_ids;
+  // 多门店执教（空数组或不存在）：允许
+  if (!storeIds || !Array.isArray(storeIds) || storeIds.length === 0) return;
+  // 校验 storeId 是否在 store_ids 内
+  const canTeach = storeIds.some(s => String(s) === String(storeId));
+  if (!canTeach) {
+    throw new Error(`教练"${coach.name}"未在该门店执教，无法排课（如需跨门店排课，请联系超级管理员调整教练执教门店）`);
+  }
+}
+
 // 判断排课是否因人数不足而实质失效（预约截止已过 + 当前人数 < 最低要求）
 // 用于冲突检测时排除此类"僵尸"排课，避免阻挡新排课
 async function isEffectivelyCancelled(schedule) {
@@ -426,8 +452,8 @@ exports.getScheduleList = async (query, req = null) => {
         const earlyLimit = limit ? Number(limit) : Number(pageSize);
         return { list: [], total: 0, page: Number(page), pageSize: earlyLimit };
       } else if (date === today) {
-        // 当天：展示所有非deleted状态课程（含进行中、已完成等，全状态正常展示）
-        filter.status = { $ne: 'deleted' };
+        // 当天：展示非deleted且非offline的课程（offline课程不在会员端显示）
+        filter.status = { $nin: ['deleted', 'offline'] };
       } else {
         // 未来：仅展示可预约/已满课程
         filter.status = { $in: ['available', 'full'] };
@@ -652,6 +678,9 @@ exports.createSchedule = async (data, operatorId) => {
     throw new Error('缺少必填参数(store_id, date, start_time, dance_style_id, coach_id)');
   }
 
+  // 1.1 教练门店归属校验（多门店执教模型：防止用非所属门店教练排课）
+  await assertCoachCanTeachAtStore(coach_id, store_id);
+
   // 2. 时长校验(30-180分钟)
   const finalDuration = duration || 75;
   if (finalDuration < 30 || finalDuration > 180) {
@@ -866,6 +895,11 @@ exports.updateSchedule = async (id, data, operatorId) => {
     const effectiveClassroom = data.classroom || schedule.classroom;
     const effectiveStoreId = data.store_id || schedule.store_id;
 
+    // 教练门店归属校验（仅当教练或门店变更时校验，避免影响历史排课编辑）
+    if (data.coach_id || data.store_id) {
+      await assertCoachCanTeachAtStore(effectiveCoach, effectiveStoreId);
+    }
+
     if (data.start_time || data.duration || data.coach_id || data.classroom || data.date || data.store_id) {
       const sameStoreConflict = await Schedule.findOne({
         _id: { $ne: schedule._id },
@@ -1070,52 +1104,34 @@ exports.offlineSchedule = async (id, reason, operatorId) => {
   const schedule = await Schedule.findById(id).populate('coach_id', 'name').populate('store_id', 'name');
   if (!schedule) throw new Error('排课不存在');
 
-  const cancelReasonText = reason || '管理员下架课程';
+  if (schedule.status === SCHEDULE_STATUS.OFFLINE) {
+    throw new Error('该排课已下线');
+  }
 
-  schedule.status = 'offline';
+  // 进行中的课程不能下线（用户会突然看到课程消失）
+  // 可预约课程有预约时不能下线（需用取消功能处理退费）
+  // 已完成课程不管有无预约/签到都可以下线
+  if (schedule.status === SCHEDULE_STATUS.IN_PROGRESS) {
+    throw new Error('课程进行中，无法下线');
+  }
+  if ([SCHEDULE_STATUS.AVAILABLE, SCHEDULE_STATUS.FULL, SCHEDULE_STATUS.NOT_OPEN].includes(schedule.status)) {
+    const activeBookings = await Booking.countDocuments({
+      schedule_id: id,
+      status: 'booked',
+    });
+    if (activeBookings > 0) {
+      throw new Error('该课程已有会员预约，无法下线，请使用取消功能');
+    }
+  }
+
+  const cancelReasonText = reason || '管理员下线课程';
+
+  // 仅修改状态，不退还课时、不影响任何预约/签到/统计记录
+  schedule.status = SCHEDULE_STATUS.OFFLINE;
   schedule.cancel_type = 'admin_offline';
   schedule.cancel_reason = CANCEL_REASON.ADMIN_OFFLINE;
   schedule.note = cancelReasonText;
   await schedule.save();
-
-  // 自动退还所有已预约会员的课时
-  const bookings = await Booking.find({
-    schedule_id: id,
-    status: 'booked',
-  });
-
-  const UserPackage = require('../models/UserPackage');
-  for (const booking of bookings) {
-    booking.status = 'cancelled';
-    booking.cancel_type = 'admin_cancel';
-    booking.cancel_time = new Date();
-    booking.cancel_reason = cancelReasonText;
-    booking.credits_refunded = booking.credits_deducted;
-    await booking.save();
-
-    // 恢复会员课时（优先归还到原套餐）
-    if (booking.user_id) {
-      const pkg = booking.user_package_id
-        ? await UserPackage.findById(booking.user_package_id)
-        : await UserPackage.findOne({ user_id: booking.user_id, store_id: schedule.store_id, status: 'active' });
-      if (pkg) {
-        pkg.remaining_credits += booking.credits_deducted;
-        if (pkg.status === 'exhausted') pkg.status = 'active';
-        await pkg.save();
-      }
-      // 通知发送不依赖套餐是否存在
-      try {
-        const wechatMessageService = require('./wechat-message.service');
-        const User = require('../models/User');
-        const bookingUser = await User.findById(booking.user_id);
-        if (bookingUser && bookingUser.openid) {
-          await wechatMessageService.sendBookingCancel(bookingUser, schedule, '管理员下架课程，次数已退还');
-        }
-      } catch (notifyErr) {
-        console.error('[offlineSchedule] 推送通知失败:', notifyErr.message);
-      }
-    }
-  }
 
   // 记录操作日志
   await logService.createLog({
@@ -1123,10 +1139,10 @@ exports.offlineSchedule = async (id, reason, operatorId) => {
     action: 'offline',
     module: 'schedule',
     target_id: id,
-    detail: `下架排课: ${schedule.course_name || ''} ${schedule.date} ${schedule.start_time}, 原因: ${reason || '管理员下架课程'}, 影响预约: ${bookings.length}人`,
+    detail: `下线排课: ${schedule.course_name || ''} ${schedule.date} ${schedule.start_time}, 原因: ${cancelReasonText}`,
   });
 
-  // 清理该课程的所有 PendingTask
+  // 清理该课程的所有 PendingTask（已完成课程通常无待办任务）
   await PendingTask.deleteMany({ schedule_id: id });
 
   return schedule;
@@ -1390,48 +1406,12 @@ exports.getScheduleBookings = async (scheduleId) => {
   const schedule = await Schedule.findById(scheduleId).populate('coach_id', 'name').populate('store_id', 'name');
   if (!schedule) return [];
 
+  // 查询全部预约记录，不做状态过滤，保留原始预约数据
   const bookings = await Booking.find({
     schedule_id: scheduleId,
   })
     .populate('user_id', 'real_name nick_name avatar_url phone wechat_phone reserve_phone')
     .sort({ created_at: 1 });
-
-  if (schedule.status === 'completed') {
-    const attendanceService = require('./attendance.service');
-    for (const booking of bookings) {
-      if (booking.status === 'booked') {
-        booking.status = 'completed';
-        booking.checked_in = true;
-        booking.check_in_time = booking.check_in_time || new Date();
-        await booking.save();
-
-        // 同步补建 Attendance 记录（修复漏建导致教练薪资统计偏低）
-        try {
-          await attendanceService.createAttendance({
-            schedule_id: scheduleId,
-            user_id: booking.user_id,
-            booking_id: booking._id,
-            store_id: schedule.store_id,
-            coach_id: schedule.coach_id,
-            dance_style_id: schedule.dance_style_id,
-            check_in_time: booking.check_in_time || new Date(),
-            source: 'booking',
-            check_in_method: 'auto',
-            credits_cost: booking.credits_deducted || schedule.credits_cost || 0,
-            date: schedule.date,
-            course_name: schedule.course_name || '',
-            start_time: schedule.start_time || '',
-            end_time: schedule.end_time || '',
-            duration: schedule.duration || 0,
-            coach_name: schedule.coach_id?.name || '',
-            store_name: schedule.store_id?.name || '',
-          });
-        } catch (attErr) {
-          console.error(`[getScheduleBookings] 补建attendance失败 userId=${booking.user_id}:`, attErr.message);
-        }
-      }
-    }
-  }
 
   return bookings;
 };
@@ -1523,7 +1503,7 @@ exports.getWeeklySchedule = async (storeId, startDate, endDate) => {
 // 获取周课程表导出数据（含教练头像、舞种、教室等完整信息）
 exports.getWeekExportData = async (storeId, startDate, endDate) => {
   const filter = {
-    status: { $nin: ['deleted'] },
+    status: { $nin: ['deleted', 'offline', 'cancelled'] },
   };
   if (storeId) filter.store_id = storeId;
   if (startDate && endDate) {

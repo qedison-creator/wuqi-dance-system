@@ -1,6 +1,6 @@
 .package-logs-page {
-  padding: 20rpx;
-  padding-bottom: 140rpx;
+  padding: 20rpx 28rpx;
+  padding-bottom: calc(40rpx + env(safe-area-inset-bottom));
 }
 
 .filter-bar {
@@ -42,7 +42,7 @@
   font-size: 21rpx;
   color: #6B5D56;
   font-weight: 500;
-  max-width: 140rpx;
+  max-width: 320rpx;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -258,6 +258,16 @@
   gap: 6rpx;
 }
 
+.deleted-tag {
+  font-size: 20rpx;
+  color: #FFFFFF;
+  background: #B5A5A5;
+  border-radius: 6rpx;
+  padding: 2rpx 10rpx;
+  margin-left: 8rpx;
+  font-weight: normal;
+}
+
 .log-nick {
   font-size: 26rpx;
   color: var(--text-secondary);
@@ -327,4 +337,72 @@
 .load-more {
   font-size: 26rpx;
   color: var(--text-tertiary);
+}
+
+/* 查看更多按钮（卡片样式，跟随列表流动） */
+.expand-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 28rpx 0;
+  margin: 20rpx 0 0;
+  font-size: 26rpx;
+  color: var(--color-primary, #D4786E);
+  background: #FFFFFF;
+  border-radius: 20rpx;
+  box-shadow: 0 4rpx 16rpx rgba(61,44,46,0.04);
+}
+
+.expand-toggle:active {
+  opacity: 0.7;
+}
+
+.expand-toggle text {
+  margin-right: 10rpx;
+}
+
+.toggle-arrow {
+  width: 0;
+  height: 0;
+  border-left: 10rpx solid transparent;
+  border-right: 10rpx solid transparent;
+  border-top: 12rpx solid var(--color-primary, #D4786E);
+  margin-left: 8rpx;
+  margin-top: 4rpx;
+}
+
+.toggle-arrow.down {
+  border-top: 12rpx solid var(--color-primary, #D4786E);
+  border-bottom: none;
+}
+
+/* 返回顶部按钮 */
+.back-to-top {
+  position: fixed;
+  right: 32rpx;
+  bottom: calc(48rpx + env(safe-area-inset-bottom));
+  width: 88rpx;
+  height: 88rpx;
+  border-radius: 50%;
+  background: #FFFFFF;
+  box-shadow: 0 8rpx 24rpx rgba(61,44,46,0.12);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 99;
+  opacity: 0;
+  transform: translateY(20rpx);
+  transition: all 0.3s ease;
+}
+
+.back-to-top.show {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.btt-icon {
+  font-size: 36rpx;
+  color: var(--color-primary, #D4786E);
+  font-weight: 600;
+  line-height: 1;
 }

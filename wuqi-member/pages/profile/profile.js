@@ -36,6 +36,9 @@ Page({
       completedClasses: 0,
       remainingClasses: 0
     },
+    // 活跃套餐统计（支持次卡+时间卡同时展示）
+    activeStats: [],
+    showExtraStat: false,
     storePhone: '',
     menuList: [],
     showStorePicker: false,
@@ -162,6 +165,18 @@ Page({
       const { fetchTemplates } = require('../../utils/subscribe-message');
       fetchTemplates(true).catch(() => {});
     } catch (e) {}
+
+    // 预加载「我的记录」子包，避免点击数据看板跳转时因下载子包导致白屏停顿和首页内容闪现
+    if (!this._subPackagePreloaded) {
+      this._subPackagePreloaded = true;
+      wx.loadSubPackage && wx.loadSubPackage({
+        name: 'package-sub',
+        success: () => {},
+        fail: () => { this._subPackagePreloaded = false; }
+      });
+    }
+    // 订阅审核结果推送，即时更新个人中心
+    this._connectReviewWebSocket();
   },
 
   onHide() {
@@ -170,6 +185,7 @@ Page({
     this._disconnectCheckInWebSocket();
     this._clearCheckInStatusTimer();
     this._clearCheckInAutoClose();
+    this._disconnectReviewWebSocket();
   },
 
   onUnload() {
@@ -178,6 +194,34 @@ Page({
     this._disconnectCheckInWebSocket();
     this._clearCheckInStatusTimer();
     this._clearCheckInAutoClose();
+    this._disconnectReviewWebSocket();
+  },
+
+  // 订阅会员审核结果推送，审核通过/拒绝后即时刷新个人中心
+  _connectReviewWebSocket() {
+    if (this._reviewWsConnected) return;
+    try {
+      this._reviewWsConnected = true;
+      wsClient.connect({
+        onMessage: {
+          member_review_result: (data) => {
+            // 审核结果推送：刷新用户信息，触发下一步操作场景
+            this.loadUserData();
+            if (data && data.action === 'approve') {
+              wx.showToast({ title: '审核已通过', icon: 'success', duration: 1500 });
+            } else if (data && data.action === 'reject') {
+              wx.showToast({ title: '审核未通过', icon: 'none', duration: 1500 });
+            }
+          }
+        }
+      });
+    } catch (e) {
+      // WebSocket 不可用时静默降级
+    }
+  },
+
+  _disconnectReviewWebSocket() {
+    this._reviewWsConnected = false;
   },
 
   // 根据弹窗状态动态开关下拉刷新
@@ -324,6 +368,39 @@ Page({
           }
         }
 
+        // 使用后端返回的 activeStats（支持次卡+时间卡同时展示）
+        var activeStats = packageRes.data.activeStats || [];
+        if (activeStats.length === 0 && currentPkg) {
+          if (currentPkg.package_type === 'count_card') {
+            activeStats = [{
+              _id: currentPkg._id,
+              package_type: 'count_card',
+              remaining: currentPkg.remaining_credits || 0,
+              label: '次卡剩余',
+              isUnlimited: false
+            }];
+          } else if (currentPkg.package_type === 'time_card') {
+            var fUsage = packageRes.data.timeCardUsage;
+            var fLabel = '本周剩余';
+            var fRemaining = -1;
+            if (currentPkg.daily_limit) {
+              fLabel = '今日剩余';
+              fRemaining = fUsage && fUsage.daily_remaining !== null ? fUsage.daily_remaining : currentPkg.daily_limit;
+            } else if (currentPkg.weekly_limit) {
+              fLabel = '本周剩余';
+              fRemaining = fUsage && fUsage.weekly_remaining !== null ? fUsage.weekly_remaining : currentPkg.weekly_limit;
+            }
+            activeStats = [{
+              _id: currentPkg._id,
+              package_type: 'time_card',
+              remaining: fRemaining,
+              label: fLabel,
+              isUnlimited: fRemaining === -1
+            }];
+          }
+        }
+        var showExtraStat = activeStats.length > 1;
+
         var hasPackage = packages && packages.length > 0;
         var userInfo = this.data.userInfo;
         var canChangeStore = !(hasPackage && userInfo && userInfo.member_status === 'official');
@@ -331,6 +408,8 @@ Page({
 
         finalData.packages = packages;
         finalData.canChangeStore = canChangeStore;
+        finalData.activeStats = activeStats;
+        finalData.showExtraStat = showExtraStat;
         finalData.stats = {
           remainingClasses: remainingClasses,
           totalBookings: 0,
@@ -519,12 +598,49 @@ Page({
           }
         }
 
+        // 使用后端返回的 activeStats（支持次卡+时间卡同时展示）
+        var activeStats = res.data.activeStats || [];
+        // 兼容：若没有 activeStats，回退到手动计算
+        if (activeStats.length === 0 && currentPkg) {
+          if (currentPkg.package_type === 'count_card') {
+            activeStats = [{
+              _id: currentPkg._id,
+              package_type: 'count_card',
+              remaining: currentPkg.remaining_credits || 0,
+              label: '次卡剩余',
+              isUnlimited: false
+            }];
+          } else if (currentPkg.package_type === 'time_card') {
+            var tUsage = res.data.timeCardUsage;
+            var tLabel = '本周剩余';
+            var tRemaining = -1;
+            if (currentPkg.daily_limit) {
+              tLabel = '今日剩余';
+              tRemaining = tUsage && tUsage.daily_remaining !== null ? tUsage.daily_remaining : currentPkg.daily_limit;
+            } else if (currentPkg.weekly_limit) {
+              tLabel = '本周剩余';
+              tRemaining = tUsage && tUsage.weekly_remaining !== null ? tUsage.weekly_remaining : currentPkg.weekly_limit;
+            }
+            activeStats = [{
+              _id: currentPkg._id,
+              package_type: 'time_card',
+              remaining: tRemaining,
+              label: tLabel,
+              isUnlimited: tRemaining === -1
+            }];
+          }
+        }
+        // 统计卡显示控制：是否有多个 active 套餐需要展示
+        var showExtraStat = activeStats.length > 1;
+
         var memberStatus = this.computeMemberStatus(this.data.userInfo, packages);
 
         this.setData({
           packages: packages,
           memberStatus: memberStatus,
-          'stats.remainingClasses': remainingClasses
+          'stats.remainingClasses': remainingClasses,
+          activeStats: activeStats,
+          showExtraStat: showExtraStat
         });
         // 刷新完成后同步加入天数
         var userInfo = this.data.userInfo;
@@ -786,6 +902,8 @@ Page({
             profileForm: { real_name: '', phone: '', gender: 0, store_id: '', store_name: '' },
             packages: [],
             stats: { totalBookings: 0, completedClasses: 0, remainingClasses: 0 },
+            activeStats: [],
+            showExtraStat: false,
             canChangeStore: true
           });
         }
