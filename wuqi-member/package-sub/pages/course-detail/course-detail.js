@@ -180,7 +180,7 @@ Page({
         isOngoing: _ongoing,
         isCancelled: _cancelled
       });
-      this._checkBookingWindow(course.dateStr);
+      this._checkBookingWindow(course.dateStr, course.store_id);
       this._updateCourseStoreMatched();
       this._updateCompletedStatus();
     }).catch(() => {
@@ -188,8 +188,12 @@ Page({
     });
   },
 
-  _checkBookingWindow(dateStr) {
-    request({ url: '/config/public/booking-window', method: 'GET', silent: true }).then(res => {
+  _checkBookingWindow(dateStr, storeId) {
+    const courseStoreId = storeId ? (typeof storeId === 'string' ? storeId : (storeId._id || storeId)) : '';
+    const url = courseStoreId
+      ? `/config/public/booking-window?store_id=${courseStoreId}`
+      : '/config/public/booking-window';
+    request({ url, method: 'GET', silent: true }).then(res => {
       const days = (res.data && res.data.booking_window_days) ? parseInt(res.data.booking_window_days, 10) : 7;
       const today = new Date();
       // 使用年月日构造日期对象，消除时分秒对天数差计算的干扰

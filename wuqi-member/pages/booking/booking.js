@@ -445,7 +445,11 @@ Page({
   },
 
   loadBookingWindowDays() {
-    request({ url: '/config/public/booking-window', method: 'GET', silent: true }).then(res => {
+    const storeId = this.data.currentStore ? this.data.currentStore._id : '';
+    const url = storeId
+      ? `/config/public/booking-window?store_id=${storeId}`
+      : '/config/public/booking-window';
+    request({ url, method: 'GET', silent: true }).then(res => {
       const days = (res.data && res.data.booking_window_days) ? parseInt(res.data.booking_window_days, 10) : 7;
       this.setData({ bookingWindowDays: days || 7 });
     }).catch(() => {
@@ -720,6 +724,7 @@ Page({
       }, () => {
         this._updateCanBookForStore();
         this.loadDanceStyles();
+        this.loadBookingWindowDays();
         this.loadCourses();
       });
     } else {
@@ -745,6 +750,7 @@ Page({
     }, () => {
       this._updateCanBookForStore();
       this.loadDanceStyles();
+      this.loadBookingWindowDays();
       this.loadCourses();
     });
   },
