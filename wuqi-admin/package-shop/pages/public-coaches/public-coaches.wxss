@@ -1,0 +1,398 @@
+.coaches-page {
+  padding: 20rpx;
+  padding-bottom: 40rpx;
+}
+
+/* 页面头部标题 */
+.page-header {
+  margin-bottom: 30rpx;
+  padding: 24rpx;
+  background-color: var(--bg-card);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+}
+
+.page-title {
+  font-size: 32rpx;
+  color: var(--text-primary);
+  font-weight: bold;
+}
+
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20rpx;
+}
+
+.add-btn {
+  padding: 10rpx 24rpx;
+  background: var(--color-primary);
+  border-radius: var(--radius-lg);
+  font-size: 24rpx;
+  color: var(--text-inverse);
+  font-weight: bold;
+}
+
+.coach-list {
+  display: flex;
+  flex-direction: column;
+  margin-top: 20rpx;
+}
+
+.coach-item {
+  padding: 24rpx;
+  margin-bottom: 20rpx;
+}
+
+.coach-main {
+  display: flex;
+  align-items: flex-start;
+}
+
+.coach-avatar {
+  width: 100rpx;
+  height: 100rpx;
+  border-radius: 50%;
+  background-color: var(--bg-input);
+  margin-right: 20rpx;
+  flex-shrink: 0;
+  margin-top: 4rpx;
+}
+
+.coach-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.coach-row-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 8rpx;
+}
+
+.coach-info {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+
+.coach-name-row {
+  display: flex;
+  align-items: center;
+  margin-bottom: 10rpx;
+  flex-wrap: wrap;
+}
+
+.coach-name {
+  font-size: 30rpx;
+  color: var(--text-primary);
+  font-weight: bold;
+  flex-shrink: 0;
+}
+
+.coach-gender {
+  font-size: 24rpx;
+  color: var(--text-secondary);
+  margin-left: 16rpx;
+  flex-shrink: 0;
+}
+
+.coach-sort {
+  font-size: 22rpx;
+  color: var(--text-tertiary);
+  margin-left: 12rpx;
+  background: var(--bg-input);
+  padding: 2rpx 10rpx;
+  border-radius: 8rpx;
+  flex-shrink: 0;
+}
+
+.coach-tags-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8rpx;
+  margin-bottom: 6rpx;
+}
+
+.coach-home-tag {
+  font-size: 22rpx;
+  padding: 4rpx 14rpx;
+  border-radius: 8rpx;
+  display: inline-flex;
+  align-items: center;
+  line-height: 1.4;
+  align-self: flex-start;
+}
+
+.tag-home-show {
+  background-color: #E8F5E9;
+  color: #2E7D32;
+}
+
+.tag-home-hide {
+  background-color: #F5F5F5;
+  color: #9E9E9E;
+}
+
+.coach-dance {
+  font-size: 26rpx;
+  color: var(--color-primary);
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  width: 100%;
+}
+
+.coach-phone {
+  font-size: 26rpx;
+  color: var(--text-secondary);
+  display: block;
+}
+
+.coach-actions {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  margin-left: 16rpx;
+  gap: 8rpx;
+}
+
+.action-btn-small {
+  padding: 10rpx 20rpx;
+  background-color: var(--color-primary-bg);
+  border-radius: var(--radius-md);
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.action-btn-small text {
+  font-size: 24rpx;
+  color: var(--color-primary);
+  white-space: nowrap;
+}
+
+.action-btn-small.danger {
+  background-color: var(--color-warning-bg);
+}
+
+.action-btn-small.danger text {
+  color: var(--color-warning);
+}
+
+/* 禁用状态按钮：多门店执教教练对非超管不可操作 */
+.action-btn-disabled {
+  opacity: 0.4;
+  pointer-events: none;
+}
+
+/* 多门店执教标签 */
+.coach-multi-store-tag {
+  display: inline-block;
+  padding: 2rpx 12rpx;
+  font-size: 20rpx;
+  color: #fff;
+  background-color: #722ED1;
+  border-radius: 6rpx;
+  line-height: 1.6;
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 30rpx;
+}
+
+.modal-title {
+  font-size: 32rpx;
+  color: var(--text-primary);
+  font-weight: bold;
+}
+
+.modal-close {
+  font-size: 40rpx;
+  color: var(--text-secondary);
+  padding: 10rpx;
+}
+
+.form-group {
+  margin-bottom: 30rpx;
+}
+
+.form-label {
+  font-size: 28rpx;
+  color: var(--text-primary);
+  display: block;
+  margin-bottom: 16rpx;
+}
+
+.radio-label {
+  display: inline-flex;
+  align-items: center;
+  margin-right: 30rpx;
+  margin-bottom: 10rpx;
+}
+
+.radio-label text {
+  font-size: 28rpx;
+  color: var(--text-primary);
+  margin-left: 10rpx;
+}
+
+.checkbox-list {
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.checkbox-item {
+  display: inline-flex;
+  align-items: center;
+  margin-right: 20rpx;
+  margin-bottom: 20rpx;
+  padding: 16rpx 32rpx;
+  border-radius: var(--radius-md);
+  background-color: var(--bg-input);
+  border: 2rpx solid transparent;
+}
+
+.checkbox-item text {
+  font-size: 28rpx;
+  color: var(--text-primary);
+}
+
+.checkbox-item.active {
+  background-color: var(--color-primary-bg);
+  border-color: var(--color-primary);
+}
+
+.checkbox-item.active text {
+  color: var(--color-primary);
+  font-weight: bold;
+}
+
+.modal-buttons {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 30rpx;
+}
+
+.modal-buttons .btn-secondary,
+.modal-buttons .btn-primary {
+  width: 48%;
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 80rpx 0;
+}
+
+.empty-text {
+  font-size: 28rpx;
+  color: var(--text-tertiary);
+  margin-bottom: 30rpx;
+}
+
+.avatar-upload {
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  line-height: inherit;
+}
+
+.avatar-upload::after {
+  border: none;
+}
+
+.avatar-preview {
+  width: 120rpx;
+  height: 120rpx;
+  border-radius: 50%;
+  background-color: var(--bg-input);
+}
+
+.avatar-upload-text {
+  font-size: 24rpx;
+  color: var(--text-secondary);
+}
+
+.modal-large {
+  max-height: 80vh;
+}
+
+.detail-scroll {
+  max-height: 60vh;
+  padding: 0 10rpx;
+}
+
+.detail-avatar-section {
+  display: flex;
+  align-items: center;
+  gap: 24rpx;
+  margin-bottom: 30rpx;
+}
+
+.detail-avatar {
+  width: 140rpx;
+  height: 140rpx;
+  border-radius: 50%;
+  background-color: var(--bg-input);
+}
+
+.btn-small {
+  font-size: 24rpx;
+  padding: 10rpx 24rpx;
+}
+
+.detail-info-row {
+  display: flex;
+  padding: 16rpx 0;
+  border-bottom: 1rpx solid var(--border);
+}
+
+.detail-label {
+  font-size: 26rpx;
+  color: var(--text-secondary);
+  width: 120rpx;
+  flex-shrink: 0;
+}
+
+.detail-value {
+  font-size: 26rpx;
+  color: var(--text-primary);
+}
+
+.detail-section {
+  margin-top: 30rpx;
+}
+
+.detail-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20rpx;
+}
+
+.detail-section-title {
+  font-size: 28rpx;
+  color: var(--text-primary);
+  font-weight: bold;
+}
+
+.detail-empty {
+  font-size: 26rpx;
+  color: var(--text-tertiary);
+  text-align: center;
+  padding: 40rpx 0;
+}

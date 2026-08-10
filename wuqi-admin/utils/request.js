@@ -19,10 +19,12 @@ const _rawRequest = (options) => {
     const token = wx.getStorageSync('admin_token') || appData.token || '';
     const baseUrl = appData.baseUrl || config.baseUrl;
 
+    let data = options.data || {};
+
     wx.request({
       url: baseUrl + options.url,
       method: options.method || 'GET',
-      data: options.data || {},
+      data: data,
       timeout: options.timeout || 15000,
       header: {
         'Content-Type': 'application/json',
@@ -33,6 +35,7 @@ const _rawRequest = (options) => {
           if (res.data.code === 200) {
             resolve(res.data);
           } else if (res.data.code === 401) {
+            wx.hideLoading();
             wx.removeStorageSync('admin_token');
             if (appData) {
               appData.token = '';
@@ -42,12 +45,14 @@ const _rawRequest = (options) => {
             setTimeout(() => {
               wx.reLaunch({ url: '/pages/login/login' });
             }, 2000);
-            reject(res.data);
+            reject({ ...res.data, statusCode: 200, _handled: true });
           } else {
+            wx.hideLoading();
             wx.showToast({ title: res.data.message || '请求失败', icon: 'none' });
-            reject(res.data);
+            reject({ ...res.data, statusCode: 200, _handled: true });
           }
         } else {
+          wx.hideLoading();
           const errorMsg = res.data?.message || `服务器错误(${res.statusCode})`;
           // 审核员只读模式：403 提示友好文案，避免审核人误以为功能异常
           const app2 = getApp();
@@ -99,6 +104,7 @@ const request = (options) => {
         const isReviewer403 = role === 'reviewer' && err && err.statusCode === 403;
         const isHandledBusinessError = err && err.statusCode;
         if (!silent && !isReviewer403 && !isHandledBusinessError) {
+          wx.hideLoading();
           const isTimeout = err.errMsg && err.errMsg.indexOf('timeout') !== -1;
           wx.showToast({
             title: isTimeout ? '请求超时，请重试' : '网络连接失败',

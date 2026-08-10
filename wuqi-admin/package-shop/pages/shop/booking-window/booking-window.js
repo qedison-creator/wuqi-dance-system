@@ -8,8 +8,6 @@ Page({
     saveStatus: '',      // '' | 'saved' | 'modified' | 'saving'
     storeId: '',         // 当前门店ID
     storeName: '',       // 当前门店名称
-    isInherited: false,  // 是否继承全局配置
-    scope: 'global',     // 'global' | 'store'
   },
 
   onLoad() {
@@ -24,9 +22,12 @@ Page({
   async loadConfig() {
     try {
       const { storeId } = this.data;
-      const url = storeId
-        ? `/config/booking-window-days?store_id=${storeId}`
-        : '/config/booking-window-days';
+      // 预约开放设置为门店级功能，必须有门店ID
+      if (!storeId) {
+        wx.showToast({ title: '请先在店务管理选择门店', icon: 'none' });
+        return;
+      }
+      const url = `/config/booking-window-days?store_id=${storeId}`;
       const res = await request({ url, method: 'GET' });
       const config = res.data;
       if (config && config.value !== undefined) {
@@ -35,8 +36,6 @@ Page({
           bookingWindowDays: days,
           savedDays: days,
           saveStatus: 'saved',
-          isInherited: !!config.is_inherited,
-          scope: config.scope || 'global',
           storeName: config.store_name || this.data.storeName,
         });
       }
@@ -92,7 +91,6 @@ Page({
       this.setData({
         savedDays: String(days),
         saveStatus: 'saved',
-        isInherited: false,
       });
       wx.showToast({ title: '保存成功', icon: 'success' });
     } catch (err) {

@@ -14,8 +14,12 @@ const checkAuth = () => {
 
 const logout = () => {
   wx.removeStorageSync('admin_token');
-  getApp().globalData.token = '';
-  getApp().globalData.userInfo = null;
+  const app = getApp();
+  app.globalData.token = '';
+  app.globalData.userInfo = null;
+  app.globalData.currentStoreId = '';
+  app.globalData.currentStore = null;
+  app.globalData.shopStoreId = '';
   wx.reLaunch({ url: '/pages/login/login' });
 };
 

@@ -22,6 +22,15 @@ const formatDate = (dateStr) => {
   return `${y}-${m}-${day}`;
 };
 
+// 统一把舞种 ID 转成字符串
+const _normalizeDanceStyleId = (id) => {
+  if (!id) return '';
+  if (typeof id === 'object') {
+    return id._id || id.id || (id.toString ? id.toString() : '') || '';
+  }
+  return String(id);
+};
+
 // 格式化审核通过日期为 YYYY-MM-DD 周X HH:mm
 
 const formatReviewDate = (dateStr) => {
@@ -51,6 +60,7 @@ Page({
     showBackToTop: false,
     backToTopThreshold: 0,
     loading: false,
+    loadingMore: false,
     storeList: [],
     currentStoreId: '',
     currentStoreName: '',
@@ -75,13 +85,21 @@ Page({
       total_credits: '',
       duration_value: '',
       duration_unit: 'month',
-      limit_type: 'weekly',
+      limit_type: 'limited',
+      limit_cycle: 'weekly',
       limit_value: '',
+      dance_style_limit: [],
       remark: ''
     },
     storeListForPicker: [],
     packageFormStoreIndex: 0,
-    showStoreSwitcher: true
+    showDanceStylePicker: false,
+    showStoreSwitcher: true,
+    // 舞种限制
+    danceStyleList: [],
+    addDanceStyleOptions: [],
+    packageFormDanceStyleText: '',
+    selectedDanceStyleId: ''   // 单选 UI 判断用（空=不限舞种）
   },
 
   onShow() {
@@ -94,12 +112,28 @@ Page({
     const userInfo = app.globalData.userInfo || {};
     const isReviewer = userInfo.role === 'reviewer';
 
-    // 门店隔离：单门店角色隐藏门店切换器，固定所属门店
+    // 从详情页返回：保留已加载的列表数据和滚动位置，不重新加载第一页
+    if (this._backFromDetail) {
+      this._backFromDetail = false;
+      this._connectWebSocket();
+      this._startAutoRefresh();
+      // 延迟恢复滚动位置，确保页面渲染完成
+      const savedTop = this._lastScrollTop || 0;
+      setTimeout(() => {
+        wx.pageScrollTo({ scrollTop: savedTop, duration: 0 });
+      }, 50);
+      return;
+    }
+    // 首次进入初始化滚动位置记录
+    if (this._lastScrollTop === undefined) this._lastScrollTop = 0;
+
+    // 门店隔离：单门店角色无门店切换器（仅展示所属门店）
     const isSingleStore = app.isSingleStoreRole();
     const defaultStoreId = app.getDefaultStoreId();
     let currentStoreId;
     let currentStoreName;
     if (isSingleStore && defaultStoreId) {
+      // 单门店角色：固定所属门店
       currentStoreId = defaultStoreId;
       const storeList = app.globalData.storeList || [];
       const found = storeList.find(s => s._id === defaultStoreId);
@@ -107,9 +141,44 @@ Page({
       app.globalData.currentStore = found || null;
       app.globalData.currentStoreId = defaultStoreId;
     } else {
-      const currentStore = app.globalData.currentStore;
-      currentStoreId = currentStore ? currentStore._id : '';
-      currentStoreName = currentStore ? currentStore.name : '';
+      // 超管/审核员/多门店店长
+      // 会员管理保留"全部门店"作为独立查询状态，不跟随首页/店务管理的默认选中逻辑
+      // 已初始化过门店选择时，优先复用本页上次选中（含"全部门店"空字符串状态），避免被其他页面覆盖
+      const storeList = app.globalData.storeList || [];
+      if (this._storeSelectionInited) {
+        const prevStoreId = this.data.currentStoreId;
+        if (prevStoreId === '') {
+          currentStoreId = '';
+          currentStoreName = '全部门店';
+        } else {
+          const found = storeList.find(s => String(s._id) === String(prevStoreId));
+          if (found) {
+            currentStoreId = found._id;
+            currentStoreName = found.name;
+          } else {
+            currentStoreId = prevStoreId;
+            currentStoreName = '';
+          }
+        }
+      } else {
+        // 首次进入本页：参考全局统一门店选择
+        const shopStoreId = app.globalData.shopStoreId || '';
+        if (shopStoreId) {
+          const found = storeList.find(s => String(s._id) === String(shopStoreId));
+          if (found) {
+            currentStoreId = found._id;
+            currentStoreName = found.name;
+          } else {
+            currentStoreId = shopStoreId;
+            currentStoreName = '';
+          }
+        } else {
+          // "全部门店"：不设门店过滤，展示全平台会员
+          currentStoreId = '';
+          currentStoreName = '全部门店';
+        }
+        this._storeSelectionInited = true;
+      }
     }
 
     let activeFilter = this.data.activeFilter;
@@ -131,7 +200,8 @@ Page({
       currentTotal: 0,
       showBackToTop: false,
       backToTopThreshold: 0,
-      loading: true
+      loading: true,
+      loadingMore: false
     });
 
     // 独立加载门店列表，不依赖全局数据；统计请求并行，减少串行等待
@@ -176,7 +246,7 @@ Page({
   _debouncedRefreshList() {
     if (this._listRefreshTimer) clearTimeout(this._listRefreshTimer);
     this._listRefreshTimer = setTimeout(() => {
-      this.setData({ page: 1, hasMore: true, visibleCount: 5, currentTotal: 0, showBackToTop: false, backToTopThreshold: 0 });
+      this.setData({ page: 1, hasMore: true, visibleCount: 5, currentTotal: 0, showBackToTop: false, backToTopThreshold: 0, loadingMore: false });
       this.loadMembers();
     }, 600);
   },
@@ -307,15 +377,36 @@ Page({
     this.setData({ showStorePicker: false });
   },
 
+  // 统一门店选择器：点击打开 ActionSheet
+  onStoreSwitcherTap() {
+    if (!this.data.storeList.length) return;
+    const items = ['全部门店', ...this.data.storeList.map(s => s.name)];
+    wx.showActionSheet({
+      itemList: items,
+      success: (res) => {
+        const idx = res.tapIndex;
+        let id = '';
+        if (idx === 0) {
+          id = '';
+        } else {
+          id = String(this.data.storeList[idx - 1]._id);
+        }
+        this.onStoreFilterChange({ currentTarget: { dataset: { id } } });
+      }
+    });
+  },
+
   onStoreFilterChange(e) {
     const { id } = e.currentTarget.dataset;
     const storeList = this.data.storeList;
     const currentStore = id ? storeList.find(s => s._id === id) : null;
     app.globalData.currentStore = currentStore;
     app.globalData.currentStoreId = id;
+    // 同步到全局统一门店选择（与首页/店务管理/运营管理共享）
+    app.globalData.shopStoreId = id;
     this.setData({
       currentStoreId: id,
-      currentStoreName: currentStore ? currentStore.name : '',
+      currentStoreName: currentStore ? currentStore.name : '全部门店',
       showStorePicker: false,
       members: [],
       page: 1,
@@ -323,7 +414,8 @@ Page({
       visibleCount: 5,
       currentTotal: 0,
       showBackToTop: false,
-      backToTopThreshold: 0
+      backToTopThreshold: 0,
+      loadingMore: false
     });
     this.loadMembers();
     this.loadInfoChangeCount();
@@ -351,7 +443,8 @@ Page({
       visibleCount: 5,
       currentTotal: 0,
       showBackToTop: false,
-      backToTopThreshold: 0
+      backToTopThreshold: 0,
+      loadingMore: false
     });
     this.loadMembers();
   },
@@ -372,7 +465,7 @@ Page({
   },
 
   onSearch() {
-    this.setData({ members: [], page: 1, hasMore: true, visibleCount: 5, currentTotal: 0, showBackToTop: false, backToTopThreshold: 0 });
+    this.setData({ members: [], page: 1, hasMore: true, visibleCount: 5, currentTotal: 0, showBackToTop: false, backToTopThreshold: 0, loadingMore: false });
     this.loadMembers();
   },
 
@@ -382,16 +475,19 @@ Page({
   },
 
   // ========== 加载会员列表 ==========
-  async loadMembers(force = false) {
+  // silent=true 时为"查看更多"静默加载：不切换 loading 状态，避免 expand-toggle 按钮显隐导致列表整体闪动
+  async loadMembers(force = false, silent = false) {
     if ((!force && this.data.loading) || !this.data.hasMore) return;
-    this.setData({ loading: true });
+    if (!silent) {
+      this.setData({ loading: true });
+    }
 
     try {
       const data = {
         store_id: this.data.currentStoreId,
         keyword: this.data.keyword,
         page: this.data.page,
-        limit: 5,
+        pageSize: 5,
         member_status: 'official'
       };
       // 套餐状态筛选
@@ -435,6 +531,7 @@ Page({
         // 构建套餐信息文本
 
         let packageInfo = '';
+        let packageDanceStyleText = '';
         if (member.member_status === 'official' && member.packages && member.packages.length > 0) {
           const usablePkg = member.packages.find(p => p.status === 'active') || member.packages.find(p => p.status === 'pending');
           if (usablePkg) {
@@ -456,6 +553,8 @@ Page({
                 limitStr = `每日${usablePkg.daily_limit}次`;
               } else if (usablePkg.weekly_limit) {
                 limitStr = `每周${usablePkg.weekly_limit}次`;
+              } else if (usablePkg.monthly_limit) {
+                limitStr = `每月${usablePkg.monthly_limit}次`;
               }
               if (usablePkg.status === 'pending') {
                 packageInfo = `${statusPrefix}${typeLabel} · ${duration}${unit}`;
@@ -468,6 +567,14 @@ Page({
                 if (remainStr) packageInfo += ' · ' + remainStr;
                 if (dateRange) packageInfo += ' · ' + dateRange;
               }
+            }
+            // 舞种限制文本：populate 后是 [{_id, name}]，未 populate 时是 ObjectId 数组
+            const dsl = usablePkg.dance_style_limit || [];
+            if (Array.isArray(dsl) && dsl.length > 0) {
+              packageDanceStyleText = dsl
+                .map(ds => (typeof ds === 'object' ? (ds.name || '') : ''))
+                .filter(Boolean)
+                .join('、');
             }
           }
         }
@@ -549,6 +656,7 @@ Page({
           has_package: member.packages && member.packages.length > 0,
           can_edit_package: canEditPackage,
           package_info: packageInfo,
+          package_dance_style_text: packageDanceStyleText,
           store_labels: storeLabels
         };
       });
@@ -557,31 +665,46 @@ Page({
       const mergedList = isFirstPage ? newList : this.data.members.concat(newList);
       const currentTotal = isFirstPage ? total : this.data.currentTotal;
       const visibleCount = Math.min(mergedList.length, this.data.page * 5);
-      this.setData({
-        members: mergedList,
+
+      // 构造增量更新对象：首页整体替换 members；翻页时仅追加新项，避免数组整体替换触发 wx:for 重渲染导致 scrollTop 跳动闪烁
+      const updateData = {
         totalMembers: isFirstPage ? total : this.data.totalMembers,
         pendingCount: isFirstPage ? pending : this.data.pendingCount,
         hasMore: mergedList.length < currentTotal,
         currentTotal,
         visibleCount,
         showBackToTop: false
-      }, () => {
+      };
+      if (isFirstPage) {
+        updateData.members = newList;
+      } else {
+        const startIdx = this.data.members.length;
+        newList.forEach((item, i) => {
+          updateData[`members[${startIdx + i}]`] = item;
+        });
+      }
+      this.setData(updateData, () => {
         if (mergedList.length >= 5) this._calcBackToTopThreshold();
       });
     } catch (err) {
       console.error('加载会员列表失败', err);
     } finally {
-      this.setData({ loading: false });
+      if (silent) {
+        // 静默加载：仅重置 loadingMore，不切换 loading 状态
+        this.setData({ loadingMore: false });
+      } else {
+        this.setData({ loading: false });
+      }
     }
   },
 
   onReachBottom() {},
 
-  // 点击"查看更多"加载下一页
+  // 点击"查看更多"加载下一页：走静默加载路径，不切换 loading 状态，避免按钮显隐导致列表闪动
   onLoadMore() {
-    if (!this.data.hasMore || this.data.loading) return;
-    this.setData({ page: this.data.page + 1 }, () => {
-      this.loadMembers();
+    if (!this.data.hasMore || this.data.loading || this.data.loadingMore) return;
+    this.setData({ loadingMore: true, page: this.data.page + 1 }, () => {
+      this.loadMembers(false, true);
     });
   },
 
@@ -593,6 +716,8 @@ Page({
 
   // 滚动监听，控制返回顶部按钮显隐
   onPageScroll(e) {
+    // 记录最新滚动位置，供详情页返回时恢复
+    this._lastScrollTop = e.scrollTop;
     const threshold = this.data.backToTopThreshold;
     const shouldShow = threshold > 0 && e.scrollTop > threshold;
     if (shouldShow !== this.data.showBackToTop) {
@@ -711,8 +836,10 @@ Page({
       total_credits: '',
       duration_value: '',
       duration_unit: 'month',
-      limit_type: 'weekly',
+      limit_type: 'limited',
+      limit_cycle: 'weekly',
       limit_value: '',
+      dance_style_limit: [],
       remark: ''
     };
 
@@ -749,16 +876,29 @@ Page({
         defaultForm.duration_value = activePkg.duration_value || '';
         defaultForm.duration_unit = activePkg.duration_unit || 'month';
         if (activePkg.daily_limit) {
-          defaultForm.limit_type = 'daily';
+          defaultForm.limit_type = 'limited';
+          defaultForm.limit_cycle = 'daily';
           defaultForm.limit_value = activePkg.daily_limit || '';
         } else if (activePkg.weekly_limit) {
-          defaultForm.limit_type = 'weekly';
+          defaultForm.limit_type = 'limited';
+          defaultForm.limit_cycle = 'weekly';
           defaultForm.limit_value = activePkg.weekly_limit || '';
+        } else if (activePkg.monthly_limit) {
+          defaultForm.limit_type = 'limited';
+          defaultForm.limit_cycle = 'monthly';
+          defaultForm.limit_value = activePkg.monthly_limit || '';
         } else {
           defaultForm.limit_type = 'unlimited';
+          defaultForm.limit_cycle = 'weekly';
           defaultForm.limit_value = '';
         }
         defaultForm.remark = activePkg.remark || '';
+        // 回填舞种限制（populate 后是对象数组，未 populate 是 ObjectId 数组）
+        if (Array.isArray(activePkg.dance_style_limit) && activePkg.dance_style_limit.length > 0) {
+          defaultForm.dance_style_limit = activePkg.dance_style_limit.map(ds =>
+            _normalizeDanceStyleId(typeof ds === 'object' ? (ds._id || ds.id) : ds)
+          );
+        }
         if (activePkg.package_type === 'count_card') {
           defaultForm.total_credits = activePkg.remaining_credits || '';
         }
@@ -775,6 +915,9 @@ Page({
       console.error('获取套餐信息失败', err);
     }
 
+    // 加载舞种列表（供舞种限制多选）
+    await this._loadDanceStyleList();
+
     this.setData({
       showPackageModal: true,
       packageMember: member,
@@ -782,6 +925,61 @@ Page({
       storeListForPicker,
       packageFormStoreIndex
     });
+    this._refreshDanceStyleText();
+  },
+
+  // ========== 舞种限制 ==========
+  async _loadDanceStyleList() {
+    if (this.data.danceStyleList && this.data.danceStyleList.length > 0) return;
+    try {
+      const res = await request({ url: '/dance-styles' });
+      const list = res.data && (Array.isArray(res.data) ? res.data : (res.data.list || []));
+      const danceStyleList = list
+        .filter(ds => ds.status === 'active')
+        .map(ds => ({ ...ds, _id: _normalizeDanceStyleId(ds._id) }));
+      this.setData({ danceStyleList });
+    } catch (err) {
+      console.error('获取舞种列表失败', err);
+    }
+  },
+
+  _buildDanceStyleText() {
+    const { danceStyleList, packageForm } = this.data;
+    const selectedIds = packageForm.dance_style_limit || [];
+    if (selectedIds.length === 0) return '';
+    const names = danceStyleList
+      .filter(ds => selectedIds.indexOf(ds._id) > -1)
+      .map(ds => ds.name);
+    return names.join('、');
+  },
+
+  _refreshDanceStyleText() {
+    this.setData({ packageFormDanceStyleText: this._buildDanceStyleText() });
+  },
+
+  onOpenDanceStylePicker() {
+    const arr = this.data.packageForm.dance_style_limit || [];
+    this.setData({
+      selectedDanceStyleId: arr.length > 0 ? arr[0] : '',
+      showDanceStylePicker: true
+    });
+  },
+
+  onCloseDanceStylePicker() {
+    this.setData({ showDanceStylePicker: false });
+  },
+
+  onSelectDanceStyle(e) {
+    const { id } = e.currentTarget.dataset;
+    const normalizedId = id ? _normalizeDanceStyleId(id) : '';
+    // 单选：空 id 表示"不限舞种"，清空数组；否则只保留该舞种
+    const selectedIds = normalizedId ? [normalizedId] : [];
+    this.setData({
+      'packageForm.dance_style_limit': selectedIds,
+      selectedDanceStyleId: normalizedId,
+      showDanceStylePicker: false
+    });
+    this._refreshDanceStyleText();
   },
 
   onPackageStoreChange(e) {
@@ -804,6 +1002,10 @@ Page({
   onPackageLimitTypeChange(e) {
     const type = e.currentTarget.dataset.type;
     this.setData({ 'packageForm.limit_type': type, 'packageForm.limit_value': '' });
+  },
+
+  onPackageLimitCycleChange(e) {
+    this.setData({ 'packageForm.limit_cycle': e.currentTarget.dataset.type, 'packageForm.limit_value': '' });
   },
 
   onPackageDurationUnitChange(e) {
@@ -857,14 +1059,19 @@ Page({
     }
 
     if (packageForm.package_type === 'time_card' && !packageForm.limit_type) {
-      wx.showToast({ title: '请选择限制方式', icon: 'none' });
+      wx.showToast({ title: '请选择次数限制', icon: 'none' });
       return;
     }
-    if (packageForm.package_type === 'time_card' && packageForm.limit_type !== 'unlimited' && !packageForm.limit_value) {
-      wx.showToast({ title: packageForm.limit_type === 'daily' ? '请输入每日限制' : '请输入每周限制', icon: 'none' });
-      return;
-    }
-    if (packageForm.package_type === 'time_card' && packageForm.limit_type !== 'unlimited' && packageForm.limit_value) {
+    if (packageForm.package_type === 'time_card' && packageForm.limit_type === 'limited') {
+      if (!packageForm.limit_cycle) {
+        wx.showToast({ title: '请选择周期类型', icon: 'none' });
+        return;
+      }
+      if (!packageForm.limit_value) {
+        const cycleLabel = packageForm.limit_cycle === 'daily' ? '每日' : (packageForm.limit_cycle === 'weekly' ? '每周' : '每月');
+        wx.showToast({ title: `请输入${cycleLabel}限制次数`, icon: 'none' });
+        return;
+      }
       const limitValue = parseInt(packageForm.limit_value);
       if (isNaN(limitValue) || limitValue <= 0) {
         wx.showToast({ title: '限制次数必须是正整数', icon: 'none' });
@@ -879,6 +1086,7 @@ Page({
         package_type: packageForm.package_type,
         duration_value: parseInt(packageForm.duration_value),
         duration_unit: packageForm.duration_unit,
+        dance_style_limit: Array.isArray(packageForm.dance_style_limit) ? packageForm.dance_style_limit : [],
         remark: packageForm.remark
       };
 
@@ -888,12 +1096,17 @@ Page({
         postData.duration_value = parseInt(packageForm.duration_value);
         postData.duration_unit = packageForm.duration_unit;
         postData.total_credits = 9999;
-        if (packageForm.limit_type === 'daily') {
-          postData.daily_limit = parseInt(packageForm.limit_value);
-        } else if (packageForm.limit_type === 'weekly') {
-          postData.weekly_limit = parseInt(packageForm.limit_value);
+        if (packageForm.limit_type === 'limited') {
+          const cycle = packageForm.limit_cycle;
+          if (cycle === 'daily') {
+            postData.daily_limit = parseInt(packageForm.limit_value);
+          } else if (cycle === 'weekly') {
+            postData.weekly_limit = parseInt(packageForm.limit_value);
+          } else if (cycle === 'monthly') {
+            postData.monthly_limit = parseInt(packageForm.limit_value);
+          }
         }
-        // unlimited: 不传 daily_limit 和 weekly_limit
+        // unlimited: 不传 daily_limit / weekly_limit / monthly_limit
       }
 
       await request({
@@ -923,6 +1136,8 @@ Page({
     const member = e.currentTarget.dataset.member || (e.detail && e.detail.member);
     if (!member) return;
     this._navigating = true;
+    // 标记从详情页返回时需恢复滚动位置
+    this._backFromDetail = true;
     wx.navigateTo({
       url: `/package-member/pages/members/member-detail/member-detail?id=${member._id}`,
       fail: (err) => {

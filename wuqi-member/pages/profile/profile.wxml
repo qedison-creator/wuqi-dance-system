@@ -182,9 +182,18 @@
                   <text class="pkg-new-info-capsule-label">{{item._totalLabel}}</text>
                   <text class="pkg-new-info-capsule-value">{{item._totalValue}}</text>
                 </view>
-                <view class="pkg-new-info-capsule" wx:if="{{item.package_type === 'time_card' && item._weekRemaining !== undefined}}">
-                  <text class="pkg-new-info-capsule-label">{{item._periodLabel || '本周'}}剩余</text>
+                <block wx:if="{{item.package_type === 'time_card' && item._weekRemaining === -1}}">
+                  <view class="pkg-new-info-capsule">
+                    <text class="pkg-new-info-capsule-label">不限次数</text>
+                  </view>
+                </block>
+                <view class="pkg-new-info-capsule" wx:elif="{{item.package_type === 'time_card' && item._weekRemaining >= 0}}">
+                  <text class="pkg-new-info-capsule-label">{{item._periodLabel}}剩余</text>
                   <text class="pkg-new-info-capsule-value">{{item._weekRemaining}} 次</text>
+                </view>
+                <view class="pkg-new-info-capsule pkg-new-info-capsule-dance" wx:if="{{item._danceStyleLimitText}}">
+                  <text class="pkg-new-info-capsule-label">仅限舞种</text>
+                  <text class="pkg-new-info-capsule-value">{{item._danceStyleLimitText}}</text>
                 </view>
               </view>
             </view>
@@ -242,6 +251,10 @@
                 <view class="pkg-new-info-capsule">
                   <text class="pkg-new-info-capsule-label">服务有效期</text>
                   <text class="pkg-new-info-capsule-value">{{item._durationText}}</text>
+                </view>
+                <view class="pkg-new-info-capsule pkg-new-info-capsule-dance" wx:if="{{item._danceStyleLimitText}}">
+                  <text class="pkg-new-info-capsule-label">仅限舞种</text>
+                  <text class="pkg-new-info-capsule-value">{{item._danceStyleLimitText}}</text>
                 </view>
               </view>
             </view>
@@ -314,6 +327,10 @@
                     <view class="pkg-new-info-capsule">
                       <text class="pkg-new-info-capsule-label">{{item._totalLabel}}</text>
                       <text class="pkg-new-info-capsule-value">{{item._totalValue}}</text>
+                    </view>
+                    <view class="pkg-new-info-capsule pkg-new-info-capsule-dance" wx:if="{{item._danceStyleLimitText}}">
+                      <text class="pkg-new-info-capsule-label">仅限舞种</text>
+                      <text class="pkg-new-info-capsule-value">{{item._danceStyleLimitText}}</text>
                     </view>
                   </view>
                 </view>
@@ -599,9 +616,13 @@
         <text class="pkg-sheet-label">套餐次数</text>
         <text class="pkg-sheet-value">共 {{detailPackage.total_credits || 0}} 次，剩余 {{detailPackage.remaining_credits || 0}} 次</text>
       </view>
-      <view class="pkg-sheet-section" wx:if="{{detailPackage.package_type === 'time_card' && detailPackage._periodLabel}}">
+      <view class="pkg-sheet-section" wx:if="{{detailPackage.package_type === 'time_card' && detailPackage._periodLabel && detailPackage._periodLabel !== '不限次数'}}">
         <text class="pkg-sheet-label">{{detailPackage._periodLabel}}预约</text>
         <text class="pkg-sheet-value">已约 {{detailPackage._weekUsed}}/{{detailPackage._weekLimit}} 次</text>
+      </view>
+      <view class="pkg-sheet-section" wx:if="{{detailPackage.package_type === 'time_card' && detailPackage._periodLabel === '不限次数'}}">
+        <text class="pkg-sheet-label">使用限制</text>
+        <text class="pkg-sheet-value">不限次数</text>
       </view>
       <view class="pkg-sheet-section">
         <text class="pkg-sheet-label">服务有效期</text>
@@ -617,6 +638,10 @@
       <view class="pkg-sheet-section" wx:if="{{detailPackage._autoActivateDate}}">
         <text class="pkg-sheet-label">自动激活日期</text>
         <text class="pkg-sheet-value">将于 {{detailPackage._autoActivateDate}} 自动激活套餐，服务有效期开始计算</text>
+      </view>
+      <view class="pkg-sheet-section" wx:if="{{detailPackage._danceStyleLimitText}}">
+        <text class="pkg-sheet-label">舞种限制</text>
+        <text class="pkg-sheet-value pkg-sheet-value-dance">仅限：{{detailPackage._danceStyleLimitText}}</text>
       </view>
     </scroll-view>
   </view>

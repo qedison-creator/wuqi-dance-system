@@ -1,4 +1,4 @@
-<page-meta page-style="{{showDeleteModal || showDeletePackageModal || showStoreModal || showAddPackageModal || showPackageEditModal || showEditNameModal || showSuspendModal || showExtendModal ? 'overflow: hidden;' : ''}}"/>
+<page-meta page-style="{{showDeleteModal || showDeletePackageModal || showStoreModal || showAddPackageModal || showPackageEditModal || showEditNameModal || showSuspendModal || showExtendModal || showDanceStylePicker ? 'overflow: hidden;' : ''}}"/>
 <view class="member-detail-page">
   <!-- 会员头部卡片 -->
   <view class="member-header card">
@@ -95,8 +95,12 @@
         <view class="package-info">
           <!-- 时间卡 -->
           <block wx:if="{{item.package_type === 'time_card'}}">
-            <!-- 限制规则 -->
-            <text class="package-credits">{{item.daily_limit ? '每日' + item.daily_limit + '次' : (item.weekly_limit ? '每周' + item.weekly_limit + '次' : '不限次数')}}</text>
+            <!-- 限制规则 + 当前周期剩余次数 -->
+            <view class="package-limit-row" wx:if="{{item.daily_limit || item.weekly_limit || item.monthly_limit}}">
+              <text class="package-credits">{{item.daily_limit ? '每日' + item.daily_limit + '次' : (item.weekly_limit ? '每周' + item.weekly_limit + '次' : '每月' + item.monthly_limit + '次')}}</text>
+              <text class="package-remaining-period" wx:if="{{item.time_card_usage && item.is_activated}}">{{item.daily_limit ? '今日剩余' : (item.weekly_limit ? '本周剩余' : '本月剩余')}}{{item.daily_limit ? item.time_card_usage.daily_remaining : (item.weekly_limit ? item.time_card_usage.weekly_remaining : item.time_card_usage.monthly_remaining)}}次</text>
+            </view>
+            <text class="package-credits" wx:else>不限次数</text>
             <!-- 未激活：服务有效期 -->
             <text class="package-expire" wx:if="{{!item.is_activated}}">服务有效期：{{item.duration_value}}{{item.duration_unit === 'month' ? '个月' : '天'}}</text>
             <!-- 已激活：服务有效期 + 剩余天数 -->
@@ -131,6 +135,9 @@
               <text class="extension-text">{{ext.extend_text}}</text>
             </view>
           </view>
+
+          <!-- 舞种限制 -->
+          <text class="package-expire package-dance-style" wx:if="{{item._danceStyleLimitText}}">舞种限制：{{item._danceStyleLimitText}}</text>
 
           <!-- 未激活：待激活倒计时 -->
           <text class="package-expire package-pending" wx:if="{{!item.is_activated && item.auto_activate_at_display}}">待激活 · {{item.auto_activate_at_display}} 自动激活</text>
@@ -180,6 +187,7 @@
                   <view class="booking-info">
                     <view class="booking-header">
                       <text class="booking-course">{{booking.schedule_id ? booking.schedule_id.course_name : '未知课程'}}</text>
+                      <text class="booking-status {{booking.status}}">{{booking.statusText}}</text>
                     </view>
                     <view class="booking-details">
                       <view class="booking-detail-row">
@@ -202,9 +210,6 @@
                         <text class="detail-value booking-time-text">{{booking.created_at_display}}</text>
                       </view>
                     </view>
-                  </view>
-                  <view class="booking-status {{booking.status}}">
-                    <text>{{booking.statusText}}</text>
                   </view>
                 </view>
               </view>
@@ -490,23 +495,43 @@
       </view>
 
       <view class="form-group" wx:if="{{addPackageForm.package_type === 'time_card'}}">
-        <text class="form-label">限制方式 *</text>
+        <text class="form-label">次数限制 *</text>
         <view class="package-type-selector">
-          <view class="type-option {{addPackageForm.limit_type === 'daily' ? 'active' : ''}}" data-type="daily" bindtap="onAddPackageLimitTypeChange">
-            <text>每日限制</text>
-          </view>
-          <view class="type-option {{addPackageForm.limit_type === 'weekly' ? 'active' : ''}}" data-type="weekly" bindtap="onAddPackageLimitTypeChange">
-            <text>每周限制</text>
+          <view class="type-option {{addPackageForm.limit_type === 'limited' ? 'active' : ''}}" data-type="limited" bindtap="onAddPackageLimitTypeChange">
+            <text>限制次数</text>
           </view>
           <view class="type-option {{addPackageForm.limit_type === 'unlimited' ? 'active' : ''}}" data-type="unlimited" bindtap="onAddPackageLimitTypeChange">
-            <text>无限次</text>
+            <text>不限</text>
           </view>
         </view>
       </view>
 
-      <view class="form-group" wx:if="{{addPackageForm.package_type === 'time_card' && addPackageForm.limit_type !== 'unlimited'}}">
-        <text class="form-label">{{addPackageForm.limit_type === 'daily' ? '每日限制' : '每周限制'}} *</text>
-        <input class="input-field" type="number" placeholder="{{addPackageForm.limit_type === 'daily' ? '每日限制次数' : '每周限制次数'}}" value="{{addPackageForm.limit_value}}" data-field="limit_value" bindinput="onAddPackageInput" />
+      <view class="form-group" wx:if="{{addPackageForm.package_type === 'time_card' && addPackageForm.limit_type === 'limited'}}">
+        <text class="form-label">周期类型 *</text>
+        <view class="package-type-selector">
+          <view class="type-option {{addPackageForm.limit_cycle === 'daily' ? 'active' : ''}}" data-type="daily" bindtap="onAddPackageLimitCycleChange">
+            <text>每日</text>
+          </view>
+          <view class="type-option {{addPackageForm.limit_cycle === 'weekly' ? 'active' : ''}}" data-type="weekly" bindtap="onAddPackageLimitCycleChange">
+            <text>每周</text>
+          </view>
+          <view class="type-option {{addPackageForm.limit_cycle === 'monthly' ? 'active' : ''}}" data-type="monthly" bindtap="onAddPackageLimitCycleChange">
+            <text>每月</text>
+          </view>
+        </view>
+      </view>
+
+      <view class="form-group" wx:if="{{addPackageForm.package_type === 'time_card' && addPackageForm.limit_type === 'limited'}}">
+        <text class="form-label">限制次数 *</text>
+        <input class="input-field" type="number" placeholder="请输入限制次数" value="{{addPackageForm.limit_value}}" data-field="limit_value" bindinput="onAddPackageInput" />
+      </view>
+
+      <view class="form-group">
+        <text class="form-label">能参与的舞种课程</text>
+        <view class="dance-style-picker" bindtap="onOpenAddDanceStylePicker">
+          <text class="dance-style-picker-text {{addPackageForm.dance_style_limit.length > 0 ? 'has-value' : ''}}">{{addPackageDanceStyleText || '不限舞种'}}</text>
+          <text class="dance-style-picker-arrow">›</text>
+        </view>
       </view>
 
       <view class="form-group">
@@ -567,26 +592,39 @@
         </view>
       </view>
 
-      <!-- 时间卡：限制方式 -->
+      <!-- 时间卡：次数限制 -->
       <view class="form-group" wx:if="{{editPackageForm.package_type === 'time_card'}}">
-        <text class="form-label">限制方式 *</text>
+        <text class="form-label">次数限制 *</text>
         <view class="package-type-selector">
-          <view class="type-option {{editPackageForm.limit_type === 'daily' ? 'active' : ''}}" data-type="daily" bindtap="onEditLimitTypeChange">
-            <text>每日限制</text>
-          </view>
-          <view class="type-option {{editPackageForm.limit_type === 'weekly' ? 'active' : ''}}" data-type="weekly" bindtap="onEditLimitTypeChange">
-            <text>每周限制</text>
+          <view class="type-option {{editPackageForm.limit_type === 'limited' ? 'active' : ''}}" data-type="limited" bindtap="onEditLimitTypeChange">
+            <text>限制次数</text>
           </view>
           <view class="type-option {{editPackageForm.limit_type === 'unlimited' ? 'active' : ''}}" data-type="unlimited" bindtap="onEditLimitTypeChange">
-            <text>无限次</text>
+            <text>不限</text>
           </view>
         </view>
       </view>
 
-      <!-- 时间卡：限制次数 -->
-      <view class="form-group" wx:if="{{editPackageForm.package_type === 'time_card' && editPackageForm.limit_type !== 'unlimited'}}">
-        <text class="form-label">{{editPackageForm.limit_type === 'daily' ? '每日限制' : '每周限制'}} *</text>
-        <input class="input-field" type="number" placeholder="{{editPackageForm.limit_type === 'daily' ? '每日限制次数' : '每周限制次数'}}" value="{{editPackageForm.limit_value}}" data-field="limit_value" bindinput="onEditPackageInput" />
+      <!-- 时间卡：周期类型（仅限制次数时显示） -->
+      <view class="form-group" wx:if="{{editPackageForm.package_type === 'time_card' && editPackageForm.limit_type === 'limited'}}">
+        <text class="form-label">周期类型 *</text>
+        <view class="package-type-selector">
+          <view class="type-option {{editPackageForm.limit_cycle === 'daily' ? 'active' : ''}}" data-type="daily" bindtap="onEditLimitCycleChange">
+            <text>每日</text>
+          </view>
+          <view class="type-option {{editPackageForm.limit_cycle === 'weekly' ? 'active' : ''}}" data-type="weekly" bindtap="onEditLimitCycleChange">
+            <text>每周</text>
+          </view>
+          <view class="type-option {{editPackageForm.limit_cycle === 'monthly' ? 'active' : ''}}" data-type="monthly" bindtap="onEditLimitCycleChange">
+            <text>每月</text>
+          </view>
+        </view>
+      </view>
+
+      <!-- 时间卡：限制次数输入 -->
+      <view class="form-group" wx:if="{{editPackageForm.package_type === 'time_card' && editPackageForm.limit_type === 'limited'}}">
+        <text class="form-label">限制次数 *</text>
+        <input class="input-field" type="number" placeholder="请输入限制次数" value="{{editPackageForm.limit_value}}" data-field="limit_value" bindinput="onEditPackageInput" />
       </view>
 
       <view class="form-group">
@@ -598,6 +636,14 @@
             <switch class="extra-store-switch" checked="{{storeItem.checked}}"
                     data-id="{{storeItem._id}}" bindchange="onToggleEditPackageExtraStore" color="#C4663E" />
           </view>
+        </view>
+      </view>
+
+      <view class="form-group">
+        <text class="form-label">能参与的舞种课程</text>
+        <view class="dance-style-picker" bindtap="onOpenEditDanceStylePicker">
+          <text class="dance-style-picker-text {{editPackageForm.dance_style_limit.length > 0 ? 'has-value' : ''}}">{{editPackageDanceStyleText || '不限舞种'}}</text>
+          <text class="dance-style-picker-arrow">›</text>
         </view>
       </view>
 
@@ -721,5 +767,28 @@
         <view class="btn-primary" bindtap="onConfirmExtendPackage"><text>确认延长</text></view>
       </view>
     </view>
+  </view>
+</view>
+
+<!-- 舞种限制单选弹窗（门店选择器风格） -->
+<view class="modal-mask" wx:if="{{showDanceStylePicker}}" bindtap="onCloseDanceStylePicker">
+  <view class="store-picker-modal" catchtap="onModalTap">
+    <view class="spm-header">
+      <text class="spm-title">能参与的舞种课程</text>
+      <text class="spm-close" bindtap="onCloseDanceStylePicker">×</text>
+    </view>
+    <scroll-view class="spm-list" scroll-y enhanced show-scrollbar="{{false}}">
+      <!-- 不限舞种选项（默认选中） -->
+      <view class="spm-item {{selectedDanceStyleId === '' ? 'spm-active' : ''}}" data-id="" bindtap="onSelectDanceStyle">
+        <text class="spm-name">不限舞种</text>
+      </view>
+      <!-- 舞种列表 -->
+      <view class="spm-item {{selectedDanceStyleId === dsItem._id ? 'spm-active' : ''}}"
+            wx:for="{{danceStyleList}}" wx:key="_id" wx:for-item="dsItem"
+            data-id="{{dsItem._id}}" bindtap="onSelectDanceStyle">
+        <text class="spm-name">{{dsItem.name}}</text>
+      </view>
+      <view class="spm-empty" wx:if="{{danceStyleList.length === 0}}">暂无舞种，请先在店务管理-舞种管理中创建</view>
+    </scroll-view>
   </view>
 </view>

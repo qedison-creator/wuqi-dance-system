@@ -17,7 +17,8 @@ Page({
     formStatus: 'active',
     deleting: false, // 防抖标志位
     isSingleStoreRole: false,
-    isSuperAdmin: false
+    isSuperAdmin: false,
+    selectedStoreName: '' // 当前全局统一门店选择的门店名称（用于页面展示）
   },
 
   onShow() {
@@ -25,7 +26,8 @@ Page({
     const userInfo = app.globalData.userInfo;
     this.setData({
       isSingleStoreRole: app.isSingleStoreRole(),
-      isSuperAdmin: !!(userInfo && userInfo.role === 'super_admin')
+      isSuperAdmin: !!(userInfo && userInfo.role === 'super_admin'),
+      selectedStoreName: app.getShopStoreName ? app.getShopStoreName() : ''
     });
     this.loadData();
   },
@@ -71,14 +73,11 @@ Page({
 
   async loadAnnouncements() {
     try {
-      // 从全局统一门店选择读取
-      const shopStoreId = app.globalData.shopStoreId || '';
-      const query = shopStoreId ? '?store_id=' + shopStoreId : '';
-
-      const res = await request({ url: '/announces' + query, method: 'GET' });
+      // 加载全部公告，前端按当前选中门店过滤
+      const res = await request({ url: '/announces', method: 'GET' });
       const rawList = res.data && res.data.list ? res.data.list : (Array.isArray(res.data) ? res.data : []);
       // 标记每条公告的可操作性
-      const list = rawList.map(item => {
+      let list = rawList.map(item => {
         const storeId = item.store_id ? (item.store_id._id || item.store_id) : '';
         const storeName = item.store_id && item.store_id.name ? item.store_id.name : '';
         const isGlobal = !storeId;
@@ -96,10 +95,21 @@ Page({
           store_id: storeId,
           store_name: storeName,
           is_global: isGlobal,
-          store_label: isGlobal ? '全部门店' : (storeName || '指定门店'),
+          store_label: isGlobal ? '全平台公告' : (storeName || '指定门店'),
           can_operate: canOperate
         };
       });
+
+      // 仅显示属于当前选中门店的公告
+      const shopStoreId = app.globalData.shopStoreId || '';
+      if (shopStoreId) {
+        list = list.filter(item =>
+          item.store_id && String(item.store_id) === String(shopStoreId)
+        );
+      } else {
+        // 未选门店时公告列表为空
+        list = [];
+      }
       this.setData({ announcements: list, loading: false });
     } catch (err) {
       console.error('加载公告失败', err);
@@ -124,6 +134,10 @@ Page({
         formStoreId = defaultStoreId;
         formStoreName = this.data.storeOptions[idx].name;
       }
+    } else {
+      // 定位"全部"选项索引
+      const idx = this.data.storeOptions.findIndex(s => String(s._id) === '');
+      formStoreIndex = idx >= 0 ? idx : 0;
     }
 
     this.setData({

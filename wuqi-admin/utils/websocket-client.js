@@ -48,15 +48,14 @@ function getWsUrl() {
 let socketTask = null;
 let isConnected = false;
 let isConnecting = false;
+let isManualDisconnect = false;       // 主动断开标志（防止 onClose 误触重连）
+let isHandlingDisconnect = false;     // 防重入标志：onClose/心跳超时 可能同时触发
 let reconnectCount = 0;
+let connectionEpoch = 0;              // 连接代次：每次新建连接递增，用于忽略旧连接的回调
 let heartbeatTimer = null;
 let heartbeatTimeoutTimer = null;
 let reconnectTimer = null;
 let fallbackPollTimer = null;
-// 主动断开标志：disconnect 时置 true，阻止异步 onClose/onError 触发的重连
-let isManualDisconnect = false;
-// 连接代际：每次新建连接递增，回调中校验此值以忽略旧连接的回调
-let connectionEpoch = 0;
 
 // 事件处理器映射：{ event: handler }
 let messageHandlers = {};
@@ -84,22 +83,19 @@ function connect(options = {}) {
   const token = wx.getStorageSync('admin_token');
   if (!token) return;
 
-  // 清理旧连接：关闭旧 socketTask，避免"未完成的操作"错误
-  if (socketTask) {
-    try { socketTask.close({ code: 1000 }); } catch (e) {}
-    socketTask = null;
-  }
+  // 先清理旧连接：关闭旧 socketTask 并置空，避免"未完成的操作"
+  _closeSocketTask();
 
-  isManualDisconnect = false;  // 主动连接时重置标志
   isConnecting = true;
-  const myEpoch = ++connectionEpoch;  // 本次连接的代际
+  isManualDisconnect = false;
+  isHandlingDisconnect = false;
+  const myEpoch = ++connectionEpoch;  // 本次连接的唯一标识
   const url = getWsUrl();
 
   socketTask = wx.connectSocket({
     url,
     fail: (err) => {
-      // 代际不匹配，忽略旧回调
-      if (myEpoch !== connectionEpoch) return;
+      if (myEpoch !== connectionEpoch) return;  // 旧连接的回调，忽略
       console.error('[Admin WebSocket] 连接请求失败:', err);
       isConnecting = false;
       _handleDisconnect();
@@ -108,7 +104,7 @@ function connect(options = {}) {
 
   // 连接打开
   socketTask.onOpen(() => {
-    if (myEpoch !== connectionEpoch) return;  // 忽略旧连接回调
+    if (myEpoch !== connectionEpoch) return;  // 旧连接的回调，忽略
     isConnecting = false;
     isConnected = true;
     reconnectCount = 0;
@@ -122,7 +118,7 @@ function connect(options = {}) {
 
   // 接收消息
   socketTask.onMessage((res) => {
-    if (myEpoch !== connectionEpoch) return;  // 忽略旧连接回调
+    if (myEpoch !== connectionEpoch) return;  // 旧连接的回调，忽略
     try {
       const msg = JSON.parse(res.data);
 
@@ -144,19 +140,22 @@ function connect(options = {}) {
     }
   });
 
-  // 连接关闭
+  // 连接关闭：统一在此处理断连逻辑
   socketTask.onClose(() => {
-    if (myEpoch !== connectionEpoch) return;  // 忽略旧连接回调
+    if (myEpoch !== connectionEpoch) return;  // 旧连接的回调，忽略
+    // 主动断开时不触发重连
+    if (isManualDisconnect) {
+      isConnecting = false;
+      return;
+    }
     _handleDisconnect();
   });
 
-  // 连接错误：降级为 warn（已有自动重连+降级轮询机制，连接失败不影响功能）
+  // 连接错误：仅记录日志，断连处理交给 onClose 统一处理
+  // 避免 onError 和 onClose 双重触发 _handleDisconnect
   socketTask.onError((err) => {
-    if (myEpoch !== connectionEpoch) return;  // 忽略旧连接回调
-    // 主动断开时连接未建立会触发 onError，属正常情况，不打印错误
-    if (isManualDisconnect) return;
+    if (myEpoch !== connectionEpoch) return;  // 旧连接的回调，忽略
     console.warn('[Admin WebSocket] 连接错误（将自动降级为轮询）:', err && err.errMsg ? err.errMsg : err);
-    _handleDisconnect();
   });
 }
 
@@ -164,22 +163,18 @@ function connect(options = {}) {
  * 主动断开连接，清理所有定时器
  */
 function disconnect() {
-  // 标记为主动断开，阻止异步 onClose/onError 回调触发的重连
   isManualDisconnect = true;
-  connectionEpoch++;  // 递增代际，让当前连接的所有回调立即失效
+  connectionEpoch++;  // 使所有旧连接的回调失效
   _stopHeartbeat();
   _stopReconnect();
   _stopFallbackPoll();
   reconnectCount = 0;
 
-  if (socketTask) {
-    try {
-      socketTask.close({ code: 1000, reason: '客户端主动关闭' });
-    } catch (e) {}
-    socketTask = null;
-  }
+  _closeSocketTask();
+
   isConnected = false;
   isConnecting = false;
+  isHandlingDisconnect = false;
 }
 
 /**
@@ -195,6 +190,18 @@ function getConnectionStatus() {
 // ========== 内部方法 ==========
 
 /**
+ * 关闭旧 socketTask 并置空引用
+ */
+function _closeSocketTask() {
+  if (socketTask) {
+    try {
+      socketTask.close({ code: 1000, reason: '清理旧连接' });
+    } catch (e) {}
+    socketTask = null;
+  }
+}
+
+/**
  * 启动心跳保活
  */
 function _startHeartbeat() {
@@ -206,12 +213,16 @@ function _startHeartbeat() {
     socketTask.send({
       data: JSON.stringify({ type: 'ping', timestamp: Date.now() }),
       fail: () => {
+        // 发送失败：socket 可能已断开，先关闭再处理断连
+        _closeSocketTask();
         _handleDisconnect();
       }
     });
 
     // 启动心跳超时检测
     heartbeatTimeoutTimer = setTimeout(() => {
+      // 心跳超时：socket 无响应，先关闭再处理断连
+      _closeSocketTask();
       _handleDisconnect();
     }, HEARTBEAT_TIMEOUT);
   }, HEARTBEAT_INTERVAL);
@@ -234,14 +245,26 @@ function _clearHeartbeatTimeout() {
 
 /**
  * 处理连接断开：停止心跳、尝试重连或降级轮询
+ * 注意：本函数不关闭 socketTask（onClose 触发时 socket 已关闭，再调 close() 会报错）
+ * 需要主动关闭 socket 的场景（心跳超时、发送失败）请在调用本函数前执行 _closeSocketTask()
  */
 function _handleDisconnect() {
+  // 防重入：避免 onClose/心跳超时/发送失败 重复触发
+  if (isHandlingDisconnect) return;
+  isHandlingDisconnect = true;
+
   _stopHeartbeat();
+  // 不调 _closeSocketTask()：onClose 触发时 socket 已关闭，再调 close() 会报 "closed before established"
+  socketTask = null;
+  connectionEpoch++;  // 使旧连接的后续回调（onError/onClose）全部失效
   isConnected = false;
   isConnecting = false;
 
-  // 主动断开时不重连、不降级
-  if (isManualDisconnect) return;
+  // 主动断开时不触发重连
+  if (isManualDisconnect) {
+    isHandlingDisconnect = false;
+    return;
+  }
 
   // 尝试重连
   if (reconnectCount < MAX_RECONNECT) {
@@ -250,6 +273,11 @@ function _handleDisconnect() {
     // 超过最大重连次数，降级为轮询
     _startFallbackPoll();
   }
+
+  // 重置防重入标志（延迟，确保本轮事件处理完毕）
+  setTimeout(() => {
+    isHandlingDisconnect = false;
+  }, 500);
 }
 
 /**

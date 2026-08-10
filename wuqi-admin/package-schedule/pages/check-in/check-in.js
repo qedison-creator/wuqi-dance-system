@@ -44,17 +44,22 @@ Page({
       // 过滤：排除已取消、已结束、已下架、已删除、未开放的课程，只保留可签到的
 
       const excludedStatuses = ['cancelled', 'completed', 'offline', 'deleted', 'not_open'];
-      // 单门店角色：仅显示所属门店的排课（课程自带 store_id，直接判断即可）
+      // 门店过滤：优先使用全局统一门店选择（与首页/运营管理/店务管理共享）
+      // - 单门店角色：固定所属门店
+      // - 多门店角色：使用 app.globalData.shopStoreId（在其他页面选择的门店）
       const app = getApp();
-      const defaultStoreId = (app.isSingleStoreRole && app.isSingleStoreRole())
-        ? (app.getDefaultStoreId ? app.getDefaultStoreId() : '')
-        : '';
+      let filterStoreId = '';
+      if (app.isSingleStoreRole && app.isSingleStoreRole()) {
+        filterStoreId = app.getDefaultStoreId ? app.getDefaultStoreId() : '';
+      } else {
+        filterStoreId = app.globalData.shopStoreId || '';
+      }
       const schedules = (data || [])
         .filter(s => !excludedStatuses.includes(s.status))
         .filter(s => {
-          if (!defaultStoreId) return true;
+          if (!filterStoreId) return true;
           const sid = s.store_id ? (s.store_id._id ? String(s.store_id._id) : String(s.store_id)) : '';
-          return sid === String(defaultStoreId);
+          return sid === String(filterStoreId);
         })
         .map(s => ({
           ...s,

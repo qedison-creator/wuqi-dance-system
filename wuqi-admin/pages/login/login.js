@@ -80,8 +80,19 @@ Page({
     try {
       const res = await adminLogin(username, password);
       wx.setStorageSync('admin_token', res.data.token);
-      getApp().globalData.token = res.data.token;
-      getApp().globalData.userInfo = res.data.admin;
+      const app = getApp();
+      app.globalData.token = res.data.token;
+      app.globalData.userInfo = res.data.user;
+
+      // 单门店角色自动设置所属门店
+      const defaultStoreId = app.getDefaultStoreId();
+      if (defaultStoreId) {
+        app.globalData.currentStoreId = defaultStoreId;
+        const storeList = app.globalData.storeList || [];
+        const found = storeList.find(s => String(s._id) === String(defaultStoreId));
+        app.globalData.currentStore = found || { _id: defaultStoreId };
+        app.globalData.shopStoreId = defaultStoreId;
+      }
 
       // 记住密码
 

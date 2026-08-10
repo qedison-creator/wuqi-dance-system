@@ -3,30 +3,6 @@
   padding-bottom: 40rpx;
 }
 
-.tab-switch {
-  display: flex;
-  background-color: var(--bg-card);
-  border-radius: var(--radius-lg);
-  padding: 6rpx;
-  margin-bottom: 30rpx;
-  box-shadow: var(--shadow-card);
-}
-
-.tab-switch .tab-item {
-  flex: 1;
-  text-align: center;
-  padding: 20rpx;
-  border-radius: var(--radius-lg);
-  font-size: 28rpx;
-  color: var(--text-secondary);
-}
-
-.tab-switch .tab-item.active {
-  background: var(--color-primary);
-  color: var(--text-inverse);
-  font-weight: bold;
-}
-
 .section-header {
   display: flex;
   align-items: center;
@@ -293,41 +269,6 @@
 .modal-buttons .btn-secondary,
 .modal-buttons .btn-primary {
   width: 48%;
-}
-
-.dance-style-list {
-  margin-top: 20rpx;
-}
-
-.dance-style-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 24rpx;
-  margin-bottom: 20rpx;
-}
-
-.dance-style-info {
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-}
-
-.dance-style-name {
-  font-size: 30rpx;
-  color: var(--text-primary);
-  font-weight: bold;
-  margin-bottom: 8rpx;
-}
-
-.dance-style-order {
-  font-size: 24rpx;
-  color: var(--text-secondary);
-}
-
-.dance-style-actions {
-  display: flex;
-  align-items: center;
 }
 
 .empty-state {

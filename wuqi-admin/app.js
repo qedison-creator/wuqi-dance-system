@@ -15,7 +15,7 @@ App({
     serverBase: config.serverBase,
     privacyResolve: null,
     deviceFingerprint: '',
-    isOnline: true
+    isOnline: true,
   },
   onLaunch() {
     this.silenceUnsupportedApi();
@@ -259,6 +259,12 @@ App({
     const storeList = this.globalData.storeList || [];
     const matched = storeList.find(s => String(s._id) === String(shopStoreId));
     return matched ? matched.name : '全部门店';
+  },
+
+  // 判断当前用户是否为超管
+  isSuperAdmin() {
+    const u = this.globalData.userInfo;
+    return u && u.role === 'super_admin';
   },
 
   // 获取稳定的设备标识（首次启动时生成UUID并永久存储，同一微信账号下始终一致）

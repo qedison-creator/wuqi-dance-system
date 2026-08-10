@@ -6,6 +6,7 @@ const PackageExtension = require('../models/PackageExtension');
 const Booking = require('../models/Booking');
 const User = require('../models/User');
 const logService = require('./log.service');
+const { sendToUser } = require('./websocket.service');
 const dayjs = require('dayjs');
 const utc = require('dayjs/plugin/utc');
 const timezone = require('dayjs/plugin/timezone');
@@ -42,6 +43,7 @@ exports.getMyPackage = async (userId) => {
   let packages = await UserPackage.find({ user_id: userId })
     .populate('store_id', 'name')
     .populate('extra_store_ids', 'name')
+    .populate('dance_style_limit', 'name')
     .sort({ created_at: 1 });
 
   // 强制修正：已激活且过期的 active 套餐必须标记为 expired，避免前端/后端状态不同步
@@ -109,6 +111,10 @@ exports.getMyPackage = async (userId) => {
         stat.remaining = usage.weekly_remaining !== null ? usage.weekly_remaining : pkg.weekly_limit;
         stat.label = '本周剩余';
         stat.isUnlimited = false;
+      } else if (pkg.monthly_limit) {
+        stat.remaining = usage.monthly_remaining !== null ? usage.monthly_remaining : pkg.monthly_limit;
+        stat.label = '本月剩余';
+        stat.isUnlimited = false;
       } else {
         stat.remaining = -1;
         stat.label = '不限次数';
@@ -134,6 +140,7 @@ async function calcTimeCardUsage(userPackage) {
   const result = {
     weekly_used: null, weekly_limit: null, weekly_remaining: null,
     daily_used: null, daily_limit: null, daily_remaining: null,
+    monthly_used: null, monthly_limit: null, monthly_remaining: null,
     next_week_used: null, next_week_remaining: null,
     next_week_start: null, next_week_end: null,
   };
@@ -178,8 +185,25 @@ async function calcTimeCardUsage(userPackage) {
     result.daily_remaining = Math.max(0, userPackage.daily_limit - usedToday);
   }
 
+  if (userPackage.monthly_limit) {
+    const monthStart = now.startOf('month');
+    const monthEnd = now.endOf('month');
+    const usedThisMonth = await Booking.countDocuments({
+      user_id: userPackage.user_id,
+      user_package_id: userPackage._id,
+      booking_date: { $gte: monthStart.format('YYYY-MM-DD'), $lte: monthEnd.format('YYYY-MM-DD') },
+      status: { $in: ['booked', 'completed'] },
+    });
+    result.monthly_used = usedThisMonth;
+    result.monthly_limit = userPackage.monthly_limit;
+    result.monthly_remaining = Math.max(0, userPackage.monthly_limit - usedThisMonth);
+  }
+
   return result;
 }
+
+// 导出供 member.service 调用
+exports._calcTimeCardUsage = calcTimeCardUsage;
 
 // 录入套餐(为用户分配套餐) — 不自动过期旧套餐，新套餐状态为pending
 // 辅助函数：为激活记录/延长记录构建会员和套餐快照
@@ -238,7 +262,7 @@ exports._buildActivationSnapshot = async (userPackage) => {
 };
 
 exports.createPackage = async (data, operatorId) => {
-  const { user_id, package_id, store_id, extra_store_ids, package_type, total_credits, duration_value, duration_unit, daily_limit, weekly_limit, remark } = data;
+  const { user_id, package_id, store_id, extra_store_ids, package_type, total_credits, duration_value, duration_unit, daily_limit, weekly_limit, monthly_limit, dance_style_limit, remark } = data;
 
   if (!user_id) throw new Error('用户ID不能为空');
   if (!package_type) throw new Error('套餐类型不能为空');
@@ -274,6 +298,8 @@ exports.createPackage = async (data, operatorId) => {
     duration_unit: duration_unit || 'month',
     daily_limit: daily_limit || null,
     weekly_limit: weekly_limit || null,
+    monthly_limit: monthly_limit || null,
+    dance_style_limit: Array.isArray(dance_style_limit) ? dance_style_limit : [],
     is_activated: false,
     activated_at: null,
     auto_activate_at: autoActivateAt,
@@ -296,6 +322,13 @@ exports.createPackage = async (data, operatorId) => {
     target_id: userPackage._id,
     detail: `为用户(${user_id})录入${package_type === 'count_card' ? '次卡' : '时间卡'}: ${durationText}${existingNote}, 2个月后自动激活`,
   });
+
+  // 推送套餐变更事件给会员端，即时刷新套餐数据
+  try {
+    sendToUser(user_id, 'package_update', { action: 'create', package_id: String(userPackage._id) });
+  } catch (e) {
+    console.error('[Package] 推送套餐更新事件失败:', e.message);
+  }
 
   return userPackage;
 };
@@ -377,6 +410,14 @@ exports.activatePackageById = async (packageId, userId, options = {}) => {
     }
 
     console.log('[Package] 套餐激活成功');
+
+    // 推送套餐变更事件给会员端，即时刷新套餐数据
+    try {
+      sendToUser(userId, 'package_update', { action: 'activate', package_id: String(pkg._id) });
+    } catch (e) {
+      console.error('[Package] 推送套餐更新事件失败:', e.message);
+    }
+
     return pkg;
   } catch (err) {
     console.error('[Package] 激活套餐失败:', err);
@@ -495,12 +536,16 @@ exports.updatePackage = async (id, data) => {
   // 已激活的套餐只允许修改部分字段
   const isActivated = userPackage.is_activated;
   const allowedFields = isActivated
-    ? ['remaining_credits', 'end_date', 'daily_limit', 'weekly_limit', 'status', 'remark', 'extra_store_ids']
-    : ['package_type', 'total_credits', 'remaining_credits', 'duration_value', 'duration_unit', 'daily_limit', 'weekly_limit', 'status', 'remark', 'extra_store_ids'];
+    ? ['remaining_credits', 'end_date', 'daily_limit', 'weekly_limit', 'monthly_limit', 'dance_style_limit', 'status', 'remark', 'extra_store_ids']
+    : ['package_type', 'total_credits', 'remaining_credits', 'duration_value', 'duration_unit', 'daily_limit', 'weekly_limit', 'monthly_limit', 'dance_style_limit', 'status', 'remark', 'extra_store_ids'];
 
   for (const key of Object.keys(data)) {
     if (allowedFields.includes(key)) {
       userPackage[key] = data[key];
+      // 防御：对数组/对象类型字段显式标记已修改，避免 Mongoose 修改检测遗漏导致 save() 不持久化
+      if (Array.isArray(data[key]) || (data[key] !== null && typeof data[key] === 'object' && !(data[key] instanceof Date))) {
+        userPackage.markModified(key);
+      }
     }
   }
 
@@ -516,6 +561,14 @@ exports.updatePackage = async (id, data) => {
   }
 
   await userPackage.save();
+
+  // 推送套餐变更事件给会员端，即时刷新套餐数据
+  try {
+    sendToUser(userPackage.user_id, 'package_update', { action: 'update', package_id: String(userPackage._id) });
+  } catch (e) {
+    console.error('[Package] 推送套餐更新事件失败:', e.message);
+  }
+
   return userPackage;
 };
 
@@ -532,6 +585,13 @@ exports.deleteUserPackage = async (id, operatorId) => {
     target_id: userPackage._id,
     detail: `删除用户(${userPackage.user_id})的${userPackage.package_type === 'count_card' ? '次卡' : '时间卡'}套餐`,
   });
+
+  // 推送套餐变更事件给会员端，即时刷新套餐数据
+  try {
+    sendToUser(userPackage.user_id, 'package_update', { action: 'delete', package_id: String(userPackage._id) });
+  } catch (e) {
+    console.error('[Package] 推送套餐更新事件失败:', e.message);
+  }
 
   await UserPackage.findByIdAndDelete(id);
   return { success: true };
@@ -865,6 +925,13 @@ exports.extendPackage = async (packageId, extendDays, operatorId, operatorName, 
     detail: `延长用户(${userPackage.user_id})套餐${extendDays}天, ${originalEnd.toISOString().split('T')[0]} → ${newEnd.toISOString().split('T')[0]}`,
   });
 
+  // 推送套餐变更事件给会员端，即时刷新套餐数据
+  try {
+    sendToUser(userPackage.user_id, 'package_update', { action: 'extend', package_id: String(userPackage._id) });
+  } catch (e) {
+    console.error('[Package] 推送套餐更新事件失败:', e.message);
+  }
+
   return userPackage;
 };
 
@@ -906,6 +973,13 @@ exports.revokePackageExtension = async (extensionId, operatorId, operatorName, r
     target_id: ext.user_package_id,
     detail: `撤销用户(${ext.user_id})套餐延长${ext.extend_days}天`,
   });
+
+  // 推送套餐变更事件给会员端，即时刷新套餐数据
+  try {
+    sendToUser(ext.user_id, 'package_update', { action: 'revoke_extend', package_id: String(ext.user_package_id) });
+  } catch (e) {
+    console.error('[Package] 推送套餐更新事件失败:', e.message);
+  }
 
   return userPackage;
 };

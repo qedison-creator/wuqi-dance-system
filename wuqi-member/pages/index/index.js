@@ -78,6 +78,7 @@ Page({
   },
 
   onLoad() {
+    this._loadHomeDataId = 0;
     const statusBarHeight = wx.getWindowInfo().statusBarHeight || 44;
     this.setData({ statusBarHeight });
     this.updateContentPadding();
@@ -119,20 +120,24 @@ Page({
     const loginStateChanged = this._lastLoginStateToken !== loginStateToken;
     if (loginStateChanged) {
       this._lastLoginStateToken = loginStateToken;
+      // 登录状态变化时重置页面数据标记，确保强制全量刷新（清除旧会员残留数据）
+      this._dataLoaded = false;
+      this._lastStoreId = '';
     }
-    // 从其他 tab 切回时，若课程数据为空则重新加载（修复游客切换 tab 后卡片消失）
 
-    if (this.data._dataLoaded && this.data._lastStoreId === currentStoreId && (!this.data.recentCourses || this.data.recentCourses.length === 0)) {
+    // 门店已变化但页面数据未更新（如 selectNearestStore 异步更新了门店）→ 强制刷新
+    const storeMismatch = this.data._dataLoaded && this.data._lastStoreId && this.data._lastStoreId !== currentStoreId;
+
+    // 从其他 tab 切回时，若课程数据为空则重新加载（修复游客切换 tab 后卡片消失）
+    if (this.data._dataLoaded && !storeMismatch && this.data._lastStoreId === currentStoreId && (!this.data.recentCourses || this.data.recentCourses.length === 0)) {
       this.setData({ _lastStoreId: currentStoreId });
       this.loadHomeData();
       this.startAnnounceFlip();
-      // 已授权用户：静默重新定位匹配最近门店（每次进入首页都获取最新位置）
-      this.checkPendingRelocate();
       return;
     }
-    // 仅首次加载、切换门店或登录状态变化时请求数据，避免从其他页面返回时重复请求
 
-    if (!this.data._dataLoaded || this.data._lastStoreId !== currentStoreId || loginStateChanged) {
+    // 仅首次加载、切换门店、登录状态变化、或门店不匹配时请求数据
+    if (!this.data._dataLoaded || storeMismatch || this.data._lastStoreId !== currentStoreId || loginStateChanged) {
       this.setData({ _dataLoaded: true, _lastStoreId: currentStoreId });
       this.loadHomeData();
     }
@@ -256,6 +261,8 @@ Page({
       this.setData({ loading: true });
     }
     const storeId = this.data.currentStore ? this.data.currentStore._id : '';
+    // 请求代次：每次调用 loadHomeData 自增，响应时比对，防止旧请求覆盖新数据
+    const reqId = ++this._loadHomeDataId;
     const weekdays = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
     const today = getBeijingDate();
     const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
@@ -275,6 +282,14 @@ Page({
       request({ url: '/home/coaches', data: { store_id: storeId, limit: 6 }, silent: true }),
       request({ url: '/schedules', data: { store_id: storeId, limit: 10 }, silent: true })
     ]).then(([bannerRes, coachRes, scheduleRes]) => {
+      // 【门店数据隔离校验】如果当前门店已变化（如 selectNearestStore 异步更新），
+      // 丢弃本次响应数据，避免"货不对板"显示其他门店数据
+      const currentStoreId = this.data.currentStore ? this.data.currentStore._id : '';
+      if (reqId !== this._loadHomeDataId) {
+        console.log('[Index] 丢弃过期请求#', reqId, '当前门店:', currentStoreId, '请求门店:', storeId);
+        return;
+      }
+
       // 处理轮播图/ 教练头像 / 课程封面 / 视频封面：统一使用 SERVER_BASE
       // 注意：服务器返回的 URL 可能是 http 或完整 https 地址，这里统一规范化为 /uploads/xxx 格式
       // 当图片加载失败时，binderror 会触发 fallback 到本地默认图
@@ -324,8 +339,8 @@ Page({
           };
         });
 
-      // 先渲染首屏核心数据，画廊数据在 onReady 中延迟加载，降低首屏 LCP
-      this.setData({ banners, hotCoaches: coaches, recentCourses, loading: false }, () => {
+      // 更新 _lastStoreId 为当前门店，确保后续 onShow 能正确判断门店是否变化
+      this.setData({ banners, hotCoaches: coaches, recentCourses, loading: false, _lastStoreId: currentStoreId }, () => {
         // 核心数据渲染完成后，异步加载画廊（如 onReady 尚未触发，由 onReady 负责调度）
         if (this._onReadyFired) {
           this.loadGalleryImages();
@@ -335,6 +350,8 @@ Page({
       });
 
     }).catch((err) => {
+      // 请求失败时也检查请求代次，避免过期请求的错误处理干扰
+      if (reqId !== this._loadHomeDataId) return;
       console.error('加载首页数据失败:', err);
       this.setData({ loading: false });
     });

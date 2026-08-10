@@ -46,8 +46,8 @@ const _rawRequest = (options) => {
             // 只在401登录失效时自动提示，其他错误让业务代码处理
             reject(res.data);
           }
-        } else if (res.statusCode === 401 || res.statusCode === 403) {
-          // 账号被删除/禁用、token 过期等认证失败
+        } else if (res.statusCode === 401) {
+          // 401: token 失效/过期/账号禁用，需清除 token 并触发重登
           // skipAuthRedirect=true 时仅清除 token 并 reject，由调用方决定后续处理（如自动重登）
           const skipAuthRedirect = options.skipAuthRedirect === true;
           // 先清除本地 token，避免后续请求携带失效 token
@@ -61,7 +61,7 @@ const _rawRequest = (options) => {
           }
           if (!skipAuthRedirect) {
             // 默认行为：强制登出并回到启动页，防止被删除会员继续浏览本地缓存数据
-            const message = (res.data && res.data.message) || (res.statusCode === 403 ? '无权访问' : '账号已失效，请重新登录');
+            const message = (res.data && res.data.message) || '账号已失效，请重新登录';
             if (app && typeof app.forceLogoutAndRedirect === 'function') {
               app.forceLogoutAndRedirect(message, silent);
             } else {
@@ -70,7 +70,15 @@ const _rawRequest = (options) => {
               }
             }
           }
-          reject({ code: res.statusCode, message: (res.data && res.data.message) || '认证失败' });
+          reject({ code: 401, message: (res.data && res.data.message) || '认证失败' });
+        } else if (res.statusCode === 403) {
+          // 403: 已认证但无操作权限（角色不足），token 仍然有效，不清除、不登出
+          // 仅提示并 reject，由调用方决定后续处理
+          if (!silent) {
+            const message = (res.data && res.data.message) || '无权访问';
+            wx.showToast({ title: message, icon: 'none' });
+          }
+          reject({ code: 403, message: (res.data && res.data.message) || '无权访问' });
         } else {
           const errMsg = (res.data && res.data.message) || `请求失败(${res.statusCode})`;
           // 500等HTTP错误也让业务代码自己处理提示
@@ -110,9 +118,9 @@ const request = (options) => {
           setTimeout(doRequest, 1500);
           return;
         }
-        // 业务错误或重试耗尽 → 提示并拒绝
-        if (!silent) {
-          const isTimeout = err.errMsg && err.errMsg.indexOf('timeout') !== -1;
+        // 仅网络层错误才提示"网络连接失败"；401/403 等业务/HTTP 错误已由 _rawRequest 内部处理提示
+        if (!silent && err && err.errMsg) {
+          const isTimeout = err.errMsg.indexOf('timeout') !== -1;
           wx.showToast({
             title: isTimeout ? '请求超时，请重试' : '网络连接失败',
             icon: 'none'

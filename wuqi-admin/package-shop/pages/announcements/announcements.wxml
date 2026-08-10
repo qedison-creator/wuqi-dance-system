@@ -1,6 +1,6 @@
 <view class="page">
   <view class="top-bar">
-    <text class="top-title">公告管理</text>
+    <text class="top-title">{{selectedStoreName ? selectedStoreName + ' 公告' : '门店公告'}}</text>
     <view class="top-btn" bindtap="onShowAddModal">
       <view class="top-btn-icon"></view>
       <text class="top-btn-text">新增公告</text>
@@ -16,13 +16,13 @@
         <view class="item-right">
           <view class="item-title">{{item.title}}</view>
           <view class="item-meta">
-            <text class="item-store {{item.store_id ? '' : 'global'}}">{{item.store_id ? item.store_id.name : '全部门店'}}</text>
+            <text class="item-store {{item.is_global ? 'global' : ''}}">{{item.store_label}}</text>
           </view>
           <view class="item-content" wx:if="{{item.content}}">{{item.content}}</view>
           <view class="item-actions">
-            <view class="action-btn edit" data-id="{{item._id}}" data-item="{{item}}" bindtap="onShowEditModal">编辑</view>
-            <view class="action-btn {{item.status === 'active' ? 'pause' : 'resume'}}" data-id="{{item._id}}" data-status="{{item.status === 'active' ? 'inactive' : 'active'}}" bindtap="onToggleStatus">{{item.status === 'active' ? '停用' : '启用'}}</view>
-            <view class="action-btn del" data-id="{{item._id}}" bindtap="onDelete">删除</view>
+            <view class="action-btn edit {{item.can_operate ? '' : 'action-btn-disabled'}}" data-id="{{item._id}}" data-item="{{item}}" bindtap="{{item.can_operate ? 'onShowEditModal' : 'onDisabledAnnouncementAction'}}">编辑</view>
+            <view class="action-btn {{item.status === 'active' ? 'pause' : 'resume'}} {{item.can_operate ? '' : 'action-btn-disabled'}}" data-id="{{item._id}}" data-index="{{index}}" data-status="{{item.status === 'active' ? 'inactive' : 'active'}}" bindtap="{{item.can_operate ? 'onToggleStatus' : 'onDisabledAnnouncementAction'}}">{{item.status === 'active' ? '停用' : '启用'}}</view>
+            <view class="action-btn del {{item.can_operate ? '' : 'action-btn-disabled'}}" data-id="{{item._id}}" data-index="{{index}}" bindtap="{{item.can_operate ? 'onDelete' : 'onDisabledAnnouncementAction'}}">删除</view>
           </view>
         </view>
       </view>
@@ -30,7 +30,7 @@
   </view>
 
   <view class="empty" wx:if="{{!loading && announcements.length === 0}}">
-    <text class="empty-text">暂无公告</text>
+    <text class="empty-text">暂无门店公告</text>
     <view class="empty-action" bindtap="onShowAddModal">创建第一条公告</view>
   </view>
 

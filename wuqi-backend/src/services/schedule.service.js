@@ -452,8 +452,8 @@ exports.getScheduleList = async (query, req = null) => {
         const earlyLimit = limit ? Number(limit) : Number(pageSize);
         return { list: [], total: 0, page: Number(page), pageSize: earlyLimit };
       } else if (date === today) {
-        // 当天：展示非deleted且非offline的课程（offline课程不在会员端显示）
-        filter.status = { $nin: ['deleted', 'offline'] };
+        // 当天：展示非deleted、非offline、非cancelled的课程（已取消课程不在会员端显示）
+        filter.status = { $nin: ['deleted', 'offline', 'cancelled'] };
       } else {
         // 未来：仅展示可预约/已满课程
         filter.status = { $in: ['available', 'full'] };

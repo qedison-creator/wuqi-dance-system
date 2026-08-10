@@ -152,6 +152,9 @@
               <view class="cd-book-btn disabled-clickable" wx:elif="{{item.courseStoreMatched === false}}" data-course="{{item}}" catchtap="onBookTap">
                 <text>不可预约</text>
               </view>
+              <view class="cd-book-btn disabled-clickable" wx:elif="{{item.courseStyleMatched === false}}" data-course="{{item}}" catchtap="onBookTap">
+                <text>不可预约</text>
+              </view>
               <view class="cd-book-btn" wx:else data-course="{{item}}" catchtap="onBookTap">
                 <text>预约</text>
               </view>

@@ -22,6 +22,8 @@ Page({
     storeList: [],
     selectedStoreId: '',
     selectedStoreName: '全部门店',
+    // 是否已选择具体门店（false=全部门店，门店功能置灰）
+    hasStoreSelected: false,
   },
 
   onShow() {
@@ -76,15 +78,18 @@ Page({
       // 单门店角色：固定所属门店，不显示选择器
       const defaultStoreId = app.getDefaultStoreId();
       app.globalData.shopStoreId = defaultStoreId;
+      const storeList = app.globalData.storeList || [];
+      const matched = storeList.find(s => String(s._id) === String(defaultStoreId));
       this.setData({
         showStoreSwitcher: false,
         selectedStoreId: defaultStoreId,
-        selectedStoreName: '',
+        selectedStoreName: matched ? matched.name : '',
+        hasStoreSelected: true,
       });
       return;
     }
 
-    // 多门店角色/超管：显示选择器
+    // 超管/审核员/多门店店长：显示选择器
     try {
       let storeList = app.globalData.storeList || [];
       if (storeList.length === 0) {
@@ -93,10 +98,10 @@ Page({
         app.globalData.storeList = storeList;
       }
 
-      // 恢复上次选择，否则默认"全部门店"
+      // 优先从全局统一门店选择恢复（与首页/运营/会员共享）
       const savedStoreId = app.globalData.shopStoreId || '';
       let selectedStoreId = '';
-      let selectedStoreName = '全部门店';
+      let selectedStoreName = '';
 
       if (savedStoreId) {
         const matched = storeList.find(s => String(s._id) === String(savedStoreId));
@@ -106,13 +111,20 @@ Page({
         }
       }
 
+      // 全局无选中：默认选中第一个门店（公共功能在任意门店下都显示，不再需要"全部门店"状态）
+      if (!selectedStoreId && storeList.length > 0) {
+        selectedStoreId = String(storeList[0]._id);
+        selectedStoreName = storeList[0].name;
+        app.globalData.shopStoreId = selectedStoreId;
+      }
+
       this.setData({
         showStoreSwitcher: true,
         storeList,
         selectedStoreId,
         selectedStoreName,
+        hasStoreSelected: !!selectedStoreId,
       });
-      app.globalData.shopStoreId = selectedStoreId;
     } catch (err) {
       console.error('加载门店列表失败', err);
     }
@@ -121,22 +133,34 @@ Page({
   // 点击门店选择器
   onStoreSwitcherTap() {
     if (!this.data.storeList.length) return;
-    const items = ['全部门店', ...this.data.storeList.map(s => s.name)];
+    // 店务管理不提供"全部门店"选项：公共功能在任意门店下都显示
+    const items = this.data.storeList.map(s => s.name);
     wx.showActionSheet({
       itemList: items,
       success: (res) => {
         const idx = res.tapIndex;
-        if (idx === 0) {
-          // 全部门店
-          this.setData({ selectedStoreId: '', selectedStoreName: '全部门店' });
-          app.globalData.shopStoreId = '';
-        } else {
-          const store = this.data.storeList[idx - 1];
-          this.setData({ selectedStoreId: String(store._id), selectedStoreName: store.name });
-          app.globalData.shopStoreId = String(store._id);
-        }
+        const store = this.data.storeList[idx];
+        if (!store) return;
+        this.setData({
+          selectedStoreId: String(store._id),
+          selectedStoreName: store.name,
+          hasStoreSelected: true
+        });
+        app.globalData.shopStoreId = String(store._id);
       }
     });
+  },
+
+  // 门店功能点击拦截：未选择门店时提示
+  onStoreMenuTap(e) {
+    if (!this.data.hasStoreSelected) {
+      wx.showToast({ title: '请选择门店后使用', icon: 'none' });
+      return;
+    }
+    const handler = e.currentTarget.dataset.handler;
+    if (handler && typeof this[handler] === 'function') {
+      this[handler]();
+    }
   },
 
   onGoToStoreMaintenance() {
@@ -181,5 +205,26 @@ Page({
 
   onGoToAnnouncements() {
     wx.navigateTo({ url: '/package-shop/pages/announcements/announcements' });
+  },
+
+  // ==================== 公共功能（独立页面） ====================
+  onGoToPublicImages() {
+    wx.navigateTo({ url: '/package-shop/pages/public-images/public-images' });
+  },
+
+  onGoToPublicBanner() {
+    wx.navigateTo({ url: '/package-shop/pages/public-banner/public-banner' });
+  },
+
+  onGoToPublicAnnouncements() {
+    wx.navigateTo({ url: '/package-shop/pages/public-announcements/public-announcements' });
+  },
+
+  onGoToPublicCoaches() {
+    wx.navigateTo({ url: '/package-shop/pages/public-coaches/public-coaches' });
+  },
+
+  onGoToDanceStyles() {
+    wx.navigateTo({ url: '/package-shop/pages/dance-styles/dance-styles' });
   },
 });

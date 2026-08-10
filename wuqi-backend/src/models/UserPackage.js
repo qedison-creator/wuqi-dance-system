@@ -15,6 +15,9 @@ const userPackageSchema = new mongoose.Schema({
   original_end_date: { type: Date },
   daily_limit: { type: Number },
   weekly_limit: { type: Number },
+  monthly_limit: { type: Number },
+  // 舞种限制：空数组=不限舞种；非空=仅限这些舞种的课程可预约
+  dance_style_limit: [{ type: mongoose.Schema.Types.ObjectId, ref: 'DanceStyle' }],
   used_count_current_period: { type: Number, default: 0 },
   period_start_date: { type: Date },
   // 激活相关
@@ -47,7 +50,7 @@ const userPackageSchema = new mongoose.Schema({
   package_snapshot: {
     name: { type: String, default: '' },
   },
-}, { timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' } });
+}, { timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' }, strictPopulate: false });
 
 userPackageSchema.index({ user_id: 1, status: 1 });
 userPackageSchema.index({ user_id: 1, store_id: 1, status: 1 });

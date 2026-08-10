@@ -1,0 +1,59 @@
+<page-meta page-style="{{showDanceStyleModal ? 'overflow: hidden;' : ''}}"/>
+<view class="dance-styles-page">
+  <!-- 页面头部 -->
+  <view class="page-header">
+    <text class="page-title">舞种管理（公共功能）</text>
+  </view>
+
+  <!-- 舞种列表 -->
+  <view class="section-header">
+    <text class="text-heading">舞种列表</text>
+    <view class="add-btn" wx:if="{{isSuperAdmin}}" bindtap="onAddDanceStyle">
+      <text>+ 新增舞种</text>
+    </view>
+  </view>
+
+  <view class="dance-style-list" wx:if="{{danceStyles.length > 0}}">
+    <view class="dance-style-item card" wx:for="{{danceStyles}}" wx:key="_id">
+      <view class="dance-style-info">
+        <text class="dance-style-name">{{item.name}}</text>
+        <text class="dance-style-order">排序: {{item.sort_order || 0}}</text>
+      </view>
+      <view class="dance-style-actions" wx:if="{{isSuperAdmin}}">
+        <view class="action-btn-small" data-index="{{index}}" bindtap="onEditDanceStyle">
+          <text>编辑</text>
+        </view>
+        <view class="action-btn-small danger" data-index="{{index}}" bindtap="onDeleteDanceStyle">
+          <text>删除</text>
+        </view>
+      </view>
+    </view>
+  </view>
+  <view class="empty-state" wx:else>
+    <text class="empty-text">暂无舞种</text>
+    <view class="add-btn" wx:if="{{isSuperAdmin}}" bindtap="onAddDanceStyle"><text>+ 新增舞种</text></view>
+  </view>
+
+  <!-- 新增/编辑舞种弹窗 -->
+  <view class="modal-mask" wx:if="{{showDanceStyleModal}}" bindtap="onCloseDanceStyleModal">
+    <view class="modal-content" catchtap="onModalTap">
+      <view class="modal-header">
+        <text class="modal-title">{{danceStyleForm._id ? '编辑舞种' : '新增舞种'}}</text>
+        <text class="modal-close" bindtap="onCloseDanceStyleModal">×</text>
+      </view>
+      <view class="form-group">
+        <text class="form-label">舞种名称 *</text>
+        <input class="input-field" placeholder="请输入舞种名称" value="{{danceStyleForm.name}}" data-field="name" bindinput="onDanceStyleInput" />
+      </view>
+      <view class="form-group">
+        <text class="form-label">排序（数字越小越靠前）</text>
+        <input class="input-field" type="number" placeholder="0" value="{{danceStyleForm.sort_order}}" data-field="sort_order" bindinput="onDanceStyleInput" />
+      </view>
+      <view class="modal-buttons">
+        <view class="btn-secondary" bindtap="onCloseDanceStyleModal"><text>取消</text></view>
+        <view class="btn-primary" bindtap="onSubmitDanceStyle"><text>确认</text></view>
+      </view>
+    </view>
+  </view>
+
+</view>

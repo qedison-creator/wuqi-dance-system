@@ -85,7 +85,12 @@
         "pages/holidays/holidays",
         "pages/announcements/announcements",
         "pages/salary/salary",
-        "pages/schedule-export-bg/schedule-export-bg"
+        "pages/schedule-export-bg/schedule-export-bg",
+        "pages/public-images/public-images",
+        "pages/public-banner/public-banner",
+        "pages/public-announcements/public-announcements",
+        "pages/public-coaches/public-coaches",
+        "pages/dance-styles/dance-styles"
       ]
     },
     {

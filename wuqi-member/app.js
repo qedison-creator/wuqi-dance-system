@@ -39,6 +39,10 @@ App({
         setTimeout(() => {
           this.getUserInfo(false, 0, true).then(resolve).catch(resolve);
         }, 500);
+      }).then(() => {
+        this._initDone = true;
+      }).catch(() => {
+        this._initDone = true;
       });
     } else {
       this.globalData._initPromise = Promise.resolve();
@@ -53,6 +57,13 @@ App({
     this._updateEntryScene(options);
     // 热启动时检查是否需要刷新用户信息（5分钟缓存控制）
     if (this.globalData.token) {
+      // 冷启动时 onLaunch 已通过延迟 500ms 的 silent getUserInfo 处理（_initPromise 未 resolve），
+      // 此处跳过避免重复请求并发 401，并防止 silent=false 的调用误弹"网络连接失败"
+      if (this.globalData._initPromise &&
+          typeof this.globalData._initPromise.then === 'function' &&
+          !this._initDone) {
+        return;
+      }
       const now = Date.now();
       if (!this.globalData.userInfo ||
           (now - this.globalData.userInfoLastFetch > 5 * 60 * 1000)) {
@@ -384,24 +395,56 @@ App({
     // 记录候选门店，供位置授权成功后匹配使用（套餐会员的候选门店可能是套餐门店子集）
     this.globalData.storeMatchCandidates = candidateStores;
 
-    // 先用第一个门店作为临时默认（避免异步等待期间无门店可用）
-    this.setStore(candidateStores[0]);
-
-    // 检查位置授权状态，决定后续行为
     const that = this;
+
+    // 先检查是否有缓存的用户坐标：有则直接用缓存坐标匹配最近门店，无需等待异步授权
+    const cachedCoords = wx.getStorageSync('userCoords');
+    if (cachedCoords && cachedCoords.latitude && cachedCoords.longitude) {
+      const nearest = this._findNearestStoreByCoords(cachedCoords.latitude, cachedCoords.longitude, candidateStores);
+      if (nearest) {
+        this.setStore(nearest);
+        // 已授权用户：静默更新位置（后台获取最新坐标，下次启动使用）
+        this.globalData.pendingRelocate = true;
+        return;
+      }
+    }
+
+    // 无缓存坐标：检查位置授权状态
     wx.getSetting({
       success(settingRes) {
         const authStatus = settingRes.authSetting['scope.userFuzzyLocation'];
         if (authStatus === true) {
-          // 已授权 → 标记需要重新定位（首页 onShow 时静默调用 wx.getFuzzyLocation，无弹窗）
-          that.globalData.pendingRelocate = true;
+          // 已授权 → 立即获取位置匹配最近门店（不等首页 onShow）
+          wx.getFuzzyLocation({
+            type: 'gcj02',
+            success(res) {
+              wx.setStorageSync('userCoords', {
+                latitude: res.latitude,
+                longitude: res.longitude
+              });
+              const nearest = that._findNearestStoreByCoords(res.latitude, res.longitude, candidateStores);
+              if (nearest) {
+                that.setStore(nearest);
+              } else {
+                // 坐标计算失败，回退到第一个门店
+                that.setStore(candidateStores[0]);
+              }
+            },
+            fail() {
+              // 定位失败，回退到第一个门店，并标记待重定位（首页 onShow 时重试）
+              that.setStore(candidateStores[0]);
+              that.globalData.pendingRelocate = true;
+            }
+          });
         } else {
-          // 未授权（从未询问或拒绝过）→ 标记待引导授权
+          // 未授权（从未询问或拒绝过）→ 先用第一个门店作为临时默认，标记待引导授权
+          that.setStore(candidateStores[0]);
           that.globalData.pendingLocationAuth = true;
         }
       },
       fail() {
-        // getSetting 失败，回退到引导授权
+        // getSetting 失败，回退到第一个门店 + 引导授权
+        that.setStore(candidateStores[0]);
         that.globalData.pendingLocationAuth = true;
       }
     });
@@ -557,9 +600,18 @@ App({
       return;
     }
     wx.removeStorageSync('token');
+    wx.removeStorageSync('currentStore');  // 清除缓存门店，防止被删除会员的旧门店影响游客定位
+    wx.removeStorageSync('userCoords');    // 清除缓存坐标，让游客重新定位
     this.globalData.token = '';
     this.globalData.userInfo = null;
     this.globalData.userInfoLastFetch = 0;
+    this.globalData.currentStore = null;
+    this.globalData.defaultStoreSet = false;
+    this.globalData.userManuallySelectedStore = false;
+    this.globalData.pendingRelocate = false;
+    this.globalData.pendingLocationAuth = false;
+    // 登录状态令牌自增，通知所有页面强制刷新数据（清除旧会员的缓存数据）
+    this.globalData.loginStateToken = (this.globalData.loginStateToken || 0) + 1;
 
     if (!silent) {
       wx.showToast({ title: message, icon: 'none', duration: 2000 });

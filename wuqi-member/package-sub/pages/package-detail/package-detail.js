@@ -71,6 +71,13 @@ Page({
             }
           }
         }
+        // 舞种限制展示文本：populate 后是 [{_id, name}]，空数组=不限舞种
+        var dsl = Array.isArray(pkg.dance_style_limit) ? pkg.dance_style_limit : [];
+        if (dsl.length > 0) {
+          pkg._danceStyleLimitText = dsl.map(function(ds) { return (ds && ds.name) ? ds.name : ''; }).filter(Boolean).join('、');
+        } else {
+          pkg._danceStyleLimitText = '';
+        }
       });
       
       this.setData({

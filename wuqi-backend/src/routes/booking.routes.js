@@ -199,9 +199,18 @@ router.post('/check-in', auth, checkPermission(['super_admin', 'store_manager', 
       return res.status(400).json({ code: 400, message: '缺少schedule_id参数', data: null });
     }
 
+    // 区分签到方式：
+    //   - onsite=true：现场临时签到（无预约，管理员补签）→ 'onsite'
+    //   - 有 encrypted_token：扫码签到（管理员扫会员二维码）→ 'scan'
+    //   - 其他：管理员代签（已预约会员，课程日志直接点签到）→ 'admin'
+    const isOnsiteFlag = !!onsite;
+    const checkInMethod = isOnsiteFlag
+      ? 'onsite'
+      : (encrypted_token ? 'scan' : 'admin');
+
     const results = [];
     for (const sid of ids) {
-      const booking = await bookingService.checkIn(sid, userId, req.user.id, !!onsite);
+      const booking = await bookingService.checkIn(sid, userId, req.user.id, isOnsiteFlag, checkInMethod);
       results.push(booking);
     }
 

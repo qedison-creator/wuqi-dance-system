@@ -5,6 +5,7 @@ const authService = require('../services/auth.service');
 const User = require('../models/User');
 const { success } = require('../utils/response');
 const config = require('../config');
+const jwt = require('jsonwebtoken');
 
 // POST /api/v1/auth/wx-login
 router.post('/wx-login', async (req, res, next) => {

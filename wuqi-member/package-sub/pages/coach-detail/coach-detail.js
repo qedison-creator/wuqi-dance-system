@@ -80,7 +80,8 @@ Page({
     completedScheduleIds: [],
     isRestrictedUser: false,
     restrictedReason: '',
-    memberPackageStoreIds: []
+    memberPackageStoreIds: [],
+    memberPackageDanceStyleIds: []
   },
 
   onLoad(options) {
@@ -139,9 +140,11 @@ Page({
       const restrictedReason = this._computeRestrictedReason(authData, data);
       const isRestrictedUser = !!restrictedReason;
       this.setData({ isRestrictedUser, restrictedReason });
-      // 保存套餐门店列表
+      // 保存套餐门店列表 + 舞种限制
       const packages = data.history || [];
       const storeIds = new Set();
+      const hasAnyUnlimitedDance = { value: false };
+      const danceStyleIdSet = new Set();
       packages.forEach(pkg => {
         if (pkg.store_id) {
           const sid = typeof pkg.store_id === 'string' ? pkg.store_id : (pkg.store_id._id || pkg.store_id);
@@ -154,25 +157,41 @@ Page({
             if (sid) storeIds.add(String(sid));
           });
         }
+        // 舞种限制：空数组=不限舞种
+        const dsl = Array.isArray(pkg.dance_style_limit) ? pkg.dance_style_limit : [];
+        if (dsl.length === 0) {
+          hasAnyUnlimitedDance.value = true;
+        } else {
+          dsl.forEach(ds => {
+            const did = typeof ds === 'string' ? ds : (ds && (ds._id || ds.id) ? String(ds._id || ds.id) : '');
+            if (did) danceStyleIdSet.add(did);
+          });
+        }
       });
-      this.setData({ memberPackageStoreIds: Array.from(storeIds) });
-      // 套餐门店列表加载完成后，重新校准已加载课程列表的 courseStoreMatched 字段
+      const memberPackageDanceStyleIds = hasAnyUnlimitedDance.value ? [] : Array.from(danceStyleIdSet);
+      this.setData({ memberPackageStoreIds: Array.from(storeIds), memberPackageDanceStyleIds });
+      // 套餐门店列表加载完成后，重新校准已加载课程列表的 courseStoreMatched / courseStyleMatched 字段
       // 解决 onLoad 中 loadCoachDetail 与 loadUserPackages 并行调用导致 memberPackageStoreIds 为空时计算错误的问题
       this._recalcCoursesStoreMatched();
       this.loadCompletedBookings();
     }).catch(() => {});
   },
 
-  // 重新校准已加载课程的门店匹配状态（解决并行加载导致 memberPackageStoreIds 滞后的问题）
+  // 重新校准已加载课程的门店匹配状态 + 舞种匹配状态（解决并行加载导致 memberPackageStoreIds 滞后的问题）
   _recalcCoursesStoreMatched() {
     const courses = this.data.courses;
     if (!courses || courses.length === 0) return;
     const storeIds = this.data.memberPackageStoreIds || [];
+    const danceStyleIds = this.data.memberPackageDanceStyleIds || [];
     const updated = courses.map(course => {
       const courseStoreId = course.store_id ? (typeof course.store_id === 'string' ? course.store_id : (course.store_id._id || course.store_id)) : '';
+      const courseDanceStyleId = course.danceStyleId ? String(course.danceStyleId) : '';
+      // 舞种限制：空数组=不限舞种，所有课程都匹配；课程无舞种ID时也不拦截
+      const courseStyleMatched = danceStyleIds.length === 0 || !courseDanceStyleId || danceStyleIds.indexOf(courseDanceStyleId) !== -1;
       return {
         ...course,
-        courseStoreMatched: !courseStoreId || storeIds.includes(String(courseStoreId))
+        courseStoreMatched: !courseStoreId || storeIds.includes(String(courseStoreId)),
+        courseStyleMatched: courseStyleMatched
       };
     });
     this.setData({ courses: updated });
@@ -212,8 +231,10 @@ Page({
         if (!hasOtherValidPackage) {
           const dailyExhausted = timeCardUsage.daily_remaining === 0 && timeCardUsage.daily_limit > 0;
           const weeklyExhausted = timeCardUsage.weekly_remaining === 0 && timeCardUsage.weekly_limit > 0;
+          const monthlyExhausted = timeCardUsage.monthly_remaining === 0 && timeCardUsage.monthly_limit > 0;
           if (dailyExhausted) return '今日次数已用完，请明天再约';
           if (weeklyExhausted) return '本周次数已用完，请下周再约';
+          if (monthlyExhausted) return '本月次数已用完，请下月再约';
         }
       }
       return '';
@@ -333,7 +354,15 @@ Page({
         : [];
       const danceStyleText = danceStyleNames.join(' / ');
 
-      this.setData({ coach, danceStyleText });
+      // 教练相册：使用后端在 /coaches/:id 返回的 images 字段（Image 模型，通过 coach_ids 关联）
+      const rawImages = Array.isArray(coachData.images) ? coachData.images : [];
+      const images = rawImages.map(img => ({
+        _id: img._id ? String(img._id) : `img_${Math.random()}`,
+        image_url: normalizeImageUrl(img.image_url, SERVER_BASE),
+        thumbnail_url: normalizeImageUrl(img.thumbnail_url || img.image_url, SERVER_BASE)
+      })).filter(img => img.image_url);
+
+      this.setData({ coach, danceStyleText, images, imageUrls: images.map(i => i.image_url) });
 
       wx.setNavigationBarTitle({ title: coach.name });
 
@@ -363,6 +392,7 @@ Page({
         return s.date >= today && s.date <= endDateStr;
       }).map(schedule => {
         const danceStyleName = schedule.dance_style_id && schedule.dance_style_id.name ? schedule.dance_style_id.name : '';
+        const danceStyleId = schedule.dance_style_id && schedule.dance_style_id._id ? String(schedule.dance_style_id._id) : (schedule.dance_style_id ? String(schedule.dance_style_id) : '');
         const tagColor = getDanceTagColor(danceStyleName);
         const weekday = getWeekday(schedule.date);
         // 使用年月日构造日期对象，消除时分秒对天数差计算的干扰
@@ -389,6 +419,9 @@ Page({
         // 判断课程门店是否匹配会员套餐门店
         const courseStoreId = schedule.store_id ? (typeof schedule.store_id === 'string' ? schedule.store_id : (schedule.store_id._id || schedule.store_id)) : '';
         const courseStoreMatched = !courseStoreId || this.data.memberPackageStoreIds.includes(String(courseStoreId));
+        // 判断课程舞种是否匹配会员套餐舞种限制
+        const memberDanceStyleIds = this.data.memberPackageDanceStyleIds || [];
+        const courseStyleMatched = memberDanceStyleIds.length === 0 || !danceStyleId || memberDanceStyleIds.indexOf(danceStyleId) !== -1;
         // 归一化已预约会员头像 URL
         const rawBookedUsers = Array.isArray(schedule.booked_users) ? schedule.booked_users : [];
         const booked_users = rawBookedUsers.map(u => ({
@@ -399,6 +432,7 @@ Page({
           ...schedule,
           _id: String(schedule._id),
           danceStyleName,
+          danceStyleId,
           danceTagBg: tagColor.bg,
           danceTagText: tagColor.text,
           weekday,
@@ -407,6 +441,7 @@ Page({
           _ended,
           _ongoing,
           courseStoreMatched,
+          courseStyleMatched,
           booked_users
         };
       });
@@ -419,7 +454,6 @@ Page({
     
     this.loadMyBookings();
     this.loadMyWaitlists();
-    this.loadCoachImages(id);
 
     return Promise.all([coachPromise, schedulesPromise])
       .then(() => {
@@ -429,21 +463,6 @@ Page({
         console.error('[CoachDetail] 加载数据出错:', err);
         this.setData({ loading: false });
       });
-  },
-
-  loadCoachImages(coachId) {
-    request({ url: `/images?coach_id=${coachId}&pageSize=100`, silent: true }).then(res => {
-      const data = res.data || {};
-      const list = data.list || (Array.isArray(data) ? data : []);
-      const images = list.map(img => ({
-        ...img,
-        image_url: normalizeImageUrl(img.image_url, SERVER_BASE),
-        thumbnail_url: normalizeImageUrl(img.thumbnail_url, SERVER_BASE)
-      }));
-      this.setData({ images, imageUrls: images.map(i => i.image_url) });
-    }).catch(() => {
-      this.setData({ images: [] });
-    });
   },
 
   onCourseTap(e) {
@@ -504,6 +523,18 @@ Page({
         wx.showModal({
           title: '提示',
           content: '您未办理该门店的套餐，无法预约此课程。',
+          showCancel: false,
+          confirmText: '知道了',
+          confirmColor: '#D4786E'
+        });
+        return;
+      }
+
+      // 舞种限制：套餐限制了允许预约的舞种，该课程舞种不在允许范围内
+      if (course.courseStyleMatched === false) {
+        wx.showModal({
+          title: '舞种限制',
+          content: `您的套餐仅限预约指定舞种的课程，该课程不在可预约范围内。`,
           showCancel: false,
           confirmText: '知道了',
           confirmColor: '#D4786E'
@@ -680,6 +711,7 @@ Page({
         return s.date >= today && s.date <= endDateStr;
       }).map(schedule => {
         const danceStyleName = schedule.dance_style_id && schedule.dance_style_id.name ? schedule.dance_style_id.name : '';
+        const danceStyleId = schedule.dance_style_id && schedule.dance_style_id._id ? String(schedule.dance_style_id._id) : (schedule.dance_style_id ? String(schedule.dance_style_id) : '');
         const tagColor = getDanceTagColor(danceStyleName);
         const weekday = getWeekday(schedule.date);
         // 计算课程状态
@@ -700,17 +732,22 @@ Page({
         // 判断课程门店是否匹配
         const courseStoreId = schedule.store_id ? (typeof schedule.store_id === 'string' ? schedule.store_id : (schedule.store_id._id || schedule.store_id)) : '';
         const courseStoreMatched = !courseStoreId || this.data.memberPackageStoreIds.includes(String(courseStoreId));
+        // 判断课程舞种是否匹配会员套餐舞种限制
+        const memberDanceStyleIds = this.data.memberPackageDanceStyleIds || [];
+        const courseStyleMatched = memberDanceStyleIds.length === 0 || !danceStyleId || memberDanceStyleIds.indexOf(danceStyleId) !== -1;
         return {
           ...schedule,
           _id: String(schedule._id),
           danceStyleName,
+          danceStyleId,
           danceTagBg: tagColor.bg,
           danceTagText: tagColor.text,
           weekday,
           _started,
           _ended,
           _ongoing,
-          courseStoreMatched
+          courseStoreMatched,
+          courseStyleMatched
         };
       });
       this.setData({ courses });

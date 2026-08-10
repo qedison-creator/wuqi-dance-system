@@ -13,9 +13,7 @@ const errorHandler = (err, req, res, next) => {
   console.error(`路径: ${req.method} ${req.path}`);
   console.error(`时间: ${new Date().toISOString()}`);
   console.error(`信息: ${err.message}`);
-  if (config.isDev) {
-    console.error(`堆栈: ${err.stack}`);
-  }
+  console.error(`堆栈: ${err.stack}`);
 
   // Mongoose 验证错误
   if (err.name === 'ValidationError') {

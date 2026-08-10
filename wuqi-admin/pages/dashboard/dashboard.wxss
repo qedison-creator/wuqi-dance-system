@@ -163,6 +163,103 @@
   color: #C4B3A4;
 }
 
+/* ===== 超管门店空间切换 ===== */
+.hf-store-group {
+  display: flex;
+  align-items: center;
+  margin-left: 16rpx;
+}
+
+.hf-exit-btn {
+  padding: 8rpx 16rpx;
+  background: rgba(196, 75, 75, 0.9);
+  border-radius: 28rpx;
+  margin-left: 10rpx;
+  box-shadow: 0 2rpx 8rpx rgba(0,0,0,0.25);
+}
+
+.hf-exit-btn:active {
+  opacity: 0.85;
+}
+
+.hf-exit-text {
+  font-size: 20rpx;
+  color: #fff;
+  white-space: nowrap;
+}
+
+/* ===== 平台模式门店卡片列表 ===== */
+.store-cards-section {
+  margin: 0 20rpx 20rpx;
+}
+
+.store-card-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16rpx;
+}
+
+.store-card-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 28rpx 28rpx;
+  background: #fff;
+  border-radius: 20rpx;
+  box-shadow: 0 2rpx 12rpx rgba(44,36,22,0.06);
+}
+
+.store-card-item:active {
+  background: #FAF6F2;
+}
+
+.sci-left {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  min-width: 0;
+}
+
+.sci-icon {
+  font-size: 36rpx;
+  color: #D4786E;
+  margin-right: 20rpx;
+  flex-shrink: 0;
+}
+
+.sci-info {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+
+.sci-name {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #2C2416;
+  margin-bottom: 6rpx;
+}
+
+.sci-addr {
+  font-size: 22rpx;
+  color: #A89989;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sci-right {
+  flex-shrink: 0;
+  margin-left: 16rpx;
+}
+
+.sci-enter {
+  font-size: 26rpx;
+  color: #D4786E;
+  font-weight: 500;
+}
+
 /* ===== Bento Stats Grid ===== */
 .stats {
   display: flex;

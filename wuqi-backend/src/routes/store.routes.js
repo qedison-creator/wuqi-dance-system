@@ -5,6 +5,7 @@ const checkPermission = require('../middleware/permission');
 const Store = require('../models/Store');
 const { success, error } = require('../utils/response');
 const { getAllowedStoreIds } = require('../utils/storeOwnership');
+const { broadcastStoreUpdate } = require('../services/websocket.service');
 
 // GET /api/v1/stores - 获取门店列表
 // 公开访问（会员端也调用），管理端请求带 Authorization 时按角色过滤门店
@@ -131,6 +132,8 @@ router.put('/:id', auth, checkPermission(['super_admin', 'store_manager']), asyn
     if (!store) {
       return res.status(404).json({ code: 404, message: '门店不存在', data: null });
     }
+    // 广播门店更新事件，通知管理端首页刷新门店相关数据
+    broadcastStoreUpdate({ storeId: String(store._id), storeName: store.name, action: 'update' });
     res.json(success(store, '编辑门店成功'));
   } catch (err) {
     next(err);

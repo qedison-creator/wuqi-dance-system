@@ -1,18 +1,12 @@
 <view class="page {{showPackageModal || showReviewModal ? 'page-scroll-disabled' : ''}}">
   <!-- 顶部固定区域：门店筛选 + 统计 + 搜索 + 筛选标签 -->
   <view class="sticky-header">
-    <view class="store-bar" wx:if="{{showStoreSwitcher}}">
-      <text class="store-bar-label">门店</text>
-      <scroll-view class="store-scroll" scroll-x enhanced show-scrollbar="{{false}}" enable-flex>
-        <view class="store-chips">
-          <view class="store-chip {{currentStoreId === '' ? 'store-chip-active' : ''}}" data-id="" bindtap="onStoreFilterChange">
-            <text class="store-chip-text">全部</text>
-          </view>
-          <view class="store-chip {{currentStoreId === item._id ? 'store-chip-active' : ''}}" wx:for="{{storeList}}" wx:key="_id" data-id="{{item._id}}" bindtap="onStoreFilterChange">
-            <text class="store-chip-text">{{item.name}}</text>
-          </view>
-        </view>
-      </scroll-view>
+    <view class="store-switcher-bar" wx:if="{{showStoreSwitcher}}" bindtap="onStoreSwitcherTap">
+      <view class="store-switcher-inner">
+        <image class="store-switcher-icon" src="/images/icons/shop-store.svg" mode="aspectFit" decoding="async"></image>
+        <text class="store-switcher-name">{{currentStoreName}}</text>
+        <image class="store-switcher-arrow" src="/images/icons/chevron-right.svg" mode="aspectFit" decoding="async"></image>
+      </view>
     </view>
 
     <view class="stats-section">
@@ -98,6 +92,9 @@
         </view>
         <view class="member-card-bottom" wx:if="{{item.package_info}}">
           <text class="meta-text">{{item.package_info}}</text>
+          <view class="dance-style-tag" wx:if="{{item.package_dance_style_text}}">
+            <text class="dance-style-tag-text">舞种限制：{{item.package_dance_style_text}}</text>
+          </view>
         </view>
         <view class="member-actions">
           <view class="member-action-btn member-action-contact" wx:if="{{!item.has_package}}" catchtap="onAddPackage" data-member="{{item}}">
@@ -110,9 +107,10 @@
         </view>
     </view>
     <!-- 查看更多按钮（在列表内部，跟随内容流动） -->
-    <view class="expand-toggle" wx:if="{{!loading && hasMore}}" bindtap="onLoadMore">
-      <text>查看更多 ({{currentTotal - visibleCount}}位)</text>
-      <view class="toggle-arrow down"></view>
+    <view class="expand-toggle {{loadingMore ? 'expand-toggle-loading' : ''}}" wx:if="{{!loading && hasMore}}" bindtap="onLoadMore">
+      <text wx:if="{{!loadingMore}}">查看更多 ({{currentTotal - visibleCount}}位)</text>
+      <text wx:else>加载中...</text>
+      <view class="toggle-arrow down" wx:if="{{!loadingMore}}"></view>
     </view>
     <!-- 没有更多数据提示 -->
     <view class="no-more" wx:if="{{!hasMore && !loading && currentTotal > 0}}">
@@ -205,23 +203,43 @@
       </view>
 
       <view class="form-group" wx:if="{{packageForm.package_type === 'time_card'}}">
-        <text class="form-label">限制方式 *</text>
+        <text class="form-label">次数限制 *</text>
         <view class="package-type-selector">
-          <view class="type-option {{packageForm.limit_type === 'daily' ? 'active' : ''}}" data-type="daily" bindtap="onPackageLimitTypeChange">
-            <text>每日限制</text>
-          </view>
-          <view class="type-option {{packageForm.limit_type === 'weekly' ? 'active' : ''}}" data-type="weekly" bindtap="onPackageLimitTypeChange">
-            <text>每周限制</text>
+          <view class="type-option {{packageForm.limit_type === 'limited' ? 'active' : ''}}" data-type="limited" bindtap="onPackageLimitTypeChange">
+            <text>限制次数</text>
           </view>
           <view class="type-option {{packageForm.limit_type === 'unlimited' ? 'active' : ''}}" data-type="unlimited" bindtap="onPackageLimitTypeChange">
-            <text>无限次</text>
+            <text>不限</text>
           </view>
         </view>
       </view>
 
-      <view class="form-group" wx:if="{{packageForm.package_type === 'time_card' && packageForm.limit_type !== 'unlimited'}}">
-        <text class="form-label">{{packageForm.limit_type === 'daily' ? '每日限制' : '每周限制'}} *</text>
-        <input class="input-field" type="number" placeholder="{{packageForm.limit_type === 'daily' ? '每日限制次数' : '每周限制次数'}}" value="{{packageForm.limit_value}}" data-field="limit_value" bindinput="onPackageInput" />
+      <view class="form-group" wx:if="{{packageForm.package_type === 'time_card' && packageForm.limit_type === 'limited'}}">
+        <text class="form-label">周期类型 *</text>
+        <view class="package-type-selector">
+          <view class="type-option {{packageForm.limit_cycle === 'daily' ? 'active' : ''}}" data-type="daily" bindtap="onPackageLimitCycleChange">
+            <text>每日</text>
+          </view>
+          <view class="type-option {{packageForm.limit_cycle === 'weekly' ? 'active' : ''}}" data-type="weekly" bindtap="onPackageLimitCycleChange">
+            <text>每周</text>
+          </view>
+          <view class="type-option {{packageForm.limit_cycle === 'monthly' ? 'active' : ''}}" data-type="monthly" bindtap="onPackageLimitCycleChange">
+            <text>每月</text>
+          </view>
+        </view>
+      </view>
+
+      <view class="form-group" wx:if="{{packageForm.package_type === 'time_card' && packageForm.limit_type === 'limited'}}">
+        <text class="form-label">限制次数 *</text>
+        <input class="input-field" type="number" placeholder="请输入限制次数" value="{{packageForm.limit_value}}" data-field="limit_value" bindinput="onPackageInput" />
+      </view>
+
+      <view class="form-group">
+        <text class="form-label">能参与的舞种课程</text>
+        <view class="dance-style-picker" bindtap="onOpenDanceStylePicker">
+          <text class="dance-style-picker-text {{packageForm.dance_style_limit.length > 0 ? 'has-value' : ''}}">{{packageFormDanceStyleText || '不限舞种'}}</text>
+          <text class="dance-style-picker-arrow">›</text>
+        </view>
       </view>
 
       <view class="form-group">
@@ -231,5 +249,28 @@
 
       <button class="btn-primary submit-btn" bindtap="onSubmitPackage">确认录入</button>
     </view>
+  </view>
+</view>
+
+<!-- 舞种限制单选弹窗（门店选择器风格） -->
+<view class="modal-mask" wx:if="{{showDanceStylePicker}}" bindtap="onCloseDanceStylePicker">
+  <view class="store-picker-modal" catchtap="onModalTap">
+    <view class="spm-header">
+      <text class="spm-title">能参与的舞种课程</text>
+      <text class="spm-close" bindtap="onCloseDanceStylePicker">×</text>
+    </view>
+    <scroll-view class="spm-list" scroll-y enhanced show-scrollbar="{{false}}">
+      <!-- 不限舞种选项（默认选中） -->
+      <view class="spm-item {{selectedDanceStyleId === '' ? 'spm-active' : ''}}" data-id="" bindtap="onSelectDanceStyle">
+        <text class="spm-name">不限舞种</text>
+      </view>
+      <!-- 舞种列表 -->
+      <view class="spm-item {{selectedDanceStyleId === dsItem._id ? 'spm-active' : ''}}"
+            wx:for="{{danceStyleList}}" wx:key="_id" wx:for-item="dsItem"
+            data-id="{{dsItem._id}}" bindtap="onSelectDanceStyle">
+        <text class="spm-name">{{dsItem.name}}</text>
+      </view>
+      <view class="spm-empty" wx:if="{{danceStyleList.length === 0}}">暂无舞种，请先在店务管理-舞种管理中创建</view>
+    </scroll-view>
   </view>
 </view>

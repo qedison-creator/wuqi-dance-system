@@ -227,8 +227,8 @@ Page({
             weekday: this.getWeekday(d.date),
             // 横条统计：课程数（非记录数）
             totalCount: d.scheduleCount,
-            // 汇总数据（折叠时显示）
-            _summaryBooked: d.bookedCount + d.checkedInCount,
+            // 汇总数据（折叠时显示）：已预约 = 走过预约流程的人数（不含现场直接签到）
+            _summaryBooked: d.bookedCount,
             _summaryCheckedIn: d.checkedInCount,
             _summaryCancelled: d.cancelledCount,
             _summaryCourses: d.scheduleCount,
@@ -331,7 +331,8 @@ Page({
         course_name: scheduleObj.course_name || scheduleObj.name || '未知课程',
         coach_name: scheduleObj.coach_id && typeof scheduleObj.coach_id === 'object' ? scheduleObj.coach_id.name : '',
         store_name: storeObj ? storeObj.name : '',
-        max_bookings: scheduleObj.max_bookings || 0
+        max_bookings: scheduleObj.max_bookings || 0,
+        status: scheduleObj.status || ''
       },
       user_info: {
         _id: userId,
@@ -364,6 +365,16 @@ Page({
     return map[cancelType] || cancelType;
   },
 
+  getCheckInMethodText(method) {
+    const map = {
+      'scan': '扫码签到',
+      'auto': '自动签到',
+      'admin': '管理员签到',
+      'onsite': '现场签到'
+    };
+    return map[method] || '已签到';
+  },
+
   getWeekday(dateStr) {
     if (!dateStr || dateStr === '未知日期') return '';
     try {
@@ -378,6 +389,8 @@ Page({
     const currentYear = now.getFullYear();
     const currentMonth = now.getMonth() + 1;
     const yearMap = {};
+    // 因课程/admin原因取消的类型集合
+    const isCourseCancelType = (type) => ['admin_cancel', 'min_bookings_not_met', 'holiday', 'after_checkin_cancel'].includes(type);
 
     list.forEach(item => {
       const dateStr = item.schedule_info.date || '未知日期';
@@ -424,11 +437,32 @@ Page({
       const scheduleId = item.schedule_id;
       let schedule = dateGroup.schedules.find(s => s.schedule_id === scheduleId);
       if (!schedule) {
+        // 计算课程阶段：upcoming(待上课) / in_progress(上课中) / completed(已完成) / cancelled(已取消) / offline(已下线)
+        const sInfo = item.schedule_info || {};
+        let coursePhase = 'upcoming';
+        if (sInfo.status === 'cancelled') {
+          coursePhase = 'cancelled';
+        } else if (sInfo.status === 'completed') {
+          coursePhase = 'completed';
+        } else if (sInfo.status === 'offline') {
+          coursePhase = 'offline';
+        } else if (sInfo.date && sInfo.start_time) {
+          const now = new Date();
+          const startDateTime = new Date(`${sInfo.date}T${sInfo.start_time}:00+08:00`);
+          const endDateTime = sInfo.end_time ? new Date(`${sInfo.date}T${sInfo.end_time}:00+08:00`) : null;
+          if (now >= startDateTime && (!endDateTime || now <= endDateTime)) {
+            coursePhase = 'in_progress';
+          } else if (endDateTime && now > endDateTime) {
+            coursePhase = 'completed';
+          }
+        }
         schedule = {
           schedule_id: scheduleId,
           schedule_info: item.schedule_info,
+          _coursePhase: coursePhase,
           memberGroups: [],
           expanded: false,
+          activeSection: 'booked',
           // 三区块计数
           checkedInCount: 0,
           cancelledCount: 0,
@@ -439,11 +473,15 @@ Page({
 
       const userId = item.user_id_str;
       let memberGroup = schedule.memberGroups.find(mg => mg.user_id === userId);
-      // 因课程/admin原因取消的，仍算实际预约记录，不放入用户自行取消的 已取消 区块
-      const isCourseCancelType = (type) => ['admin_cancel', 'min_bookings_not_met', 'holiday', 'after_checkin_cancel'].includes(type);
       // 新规则3个分类：booked(已预约) / checkedIn(已签到) / cancelled(已取消)
-      const getDisplayStatus = (status, cancelType) => {
-        if (status === 'checked_in' || status === 'completed') return 'checkedIn';
+      // 现场直接签到（source='onsite'）仅计入已签到，不计入已预约
+      // 仅通过 source 判断，check_in_method='onsite' 不作为依据（已预约会员签到也可能被标记为onsite）
+      const isOnsiteCheckIn = (item) => item.source === 'onsite';
+      const getDisplayStatus = (status, cancelType, item) => {
+        if (status === 'checked_in' || status === 'completed') {
+          // 现场直接签到（无预约流程）仅计入已签到，不归入已预约
+          return 'checkedIn';
+        }
         if (status === 'cancelled' && isCourseCancelType(cancelType)) return 'booked';
         if (status === 'exempted') return 'cancelled';
         return status;
@@ -451,6 +489,7 @@ Page({
       if (!memberGroup) {
         const isCourseCancel = isCourseCancelType(item.cancel_type);
         const isExempted = item.status === 'exempted' || item.is_exempted;
+        const onsite = isOnsiteCheckIn(item);
         memberGroup = {
           user_id: userId,
           user_info: item.user_info,
@@ -467,7 +506,9 @@ Page({
           // 标记是否为豁免取消
           _isExempted: isExempted,
           // 标记是否已完成（区别于已签到）
-          _isCompleted: item.status === 'completed'
+          _isCompleted: item.status === 'completed',
+          // 标记是否为现场直接签到（无预约流程）
+          _isOnsite: onsite
         };
         schedule.memberGroups.push(memberGroup);
       }
@@ -475,6 +516,8 @@ Page({
       memberGroup.records.push({
         _id: item._id,
         status: item.status,
+        source: item.source || '',
+        check_in_method: item.check_in_method || '',
         created_at: item.created_at,
         created_at_display: item.created_at_display,
         cancel_time: item.cancel_time,
@@ -520,23 +563,48 @@ Page({
               mg._cancelCount = cancelCount;
               mg._hasRepeat = totalRecords > 1;
               mg._expanded = false;
+
+              // 计算三个分类标记（与运营管理页面 classifyBooking 逻辑一致）
+              // 已预约：booked + 走过预约流程的签到（排除onsite）+ 课程取消
+              // 已签到：checked_in + completed（含现场直接签到 onsite）
+              // 已取消：用户自行取消 + 豁免 + 课程取消
+              // 注意：同一个会员可以同时出现在多个分类中（如已签到的会员同时计入已预约）
+              mg._inBooked = mg.records.some(r =>
+                r.status === 'booked' ||
+                ((r.status === 'completed' || r.status === 'checked_in') && r.source !== 'onsite') ||
+                (r.status === 'cancelled' && isCourseCancelType(r.cancel_type))
+              );
+              mg._inCheckedIn = mg.records.some(r =>
+                r.status === 'completed' || r.status === 'checked_in'
+              );
+              mg._inCancelled = mg.records.some(r =>
+                r.status === 'cancelled' || r.status === 'exempted'
+              );
+
+              // 提取最新签到记录的扣次和签到方式（已签到区块显示用）
+              const checkInRecords = mg.records.filter(r => r.status === 'completed' || r.status === 'checked_in');
+              if (checkInRecords.length > 0) {
+                const latestCheckIn = checkInRecords[0];
+                mg._checkInCredits = latestCheckIn.credits_deducted || 0;
+                const method = latestCheckIn.check_in_method || (latestCheckIn.source === 'onsite' ? 'onsite' : 'scan');
+                mg._checkInMethodText = this.getCheckInMethodText(method);
+              }
             });
             // 分类计数（3个分类：已预约/已签到/已取消）
-            // 已预约：booked + 课程/admin取消的
-            // 已签到：checked_in + completed
-            // 已取消：用户自行取消 + 豁免
-            schedule.checkedInCount = schedule.memberGroups.filter(mg => mg.latestStatus === 'checkedIn').length;
-            schedule.cancelledCount = schedule.memberGroups.filter(mg => mg.latestStatus === 'cancelled').length;
-            schedule.bookedCount = schedule.memberGroups.filter(mg => mg.latestStatus === 'booked').length;
+            // 已预约 = 走过预约流程的人数（含已签到/已完成，不含现场直接签到）
+            // 已签到 = 已签到/已完成的人数（含现场直接签到）
+            // 已取消 = 用户取消 + 豁免 + 课程取消
+            schedule.bookedCount = schedule.memberGroups.filter(mg => mg._inBooked).length;
+            schedule.checkedInCount = schedule.memberGroups.filter(mg => mg._inCheckedIn).length;
+            schedule.cancelledCount = schedule.memberGroups.filter(mg => mg._inCancelled).length;
             schedule.courseCancelledCount = schedule.memberGroups.filter(mg => mg._isCourseCancel).length;
-            // 卡片预约人数：已预约 + 已签到
-            schedule.totalBookedDisplay = schedule.bookedCount + schedule.checkedInCount;
-            // 排序：checkedIn > cancelled > booked
-            schedule._sortedMemberGroups = [
-              ...schedule.memberGroups.filter(mg => mg.latestStatus === 'checkedIn'),
-              ...schedule.memberGroups.filter(mg => mg.latestStatus === 'cancelled'),
-              ...schedule.memberGroups.filter(mg => mg.latestStatus === 'booked')
-            ];
+            // 卡片预约人数：已预约（走过预约流程的，不含现场直接签到）
+            schedule.totalBookedDisplay = schedule.bookedCount;
+            // 排序：checkedIn > cancelled > booked（每个memberGroup只出现一次，靠分类标记区分）
+            schedule._sortedMemberGroups = schedule.memberGroups.slice().sort((a, b) => {
+              const order = (mg) => mg._inCheckedIn ? 0 : (mg._inCancelled ? 1 : 2);
+              return order(a) - order(b);
+            });
           });
           dg.schedules.sort((a, b) => {
             const timeA = a.schedule_info.start_time || '';
@@ -570,8 +638,8 @@ Page({
         mg.dates.forEach(dg => {
           dg.schedules.forEach(schedule => {
             totalCourses++;
-            // 总预约人数 = 已预约 + 已签到（排除已取消）
-            totalBookings += schedule.bookedCount + schedule.checkedInCount;
+            // 总预约人数 = 已预约（不含现场直接签到，与卡片统计口径一致）
+            totalBookings += schedule.totalBookedDisplay;
             checkedIn += schedule.checkedInCount;
             cancelled += schedule.cancelledCount;
           });
@@ -628,6 +696,28 @@ Page({
     const course = date && date.schedules[courseIndex];
     if (!course) return;
     course.expanded = !course.expanded;
+    // 展开时默认显示"已预约"区块
+    if (course.expanded && !course.activeSection) {
+      course.activeSection = 'booked';
+    }
+    this.setData({ yearGroups });
+  },
+
+  // 点击课程卡片的统计数字按钮，展开并切换到对应区块
+  onStatTabTap(e) {
+    const { yearIndex, monthIndex, dateIndex, courseIndex, section } = e.currentTarget.dataset;
+    const yearGroups = [...this.data.yearGroups];
+    const month = yearGroups[yearIndex] && yearGroups[yearIndex].months[monthIndex];
+    const date = month && month.dates[dateIndex];
+    const course = date && date.schedules[courseIndex];
+    if (!course) return;
+    // 如果已展开且同一区块，则收起；否则展开并切换到对应区块
+    if (course.expanded && course.activeSection === section) {
+      course.expanded = false;
+    } else {
+      course.expanded = true;
+      course.activeSection = section;
+    }
     this.setData({ yearGroups });
   },
 

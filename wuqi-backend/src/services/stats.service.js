@@ -488,7 +488,30 @@ exports.getDashboardData = async (storeId) => {
     })
   );
 
-  // 5. 会员套餐状态分布
+  // 5. 排课覆盖最远日期（用于首页"排课即将到期"提醒）
+  // 统计该门店未来所有有效排课中最远的一节课日期，计算距今剩余天数
+  // 排除已取消/下线/删除/已完成等无效状态
+  const scheduleCoverageFilter = {
+    date: { $gt: today },
+    status: { $in: ['available', 'full', 'not_open', 'in_progress'] },
+  };
+  if (storeId) scheduleCoverageFilter.store_id = storeId;
+
+  const latestSchedule = await Schedule.findOne(scheduleCoverageFilter)
+    .sort({ date: -1 })
+    .lean();
+
+  let scheduleCoverage = null;
+  if (latestSchedule) {
+    const latestDate = dayjs(latestSchedule.date);
+    const remainingDays = latestDate.diff(today, 'day');
+    scheduleCoverage = {
+      latest_date: latestSchedule.date,
+      remaining_days: remainingDays,
+    };
+  }
+
+  // 6. 会员套餐状态分布
   const packageStatusFilter = {};
   if (storeId) packageStatusFilter.store_id = storeId;
   
@@ -553,6 +576,7 @@ exports.getDashboardData = async (storeId) => {
     expiring_time_cards: expiringTimeCardMembers,
     count_card_alerts: countCardMembers,
     upcoming_schedules: upcomingCourses,
+    schedule_coverage: scheduleCoverage,
     package_status_distribution: packageDistribution,
     weekly_booking_trend: weeklyBookingTrend,
   };

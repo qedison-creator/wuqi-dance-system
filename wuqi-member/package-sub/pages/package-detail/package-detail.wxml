@@ -23,13 +23,21 @@
 
         <view class="pkg-row" wx:if="{{item.package_type === 'time_card'}}">
           <text class="pkg-label">使用限制</text>
-          <text class="pkg-val">{{item.daily_limit ? '每日' + item.daily_limit + '次' : (item.weekly_limit ? '每周' + item.weekly_limit + '次' : '不限次数')}}</text>
+          <text class="pkg-val">{{item.daily_limit ? '每日' + item.daily_limit + '次' : (item.weekly_limit ? '每周' + item.weekly_limit + '次' : (item.monthly_limit ? '每月' + item.monthly_limit + '次' : '不限次数'))}}</text>
         </view>
-        <view class="pkg-row" wx:if="{{item.package_type === 'time_card' && item.status === 'active' && item.timeCardUsage}}">
+        <view class="pkg-row" wx:if="{{item.package_type === 'time_card' && item.status === 'active' && item.timeCardUsage && item.timeCardUsage.daily_limit}}">
+          <text class="pkg-label">今日剩余</text>
+          <text class="pkg-val accent">{{item.timeCardUsage.daily_remaining}}次/{{item.timeCardUsage.daily_limit}}次</text>
+        </view>
+        <view class="pkg-row" wx:if="{{item.package_type === 'time_card' && item.status === 'active' && item.timeCardUsage && item.timeCardUsage.weekly_limit}}">
           <text class="pkg-label">本周剩余</text>
-          <text class="pkg-val accent">{{item.timeCardUsage.weekly_remaining !== null ? item.timeCardUsage.weekly_remaining + '次/' + item.timeCardUsage.weekly_limit + '次' : ''}}{{item.timeCardUsage.daily_remaining !== null ? ' · 今日' + item.timeCardUsage.daily_remaining + '次' : ''}}</text>
+          <text class="pkg-val accent">{{item.timeCardUsage.weekly_remaining}}次/{{item.timeCardUsage.weekly_limit}}次</text>
         </view>
-        <view class="pkg-row" wx:if="{{item.package_type === 'time_card' && item.status === 'active' && item.timeCardUsage && item.timeCardUsage.next_week_remaining !== null}}">
+        <view class="pkg-row" wx:if="{{item.package_type === 'time_card' && item.status === 'active' && item.timeCardUsage && item.timeCardUsage.monthly_limit}}">
+          <text class="pkg-label">本月剩余</text>
+          <text class="pkg-val accent">{{item.timeCardUsage.monthly_remaining}}次/{{item.timeCardUsage.monthly_limit}}次</text>
+        </view>
+        <view class="pkg-row" wx:if="{{item.package_type === 'time_card' && item.status === 'active' && item.timeCardUsage && item.timeCardUsage.weekly_limit && item.timeCardUsage.next_week_remaining !== null}}">
           <text class="pkg-label">下周剩余</text>
           <text class="pkg-val">{{item.timeCardUsage.next_week_remaining}}次/{{item.timeCardUsage.weekly_limit}}次</text>
         </view>
@@ -43,6 +51,16 @@
         <view class="pkg-row" wx:if="{{item.remaining_days !== null && item.remaining_days !== undefined}}">
           <text class="pkg-label"></text>
           <text class="pkg-val accent">剩余 {{item.remaining_days}} 天</text>
+        </view>
+
+        <!-- 舞种限制 -->
+        <view class="pkg-row" wx:if="{{item._danceStyleLimitText}}">
+          <text class="pkg-label">舞种限制</text>
+          <text class="pkg-val dance-limit">仅限：{{item._danceStyleLimitText}}</text>
+        </view>
+        <view class="pkg-row" wx:if="{{!item._danceStyleLimitText}}">
+          <text class="pkg-label">舞种限制</text>
+          <text class="pkg-val">不限舞种</text>
         </view>
       </view>
 

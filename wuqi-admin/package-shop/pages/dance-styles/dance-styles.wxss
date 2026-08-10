@@ -1,0 +1,151 @@
+.dance-styles-page {
+  padding: 20rpx;
+  padding-bottom: 40rpx;
+}
+
+/* 页面头部 */
+.page-header {
+  margin-bottom: 30rpx;
+}
+
+.page-title {
+  font-size: 32rpx;
+  color: var(--text-primary);
+  font-weight: bold;
+}
+
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20rpx;
+}
+
+.text-heading {
+  font-size: var(--font-lg);
+  color: var(--text-primary);
+  font-weight: 700;
+}
+
+.add-btn {
+  padding: 10rpx 24rpx;
+  background: var(--color-primary);
+  border-radius: var(--radius-lg);
+  font-size: 24rpx;
+  color: var(--text-inverse);
+  font-weight: bold;
+}
+
+/* 舞种列表 */
+.dance-style-list {
+  margin-top: 20rpx;
+}
+
+.dance-style-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 24rpx;
+  margin-bottom: 20rpx;
+}
+
+.dance-style-info {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+.dance-style-name {
+  font-size: 30rpx;
+  color: var(--text-primary);
+  font-weight: bold;
+  margin-bottom: 8rpx;
+}
+
+.dance-style-order {
+  font-size: 24rpx;
+  color: var(--text-secondary);
+}
+
+.dance-style-actions {
+  display: flex;
+  align-items: center;
+}
+
+.action-btn-small {
+  padding: 10rpx 20rpx;
+  background-color: var(--color-primary-bg);
+  border-radius: var(--radius-md);
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.action-btn-small text {
+  font-size: 24rpx;
+  color: var(--color-primary);
+  white-space: nowrap;
+}
+
+.action-btn-small.danger {
+  background-color: var(--color-warning-bg);
+}
+
+.action-btn-small.danger text {
+  color: var(--color-warning);
+}
+
+/* 空状态 */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 80rpx 0;
+}
+
+.empty-text {
+  font-size: 28rpx;
+  color: var(--text-tertiary);
+  margin-bottom: 30rpx;
+}
+
+/* 弹窗 */
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 30rpx;
+}
+
+.modal-title {
+  font-size: 32rpx;
+  color: var(--text-primary);
+  font-weight: bold;
+}
+
+.modal-close {
+  font-size: 40rpx;
+  color: var(--text-secondary);
+  padding: 10rpx;
+}
+
+.form-group {
+  margin-bottom: 30rpx;
+}
+
+.form-label {
+  font-size: 28rpx;
+  color: var(--text-primary);
+  display: block;
+  margin-bottom: 16rpx;
+}
+
+.modal-buttons {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 30rpx;
+}
+
+.modal-buttons .btn-secondary,
+.modal-buttons .btn-primary {
+  width: 48%;
+}

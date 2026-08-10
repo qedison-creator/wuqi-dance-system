@@ -31,7 +31,7 @@
     </view>
   </view>
 
-  <!-- 已预约名单 -->
+  <!-- 已预约名单（含已签到/已完成/课程取消，与运营管理页面一致） -->
   <view class="booking-list" wx:if="{{viewMode !== 'attendance' && activeTab === 'booked'}}">
     <view class="booking-item card" wx:for="{{bookedList}}" wx:key="_id">
       <view class="user-info">
@@ -39,25 +39,32 @@
         <view class="user-detail">
           <view class="user-name-row">
             <text class="user-name">{{item.userName}}</text>
-            <text class="user-nick" wx:if="{{item.userNickName}}">（{{item.userNickName}}）</text>
-            <text class="status-tag course-cancel" wx:if="{{item.cancelType === 'admin_cancel' || item.cancelType === 'min_bookings_not_met' || item.cancelType === 'holiday' || item.cancelType === 'after_checkin_cancel'}}">课程已取消</text>
+            <!-- 状态标记：课程取消 / 已完成 / 已签到 -->
+            <text class="status-tag course-cancel" wx:if="{{item.cancelType === 'admin_cancel' || item.cancelType === 'min_bookings_not_met' || item.cancelType === 'holiday' || item.cancelType === 'after_checkin_cancel'}}">{{item.cancelReasonText || '课程已取消'}}</text>
+            <text class="status-tag completed-tag" wx:elif="{{item.isCompleted}}">已完成</text>
+            <text class="status-tag checked-in-tag" wx:elif="{{item.checkedIn}}">已签到</text>
           </view>
           <view class="user-phone-row" wx:if="{{item.userWechatPhone || item.userReservePhone}}">
             <text class="user-phone-item" wx:if="{{item.userWechatPhone}}">微信:{{item.userWechatPhone}}</text>
             <text class="user-phone-item" wx:if="{{item.userReservePhone}}">预留:{{item.userReservePhone}}</text>
           </view>
           <text class="booking-time">预约时间: {{item.bookingTime}}</text>
-          <text class="booking-time" wx:if="{{item.cancelReason}}">取消原因: {{item.cancelReason}}</text>
+          <text class="booking-time" wx:if="{{item.checkInTime}}">签到时间: {{item.checkInTime}}</text>
         </view>
       </view>
-      <view class="booking-meta" wx:if="{{item.cancelType !== 'admin_cancel' && item.cancelType !== 'min_bookings_not_met' && item.cancelType !== 'holiday' && item.cancelType !== 'after_checkin_cancel'}}">
+      <!-- 操作区：已签到/已完成/课程取消的预约不可取消，仅显示扣次/退还信息 -->
+      <view class="booking-meta" wx:if="{{item.checkedIn}}">
+        <text class="credits">扣课: {{item.creditsDeducted}}次</text>
+        <text class="status-tag checked-in-tag">已签到</text>
+      </view>
+      <view class="booking-meta" wx:elif="{{item.cancelType === 'admin_cancel' || item.cancelType === 'min_bookings_not_met' || item.cancelType === 'holiday' || item.cancelType === 'after_checkin_cancel'}}">
+        <text class="credits refunded">已退还: {{item.creditsRefunded || item.creditsDeducted}}次</text>
+      </view>
+      <view class="booking-meta" wx:else>
         <text class="credits">扣课: {{item.creditsDeducted}}次</text>
         <view class="action-btn danger" data-id="{{item._id}}" bindtap="onCancelBooking">
           <text>取消预约</text>
         </view>
-      </view>
-      <view class="booking-meta" wx:else>
-        <text class="credits refunded">已退还: {{item.creditsRefunded || item.creditsDeducted}}次</text>
       </view>
     </view>
     <view class="empty-state" wx:if="{{bookedList.length === 0}}">
@@ -73,8 +80,8 @@
         <view class="user-detail">
           <view class="user-name-row">
             <text class="user-name">{{item.userName}}</text>
-            <text class="user-nick" wx:if="{{item.userNickName}}">（{{item.userNickName}}）</text>
             <text class="status-tag completed-tag" wx:if="{{item.isCompleted}}">已完成</text>
+            <text class="status-tag onsite-tag" wx:if="{{item.isOnsite}}">现场签到</text>
           </view>
           <view class="user-phone-row" wx:if="{{item.userWechatPhone || item.userReservePhone}}">
             <text class="user-phone-item" wx:if="{{item.userWechatPhone}}">微信:{{item.userWechatPhone}}</text>
@@ -100,7 +107,6 @@
         <view class="user-detail">
           <view class="user-name-row">
             <text class="user-name">{{item.userName}}</text>
-            <text class="user-nick" wx:if="{{item.userNickName}}">（{{item.userNickName}}）</text>
             <text class="status-tag exempt-tag" wx:if="{{item.isExempted}}">豁免取消</text>
           </view>
           <view class="user-phone-row" wx:if="{{item.userWechatPhone || item.userReservePhone}}">
@@ -131,7 +137,6 @@
         <view class="user-detail">
           <view class="user-name-row">
             <text class="user-name">{{item.userName}}</text>
-            <text class="user-nick" wx:if="{{item.userNickName}}">（{{item.userNickName}}）</text>
           </view>
           <view class="user-phone-row" wx:if="{{item.userWechatPhone || item.userReservePhone}}">
             <text class="user-phone-item" wx:if="{{item.userWechatPhone}}">微信:{{item.userWechatPhone}}</text>

@@ -28,9 +28,7 @@ function getUploadErrorMessage(err) {
 
 Page({
   data: {
-    activeTab: 'coaches',
     coaches: [],
-    danceStyles: [],
     // 用于教练弹窗的舞种列表（带selected字段）
     danceStyleList: [],
     // 新增教练弹窗
@@ -44,14 +42,8 @@ Page({
       sort_order: 0,
       show_on_home: true
     },
-    // 新增/编辑舞种弹窗
-    showDanceStyleModal: false,
-    danceStyleForm: {
-      _id: '',
-      name: '',
-      sort_order: 0
-    },
-    deleting: false // 防抖标志位
+    deleting: false, // 防抖标志位
+    isSingleStore: false,
   },
 
   // 补全图片 URL
@@ -88,16 +80,14 @@ Page({
     if (!app.checkAuth()) return;
     // 标记当前用户是否为超级管理员（用于教练列表判断是否可操作多门店执教教练）
     const userInfo = app.globalData.userInfo;
-    this.setData({ isSuperAdmin: userInfo && userInfo.role === 'super_admin' });
+    const isSingleStore = app.isSingleStoreRole ? app.isSingleStoreRole() : false;
+    this.setData({
+      isSuperAdmin: userInfo && userInfo.role === 'super_admin',
+      isSingleStore
+    });
     // 同步全局统一门店选择的门店名称（供页面展示区域使用）
     this.setData({ currentStoreName: app.getShopStoreName() });
     this.loadCoaches();
-    this.loadDanceStyles();
-  },
-
-  onTabChange(e) {
-    const { tab } = e.currentTarget.dataset;
-    this.setData({ activeTab: tab });
   },
 
   async loadCoaches() {
@@ -110,15 +100,17 @@ Page({
 
       let list = res.data && Array.isArray(res.data.list) ? res.data.list : (Array.isArray(res.data) ? res.data : []);
 
-      // 前端按全局统一门店选择过滤（后端 GET /coaches/admin 不支持 store_id 查询参数）
       const shopStoreId = app.globalData.shopStoreId || '';
+
+      // 仅展示当前选中门店的门店教练：store_ids 有值且包含当前选中门店
       if (shopStoreId) {
-        list = list.filter(coach => {
-          // store_ids 为空或不存在表示多门店执教，所有门店可见
-          if (!coach.store_ids || coach.store_ids.length === 0) return true;
-          // 检查 store_ids 是否包含选中的门店
-          return coach.store_ids.some(sid => String(sid) === String(shopStoreId));
-        });
+        list = list.filter(coach =>
+          coach.store_ids && coach.store_ids.length > 0 &&
+          coach.store_ids.some(sid => String(sid) === String(shopStoreId))
+        );
+      } else {
+        // 未选门店时门店教练列表为空
+        list = [];
       }
 
       // 补全图片路径
@@ -139,7 +131,8 @@ Page({
     }
   },
 
-  async loadDanceStyles() {
+  // 加载舞种列表并构建教练弹窗的多选列表（在打开弹窗时即时调用）
+  async loadDanceStylesForModal() {
     try {
       const res = await request({
         url: '/dance-styles',
@@ -148,17 +141,18 @@ Page({
       // 后端返回 paginate 格式: { list: [...], total, page, pageSize }
 
       const list = res.data && Array.isArray(res.data.list) ? res.data.list : (Array.isArray(res.data) ? res.data : []);
-      this.setData({ danceStyles: list });
+      this.buildDanceStyleList(list);
     } catch (err) {
       console.error('加载舞种列表失败', err);
+      this.setData({ danceStyleList: [] });
     }
   },
 
-  // 根据 coachForm.dance_style_ids 生成带 selected 的舞种列表
-  buildDanceStyleList() {
-    const { danceStyles, coachForm } = this.data;
+  // 根据传入的舞种列表与 coachForm.dance_style_ids 生成带 selected 的舞种列表
+  buildDanceStyleList(danceStyles) {
+    const { coachForm } = this.data;
     const selectedIds = coachForm.dance_style_ids || [];
-    const list = danceStyles.map(ds => ({
+    const list = (danceStyles || []).map(ds => ({
       ...ds,
       selected: selectedIds.indexOf(String(ds._id)) > -1
     }));
@@ -198,7 +192,8 @@ Page({
         show_on_home: true
       }
     }, () => {
-      this.buildDanceStyleList();
+      // 打开弹窗时即时加载舞种列表
+      this.loadDanceStylesForModal();
     });
   },
 
@@ -237,7 +232,8 @@ Page({
         show_on_home: coach.show_on_home !== false
       }
     }, () => {
-      this.buildDanceStyleList();
+      // 打开弹窗时即时加载舞种列表
+      this.loadDanceStylesForModal();
     });
   },
 
@@ -454,117 +450,6 @@ Page({
             wx.showToast({ title: '选择图片失败，请重试', icon: 'none' });
           }
         });
-      }
-    });
-  },
-
-  // ==================== 舞种管理 ====================
-  onAddDanceStyle() {
-    this.setData({
-      showDanceStyleModal: true,
-      danceStyleForm: {
-        _id: '',
-        name: '',
-        sort_order: this.data.danceStyles.length
-      }
-    });
-  },
-
-  onEditDanceStyle(e) {
-    const index = e.currentTarget.dataset.index;
-    const ds = this.data.danceStyles[index];
-    this.setData({
-      showDanceStyleModal: true,
-      danceStyleForm: {
-        _id: ds._id,
-        name: ds.name,
-        sort_order: ds.sort_order || 0
-      }
-    });
-  },
-
-  onCloseDanceStyleModal() {
-    this.setData({ showDanceStyleModal: false });
-  },
-
-  onDanceStyleInput(e) {
-    const { field } = e.currentTarget.dataset;
-    this.setData({ [`danceStyleForm.${field}`]: e.detail.value });
-  },
-
-  async onSubmitDanceStyle() {
-    const { danceStyleForm } = this.data;
-    if (!danceStyleForm.name) {
-      wx.showToast({ title: '请输入舞种名称', icon: 'none' });
-      return;
-    }
-
-    try {
-      if (danceStyleForm._id) {
-        await request({
-          url: `/dance-styles/${danceStyleForm._id}`,
-          method: 'PUT',
-          data: { name: danceStyleForm.name, sort_order: Number(danceStyleForm.sort_order) || 0 }
-        });
-        wx.showToast({ title: '修改成功', icon: 'success' });
-      } else {
-        await request({
-          url: '/dance-styles',
-          method: 'POST',
-          data: { name: danceStyleForm.name, sort_order: Number(danceStyleForm.sort_order) || 0 }
-        });
-        wx.showToast({ title: '添加成功', icon: 'success' });
-      }
-      this.setData({ showDanceStyleModal: false });
-      this.loadDanceStyles();
-    } catch (err) {
-      console.error('保存舞种失败', err);
-    }
-  },
-
-  async onDeleteDanceStyle(e) {
-    // 防抖处理：如果正在删除中，则直接返回
-
-    if (this.data.deleting) {
-      wx.showToast({ title: '正在删除中，请稍候', icon: 'none' });
-      return;
-    }
-    
-    const index = e.currentTarget.dataset.index;
-    const ds = this.data.danceStyles[index];
-    wx.showModal({
-      title: '确认删除',
-      content: `确定要删除舞种「${ds.name}」吗？删除后关联的教练擅长舞种将不再显示该舞种。`,
-      success: async (res) => {
-        if (res.confirm) {
-          try {
-            // 设置防抖标志位
-
-            this.setData({ deleting: true });
-            await request({
-              url: `/dance-styles/${ds._id}`,
-              method: 'DELETE'
-            });
-            wx.showToast({ title: '已删除', icon: 'success' });
-            this.loadDanceStyles();
-          } catch (err) {
-            console.error('删除舞种失败', err);
-            wx.showToast({ title: '删除失败', icon: 'none' });
-          } finally {
-            // 无论成功或失败，都重置防抖标志位
-
-            this.setData({ deleting: false });
-          }
-        } else {
-          // 用户取消删除，重置防抖标志位
-
-          this.setData({ deleting: false });
-        }
-      },
-      fail: () => {
-        // 用户取消删除，重置防抖标志位
-
-        this.setData({ deleting: false });
       }
     });
   }

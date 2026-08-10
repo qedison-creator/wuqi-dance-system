@@ -50,7 +50,6 @@
         <view class="record-info">
           <view class="record-name-row">
             <text class="record-name">{{item.userName}}</text>
-            <text class="record-nick" wx:if="{{item.userNickName}}">（{{item.userNickName}}）</text>
             <view class="source-tag {{item.checkInClass}}" wx:if="{{item.checked_in}}">
               <text>{{item.checkInLabel}}</text>
             </view>
@@ -170,6 +169,7 @@
               <view class="pkg-usage" wx:if="{{item.time_card_usage}}">
                 <text wx:if="{{item.time_card_usage.daily_limit}}">今日已用 {{item.time_card_usage.daily_used}}/{{item.time_card_usage.daily_limit}} 次，剩余 {{item.time_card_usage.daily_remaining}} 次</text>
                 <text wx:if="{{item.time_card_usage.weekly_limit && !item.time_card_usage.daily_limit}}">本周已用 {{item.time_card_usage.weekly_used}}/{{item.time_card_usage.weekly_limit}} 次，剩余 {{item.time_card_usage.weekly_remaining}} 次</text>
+                <text wx:if="{{item.time_card_usage.monthly_limit && !item.time_card_usage.daily_limit && !item.time_card_usage.weekly_limit}}">本月已用 {{item.time_card_usage.monthly_used}}/{{item.time_card_usage.monthly_limit}} 次，剩余 {{item.time_card_usage.monthly_remaining}} 次</text>
               </view>
             </view>
           </view>

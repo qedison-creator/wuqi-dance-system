@@ -55,6 +55,7 @@ Page({
     waitlistedScheduleIds: [],
     memberPackageStoreIds: [],
     canBookCurrentStore: false,
+    memberPackageDanceStyleIds: [],
     canViewCapacity: false,
     isPackageSuspended: false,
     showBookingModal: false,
@@ -209,10 +210,11 @@ Page({
         const isRestrictedUser = !!restrictedReason;
         this.setData({ isRestrictedUser, restrictedReason });
       } else if (!isOfficial) {
-        this.setData({ 
-          memberPackageStoreIds: [], 
-          canBookCurrentStore: false, 
-          bookedScheduleIds: [], 
+        this.setData({
+          memberPackageStoreIds: [],
+          canBookCurrentStore: false,
+          memberPackageDanceStyleIds: [],
+          bookedScheduleIds: [],
           canViewCapacity: false,
           isRestrictedUser: true,
           restrictedReason: '您不是正式会员，请联系门店办理'
@@ -232,7 +234,7 @@ Page({
         restrictedReason: isOfficial ? '您暂无可用套餐，请联系门店开通' : '您不是正式会员，请联系门店办理'
       });
       if (isOfficial) {
-        this.setData({ memberPackageStoreIds: [], canBookCurrentStore: false, bookedScheduleIds: [], canViewCapacity: false });
+        this.setData({ memberPackageStoreIds: [], canBookCurrentStore: false, memberPackageDanceStyleIds: [], bookedScheduleIds: [], canViewCapacity: false });
       }
       // 刷新按钮状态以反映最新的用户身份（课程列表已由 onShow 中的 initPage 加载）
       this.loadMyBookings();
@@ -276,8 +278,10 @@ Page({
         if (!hasOtherValidPackage) {
           const dailyExhausted = timeCardUsage.daily_remaining === 0 && timeCardUsage.daily_limit > 0;
           const weeklyExhausted = timeCardUsage.weekly_remaining === 0 && timeCardUsage.weekly_limit > 0;
+          const monthlyExhausted = timeCardUsage.monthly_remaining === 0 && timeCardUsage.monthly_limit > 0;
           if (dailyExhausted) return '今日次数已用完，请明天再约';
           if (weeklyExhausted) return '本周次数已用完，请下周再约';
+          if (monthlyExhausted) return '本月次数已用完，请下月再约';
         }
       }
       return '';
@@ -356,6 +360,11 @@ Page({
   _updatePackageStoreIds(pkgData) {
     const packages = pkgData.history || [];
     const storeIds = new Set();
+    // 舞种限制：收集所有有效套餐的舞种限制；如果所有套餐都没有限制（合集为空），表示不限舞种
+    // 注意：只要存在任意一个不限舞种的有效套餐，会员在当前门店即可预约所有舞种
+    // 因此这里收集的是"所有套餐都不限制舞种"标志 + "有限制舞种的套餐允许的舞种合集"
+    const hasAnyUnlimitedDance = { value: false }; // 是否存在不限舞种的有效套餐
+    const danceStyleIdSet = new Set(); // 有限制套餐允许的舞种合集
     packages.forEach(pkg => {
       if (pkg.store_id) {
         const sid = typeof pkg.store_id === 'string' ? pkg.store_id : (pkg.store_id._id || pkg.store_id);
@@ -368,11 +377,23 @@ Page({
           if (sid) storeIds.add(String(sid));
         });
       }
+      // 舞种限制：空数组=不限舞种
+      const dsl = Array.isArray(pkg.dance_style_limit) ? pkg.dance_style_limit : [];
+      if (dsl.length === 0) {
+        hasAnyUnlimitedDance.value = true;
+      } else {
+        dsl.forEach(ds => {
+          const did = typeof ds === 'string' ? ds : (ds && (ds._id || ds.id) ? String(ds._id || ds.id) : '');
+          if (did) danceStyleIdSet.add(did);
+        });
+      }
     });
     const packageStoreIds = Array.from(storeIds);
     const currentStoreId = this.data.currentStore ? String(this.data.currentStore._id) : '';
     const canBookCurrentStore = packageStoreIds.includes(currentStoreId);
-    this.setData({ memberPackageStoreIds: packageStoreIds, canBookCurrentStore }, () => {
+    // 舞种限制：只要存在任意不限舞种的套餐，则视为不限舞种（避免误拦截）
+    const memberPackageDanceStyleIds = hasAnyUnlimitedDance.value ? [] : Array.from(danceStyleIdSet);
+    this.setData({ memberPackageStoreIds: packageStoreIds, canBookCurrentStore, memberPackageDanceStyleIds }, () => {
       this._updateCoursesButtonState();
     });
     if (!canBookCurrentStore) {
@@ -553,6 +574,7 @@ Page({
         isRestrictedUser: this.data.isRestrictedUser,
         canViewCapacity: this.data.canViewCapacity,
         canBookCurrentStore: this.data.canBookCurrentStore,
+        memberPackageDanceStyleIds: this.data.memberPackageDanceStyleIds,
         bookedScheduleIds: this.data.bookedScheduleIds,
         waitlistedScheduleIds: this.data.waitlistedScheduleIds,
         completedScheduleIds: this.data.completedScheduleIds
@@ -717,6 +739,8 @@ Page({
     if (this.data.showStoreModal) {
       if (!store || !store._id) return;
       app.globalData.currentStore = store;
+      app.globalData.userManuallySelectedStore = true;  // 标记本次运行期间不再自动匹配
+      app.globalData.pendingRelocate = false;
       wx.setStorageSync('currentStore', store);
       this.setData({
         currentStore: store,
@@ -821,7 +845,7 @@ Page({
       if (errCode === 'TIME_CARD_LIMIT_REACHED' && err.data && err.data.availablePackages) {
         // 时间卡限额已满，有待激活次卡，弹窗让会员确认
         const packages = err.data.availablePackages;
-        const limitType = err.data.limitType === 'weekly' ? '本周' : '今日';
+        const limitType = err.data.limitType === 'weekly' ? '本周' : (err.data.limitType === 'monthly' ? '本月' : '今日');
         const limit = err.data.limit || 0;
         const used = err.data.used || 0;
         const remaining = err.data.remaining || 0;
@@ -1098,6 +1122,28 @@ Page({
     const course = e.currentTarget.dataset.course;
     if (!course) return;
 
+    // 舞种限制拦截：套餐限制了允许预约的舞种，课程舞种不在允许列表内则拦截
+    const memberDanceStyleIds = this.data.memberPackageDanceStyleIds || [];
+    if (this.data.isOfficial && memberDanceStyleIds.length > 0) {
+      const courseDanceStyleId = course.danceStyleId ? String(course.danceStyleId) : '';
+      if (courseDanceStyleId && memberDanceStyleIds.indexOf(courseDanceStyleId) === -1) {
+        // 查询允许的舞种名称用于提示
+        const allowedStyleNames = memberDanceStyleIds.map(id => {
+          // 从已加载的课程中反查舞种名称（避免额外请求）
+          const found = (this.data.courses || []).find(c => c.danceStyleId && String(c.danceStyleId) === id);
+          return found && found.danceStyleName ? found.danceStyleName : '';
+        }).filter(Boolean).join('、');
+        wx.showModal({
+          title: '舞种限制',
+          content: `您的套餐仅限预约${allowedStyleNames || '指定'}舞种的课程，该课程不在可预约范围内。`,
+          showCancel: false,
+          confirmText: '知道了',
+          confirmColor: '#D4786E'
+        });
+        return;
+      }
+    }
+
     // WXML 中按钮统一绑定 catchtap，根据预计算类型过滤无响应的按钮，避免已结束/已满等状态触发业务逻辑
     // 加入候补按钮通过 data-action="waitlist" 单独放行
     const action = e.currentTarget.dataset.action;
@@ -1260,6 +1306,7 @@ Page({
       isRestrictedUser = false,
       canViewCapacity = false,
       canBookCurrentStore = false,
+      memberPackageDanceStyleIds = [],
       bookedScheduleIds = [],
       waitlistedScheduleIds = [],
       completedScheduleIds = []
@@ -1331,6 +1378,18 @@ Page({
         bookBtnType = 'cannot_book';
         bookBtnText = '不可预约';
         bookBtnClass = 'disabled-clickable';
+      } else if (isOfficial && memberPackageDanceStyleIds.length > 0) {
+        // 舞种限制：套餐限制了允许预约的舞种，课程舞种不在允许列表内则不可预约
+        const courseDanceStyleId = course.danceStyleId ? String(course.danceStyleId) : '';
+        if (courseDanceStyleId && memberPackageDanceStyleIds.indexOf(courseDanceStyleId) === -1) {
+          bookBtnType = 'cannot_book_dance_style';
+          bookBtnText = '不可预约';
+          bookBtnClass = 'disabled-clickable';
+        } else {
+          bookBtnType = 'book';
+          bookBtnText = '预约';
+          bookBtnClass = '';
+        }
       } else {
         bookBtnType = 'book';
         bookBtnText = '预约';
@@ -1371,10 +1430,10 @@ Page({
 
   // 仅更新课程列表中各卡片的按钮状态（ bookedScheduleIds / waitlistedScheduleIds 变化时调用）
   _updateCoursesButtonState() {
-    const { courses, isOfficial, isRestrictedUser, canViewCapacity, canBookCurrentStore, bookedScheduleIds, waitlistedScheduleIds, completedScheduleIds } = this.data;
+    const { courses, isOfficial, isRestrictedUser, canViewCapacity, canBookCurrentStore, memberPackageDanceStyleIds, bookedScheduleIds, waitlistedScheduleIds, completedScheduleIds } = this.data;
     if (!courses || courses.length === 0) return;
 
-    const pageState = { isOfficial, isRestrictedUser, canViewCapacity, canBookCurrentStore, bookedScheduleIds, waitlistedScheduleIds, completedScheduleIds };
+    const pageState = { isOfficial, isRestrictedUser, canViewCapacity, canBookCurrentStore, memberPackageDanceStyleIds, bookedScheduleIds, waitlistedScheduleIds, completedScheduleIds };
     const updates = {};
     courses.forEach((course, index) => {
       const rendered = this._computeCourseRender(course, pageState);

@@ -1,13 +1,11 @@
 <page-meta page-style="{{showBookingPanel ? 'overflow: hidden;' : ''}}"/>
 <view class="ops-page">
-  <view class="store-tabs" wx:if="{{showStoreSwitcher}}">
-    <scroll-view class="store-scroll" scroll-x enhanced show-scrollbar="{{false}}">
-      <view class="store-pills">
-        <view class="store-pill {{currentStoreId === item._id ? 'on' : ''}}" wx:for="{{stores}}" wx:key="_id" data-id="{{item._id}}" bindtap="onSwitchStore">
-          <text>{{item.name}}</text>
-        </view>
-      </view>
-    </scroll-view>
+  <view class="store-switcher-bar" wx:if="{{showStoreSwitcher}}" bindtap="onStoreSwitcherTap">
+    <view class="store-switcher-inner">
+      <image class="store-switcher-icon" src="/images/icons/shop-store.svg" mode="aspectFit" decoding="async"></image>
+      <text class="store-switcher-name">{{currentStoreName}}</text>
+      <image class="store-switcher-arrow" src="/images/icons/chevron-right.svg" mode="aspectFit" decoding="async"></image>
+    </view>
   </view>
 
   <view class="today-block" wx:if="{{todaySchedules.length > 0}}">
@@ -199,7 +197,6 @@
             <view class="booking-user-info">
               <view class="booking-user-name-row">
                 <text class="booking-user-name">{{item.userName}}</text>
-                <text class="booking-user-nick" wx:if="{{item.userNickName}}">（{{item.userNickName}}）</text>
               </view>
               <view class="booking-user-phone-row" wx:if="{{item.userWechatPhone || item.userReservePhone}}">
                 <text class="booking-user-phone-item" wx:if="{{item.userWechatPhone}}">微信:{{item.userWechatPhone}}</text>
@@ -242,8 +239,6 @@
             <view class="booking-user-info">
               <view class="booking-user-name-row">
                 <text class="booking-user-name">{{item.userName}}</text>
-                <text class="booking-user-nick" wx:if="{{item.userNickName}}">（{{item.userNickName}}）</text>
-                <text class="booking-status-tag completed-tag" wx:if="{{item.isCompleted}}">已完成</text>
               </view>
               <view class="booking-user-phone-row" wx:if="{{item.userWechatPhone || item.userReservePhone}}">
                 <text class="booking-user-phone-item" wx:if="{{item.userWechatPhone}}">微信:{{item.userWechatPhone}}</text>
@@ -253,7 +248,7 @@
           </view>
           <view class="booking-actions">
             <text class="booking-credits">扣{{item.creditsDeducted}}次</text>
-            <text class="checked-in-tag">已签到</text>
+            <text class="checked-in-method-tag">{{item.checkInMethodText}}</text>
           </view>
         </view>
         <view class="sheet-empty" wx:if="{{checkedInList.length === 0}}">
@@ -268,7 +263,6 @@
             <view class="booking-user-info">
               <view class="booking-user-name-row">
                 <text class="booking-user-name">{{item.userName}}</text>
-                <text class="booking-user-nick" wx:if="{{item.userNickName}}">（{{item.userNickName}}）</text>
               </view>
               <view class="booking-user-phone-row" wx:if="{{item.userWechatPhone || item.userReservePhone}}">
                 <text class="booking-user-phone-item" wx:if="{{item.userWechatPhone}}">微信:{{item.userWechatPhone}}</text>

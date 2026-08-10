@@ -176,3 +176,41 @@
   flex-shrink: 0;
   opacity: 0.3;
 }
+
+/* ===== 门店功能置灰容器 ===== */
+.store-section-wrap {
+  position: relative;
+  transition: opacity 200ms ease;
+}
+
+.store-section-wrap.store-section-disabled .menu-section {
+  opacity: 0.4;
+  pointer-events: none;
+  filter: grayscale(0.6);
+}
+
+.store-section-mask {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 60rpx;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.store-section-tip {
+  font-size: 26rpx;
+  color: #A8988A;
+  background: rgba(255, 255, 255, 0.92);
+  padding: 12rpx 28rpx;
+  border-radius: 20rpx;
+  border: 1rpx solid rgba(197, 116, 75, 0.15);
+  box-shadow: 0 2rpx 12rpx rgba(44, 36, 22, 0.06);
+  letter-spacing: 1rpx;
+}
+

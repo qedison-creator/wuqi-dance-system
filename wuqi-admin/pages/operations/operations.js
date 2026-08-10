@@ -13,6 +13,12 @@ const COURSE_CANCEL_TYPES = ['admin_cancel', 'min_bookings_not_met', 'holiday', 
  *   - isCheckedIn: 是否计入"已签到"
  *   - isCancelled: 是否计入"已取消"
  *   - cancelReasonText: 取消原因文案（仅 isCancelled 时有意义）
+ *
+ * 业务规则：
+ *   - 已预约 = 走过预约流程的记录（booked / 已签到的预约 / 已完成的预约 / 课程取消的预约）
+ *   - 已签到 = 已签到/已完成的记录（含现场直接签到，source='onsite'）
+ *   - 已取消 = 用户取消 / 豁免 / 课程取消
+ *   - 现场直接签到（source='onsite'）：仅计入"已签到"，不计入"已预约"（没有预约过）
  */
 function classifyBooking(item) {
   const status = item.status;
@@ -21,14 +27,20 @@ function classifyBooking(item) {
   const isUserCancel = status === 'cancelled' && !isCourseCancel;
   const isExempted = status === 'exempted' || item.is_exempted;
   const isCheckedIn = item.checked_in || status === 'checked_in' || status === 'completed';
+  // 现场直接签到（无预约流程，管理员补签）：不计入已预约
+  // 仅通过 source 判断，check_in_method='onsite' 不作为依据（已预约会员签到也可能被标记为onsite）
+  const isOnsiteCheckIn = item.source === 'onsite';
 
   let isBooked = false;
   let isCancelled = false;
   let cancelReasonText = '';
 
   if (isCheckedIn) {
-    // 已签到/已完成：计入已签到 + 已预约
-    isBooked = true;
+    // 已签到/已完成：计入已签到
+    // 现场直接签到（onsite）未走过预约流程，不计入已预约；其余签到（有预约）同时计入已预约
+    if (!isOnsiteCheckIn) {
+      isBooked = true;
+    }
   } else if (status === 'booked') {
     // 正常预约中
     isBooked = true;
@@ -55,6 +67,7 @@ Page({
   data: {
     stores: [],
     currentStoreId: '',
+    currentStoreName: '',
     showStoreSwitcher: true,
     todayDate: '',
     todayDateText: '',
@@ -84,7 +97,7 @@ Page({
     }
     this.initDates();
 
-    // 门店隔离：单门店角色隐藏门店切换器
+    // 门店隔离：单门店角色无门店切换器（仅展示所属门店）
     this.setData({ showStoreSwitcher: !app.isSingleStoreRole() });
 
     // 接收首页跳转携带的门店信息
@@ -210,12 +223,13 @@ Page({
 
       const originalStoreId = this.data.currentStoreId;
       let storeId;
+
       if (defaultStoreId) {
         // 单门店角色固定所属门店
         storeId = defaultStoreId;
         app.globalData.shopStoreId = storeId;
       } else if (pendingStoreId !== null && pendingStoreId !== undefined) {
-        // 首页跳转携带的门店ID（空字符串表示全部门店，但 operations 必须有具体门店，取第一个）
+        // 首页跳转携带的门店ID
         storeId = pendingStoreId && list.find(s => s._id === pendingStoreId)
           ? pendingStoreId
           : (list.length > 0 ? list[0]._id : '');
@@ -224,20 +238,20 @@ Page({
         const shopStoreId = app.globalData.shopStoreId || '';
         if (shopStoreId && list.find(s => String(s._id) === String(shopStoreId))) {
           storeId = shopStoreId;
-        } else if (!shopStoreId && list.length > 0) {
-          // 全局为"全部门店"时，operations 需要具体门店，取第一个
-          storeId = list[0]._id;
         } else {
-          // 回退到本页上次选中
-          storeId = originalStoreId;
-          if (!storeId || !list.find(s => s._id === storeId)) {
-            storeId = list.length > 0 ? list[0]._id : '';
-          }
+          // 全局无选中或选中无效：默认取第一个门店
+          storeId = list.length > 0 ? list[0]._id : '';
+          if (storeId) app.globalData.shopStoreId = storeId;
         }
       }
 
-      this.setData({ stores: list, currentStoreId: storeId }, () => {
-        if (storeId && storeId !== originalStoreId) {
+      const storeName = (() => {
+        const matched = list.find(s => String(s._id) === String(storeId));
+        return matched ? matched.name : '';
+      })();
+
+      this.setData({ stores: list, currentStoreId: storeId, currentStoreName: storeName }, () => {
+        if (storeId !== originalStoreId) {
           this.loadTodaySchedules();
           this.loadMonthSchedules(this.data.currentMonth);
         }
@@ -248,17 +262,28 @@ Page({
     }
   },
 
-  onSwitchStore(e) {
-    const id = e.currentTarget.dataset.id;
-    const { currentStoreId, currentDate, todayDate } = this.data;
-    if (id === currentStoreId) return;
-    // 同步到全局统一门店选择（与首页/店务管理共享）
-    getApp().globalData.shopStoreId = id;
-    this.setData({ currentStoreId: id }, () => {
-      this.loadTodaySchedules();
-      this.loadMonthSchedules(this.data.currentMonth);
-      if (currentDate !== todayDate) {
-        this.loadDateSchedules(currentDate);
+  onStoreSwitcherTap() {
+    if (!this.data.stores.length) return;
+    // operations 为门店级功能，不提供"全部门店"选项
+    const items = this.data.stores.map(s => s.name);
+    wx.showActionSheet({
+      itemList: items,
+      success: (res) => {
+        const idx = res.tapIndex;
+        const store = this.data.stores[idx];
+        if (!store) return;
+        const id = store._id;
+        const name = store.name;
+        getApp().globalData.shopStoreId = String(store._id);
+        const { currentStoreId, currentDate, todayDate } = this.data;
+        if (id === currentStoreId && name === this.data.currentStoreName) return;
+        this.setData({ currentStoreId: id, currentStoreName: name }, () => {
+          this.loadTodaySchedules();
+          this.loadMonthSchedules(this.data.currentMonth);
+          if (currentDate !== todayDate) {
+            this.loadDateSchedules(currentDate);
+          }
+        });
       }
     });
   },
@@ -637,6 +662,8 @@ Page({
         const status = item.status;
         const booking = {
           _id: item._id,
+          scheduleId: item.schedule_id ? String(item.schedule_id) : (this.data.panelSchedule ? this.data.panelSchedule._id : ''),
+          userId: item.user_id?._id ? String(item.user_id._id) : '',
           userName: displayName,
           userNickName: nickNameDisplay,
           userPhone: item.user_id?.phone || '',
@@ -647,6 +674,14 @@ Page({
           creditsDeducted: item.credits_deducted || 0,
           checkedIn: item.checked_in || status === 'checked_in' || status === 'completed',
           isCompleted: status === 'completed',
+          // 签到方式文本：现场签到 / 扫码签到 / 自动签到 / 管理员签到
+          // 仅通过 source='onsite' 判断现场签到（无预约流程），check_in_method 不作为现场签到判断依据
+          checkInMethodText: item.source === 'onsite'
+            ? '现场签到'
+            : (item.check_in_method === 'scan' ? '扫码签到'
+              : (item.check_in_method === 'auto' ? '自动签到'
+                : (item.check_in_method === 'admin' ? '管理员签到'
+                  : (item.check_in_method === 'onsite' ? '管理员签到' : '已签到')))),
           cancelType: item.cancel_type,
           cancelReason: item.cancel_reason || '',
           creditsRefunded: item.credits_refunded || 0,
@@ -720,13 +755,28 @@ Page({
 
   async onCheckIn(e) {
     const bookingId = e.currentTarget.dataset.id;
+    // 从已预约列表中找到 booking 记录，取出 schedule_id 和 user_id
+    // 后端 /bookings/check-in 接口需要 schedule_id + user_id，不接收 booking_id
+    const booking = this.data.bookedList.find(b => b._id === bookingId);
+    if (!booking || !booking.scheduleId || !booking.userId) {
+      wx.showToast({ title: '签到信息缺失', icon: 'none' });
+      return;
+    }
     wx.showLoading({ title: '签到中' });
     try {
-      await request({ url: '/bookings/check-in', method: 'POST', data: { booking_id: bookingId } });
+      await request({
+        url: '/bookings/check-in',
+        method: 'POST',
+        data: {
+          schedule_id: booking.scheduleId,
+          user_id: booking.userId,
+          onsite: false  // 已预约会员签到，不是现场补签
+        }
+      });
       wx.showToast({ title: '签到成功', icon: 'success' });
       this.loadBookingList(this.data.panelSchedule._id);
     } catch (err) {
-      wx.showToast({ title: '签到失败', icon: 'none' });
+      wx.showToast({ title: err.message || '签到失败', icon: 'none' });
     }
     wx.hideLoading();
   },

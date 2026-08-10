@@ -11,6 +11,9 @@ const _normalizeStoreId = (id) => {
   return String(id);
 };
 
+// 统一把舞种 ID 转成字符串（与门店 ID 同样的归一化逻辑，复用 _normalizeStoreId）
+const _normalizeDanceStyleId = (id) => _normalizeStoreId(id);
+
 // 预约状态文案映射（booking 专属状态，与课程状态不同）
 // 统一分类：待上课 / 已完成 / 已取消
 const BOOKING_STATUS_TEXT_MAP = {
@@ -75,6 +78,14 @@ Page({
     addExtraStoreOptions: [],
     // 编辑套餐附加门店开关选项
     editExtraStoreOptions: [],
+    // 舞种列表（新增/编辑套餐时使用，复用同一份）
+    danceStyleList: [],
+    // 舞种限制单选弹窗
+    showDanceStylePicker: false,
+    danceStylePickerTarget: 'add',   // 'add' 或 'edit'
+    addPackageDanceStyleText: '',
+    editPackageDanceStyleText: '',
+    selectedDanceStyleId: '',   // 单选 UI 判断用（空=不限舞种）
     // 删除会员
     showDeleteModal: false,
     deleteConfirmName: '',
@@ -232,6 +243,13 @@ Page({
               extend_text: `${ext.created_at ? this.formatDate(ext.created_at) : ''} ${operatorName} 延长 +${ext.extend_value || ext.extend_days || 0}${unitText}${reasonText}`
             };
           });
+        }
+        // 舞种限制展示文本：populate 后是 [{_id, name}]，未 populate 时是 ObjectId 数组
+        const dsl = pkg.dance_style_limit || [];
+        if (Array.isArray(dsl) && dsl.length > 0) {
+          pkg._danceStyleLimitText = dsl.map(ds => (typeof ds === 'object' ? (ds.name || '') : '')).filter(Boolean).join('、');
+        } else {
+          pkg._danceStyleLimitText = '';
         }
         return pkg;
       });
@@ -434,6 +452,9 @@ Page({
       }
     }
 
+    // 确保舞种列表已加载（供舞种限制多选使用）
+    await this._loadDanceStyleList();
+
     this.setData({
       showPackageEditModal: true,
       editingPackage: pkg,
@@ -443,13 +464,107 @@ Page({
         remaining_credits: pkg.remaining_credits || '',
         duration_value: pkg.duration_value || '',
         duration_unit: pkg.duration_unit || 'month',
-        limit_type: pkg.daily_limit ? 'daily' : (pkg.weekly_limit ? 'weekly' : 'unlimited'),
-        limit_value: pkg.daily_limit || pkg.weekly_limit || '',
+        limit_type: (pkg.daily_limit || pkg.weekly_limit || pkg.monthly_limit) ? 'limited' : 'unlimited',
+        limit_cycle: pkg.daily_limit ? 'daily' : (pkg.weekly_limit ? 'weekly' : (pkg.monthly_limit ? 'monthly' : 'weekly')),
+        limit_value: pkg.daily_limit || pkg.weekly_limit || pkg.monthly_limit || '',
         remark: pkg.remark || '',
-        extra_store_ids: (pkg.extra_store_ids || []).map(s => _normalizeStoreId(typeof s === 'object' ? (s._id || s.id) : s))
+        extra_store_ids: (pkg.extra_store_ids || []).map(s => _normalizeStoreId(typeof s === 'object' ? (s._id || s.id) : s)),
+        dance_style_limit: (pkg.dance_style_limit || []).map(ds => _normalizeDanceStyleId(typeof ds === 'object' ? (ds._id || ds.id) : ds))
       }
     });
     this._buildEditExtraStoreOptions();
+    this._refreshDanceStyleText('edit');
+  },
+
+  /**
+   * 加载舞种列表（仅在首次需要时拉取，已加载则跳过）
+   */
+  async _loadDanceStyleList() {
+    if (this.data.danceStyleList && this.data.danceStyleList.length > 0) return;
+    try {
+      const res = await request({ url: '/dance-styles' });
+      const list = res.data && (Array.isArray(res.data) ? res.data : (res.data.list || []));
+      const danceStyleList = list
+        .filter(ds => ds.status === 'active')
+        .map(ds => ({ ...ds, _id: _normalizeDanceStyleId(ds._id) }));
+      this.setData({ danceStyleList });
+    } catch (err) {
+      console.error('获取舞种列表失败', err);
+    }
+  },
+
+  /**
+   * 构建舞种限制文本
+   */
+  _buildDanceStyleText(target) {
+    const { danceStyleList } = this.data;
+    const form = target === 'add' ? this.data.addPackageForm : this.data.editPackageForm;
+    const selectedIds = (form && form.dance_style_limit) || [];
+    if (selectedIds.length === 0) return '';
+    const names = danceStyleList
+      .filter(ds => selectedIds.indexOf(ds._id) > -1)
+      .map(ds => ds.name);
+    return names.join('、');
+  },
+
+  _refreshDanceStyleText(target) {
+    if (target === 'add') {
+      this.setData({ addPackageDanceStyleText: this._buildDanceStyleText('add') });
+    } else {
+      this.setData({ editPackageDanceStyleText: this._buildDanceStyleText('edit') });
+    }
+  },
+
+  onOpenAddDanceStylePicker() {
+    const arr = this.data.addPackageForm.dance_style_limit || [];
+    this.setData({
+      selectedDanceStyleId: arr.length > 0 ? arr[0] : '',
+      showDanceStylePicker: true,
+      danceStylePickerTarget: 'add'
+    });
+  },
+
+  onOpenEditDanceStylePicker() {
+    const arr = this.data.editPackageForm.dance_style_limit || [];
+    this.setData({
+      selectedDanceStyleId: arr.length > 0 ? arr[0] : '',
+      showDanceStylePicker: true,
+      danceStylePickerTarget: 'edit'
+    });
+  },
+
+  onCloseDanceStylePicker() {
+    this.setData({ showDanceStylePicker: false });
+  },
+
+  onSelectDanceStyle(e) {
+    const { id } = e.currentTarget.dataset;
+    const normalizedId = id ? _normalizeDanceStyleId(id) : '';
+    const target = this.data.danceStylePickerTarget;
+    // 单选：空 id 表示"不限舞种"，清空数组；否则只保留该舞种
+    const selectedIds = normalizedId ? [normalizedId] : [];
+    // 直接从 danceStyleList 和 selectedIds 计算文本，避免读取 setData 前的旧数据
+    const { danceStyleList } = this.data;
+    const names = danceStyleList
+      .filter(ds => selectedIds.indexOf(ds._id) > -1)
+      .map(ds => ds.name);
+    const text = names.join('、');
+    // 使用字面量键，避免计算属性名键在 setData 中嵌套路径数组值更新不稳定
+    if (target === 'add') {
+      this.setData({
+        'addPackageForm.dance_style_limit': selectedIds,
+        addPackageDanceStyleText: text,
+        selectedDanceStyleId: normalizedId,
+        showDanceStylePicker: false
+      });
+    } else {
+      this.setData({
+        'editPackageForm.dance_style_limit': selectedIds,
+        editPackageDanceStyleText: text,
+        selectedDanceStyleId: normalizedId,
+        showDanceStylePicker: false
+      });
+    }
   },
 
   /**
@@ -523,6 +638,13 @@ Page({
     const type = e.currentTarget.dataset.type;
     this.setData({
       'editPackageForm.limit_type': type,
+      'editPackageForm.limit_value': ''
+    });
+  },
+
+  onEditLimitCycleChange(e) {
+    this.setData({
+      'editPackageForm.limit_cycle': e.currentTarget.dataset.type,
       'editPackageForm.limit_value': ''
     });
   },
@@ -629,12 +751,19 @@ Page({
 
     if (editPackageForm.package_type === 'time_card') {
       if (!editPackageForm.limit_type) {
-        wx.showToast({ title: '请选择限制方式', icon: 'none' });
+        wx.showToast({ title: '请选择次数限制', icon: 'none' });
         return;
       }
-      if (editPackageForm.limit_type !== 'unlimited' && !editPackageForm.limit_value) {
-        wx.showToast({ title: editPackageForm.limit_type === 'daily' ? '请输入每日限制' : '请输入每周限制', icon: 'none' });
-        return;
+      if (editPackageForm.limit_type === 'limited') {
+        if (!editPackageForm.limit_cycle) {
+          wx.showToast({ title: '请选择周期类型', icon: 'none' });
+          return;
+        }
+        if (!editPackageForm.limit_value) {
+          const cycleLabel = editPackageForm.limit_cycle === 'daily' ? '每日' : (editPackageForm.limit_cycle === 'weekly' ? '每周' : '每月');
+          wx.showToast({ title: `请输入${cycleLabel}限制次数`, icon: 'none' });
+          return;
+        }
       }
     }
 
@@ -644,7 +773,8 @@ Page({
         package_type: editPackageForm.package_type,
         duration_value: parseInt(editPackageForm.duration_value),
         duration_unit: editPackageForm.duration_unit,
-        extra_store_ids: editPackageForm.extra_store_ids || []
+        extra_store_ids: editPackageForm.extra_store_ids || [],
+        dance_style_limit: editPackageForm.dance_style_limit || []
       };
 
       if (editPackageForm.package_type === 'count_card') {
@@ -655,15 +785,25 @@ Page({
       // 时间卡可以修改限制次数
 
       if (editPackageForm.package_type === 'time_card') {
-        if (editPackageForm.limit_type === 'daily') {
-          postData.daily_limit = parseInt(editPackageForm.limit_value);
-          postData.weekly_limit = null;
-        } else if (editPackageForm.limit_type === 'weekly') {
-          postData.weekly_limit = parseInt(editPackageForm.limit_value);
-          postData.daily_limit = null;
+        if (editPackageForm.limit_type === 'limited') {
+          const cycle = editPackageForm.limit_cycle;
+          if (cycle === 'daily') {
+            postData.daily_limit = parseInt(editPackageForm.limit_value);
+            postData.weekly_limit = null;
+            postData.monthly_limit = null;
+          } else if (cycle === 'weekly') {
+            postData.weekly_limit = parseInt(editPackageForm.limit_value);
+            postData.daily_limit = null;
+            postData.monthly_limit = null;
+          } else if (cycle === 'monthly') {
+            postData.monthly_limit = parseInt(editPackageForm.limit_value);
+            postData.daily_limit = null;
+            postData.weekly_limit = null;
+          }
         } else {
           postData.daily_limit = null;
           postData.weekly_limit = null;
+          postData.monthly_limit = null;
         }
       }
 
@@ -692,10 +832,12 @@ Page({
       total_credits: '',
       duration_value: '',
       duration_unit: 'month',
-      limit_type: 'weekly',
+      limit_type: 'limited',
+      limit_cycle: 'weekly',
       limit_value: '',
       remark: '',
-      extra_store_ids: []
+      extra_store_ids: [],
+      dance_style_limit: []
     };
 
     const memberStoreId = _normalizeStoreId(member.store_id && (member.store_id._id || member.store_id));
@@ -719,6 +861,9 @@ Page({
       console.error('获取门店列表失败', err);
     }
 
+    // 加载舞种列表
+    await this._loadDanceStyleList();
+
     this.setData({
       showAddPackageModal: true,
       addPackageForm: defaultForm,
@@ -726,6 +871,7 @@ Page({
       addPackageFormStoreIndex: storeIndex
     });
     this._buildAddExtraStoreOptions();
+    this._refreshDanceStyleText('add');
   },
 
   onAddPackageStoreChange(e) {
@@ -798,6 +944,13 @@ Page({
     });
   },
 
+  onAddPackageLimitCycleChange(e) {
+    this.setData({
+      'addPackageForm.limit_cycle': e.currentTarget.dataset.type,
+      'addPackageForm.limit_value': ''
+    });
+  },
+
   onAddPackageDurationUnitChange(e) {
     this.setData({ 'addPackageForm.duration_unit': e.currentTarget.dataset.unit });
   },
@@ -833,12 +986,19 @@ Page({
       return;
     }
     if (addPackageForm.package_type === 'time_card' && !addPackageForm.limit_type) {
-      wx.showToast({ title: '请选择限制方式', icon: 'none' });
+      wx.showToast({ title: '请选择次数限制', icon: 'none' });
       return;
     }
-    if (addPackageForm.package_type === 'time_card' && addPackageForm.limit_type !== 'unlimited' && !addPackageForm.limit_value) {
-      wx.showToast({ title: addPackageForm.limit_type === 'daily' ? '请输入每日限制' : '请输入每周限制', icon: 'none' });
-      return;
+    if (addPackageForm.package_type === 'time_card' && addPackageForm.limit_type === 'limited') {
+      if (!addPackageForm.limit_cycle) {
+        wx.showToast({ title: '请选择周期类型', icon: 'none' });
+        return;
+      }
+      if (!addPackageForm.limit_value) {
+        const cycleLabel = addPackageForm.limit_cycle === 'daily' ? '每日' : (addPackageForm.limit_cycle === 'weekly' ? '每周' : '每月');
+        wx.showToast({ title: `请输入${cycleLabel}限制次数`, icon: 'none' });
+        return;
+      }
     }
 
     try {
@@ -849,6 +1009,7 @@ Page({
         duration_value: parseInt(addPackageForm.duration_value),
         duration_unit: addPackageForm.duration_unit,
         extra_store_ids: addPackageForm.extra_store_ids || [],
+        dance_style_limit: addPackageForm.dance_style_limit || [],
         remark: addPackageForm.remark
       };
 
@@ -856,10 +1017,15 @@ Page({
         postData.total_credits = parseInt(addPackageForm.total_credits);
       } else {
         postData.total_credits = 9999;
-        if (addPackageForm.limit_type === 'daily') {
-          postData.daily_limit = parseInt(addPackageForm.limit_value);
-        } else if (addPackageForm.limit_type === 'weekly') {
-          postData.weekly_limit = parseInt(addPackageForm.limit_value);
+        if (addPackageForm.limit_type === 'limited') {
+          const cycle = addPackageForm.limit_cycle;
+          if (cycle === 'daily') {
+            postData.daily_limit = parseInt(addPackageForm.limit_value);
+          } else if (cycle === 'weekly') {
+            postData.weekly_limit = parseInt(addPackageForm.limit_value);
+          } else if (cycle === 'monthly') {
+            postData.monthly_limit = parseInt(addPackageForm.limit_value);
+          }
         }
       }
 

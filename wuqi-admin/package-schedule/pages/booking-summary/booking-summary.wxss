@@ -359,6 +359,7 @@
   padding: 6rpx 10rpx;
   border-radius: 10rpx;
   min-width: 56rpx;
+  transition: all 0.2s;
 }
 
 .stat-item.completed {
@@ -371,6 +372,19 @@
 
 .stat-item.booked {
   background: rgba(148,130,132,0.1);
+}
+
+/* 选中态：加深背景 */
+.stat-item.completed.active {
+  background: rgba(91,140,90,0.25);
+}
+
+.stat-item.cancelled.active {
+  background: rgba(212,120,110,0.25);
+}
+
+.stat-item.booked.active {
+  background: rgba(148,130,132,0.25);
 }
 
 .stat-num {
@@ -567,6 +581,27 @@
   margin-left: 8rpx;
 }
 
+/* 已签到区块：扣次 + 签到方式 */
+.mc-checkin-info {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  flex-shrink: 0;
+  margin-left: 8rpx;
+}
+
+.mc-credits {
+  font-size: 22rpx;
+  font-weight: 600;
+  color: #5B8C5A;
+}
+
+.mc-method {
+  font-size: 18rpx;
+  color: #8B7E6A;
+  margin-top: 4rpx;
+}
+
 .badge-completed {
   background: rgba(91,140,90,0.12);
   color: #5B8C5A;
@@ -577,9 +612,19 @@
   color: #5B8C5A;
 }
 
+.badge-onsite {
+  background: rgba(25,118,210,0.10);
+  color: #1976D2;
+}
+
 .badge-booked {
   background: rgba(148,130,132,0.12);
   color: #6B5D5E;
+}
+
+.badge-in-progress {
+  background: rgba(255,152,0,0.12);
+  color: #E65100;
 }
 
 .badge-course-cancel {

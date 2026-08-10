@@ -181,7 +181,8 @@ function cleanPeriodType(input) {
   const map = {
     '每日限制': ['每天', '每日', '日', 'daily', 'day'],
     '每周限制': ['每周', '周', 'weekly', 'week'],
-    '无限次':   ['无限', '不限', '不限制', '无限制', 'unlimited', 'all'],
+    '每月限制': ['每月', '月', 'monthly', 'month'],
+    '不限':     ['无限', '无限次', '不限制', '无限制', 'unlimited', 'all'],
   };
   for (const [target, aliases] of Object.entries(map)) {
     if (aliases.includes(lower)) return target;
@@ -221,6 +222,7 @@ function cleanImportRow(row, storeMap) {
     period_type: cleanPeriodType(pre(row.period_type)),
     period_count: cleanNumber(pre(row.period_count)),
     extra_store_names: pre(row.extra_store_names),
+    dance_style_names: pre(row.dance_style_names),
     remark: pre(row.remark)
   };
 }
@@ -270,18 +272,19 @@ router.get('/template', auth, checkPermission(['super_admin', 'store_manager', '
   try {
     const xlsx = require('xlsx');
     const templateData = [
-      ['序号', '门店名称', '会员姓名', '预留手机号', '性别', '套餐类型', '有效期开始日期', '有效期结束日期', '次卡总次数', '时间卡周期限制方式', '时间卡限制次数', '附加门店（用逗号分隔）', '备注'],
-      [1, '舞栖舞蹈社（固戍店）', '张三', '13800138000', '女', '次卡', '2026-01-01', '2027-01-01', '41', '', '', '', '示例数据'],
-      [2, '舞栖舞蹈社（福永店）', '李四', '13900139000', '男', '时间卡', '2026-01-01', '2027-01-01', '', '每周限制', '2', '舞栖舞蹈社（固戍店）', '跨店示例'],
-      [3, '舞栖舞蹈社（固戍店）', '王五', '13700137000', '女', '时间卡', '2026-01-01', '2027-01-01', '', '无限次', '', '', '时间卡不限示例'],
-      [4, '舞栖舞蹈社（固戍店）', '赵六', '13600136000', '男', '', '', '', '', '', '', '', '未录套餐示例']
+      ['序号', '门店名称', '会员姓名', '预留手机号', '性别', '套餐类型', '有效期开始日期', '有效期结束日期', '次卡总次数', '时间卡周期限制方式', '时间卡限制次数', '附加门店（用逗号分隔）', '舞种限制（用逗号分隔，留空=不限）', '备注'],
+      [1, '舞栖舞蹈社（固戍店）', '张三', '13800138000', '女', '次卡', '2026-01-01', '2027-01-01', '41', '', '', '', '', '示例数据'],
+      [2, '舞栖舞蹈社（福永店）', '李四', '13900139000', '男', '时间卡', '2026-01-01', '2027-01-01', '', '每周限制', '2', '舞栖舞蹈社（固戍店）', '', '跨店示例'],
+      [3, '舞栖舞蹈社（固戍店）', '王五', '13700137000', '女', '时间卡', '2026-01-01', '2027-01-01', '', '每月限制', '8', '', '爵士舞', '时间卡每月限制+舞种限制示例'],
+      [4, '舞栖舞蹈社（固戍店）', '赵六', '13700137001', '女', '时间卡', '2026-01-01', '2027-01-01', '', '不限', '', '', '', '时间卡不限示例'],
+      [5, '舞栖舞蹈社（固戍店）', '孙七', '13600136000', '男', '', '', '', '', '', '', '', '', '未录套餐示例']
     ];
 
     const ws = xlsx.utils.aoa_to_sheet(templateData);
     // 设置列宽
     ws['!cols'] = [
       { wch: 6 }, { wch: 22 }, { wch: 12 }, { wch: 14 }, { wch: 6 },
-      { wch: 10 }, { wch: 14 }, { wch: 14 }, { wch: 10 }, { wch: 16 }, { wch: 12 }, { wch: 28 }, { wch: 20 }
+      { wch: 10 }, { wch: 14 }, { wch: 14 }, { wch: 10 }, { wch: 16 }, { wch: 12 }, { wch: 28 }, { wch: 24 }, { wch: 20 }
     ];
 
     const wb = xlsx.utils.book_new();
@@ -326,7 +329,11 @@ router.get('/:id', auth, checkPermission(['super_admin', 'store_manager', 'staff
     if (!user) {
       return res.status(404).json({ code: 404, message: '预建档记录不存在' });
     }
-    const packages = await UserPackage.find({ user_id: user._id }).lean();
+    const packages = await UserPackage.find({ user_id: user._id })
+      .populate('store_id', 'name')
+      .populate('extra_store_ids', 'name')
+      .populate('dance_style_limit', 'name')
+      .lean();
     user.packages = packages;
     user.has_package = packages.length > 0;
     res.json(success(user));
@@ -405,8 +412,8 @@ router.post('/import', auth, checkPermission(['super_admin', 'store_manager', 's
       return res.status(400).json({ code: 400, message: '文件无有效数据（至少需要表头 + 1 行数据）' });
     }
 
-    // 表头映射（按列顺序）- 新模板：删除套餐名称列，拆分周期限制为两列
-    const expectedHeaders = ['序号', '门店名称', '会员姓名', '预留手机号', '性别', '套餐类型', '有效期开始日期', '有效期结束日期', '次卡总次数', '时间卡周期限制方式', '时间卡限制次数', '附加门店（用逗号分隔）', '备注'];
+    // 表头映射（按列顺序）- 新模板：新增舞种限制列（位于附加门店与备注之间）
+    const expectedHeaders = ['序号', '门店名称', '会员姓名', '预留手机号', '性别', '套餐类型', '有效期开始日期', '有效期结束日期', '次卡总次数', '时间卡周期限制方式', '时间卡限制次数', '附加门店（用逗号分隔）', '舞种限制（用逗号分隔，留空=不限）', '备注'];
     const headers = rawRows[0].map(h => String(h).trim());
 
     // 表头校验：列数必须匹配，且每列表头名称必须一致
@@ -441,10 +448,11 @@ router.post('/import', auth, checkPermission(['super_admin', 'store_manager', 's
         start_date: String(rawRow[6] || '').trim(),
         end_date: String(rawRow[7] || '').trim(),
         total_credits: String(rawRow[8] || '').trim(),
-        period_type: String(rawRow[9] || '').trim(),   // 时间卡周期限制方式：每日限制/每周限制/无限次
+        period_type: String(rawRow[9] || '').trim(),   // 时间卡周期限制方式：每日限制/每周限制/每月限制/不限
         period_count: String(rawRow[10] || '').trim(), // 时间卡限制次数
         extra_store_names: String(rawRow[11] || '').trim(), // 附加门店（用逗号分隔）
-        remark: String(rawRow[12] || '').trim()
+        dance_style_names: String(rawRow[12] || '').trim(), // 舞种限制（用逗号分隔，留空=不限）
+        remark: String(rawRow[13] || '').trim()
       });
     }
 
@@ -459,6 +467,12 @@ router.post('/import', auth, checkPermission(['super_admin', 'store_manager', 's
 
     // 数据清洗：自动纠正常见的格式偏差
     const cleanedRows = rows.map(row => cleanImportRow(row, storeMap));
+
+    // 单门店角色（store_manager 单店 / staff）：忽略附加门店数据，直接清空不校验不报错
+    const isSingleStoreRole = req.storeFilter && typeof req.storeFilter.store_id === 'string';
+    if (isSingleStoreRole) {
+      cleanedRows.forEach(row => { row.extra_store_names = ''; });
+    }
 
     // 调用 service 执行校验和导入
     const results = await preMemberService.importPreMembers(cleanedRows, req.user.id);

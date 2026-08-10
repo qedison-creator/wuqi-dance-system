@@ -157,6 +157,10 @@
       <view class="bb-primary disabled-clickable" wx:elif="{{courseStoreMatched === false}}" bindtap="onBookTap">
         <text>不可预约</text>
       </view>
+      <!-- 舞种限制：套餐限制了允许预约的舞种 -->
+      <view class="bb-primary disabled-clickable" wx:elif="{{courseStyleMatched === false}}" bindtap="onBookTap">
+        <text>不可预约</text>
+      </view>
       <!-- 可预约 -->
       <view class="bb-primary {{!isLoggedIn || isPackageSuspended ? 'disabled' : ''}}" wx:else bindtap="onBookTap">
         <text>立即预约</text>

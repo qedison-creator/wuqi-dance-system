@@ -99,14 +99,15 @@ Page({
           can_operate: canOperate
         };
       });
-      // 前端按全局门店选择过滤（后端 GET /banners 不支持 store_id 查询参数）
+      // 仅显示属于当前选中门店的轮播图
       const shopStoreId = app.globalData.shopStoreId || '';
       if (shopStoreId) {
-        list = list.filter(banner => {
-          // store_id 为空表示多门店展示，保留
-          if (!banner.store_id) return true;
-          return String(banner.store_id) === String(shopStoreId);
-        });
+        list = list.filter(banner =>
+          banner.store_id && String(banner.store_id) === String(shopStoreId)
+        );
+      } else {
+        // 未选门店时门店轮播图列表为空
+        list = [];
       }
       this.setData({ banners: list });
     } catch (err) {
@@ -115,9 +116,9 @@ Page({
   },
 
   onAddBanner() {
-    // 默认使用全局统一门店选择；单门店角色固定所属门店；均为空时为"多门店展示"
+    // 默认使用当前选中门店；单门店角色固定所属门店；均为空时为"多门店展示"
     const shopStoreId = app.globalData.shopStoreId || '';
-    let defaultStoreId = shopStoreId || (app.isSingleStoreRole() ? app.getDefaultStoreId() : '');
+    const defaultStoreId = shopStoreId || (app.isSingleStoreRole() ? app.getDefaultStoreId() : '');
     let defaultStoreIndex = 0;
     if (defaultStoreId) {
       const idx = this.data.storeOptions.findIndex(s => String(s._id) === String(defaultStoreId));

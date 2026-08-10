@@ -462,6 +462,33 @@ function broadcastMemberCountUpdate(counts = {}) {
   return sentCount;
 }
 
+/**
+ * 门店信息变更广播（改名、地址修改等）
+ * 通知管理端首页及所有相关页面刷新门店相关数据
+ *
+ * @param {Object} payload - { storeId, storeName, action }
+ */
+function broadcastStoreUpdate(payload = {}) {
+  const message = JSON.stringify({
+    event: 'store_update',
+    updateTime: new Date().toISOString(),
+    data: payload
+  });
+
+  let sentCount = 0;
+  for (const conns of connectionPool.values()) {
+    for (const ws of conns) {
+      if (ws._userType === 'admin' || ws._userType === 'staff') {
+        if (ws.readyState === 1) {
+          ws.send(message);
+          sentCount++;
+        }
+      }
+    }
+  }
+  return sentCount;
+}
+
 module.exports = {
   initWebSocketServer,
   broadcastCourseUpdate,
@@ -469,6 +496,7 @@ module.exports = {
   sendToUser,
   broadcastMemberCountUpdate,
   broadcastAccountOnlineStatus,
+  broadcastStoreUpdate,
   isUserOnline,
   getOnlineUserIds,
   getOnlineCount,

@@ -168,6 +168,20 @@ exports.getCoachById = async (id, reqUser) => {
   coachObj.dance_style_ids = coach.dance_styles ? coach.dance_styles.map(ds => ds._id) : [];
   coachObj.dance_style_names = coach.dance_styles ? coach.dance_styles.map(ds => ds.name).join('、') : '';
 
+  // 会员端调用（reqUser 为 null）：附加教练相册图片列表
+  // gallery 字段已废弃，相册数据已迁移至 Image 模型，通过 coach_ids 关联
+  if (!reqUser) {
+    try {
+      const Image = require('../models/Image');
+      const images = await Image.find({ coach_ids: id })
+        .sort({ sort_order: -1, created_at: -1 })
+        .select('image_url thumbnail_url width height orientation');
+      coachObj.images = images.map(img => img.toObject());
+    } catch (e) {
+      coachObj.images = [];
+    }
+  }
+
   return coachObj;
 };
 

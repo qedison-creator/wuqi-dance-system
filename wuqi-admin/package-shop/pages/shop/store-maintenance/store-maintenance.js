@@ -27,15 +27,48 @@ Page({
 
   async loadStoreList() {
     try {
-      const res = await request({ url: '/stores', method: 'GET' });
-      const list = res.data && res.data.list
-        ? res.data.list
-        : (Array.isArray(res.data) ? res.data : []);
-      // 从全局统一门店选择读取，高亮匹配的门店
-      const shopStoreId = app.globalData.shopStoreId || '';
-      this.setData({ storeList: list, selectedStoreId: shopStoreId });
+      // 门店维护为门店级功能：只显示当前选中门店的信息
+      let shopStoreId = app.globalData.shopStoreId || '';
+      // 单门店角色使用所属门店
+      if (app.isSingleStoreRole()) {
+        shopStoreId = app.getDefaultStoreId() || '';
+      }
+      if (!shopStoreId) {
+        wx.showToast({ title: '请先在店务管理选择门店', icon: 'none' });
+        this.setData({ storeList: [], selectedStoreId: '' });
+        return;
+      }
+
+      // 优先从全局缓存中查找门店信息
+      let storeList = app.globalData.storeList || [];
+      let targetStore = storeList.find(s => String(s._id) === String(shopStoreId));
+
+      // 缓存未命中时从 API 加载全部门店后筛选
+      if (!targetStore) {
+        const res = await request({ url: '/stores', method: 'GET' });
+        const allList = res.data && res.data.list
+          ? res.data.list
+          : (Array.isArray(res.data) ? res.data : []);
+        app.globalData.storeList = allList;
+        targetStore = allList.find(s => String(s._id) === String(shopStoreId));
+      }
+
+      // 单门店角色不允许查看非所属门店
+      if (app.isSingleStoreRole()) {
+        const allowed = app.getAllowedStoreIds();
+        if (allowed && !allowed.includes(String(shopStoreId))) {
+          wx.showToast({ title: '无权限查看该门店', icon: 'none' });
+          this.setData({ storeList: [], selectedStoreId: '' });
+          return;
+        }
+      }
+
+      this.setData({
+        storeList: targetStore ? [targetStore] : [],
+        selectedStoreId: shopStoreId,
+      });
     } catch (err) {
-      wx.showToast({ title: '加载门店列表失败', icon: 'none' });
+      wx.showToast({ title: '加载门店信息失败', icon: 'none' });
     }
   },
 

@@ -20,6 +20,7 @@ async function calcTimeCardUsage(userPackage) {
   const result = {
     weekly_used: null, weekly_limit: null, weekly_remaining: null,
     daily_used: null, daily_limit: null, daily_remaining: null,
+    monthly_used: null, monthly_limit: null, monthly_remaining: null,
     next_week_used: null, next_week_remaining: null,
     next_week_start: null, next_week_end: null,
   };
@@ -62,6 +63,20 @@ async function calcTimeCardUsage(userPackage) {
     result.daily_used = usedToday;
     result.daily_limit = userPackage.daily_limit;
     result.daily_remaining = Math.max(0, userPackage.daily_limit - usedToday);
+  }
+
+  if (userPackage.monthly_limit) {
+    const monthStart = now.startOf('month');
+    const monthEnd = now.endOf('month');
+    const usedThisMonth = await Booking.countDocuments({
+      user_id: userPackage.user_id,
+      user_package_id: userPackage._id,
+      booking_date: { $gte: monthStart.format('YYYY-MM-DD'), $lte: monthEnd.format('YYYY-MM-DD') },
+      status: { $in: ['booked', 'completed'] },
+    });
+    result.monthly_used = usedThisMonth;
+    result.monthly_limit = userPackage.monthly_limit;
+    result.monthly_remaining = Math.max(0, userPackage.monthly_limit - usedThisMonth);
   }
 
   return result;
@@ -338,7 +353,7 @@ exports.getMemberCheckinProfile = async (userId) => {
   const userPackages = await UserPackage.find({
     user_id: userId,
     status: 'active',
-  }).populate('package_id', 'name type credits limit_type daily_limit weekly_limit duration validity_period');
+  }).populate('package_id', 'name type credits limit_type daily_limit weekly_limit monthly_limit duration validity_period');
 
   const todayBookings = await Booking.find({
     user_id: userId,
@@ -410,6 +425,7 @@ exports.getMemberCheckinProfile = async (userId) => {
       limit_type: pkg.limit_type,
       daily_limit: pkg.daily_limit,
       weekly_limit: pkg.weekly_limit,
+      monthly_limit: pkg.monthly_limit,
       time_card_usage: timeCardUsage,
       activated_at: activation ? activation.activated_at : null,
       status: up.status,

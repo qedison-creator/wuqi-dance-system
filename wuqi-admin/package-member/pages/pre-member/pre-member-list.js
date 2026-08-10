@@ -13,15 +13,19 @@ const _normalizeStoreId = (id) => {
 
 // 创建一个空套餐对象，供新建/添加套餐使用
 const _createEmptyPackage = () => ({
+  _id: '',                  // 套餐ID：编辑时保留用于原地更新，新建时为空
   package_type: '',        // 'count_card' / 'time_card' / ''
   start_date: '',
   end_date: '',
   total_credits: '',
-  period_type: 'weekly',   // 'weekly' / 'daily' / 'unlimited'
+  period_type: 'limited',   // 'limited' / 'unlimited'
+  period_cycle: 'weekly',   // 'daily' / 'weekly' / 'monthly'
   period_count: '',
   duration_value: '',
   duration_unit: 'month',  // 'month' / 'day'
-  extra_store_ids: []      // 该套餐的附加门店 ID 数组
+  extra_store_ids: [],     // 该套餐的附加门店 ID 数组
+  dance_style_limit: [],   // 该套餐的舞种限制 ID 数组（空=不限舞种）
+  _danceStyleText: ''      // 已选舞种文本（仅前端展示用）
 });
 
 Page({
@@ -41,6 +45,7 @@ Page({
     // 新建/编辑弹窗
     showFormModal: false,
     editingId: '',
+    submitting: false,
     form: {
       real_name: '',
       gender: 0,
@@ -61,6 +66,11 @@ Page({
     datePickerTitle: '',
     // 附加门店开关选项：二维数组，formExtraStoreOptions[pkgIdx] 为该套餐对应的门店开关列表
     formExtraStoreOptions: [],
+    // 舞种限制
+    danceStyleList: [],
+    showDanceStylePicker: false,
+    danceStylePickerIndex: 0,
+    selectedDanceStyleId: '',   // 单选 UI 判断用（空=不限舞种）
     // 批量管理模式
     batchMode: false,        // 是否处于批量管理模式
     selectedIds: [],         // 已选中的预建档 ID 列表
@@ -76,21 +86,41 @@ Page({
     visibleCount: 5,
     currentTotal: 0,
     showBackToTop: false,
-    backToTopThreshold: 0
+    backToTopThreshold: 0,
+    loadingMore: false
   },
 
   onLoad() {
+    // 滚动位置恢复相关：详情页返回时复用离开前的列表数据和滚动位置
+    this._lastScrollTop = 0;
+    this._backFromDetail = false;
     this.loadStoreList();
+    this._loadDanceStyleList();
   },
 
   onShow() {
     // 读取当前用户角色，判断是否为审核员（脱敏角色）
     const app = getApp();
     const userInfo = (app && app.globalData && app.globalData.userInfo) || {};
+
+    // 从详情页返回：保留已加载的列表数据和滚动位置，不重新加载第一页
+    if (this._backFromDetail) {
+      this._backFromDetail = false;
+      // 角色可能变化（如登录态切换），仍同步一下
+      this.setData({ isReviewer: userInfo.role === 'reviewer' });
+      this._connectWebSocket();
+      // 延迟恢复滚动位置，确保页面渲染完成
+      const savedTop = this._lastScrollTop || 0;
+      setTimeout(() => {
+        wx.pageScrollTo({ scrollTop: savedTop, duration: 0 });
+      }, 50);
+      return;
+    }
+
     // 门店隔离：单门店角色固定所属门店
     const isSingleStore = app.isSingleStoreRole();
     const defaultStoreId = app.getDefaultStoreId();
-    const updateData = { isReviewer: userInfo.role === 'reviewer', showStoreSwitcher: !isSingleStore, page: 1, hasMore: true, visibleCount: 5, currentTotal: 0, showBackToTop: false, backToTopThreshold: 0 };
+    const updateData = { isReviewer: userInfo.role === 'reviewer', showStoreSwitcher: !isSingleStore, page: 1, hasMore: true, visibleCount: 5, currentTotal: 0, showBackToTop: false, backToTopThreshold: 0, loadingMore: false };
     if (isSingleStore && defaultStoreId && this.data.currentStoreId !== defaultStoreId) {
       const storeList = app.globalData.storeList || [];
       const found = storeList.find(s => String(s._id) === String(defaultStoreId));
@@ -134,8 +164,11 @@ Page({
     }
   },
 
-  async loadList() {
-    this.setData({ loading: true });
+  // silent=true 时为"查看更多"静默加载：不切换 loading 状态，避免 expand-toggle 按钮显隐导致列表整体闪动
+  async loadList(silent = false) {
+    if (!silent) {
+      this.setData({ loading: true });
+    }
     try {
       const params = {
         store_id: this.data.currentStoreId,
@@ -170,7 +203,8 @@ Page({
           reserve_phone: maskPhone(reservePhoneRaw),    // 脱敏手机号（默认展示）
           avatar_url: fixImageUrl(item.avatar_url),
           created_at_text: item.created_at ? this._formatDate(item.created_at) : '',
-          package_text: this._formatPackageText(item.packages)
+          package_text: this._formatPackageText(item.packages),
+          package_dance_style_text: this._formatDanceStyleText(item.packages)
         };
       });
       // 分页处理：第一页替换，后续页追加
@@ -179,8 +213,9 @@ Page({
       const visibleCount = Math.min(list.length, this.data.page * this.data.pageSize);
       const hasMore = list.length < total;
       const statsData = statsRes && statsRes.data ? statsRes.data : {};
-      this.setData({
-        list,
+
+      // 构造增量更新对象：首页整体替换 list；翻页时仅追加新项，避免数组整体替换触发 wx:for 重渲染导致 scrollTop 跳动闪烁
+      const updateData = {
         loading: false,
         hasMore,
         currentTotal: total,
@@ -189,7 +224,16 @@ Page({
         claimedCount: statsData.claimed_count || 0,
         allCount: statsData.all_count || 0,
         showBackToTop: false
-      }, () => {
+      };
+      if (isFirstPage) {
+        updateData.list = formattedList;
+      } else {
+        const startIdx = this.data.list.length;
+        formattedList.forEach((item, i) => {
+          updateData[`list[${startIdx + i}]`] = item;
+        });
+      }
+      this.setData(updateData, () => {
         if (list.length >= 5) this._calcBackToTopThreshold();
       });
       // 列表刷新后同步批量管理状态（清理已不存在的选中项并更新全选标记 + 重算 _selected）
@@ -199,7 +243,16 @@ Page({
       }
     } catch (err) {
       console.error('加载预建档列表失败', err);
-      this.setData({ loading: false });
+      if (!silent) {
+        this.setData({ loading: false });
+      }
+    } finally {
+      if (silent) {
+        // 静默加载：仅重置 loadingMore，不切换 loading 状态
+        this.setData({ loadingMore: false });
+      } else {
+        this.setData({ loading: false });
+      }
     }
   },
 
@@ -226,11 +279,11 @@ Page({
     }, 500);
   },
 
-  // 点击"查看更多"加载下一页
+  // 点击"查看更多"加载下一页：走静默加载路径，不切换 loading 状态，避免按钮显隐导致列表闪动
   onLoadMore() {
-    if (!this.data.hasMore || this.data.loading) return;
-    this.setData({ page: this.data.page + 1 }, () => {
-      this.loadList();
+    if (!this.data.hasMore || this.data.loading || this.data.loadingMore) return;
+    this.setData({ loadingMore: true, page: this.data.page + 1 }, () => {
+      this.loadList(true);
     });
   },
 
@@ -242,6 +295,8 @@ Page({
 
   // 滚动监听，控制返回顶部按钮显隐
   onPageScroll(e) {
+    // 记录最新滚动位置，供详情页返回时恢复
+    this._lastScrollTop = e.scrollTop;
     const threshold = this.data.backToTopThreshold;
     const shouldShow = threshold > 0 && e.scrollTop > threshold;
     if (shouldShow !== this.data.showBackToTop) {
@@ -286,9 +341,23 @@ Page({
     } else {
       if (pkg.weekly_limit) detail = `每周${pkg.weekly_limit}次`;
       else if (pkg.daily_limit) detail = `每天${pkg.daily_limit}次`;
+      else if (pkg.monthly_limit) detail = `每月${pkg.monthly_limit}次`;
       else detail = '不限';
     }
     return `${typeText} · ${detail} · ${startText}~${endText}`;
+  },
+
+  // 构建舞种限制文本：与显示的套餐（packages[0]）对应，空数组或未 populate 时返回空字符串
+  _formatDanceStyleText(packages) {
+    if (!packages || packages.length === 0) return '';
+    const pkg = packages[0];
+    const dsl = pkg.dance_style_limit || [];
+    if (!Array.isArray(dsl) || dsl.length === 0) return '';
+    // populate 后是 [{_id, name}]，未 populate 时是 ObjectId 数组（无法显示名称，跳过）
+    return dsl
+      .map(ds => (typeof ds === 'object' ? (ds.name || '') : ''))
+      .filter(Boolean)
+      .join('、');
   },
 
   // 门店筛选
@@ -314,12 +383,12 @@ Page({
   },
 
   onSearch() {
-    this.setData({ page: 1, hasMore: true, visibleCount: 5, currentTotal: 0, showBackToTop: false, backToTopThreshold: 0 });
+    this.setData({ page: 1, hasMore: true, visibleCount: 5, currentTotal: 0, showBackToTop: false, backToTopThreshold: 0, loadingMore: false });
     this.loadList();
   },
 
   onClearSearch() {
-    this.setData({ keyword: '', page: 1, hasMore: true, visibleCount: 5, currentTotal: 0, showBackToTop: false, backToTopThreshold: 0 });
+    this.setData({ keyword: '', page: 1, hasMore: true, visibleCount: 5, currentTotal: 0, showBackToTop: false, backToTopThreshold: 0, loadingMore: false });
     this.loadList();
   },
 
@@ -332,7 +401,8 @@ Page({
       visibleCount: 5,
       currentTotal: 0,
       showBackToTop: false,
-      backToTopThreshold: 0
+      backToTopThreshold: 0,
+      loadingMore: false
     });
     this.loadList();
   },
@@ -348,7 +418,8 @@ Page({
   },
 
   // ========== 新建/编辑弹窗 ==========
-  onCreatePreMember() {
+  async onCreatePreMember() {
+    await this._loadDanceStyleList();
     const defaultStore = this.data.currentStoreId ? this.data.storeList.find(s => s._id === this.data.currentStoreId) : null;
     this.setData({
       showFormModal: true,
@@ -370,6 +441,7 @@ Page({
   async onEditPreMember(e) {
     const id = e.currentTarget.dataset.id;
     try {
+      await this._loadDanceStyleList();
       const res = await request({ url: `/pre-members/${id}`, method: 'GET' });
       const data = res.data;
       const storeObj = data.store_id && data.store_id._id ? data.store_id : { _id: data.store_id, name: '' };
@@ -379,16 +451,21 @@ Page({
         : (data.package ? [data.package] : []);
       const packages = rawPackages.map(pkg => {
         const extraIds = (pkg.extra_store_ids || []).map(s => _normalizeStoreId(typeof s === 'object' ? (s._id || s.id) : s));
+        const danceStyleIds = (pkg.dance_style_limit || []).map(ds => _normalizeStoreId(typeof ds === 'object' ? (ds._id || ds.id) : ds));
         return {
+          _id: pkg._id ? String(pkg._id) : '',   // 保留套餐ID，编辑提交时用于后端原地更新
           package_type: pkg.package_type || '',
           start_date: pkg.start_date ? this._formatDate(pkg.start_date) : '',
           end_date: pkg.end_date ? this._formatDate(pkg.end_date) : '',
           total_credits: pkg.total_credits ? String(pkg.total_credits) : '',
-          period_type: pkg.weekly_limit ? 'weekly' : (pkg.daily_limit ? 'daily' : 'unlimited'),
-          period_count: pkg.weekly_limit ? String(pkg.weekly_limit) : (pkg.daily_limit ? String(pkg.daily_limit) : ''),
+          period_type: (pkg.weekly_limit || pkg.daily_limit || pkg.monthly_limit) ? 'limited' : 'unlimited',
+          period_cycle: pkg.daily_limit ? 'daily' : (pkg.weekly_limit ? 'weekly' : (pkg.monthly_limit ? 'monthly' : 'weekly')),
+          period_count: pkg.daily_limit ? String(pkg.daily_limit) : (pkg.weekly_limit ? String(pkg.weekly_limit) : (pkg.monthly_limit ? String(pkg.monthly_limit) : '')),
           duration_value: pkg.duration_value ? String(pkg.duration_value) : '',
           duration_unit: pkg.duration_unit || 'month',
-          extra_store_ids: extraIds
+          extra_store_ids: extraIds,
+          dance_style_limit: danceStyleIds,
+          _danceStyleText: ''   // 稍后由 _refreshAllDanceStyleText 填充
         };
       });
       this.setData({
@@ -412,7 +489,7 @@ Page({
   },
 
   onCloseFormModal() {
-    this.setData({ showFormModal: false, editingId: '' });
+    this.setData({ showFormModal: false, editingId: '', submitting: false });
   },
 
   onModalTap() {
@@ -459,6 +536,12 @@ Page({
     const index = e.currentTarget.dataset.index;
     const period = e.currentTarget.dataset.period;
     this.setData({ [`form.packages[${index}].period_type`]: period });
+  },
+
+  onPeriodCycleChange(e) {
+    const index = e.currentTarget.dataset.index;
+    const period = e.currentTarget.dataset.period;
+    this.setData({ [`form.packages[${index}].period_cycle`]: period });
   },
 
   // 新增套餐：在末尾追加一个空套餐对象
@@ -539,6 +622,76 @@ Page({
       }));
     });
     this.setData({ formExtraStoreOptions: optionsArr });
+    // 同步刷新舞种限制文本
+    this._refreshAllDanceStyleText();
+  },
+
+  // ========== 舞种限制 ==========
+  async _loadDanceStyleList() {
+    if (this.data.danceStyleList && this.data.danceStyleList.length > 0) return;
+    try {
+      const res = await request({ url: '/dance-styles', method: 'GET' });
+      const list = res.data && (Array.isArray(res.data) ? res.data : (res.data.list || []));
+      const danceStyleList = list
+        .filter(ds => ds.status === 'active')
+        .map(ds => ({ ...ds, _id: _normalizeStoreId(ds._id) }));
+      this.setData({ danceStyleList });
+    } catch (err) {
+      console.error('获取舞种列表失败', err);
+    }
+  },
+
+  _buildDanceStyleText(pkgIdx) {
+    const { danceStyleList, form } = this.data;
+    const pkg = form.packages[pkgIdx];
+    if (!pkg) return '';
+    const selectedIds = pkg.dance_style_limit || [];
+    if (selectedIds.length === 0) return '';
+    const names = danceStyleList
+      .filter(ds => selectedIds.indexOf(ds._id) > -1)
+      .map(ds => ds.name);
+    return names.join('、');
+  },
+
+  _refreshAllDanceStyleText() {
+    const { form } = this.data;
+    if (!form.packages) return;
+    const updates = {};
+    form.packages.forEach((pkg, idx) => {
+      updates[`form.packages[${idx}]._danceStyleText`] = this._buildDanceStyleText(idx);
+    });
+    this.setData(updates);
+  },
+
+  onOpenDanceStylePicker(e) {
+    const pkgIdx = Number(e.currentTarget.dataset.index);
+    const arr = (this.data.form.packages[pkgIdx] && this.data.form.packages[pkgIdx].dance_style_limit) || [];
+    this.setData({
+      selectedDanceStyleId: arr.length > 0 ? arr[0] : '',
+      showDanceStylePicker: true,
+      danceStylePickerIndex: pkgIdx
+    });
+  },
+
+  onCloseDanceStylePicker() {
+    this.setData({ showDanceStylePicker: false });
+  },
+
+  onSelectDanceStyle(e) {
+    const { id } = e.currentTarget.dataset;
+    const normalizedId = id ? _normalizeStoreId(id) : '';
+    const pkgIdx = this.data.danceStylePickerIndex;
+    // 单选：空 id 表示"不限舞种"，清空数组；否则只保留该舞种
+    const danceStyleIds = normalizedId ? [normalizedId] : [];
+    this.setData({
+      [`form.packages[${pkgIdx}].dance_style_limit`]: danceStyleIds,
+      selectedDanceStyleId: normalizedId,
+      showDanceStylePicker: false
+    });
+    // 必须在 setData 之后构建文本，确保读取到更新后的 dance_style_limit
+    this.setData({
+      [`form.packages[${pkgIdx}]._danceStyleText`]: this._buildDanceStyleText(pkgIdx)
+    });
   },
 
   onToggleExtraStore(e) {
@@ -602,25 +755,23 @@ Page({
   },
 
   async onSubmitForm() {
-    const { form, editingId } = this.data;
+    const { form, editingId, submitting } = this.data;
+
+    // 防重复提交
+    if (submitting) return;
+    this.setData({ submitting: true });
+
+    // 辅助函数：验证失败时重置 submitting 状态
+    const failValidation = (msg) => {
+      wx.showToast({ title: msg, icon: 'none' });
+      this.setData({ submitting: false });
+    };
 
     // 基础校验
-    if (!form.store_id) {
-      wx.showToast({ title: '请选择门店', icon: 'none' });
-      return;
-    }
-    if (!form.real_name || !form.real_name.trim()) {
-      wx.showToast({ title: '请输入会员姓名', icon: 'none' });
-      return;
-    }
-    if (form.gender !== 1 && form.gender !== 2) {
-      wx.showToast({ title: '请选择性别', icon: 'none' });
-      return;
-    }
-    if (!form.reserve_phone || form.reserve_phone.length !== 11) {
-      wx.showToast({ title: '请输入11位手机号', icon: 'none' });
-      return;
-    }
+    if (!form.store_id) return failValidation('请选择门店');
+    if (!form.real_name || !form.real_name.trim()) return failValidation('请输入会员姓名');
+    if (form.gender !== 1 && form.gender !== 2) return failValidation('请选择性别');
+    if (!form.reserve_phone || form.reserve_phone.length !== 11) return failValidation('请输入11位手机号');
 
     // 套餐校验：遍历每个套餐，仅对 package_type 非空的套餐做校验
     for (let i = 0; i < form.packages.length; i++) {
@@ -631,23 +782,18 @@ Page({
         // 新会员：校验时长
         if (!pkg.duration_value || Number(pkg.duration_value) <= 0) {
           const tip = pkg.package_type === 'count_card' ? `${prefix}请输入服务有效期` : `${prefix}请输入有效时长`;
-          wx.showToast({ title: tip, icon: 'none' });
-          return;
+          return failValidation(tip);
         }
       } else {
         // 老会员：校验起止日期
-        if (!pkg.start_date || !pkg.end_date) {
-          wx.showToast({ title: `${prefix}请选择有效期`, icon: 'none' });
-          return;
-        }
+        if (!pkg.start_date || !pkg.end_date) return failValidation(`${prefix}请选择有效期`);
       }
       if (pkg.package_type === 'count_card' && (!pkg.total_credits || Number(pkg.total_credits) <= 0)) {
-        wx.showToast({ title: `${prefix}请输入总次数`, icon: 'none' });
-        return;
+        return failValidation(`${prefix}请输入总次数`);
       }
-      if (pkg.package_type === 'time_card' && pkg.period_type !== 'unlimited' && (!pkg.period_count || Number(pkg.period_count) <= 0)) {
-        wx.showToast({ title: `${prefix}请输入周期次数`, icon: 'none' });
-        return;
+      if (pkg.package_type === 'time_card' && pkg.period_type === 'limited') {
+        if (!pkg.period_cycle) return failValidation(`${prefix}请选择周期类型`);
+        if (!pkg.period_count || Number(pkg.period_count) <= 0) return failValidation(`${prefix}请输入周期次数`);
       }
     }
 
@@ -667,8 +813,13 @@ Page({
       if (!pkg.package_type) return;
       const packageData = {
         package_type: pkg.package_type,
-        extra_store_ids: pkg.extra_store_ids || []
+        extra_store_ids: pkg.extra_store_ids || [],
+        dance_style_limit: pkg.dance_style_limit || []
       };
+      // 编辑模式下带上 _id，后端按 _id 原地更新现有套餐；新建模式 _id 为空，后端创建新套餐
+      if (editingId && pkg._id) {
+        packageData._id = pkg._id;
+      }
       if (form.member_identity === 'new') {
         // 新会员：传时长，后端激活时计算起止日期
         packageData.duration_value = Number(pkg.duration_value);
@@ -681,11 +832,19 @@ Page({
       if (pkg.package_type === 'count_card') {
         packageData.total_credits = Number(pkg.total_credits);
       } else {
-        if (pkg.period_type === 'weekly') {
-          packageData.weekly_limit = Number(pkg.period_count);
-        } else if (pkg.period_type === 'daily') {
-          packageData.daily_limit = Number(pkg.period_count);
+        // 传 period_type 供后端区分"不限"与"未填写"
+        packageData.period_type = pkg.period_type;
+        if (pkg.period_type === 'limited') {
+          const cycle = pkg.period_cycle;
+          if (cycle === 'daily') {
+            packageData.daily_limit = Number(pkg.period_count);
+          } else if (cycle === 'weekly') {
+            packageData.weekly_limit = Number(pkg.period_count);
+          } else if (cycle === 'monthly') {
+            packageData.monthly_limit = Number(pkg.period_count);
+          }
         }
+        // unlimited: 不传 weekly_limit / daily_limit / monthly_limit
       }
       payload.packages.push(packageData);
     });
@@ -699,11 +858,17 @@ Page({
       }
       wx.hideLoading();
       wx.showToast({ title: editingId ? '更新成功' : '创建成功', icon: 'success' });
-      this.setData({ showFormModal: false, editingId: '', page: 1, hasMore: true, visibleCount: 5, currentTotal: 0, showBackToTop: false });
+      this.setData({ showFormModal: false, editingId: '', submitting: false, page: 1, hasMore: true, visibleCount: 5, currentTotal: 0, showBackToTop: false });
       this.loadList();
     } catch (err) {
-      wx.hideLoading();
-      wx.showToast({ title: err.message || '操作失败', icon: 'none' });
+      // request.js 已处理所有业务错误（有 statusCode）和网络错误（有 errMsg）的 hideLoading + showToast
+      // 此处仅处理 request.js 未覆盖的异常（如 setData/loadList 抛错），避免重复调用导致 loading/toast 状态冲突
+      const isHandled = (err && err.statusCode) || (err && err.errMsg);
+      if (!isHandled) {
+        wx.hideLoading();
+        wx.showToast({ title: (err && err.message) || '操作失败', icon: 'none' });
+      }
+      this.setData({ submitting: false });
     }
   },
 
@@ -883,12 +1048,15 @@ Page({
   // 查看详情
   onViewDetail(e) {
     const id = e.currentTarget.dataset.id;
+    // 标记从详情页返回时需恢复滚动位置
+    this._backFromDetail = true;
     wx.navigateTo({ url: `/package-member/pages/members/member-detail/member-detail?id=${id}` });
   },
 
   // 查看正式会员详情
   onViewOfficialMember(e) {
     const id = e.currentTarget.dataset.id;
+    this._backFromDetail = true;
     wx.navigateTo({ url: `/package-member/pages/members/member-detail/member-detail?id=${id}` });
   },
 

@@ -3,6 +3,7 @@ const UserPackage = require('../models/UserPackage');
 const Booking = require('../models/Booking');
 const ExemptionLog = require('../models/ExemptionLog');
 const logService = require('./log.service');
+const { sendToUser } = require('./websocket.service');
 const mongoose = require('mongoose');
 const dayjs = require('dayjs');
 const utc = require('dayjs/plugin/utc');
@@ -144,6 +145,7 @@ exports.getMemberList = async (query) => {
   const listWithPackages = await Promise.all(list.map(async (user) => {
     const packages = await UserPackage.find({ user_id: user._id })
       .populate('store_id', 'name')
+      .populate('dance_style_limit', 'name')
       .sort({ created_at: -1 });
     const userObj = user.toObject();
     userObj.packages = packages;
@@ -168,6 +170,8 @@ exports.getMemberById = async (id) => {
   // 获取会员套餐（使用 lean 返回普通对象，确保可附加 extensions 字段）
   const packages = await UserPackage.find({ user_id: id })
     .populate('store_id', 'name')
+    .populate('extra_store_ids', 'name')
+    .populate('dance_style_limit', 'name')
     .sort({ created_at: -1 })
     .lean();
 
@@ -189,6 +193,16 @@ exports.getMemberById = async (id) => {
       operator_name: (ext.operated_by && (ext.operated_by.nick_name || ext.operated_by.username)) || '',
       reason: ext.reason || ext.remark || '',
     }));
+    // 已激活的时间卡套餐：计算当前限制周期剩余次数
+    if (pkg.is_activated && pkg.status === 'active' && pkg.package_type === 'time_card' &&
+        (pkg.daily_limit || pkg.weekly_limit || pkg.monthly_limit)) {
+      try {
+        const usage = await packageService._calcTimeCardUsage(pkg);
+        pkg.time_card_usage = usage;
+      } catch (e) {
+        pkg.time_card_usage = null;
+      }
+    }
   }
 
   // 获取预约记录
@@ -399,7 +413,14 @@ exports.suspendMember = async (userId, suspendDays, operatorId) => {
     target_id: userId,
     detail: `会员(${userId})停卡${suspendDays}天(${suspendedCount}个套餐), 预计${suspendEndDate.toISOString().split('T')[0]}自动复卡`,
   });
-  
+
+  // 推送套餐变更事件给会员端，即时刷新套餐数据
+  try {
+    sendToUser(userId, 'package_update', { action: 'suspend', suspend_days: suspendDays });
+  } catch (e) {
+    console.error('[Member] 推送套餐更新事件失败:', e.message);
+  }
+
   return user;
 };
 
@@ -447,7 +468,14 @@ exports.unsuspendMember = async (userId, operatorId) => {
     target_id: userId,
     detail: `会员(${userId})已复卡（实际停卡${totalDays}天，${unsuspendedCount}个套餐恢复）`,
   });
-  
+
+  // 推送套餐变更事件给会员端，即时刷新套餐数据
+  try {
+    sendToUser(userId, 'package_update', { action: 'unsuspend' });
+  } catch (e) {
+    console.error('[Member] 推送套餐更新事件失败:', e.message);
+  }
+
   const user = await User.findById(userId);
   return user;
 };
@@ -459,9 +487,9 @@ exports.unsuspendMember = async (userId, operatorId) => {
 exports.generateMemberCode = async (storeId) => {
   const Store = require('../models/Store');
   const dateStr = dayjs().tz(BEIJING_TZ).format('YYYYMMDD');
-  
+
   let prefix = 'FY'; // 默认福永店
-  
+
   if (storeId) {
     const store = await Store.findById(storeId);
     if (store) {
@@ -473,28 +501,34 @@ exports.generateMemberCode = async (storeId) => {
       }
     }
   }
-  
-  // 查询今日已生成的编码数量（该前缀的）
-  const todayStart = dayjs().tz(BEIJING_TZ).startOf('day').toDate();
-  const todayEnd = dayjs().tz(BEIJING_TZ).endOf('day').toDate();
-  
-  const count = await User.countDocuments({
-    member_code: { $regex: new RegExp(`^${prefix}${dateStr}`) },
-    created_at: { $gte: todayStart, $lte: todayEnd }
+
+  // 查询已有该前缀+日期的最大序号（不再依赖 created_at，避免时区/历史数据导致 count 与实际冲突）
+  const existingCodes = await User.find({
+    member_code: { $regex: new RegExp(`^${prefix}${dateStr}`) }
+  }).select('member_code').lean();
+
+  let maxSeq = 0;
+  existingCodes.forEach(u => {
+    const seqStr = u.member_code.slice(prefix.length + dateStr.length);
+    const seq = parseInt(seqStr, 10);
+    if (!isNaN(seq) && seq > maxSeq) maxSeq = seq;
   });
-  
+
   // 生成3位序号，不足补0，单日可支持最多999个新编号
-  const sequence = String(count + 1).padStart(3, '0');
+  const sequence = String(maxSeq + 1).padStart(3, '0');
   const memberCode = `${prefix}${dateStr}${sequence}`;
-  
-  // 验证编码是否已存在（防止并发问题）
-  const existing = await User.findOne({ member_code: memberCode });
-  if (existing) {
-    // 如果已存在，递归调用生成下一个
-    return exports.generateMemberCode(storeId);
+
+  // 最终校验：极少数并发场景下仍冲突时，递增序号重试（最多5次，防止无限递归）
+  let retryCount = 0;
+  let finalCode = memberCode;
+  while (retryCount < 5) {
+    const existing = await User.findOne({ member_code: finalCode });
+    if (!existing) return finalCode;
+    retryCount++;
+    finalCode = `${prefix}${dateStr}${String(maxSeq + 1 + retryCount).padStart(3, '0')}`;
   }
-  
-  return memberCode;
+
+  return finalCode;
 };
 
 // 分配会员编码给用户

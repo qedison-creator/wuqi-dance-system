@@ -195,6 +195,16 @@
   color: #5B8C5A;
 }
 
+.status-tag.checked-in-tag {
+  background: #E3F2FD;
+  color: #1976D2;
+}
+
+.status-tag.onsite-tag {
+  background: #E3F2FD;
+  color: #1976D2;
+}
+
 .status-tag.exempt-tag {
   background: #F3E5F5;
   color: #8E24AA;

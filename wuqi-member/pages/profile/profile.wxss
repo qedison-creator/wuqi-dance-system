@@ -977,6 +977,20 @@ page {
   color: #8B7E6A;
 }
 
+/* 舞种限制胶囊：使用强调色突出限制信息 */
+.pkg-new-info-capsule-dance {
+  background: rgba(197, 116, 75, 0.12) !important;
+}
+
+.pkg-new-info-capsule-dance .pkg-new-info-capsule-label {
+  color: #C5744B;
+}
+
+.pkg-new-info-capsule-dance .pkg-new-info-capsule-value {
+  color: #C5744B;
+  font-size: 24rpx;
+}
+
 /* ========== 进度条区 ========== */
 .pkg-new-progress {
   margin-bottom: 20rpx;
@@ -1328,6 +1342,10 @@ page {
   color: #2C2416;
   font-weight: 500;
   line-height: 1.6;
+}
+
+.pkg-sheet-value-dance {
+  color: #C5744B;
 }
 
 .pkg-sheet-badge {

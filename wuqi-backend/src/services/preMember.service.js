@@ -13,6 +13,7 @@ const mongoose = require('mongoose');
 const User = require('../models/User');
 const UserPackage = require('../models/UserPackage');
 const Store = require('../models/Store');
+const DanceStyle = require('../models/DanceStyle');
 const memberService = require('./member.service');
 const { broadcastToAdmins } = require('./websocket.service');
 
@@ -149,7 +150,7 @@ async function getPreMemberList(query = {}) {
   const userIds = list.map(u => u._id);
   const packages = userIds.length > 0 ? await UserPackage.find({
     user_id: { $in: userIds }
-  }).lean() : [];
+  }).populate('store_id', 'name').populate('extra_store_ids', 'name').populate('dance_style_limit', 'name').lean() : [];
 
   const packageMap = {};
   packages.forEach(p => {
@@ -262,8 +263,18 @@ async function createPreMember(data, operatorId) {
 
   // 创建多个 UserPackage 记录
   const isOldMember = member_identity === 'old';
-  for (const pkg of packages) {
-    await createPackageForUser(user._id, store_id, pkg, operatorId, isOldMember);
+  try {
+    for (const pkg of packages) {
+      await createPackageForUser(user._id, store_id, pkg, operatorId, isOldMember);
+    }
+  } catch (pkgErr) {
+    // 套餐创建失败：回滚已创建的 User 记录，避免产生无套餐的悬空预建档
+    try {
+      await User.findByIdAndDelete(user._id);
+    } catch (delErr) {
+      console.error('回滚预建档User记录失败:', delErr);
+    }
+    throw pkgErr;
   }
 
   notifyPreMemberChange('create', {
@@ -280,7 +291,7 @@ async function createPreMember(data, operatorId) {
  * 为用户创建套餐记录（内部辅助函数）
  */
 async function createPackageForUser(userId, storeId, packageData, operatorId, isOldMember = false) {
-  const { package_type, total_credits, start_date, end_date, duration_value, duration_unit, weekly_limit, daily_limit, remark, extra_store_ids } = packageData;
+  const { package_type, total_credits, start_date, end_date, duration_value, duration_unit, weekly_limit, daily_limit, monthly_limit, period_type, dance_style_limit, remark, extra_store_ids } = packageData;
 
   if (!package_type || !['count_card', 'time_card'].includes(package_type)) {
     throw new Error('套餐类型必须为次卡(count_card)或时间卡(time_card)');
@@ -300,7 +311,8 @@ async function createPackageForUser(userId, storeId, packageData, operatorId, is
   if (package_type === 'count_card' && (!total_credits || total_credits <= 0)) {
     throw new Error('次卡必须填写总次数');
   }
-  if (package_type === 'time_card' && !weekly_limit && !daily_limit) {
+  // 时间卡周期限制校验：period_type 为 'unlimited' 时不要求 weekly_limit/daily_limit/monthly_limit
+  if (package_type === 'time_card' && period_type !== 'unlimited' && !weekly_limit && !daily_limit && !monthly_limit) {
     throw new Error('时间卡必须填写周期限制');
   }
 
@@ -315,7 +327,8 @@ async function createPackageForUser(userId, storeId, packageData, operatorId, is
     status: isOldMember ? 'active' : 'pending',
     auto_activate_at: isOldMember ? null : new Date(now.getTime() + 60 * 24 * 60 * 60 * 1000),
     created_by: operatorId,
-    remark: remark || ''
+    remark: remark || '',
+    dance_style_limit: Array.isArray(dance_style_limit) ? dance_style_limit : []
   };
 
   if (isOldMember) {
@@ -346,9 +359,86 @@ async function createPackageForUser(userId, storeId, packageData, operatorId, is
     packageRecord.remaining_credits = 0;
     if (weekly_limit) packageRecord.weekly_limit = Number(weekly_limit);
     if (daily_limit) packageRecord.daily_limit = Number(daily_limit);
+    if (monthly_limit) packageRecord.monthly_limit = Number(monthly_limit);
   }
 
   return await UserPackage.create(packageRecord);
+}
+
+/**
+ * 更新用户已有套餐记录（内部辅助函数）
+ * 直接修改现有套餐字段，保留 _id 不变，避免破坏 Booking/PackageActivation 等引用关系
+ * 校验逻辑与 createPackageForUser 保持一致
+ */
+async function updatePackageForUser(packageId, packageData, operatorId, isOldMember = false) {
+  const { package_type, total_credits, start_date, end_date, duration_value, duration_unit, weekly_limit, daily_limit, monthly_limit, period_type, dance_style_limit, remark, extra_store_ids } = packageData;
+
+  if (!package_type || !['count_card', 'time_card'].includes(package_type)) {
+    throw new Error('套餐类型必须为次卡(count_card)或时间卡(time_card)');
+  }
+
+  // 老会员必须传 start_date/end_date；新会员必须传 duration_value
+  if (isOldMember) {
+    if (!start_date || !end_date) {
+      throw new Error('老会员必须填写套餐有效期起止日期');
+    }
+  } else {
+    if (!duration_value || Number(duration_value) <= 0) {
+      throw new Error('新会员必须填写套餐有效期时长');
+    }
+  }
+
+  if (package_type === 'count_card' && (!total_credits || total_credits <= 0)) {
+    throw new Error('次卡必须填写总次数');
+  }
+  // 时间卡周期限制校验：period_type 为 'unlimited' 时不要求 weekly_limit/daily_limit/monthly_limit
+  if (package_type === 'time_card' && period_type !== 'unlimited' && !weekly_limit && !daily_limit && !monthly_limit) {
+    throw new Error('时间卡必须填写周期限制');
+  }
+
+  const existingPkg = await UserPackage.findById(packageId);
+  if (!existingPkg) {
+    throw new Error('待更新的套餐不存在');
+  }
+
+  // 更新字段（保留 _id、user_id、store_id、is_activated、activated_at、status、auto_activate_at、created_by 等不变）
+  existingPkg.package_type = package_type;
+  existingPkg.extra_store_ids = extra_store_ids || [];
+  existingPkg.remark = remark || '';
+  existingPkg.updated_by = operatorId;
+  existingPkg.dance_style_limit = Array.isArray(dance_style_limit) ? dance_style_limit : [];
+
+  if (isOldMember) {
+    // 老会员：直接用起止日期，并据此计算 duration_value/duration_unit 供前端展示
+    const startDateObj = new Date(start_date);
+    const endDateObj = new Date(end_date);
+    existingPkg.start_date = startDateObj;
+    existingPkg.end_date = endDateObj;
+    const duration = calcDurationFromDates(startDateObj, endDateObj);
+    if (duration.value > 0) {
+      existingPkg.duration_value = duration.value;
+      existingPkg.duration_unit = duration.unit;
+    }
+  } else {
+    // 新会员：duration_value/duration_unit 存入记录，激活时由 package.service 计算起止日期
+    existingPkg.duration_value = Number(duration_value);
+    existingPkg.duration_unit = duration_unit || 'month';
+  }
+
+  if (package_type === 'count_card') {
+    existingPkg.total_credits = Number(total_credits);
+    existingPkg.remaining_credits = Number(total_credits);
+  } else {
+    // 时间卡：先清空所有周期限制字段，再按需设置（避免从"限制"切换到"不限"时残留旧值）
+    existingPkg.total_credits = 0;
+    existingPkg.remaining_credits = 0;
+    existingPkg.weekly_limit = weekly_limit ? Number(weekly_limit) : undefined;
+    existingPkg.daily_limit = daily_limit ? Number(daily_limit) : undefined;
+    existingPkg.monthly_limit = monthly_limit ? Number(monthly_limit) : undefined;
+  }
+
+  await existingPkg.save();
+  return existingPkg;
 }
 
 /**
@@ -399,11 +489,40 @@ async function updatePreMember(id, data, operatorId) {
   }
 
   if (data.package !== undefined || data.packages !== undefined) {
-    // 删除旧套餐，创建新套餐
-    await UserPackage.deleteMany({ user_id: id });
+    // 编辑模式：按 _id 原地更新现有套餐，无 _id 的为新增，前端列表中没有的为删除
+    // 顺序：先更新/创建（验证失败时旧套餐仍保留），后删除（确保更新成功后才清理）
     const isOldMember = (data.member_identity || user.member_identity) === 'old';
+
+    // 收集前端提交的已有套餐 _id（用于后续计算需要删除的套餐）
+    const submittedExistingIds = packagesToUpdate
+      .map(p => p._id)
+      .filter(id => id)
+      .map(id => String(id));
+
+    // 1. 更新现有套餐 + 创建新套餐
+    //    新创建的套餐 _id 需要加入 submittedExistingIds，否则步骤2会误删
     for (const pkg of packagesToUpdate) {
-      await createPackageForUser(id, user.store_id, pkg, operatorId, isOldMember);
+      if (pkg._id) {
+        // 原地更新：保留 _id 不变，避免破坏 Booking/PackageActivation 等引用关系
+        await updatePackageForUser(pkg._id, pkg, operatorId, isOldMember);
+      } else {
+        // 新建套餐（用户在UI上新增的）
+        const newPkg = await createPackageForUser(id, user.store_id, pkg, operatorId, isOldMember);
+        // 将新创建的套餐 _id 加入已提交列表，防止步骤2误删
+        if (newPkg && newPkg._id) {
+          submittedExistingIds.push(String(newPkg._id));
+        }
+      }
+    }
+
+    // 2. 删除前端列表中没有的套餐（用户在UI上删除的）
+    //    放在最后执行：即使前面验证失败抛错，旧套餐也不会丢失
+    const existingPackages = await UserPackage.find({ user_id: id }).select('_id').lean();
+    const toDelete = existingPackages
+      .map(p => String(p._id))
+      .filter(id => submittedExistingIds.indexOf(id) === -1);
+    if (toDelete.length > 0) {
+      await UserPackage.deleteMany({ _id: { $in: toDelete } });
     }
   }
 
@@ -620,6 +739,13 @@ async function importPreMembers(rows, operatorId) {
     storeMap[s.name] = s._id;
   });
 
+  // 预加载舞种列表（用于舞种名称匹配）
+  const danceStyles = await DanceStyle.find({ status: 'active' }).select('_id name').lean();
+  const danceStyleMap = {};  // name -> _id
+  danceStyles.forEach(ds => {
+    danceStyleMap[ds.name] = ds._id;
+  });
+
   // 1. 同手机号不同姓名冲突检测（文件内）
   const phoneToNames = {};  // phone -> Set<name>
   rows.forEach((row, index) => {
@@ -723,16 +849,16 @@ async function importPreMembers(rows, operatorId) {
         // 时间卡专属校验（新逻辑：使用周期限制方式 + 限制次数两列）
         if (row._package_type === 'time_card') {
           const periodType = row.period_type || '';
-          if (!['每日限制', '每周限制', '无限次'].includes(periodType)) {
-            errors.push('时间卡周期限制方式仅可填「每日限制 / 每周限制 / 无限次」');
+          if (!['每日限制', '每周限制', '每月限制', '不限'].includes(periodType)) {
+            errors.push('时间卡周期限制方式仅可填「每日限制 / 每周限制 / 每月限制 / 不限」');
           } else {
-            if (periodType === '无限次') {
+            if (periodType === '不限') {
               row._period_type = 'unlimited';
               row._period_count = 0;
             } else {
-              row._period_type = periodType === '每日限制' ? 'daily' : 'weekly';
+              row._period_type = periodType === '每日限制' ? 'daily' : (periodType === '每月限制' ? 'monthly' : 'weekly');
               if (!row.period_count || isNaN(Number(row.period_count)) || Number(row.period_count) <= 0) {
-                errors.push('选择每日/每周限制时，限制次数必填（纯数字，大于0）');
+                errors.push('选择每日/每周/每月限制时，限制次数必填（纯数字，大于0）');
               } else {
                 row._period_count = Number(row.period_count);
               }
@@ -759,6 +885,21 @@ async function importPreMembers(rows, operatorId) {
         }
       }
       row._extra_store_ids = extraIds;
+    }
+
+    // 舞种限制校验（仅在有套餐时，按舞种名称匹配）
+    if (row.package_type && row.dance_style_names) {
+      const names = String(row.dance_style_names).split(/[,，]/).map(s => s.trim()).filter(Boolean);
+      const danceStyleIds = [];
+      for (const name of names) {
+        if (danceStyleMap[name]) {
+          danceStyleIds.push(danceStyleMap[name]);
+        } else {
+          const validNames = Object.keys(danceStyleMap).join(' / ');
+          errors.push(`舞种"${name}"不匹配，可选舞种：${validNames}`);
+        }
+      }
+      row._dance_style_limit = danceStyleIds;
     }
 
     if (errors.length > 0) {
@@ -967,7 +1108,8 @@ async function importPreMembers(rows, operatorId) {
             status: 'active',
             activated_at: new Date(),
             created_by: operatorId,
-            remark: row.remark || ''
+            remark: row.remark || '',
+            dance_style_limit: row._dance_style_limit || []
           };
 
           // 批量导入的老会员套餐也根据起止日期计算 duration_value/duration_unit 供前端展示
@@ -988,8 +1130,10 @@ async function importPreMembers(rows, operatorId) {
               packageData.weekly_limit = Number(row._period_count);
             } else if (row._period_type === 'daily') {
               packageData.daily_limit = Number(row._period_count);
+            } else if (row._period_type === 'monthly') {
+              packageData.monthly_limit = Number(row._period_count);
             }
-            // unlimited: 不设置 weekly_limit / daily_limit
+            // unlimited: 不设置 weekly_limit / daily_limit / monthly_limit
           }
 
           packagesToCreate.push(packageData);

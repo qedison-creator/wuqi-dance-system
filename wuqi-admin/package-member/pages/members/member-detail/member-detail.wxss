@@ -457,6 +457,18 @@
   color: var(--color-primary);
 }
 
+.package-limit-row {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+}
+
+.package-remaining-period {
+  font-size: 24rpx;
+  color: var(--color-success);
+  font-weight: 500;
+}
+
 .package-expire {
   font-size: 24rpx;
   color: var(--text-secondary);
@@ -473,6 +485,11 @@
 .package-pending {
   color: var(--color-warning);
   font-style: normal;
+}
+
+/* 舞种限制文本 */
+.package-dance-style {
+  color: var(--color-primary, #C4663E);
 }
 
 .package-extensions {
@@ -497,9 +514,6 @@
 }
 
 .booking-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
   padding: 24rpx;
   margin-bottom: 20rpx;
 }
@@ -508,17 +522,20 @@
   display: flex;
   flex-direction: column;
   gap: 8rpx;
-  flex: 1;
-  min-width: 0;
 }
 
 .booking-course {
   font-size: 30rpx;
   color: var(--text-primary);
   font-weight: 500;
+  flex: 1;
+  min-width: 0;
 }
 
 .booking-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   margin-bottom: 16rpx;
 }
 
@@ -590,7 +607,6 @@
   border-radius: var(--radius-xl);
   font-size: 24rpx;
   flex-shrink: 0;
-  margin-left: 16rpx;
 }
 
 .booking-status.booked {
@@ -873,6 +889,155 @@
 .extra-store-switch {
   transform: scale(0.85);
   transform-origin: right center;
+}
+
+/* 附加门店/舞种列表的空数据提示 */
+.extra-store-empty-tip {
+  padding: 20rpx 0;
+  font-size: 24rpx;
+  color: var(--text-placeholder, #999);
+  text-align: center;
+}
+
+/* 舞种限制下拉选择器 */
+.dance-style-picker {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 24rpx 0;
+  border-bottom: 1rpx solid #EEE;
+}
+
+.dance-style-picker-text {
+  font-size: 28rpx;
+  color: #000;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dance-style-picker-text.has-value {
+  color: #000;
+}
+
+.dance-style-picker-arrow {
+  font-size: 36rpx;
+  color: #CCC;
+  margin-left: 16rpx;
+}
+
+/* 舞种限制单选弹窗（门店选择器风格） */
+.store-picker-modal {
+  width: 86%;
+  max-width: 620rpx;
+  max-height: 70vh;
+  background: #FFFFFF;
+  border-radius: 20rpx;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.spm-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 30rpx;
+  border-bottom: 1rpx solid #F0EBE2;
+  flex-shrink: 0;
+  box-sizing: border-box;
+}
+
+.spm-title {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: #2C2416;
+}
+
+.spm-close {
+  font-size: 40rpx;
+  color: #B8AF9E;
+  padding: 4rpx 12rpx;
+  line-height: 1;
+}
+
+.spm-list {
+  flex: 1;
+  max-height: 600rpx;
+  padding: 20rpx;
+  box-sizing: border-box;
+}
+
+.spm-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 26rpx 24rpx;
+  background: #F9F7F5;
+  border-radius: 16rpx;
+  margin-bottom: 12rpx;
+  border: 2rpx solid transparent;
+  box-sizing: border-box;
+  transition: all 0.2s ease;
+}
+
+.spm-item:last-child {
+  margin-bottom: 0;
+}
+
+.spm-item:active {
+  background: #F0EBE2;
+}
+
+.spm-active {
+  background: #FDF2EF;
+  border-color: #C4663E;
+}
+
+.spm-name {
+  font-size: 28rpx;
+  color: #2C2416;
+  font-weight: 500;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding-right: 16rpx;
+}
+
+.spm-active .spm-name {
+  color: #C4663E;
+  font-weight: 600;
+}
+
+.spm-check {
+  width: 36rpx;
+  height: 36rpx;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #C4663E, #B05533);
+  position: relative;
+  flex-shrink: 0;
+}
+
+.spm-check::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -60%) rotate(45deg);
+  width: 10rpx;
+  height: 18rpx;
+  border-bottom: 3rpx solid #FFFFFF;
+  border-right: 3rpx solid #FFFFFF;
+}
+
+.spm-empty {
+  padding: 60rpx 0;
+  text-align: center;
+  font-size: 26rpx;
+  color: #B8AF9E;
 }
 
 /* 套餐列表"可跨店"标签 */

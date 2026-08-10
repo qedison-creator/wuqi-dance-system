@@ -56,7 +56,6 @@ Page({
     banners: [],
     scheduleEndAlert: {
       visible: false,
-      weeksLeft: 0,
       daysLeft: 0
     },
     todos: [],
@@ -72,7 +71,11 @@ Page({
     auditStoreList: [],
     auditSelectedStoreId: '',
     systemConfigs: {},
-    heroBackgroundUrl: ''
+    heroBackgroundUrl: '',
+    // 门店卡片列表（"全部门店"选中时展示）
+    storeCardList: [],
+    // 是否显示门店卡片视图（超管/多门店角色选"全部门店"时为true）
+    showStoreCards: false,
   },
 
   onLoad() {
@@ -105,7 +108,10 @@ Page({
     if (typeof this.getTabBar === 'function' && this.getTabBar()) {
       this.getTabBar().setData({ selected: 0 });
     }
-    this.setData({ greeting: getGreeting(), theme: getTheme() });
+    this.setData({
+      greeting: getGreeting(),
+      theme: getTheme()
+    });
     this._failCount = 0;  // 页面恢复可见时重置失败计数
     // 先确保用户信息就绪，否则单门店角色判断可能因 userInfo 未加载而误判
     await this.loadUserInfoAsync();
@@ -114,6 +120,19 @@ Page({
     // 避免 loadAllData 用空 storeId 拉取到全部门店数据
     if (app.isSingleStoreRole() && !this.data.currentStore) {
       // 等 loadStores 设置完 currentStore 后再 loadAllData
+      this.setData({ loadingSkeleton: true });
+      this.loadStores();
+      this._startAutoRefresh();
+      this._connectWebSocket();
+      return;
+    }
+
+    // 同步全局统一门店选择：若其他页面（店务管理/运营管理等）修改了 shopStoreId，
+    // 首页需重新恢复选中状态，保持门店一致
+    const globalShopStoreId = app.globalData.shopStoreId || '';
+    const currentStoreId = this.data.currentStore ? (this.data.currentStore._id || '') : '';
+    if (!app.isSingleStoreRole() && globalShopStoreId !== currentStoreId) {
+      // 全局选择已变化，重新加载门店列表以恢复选中状态
       this.setData({ loadingSkeleton: true });
       this.loadStores();
       this._startAutoRefresh();
@@ -161,6 +180,10 @@ Page({
         // 排课变更（管理端新增排课等）-> 刷新首页
         course_update: () => {
           this.loadAllData();
+        },
+        // 门店信息变更（改名、地址修改等）-> 刷新门店列表+首页数据
+        store_update: () => {
+          this.loadStores();
         }
       },
       // 连接断开且重连失败时降级为轮询
@@ -268,14 +291,14 @@ Page({
       const isSingleStore = app.isSingleStoreRole();
       const defaultStoreId = app.getDefaultStoreId();
 
-      let storeList;
+      // 不再保留"全部门店"选项：所有角色均选择具体门店
+      let storeList = list;
       let currentStoreIndex = 0;
-      let currentStoreName = '全部门店';
+      let currentStoreName = '';
       let currentStore = null;
 
       if (isSingleStore) {
-        // 单门店角色：仅显示所属门店，不显示"全部门店"选项
-        storeList = list;
+        // 单门店角色：定位所属门店
         const matched = list.find(s => String(s._id) === String(defaultStoreId));
         if (matched) {
           currentStore = matched;
@@ -286,9 +309,7 @@ Page({
           currentStoreName = list[0].name;
         }
       } else {
-        // 多门店角色（超管/审核员/多门店店长）：保留"全部门店"选项
-        storeList = [{ _id: '', name: '全部门店' }].concat(list);
-        // 优先从全局统一门店选择恢复（与店务管理/运营管理共享选中状态）
+        // 超管/审核员/多门店店长：优先从全局统一门店选择恢复
         const shopStoreId = app.globalData.shopStoreId || '';
         let restoreId = shopStoreId;
         // 回退到本页上次选中
@@ -296,13 +317,23 @@ Page({
           const prev = this.data.currentStore;
           if (prev && prev._id) restoreId = prev._id;
         }
-        if (restoreId || restoreId === '') {
-          const idx = storeList.findIndex(s => String(s._id) === String(restoreId));
+        if (restoreId) {
+          const idx = list.findIndex(s => String(s._id) === String(restoreId));
           if (idx >= 0) {
             currentStoreIndex = idx;
-            currentStoreName = storeList[idx].name;
-            currentStore = storeList[idx];
+            currentStoreName = list[idx].name;
+            currentStore = list[idx];
           }
+        }
+        // 全局与本页均无选中：默认选中第一个门店
+        if (!currentStore && list.length > 0) {
+          currentStore = list[0];
+          currentStoreName = list[0].name;
+          currentStoreIndex = 0;
+        }
+        // 将默认选中同步回全局
+        if (currentStore) {
+          app.globalData.shopStoreId = currentStore._id;
         }
       }
 
@@ -311,7 +342,9 @@ Page({
         currentStoreIndex,
         currentStoreName,
         currentStore,
-        isSingleStoreRole: isSingleStore
+        isSingleStoreRole: isSingleStore,
+        storeCardList: list,
+        showStoreCards: false
       }, () => {
         this.loadAllData();
       });
@@ -498,10 +531,17 @@ Page({
 
       // 首屏待办只包含今日课程、会员审核（来自 /home/admin）
       const todoList = this.buildTodos(homeData, null);
-      this.setData({
-        todos: todoList,
-        todoList: todoList
-      });
+      // 首次加载立即渲染首屏 todo；自动刷新时暂存，等 loadStatsData 统一合并后智能更新
+      // 避免自动刷新整体替换 todos 数组导致 wx:for 重渲染、页面滚动位置跳动
+      const isFirstLoad = !this.data.todos || this.data.todos.length === 0;
+      if (isFirstLoad) {
+        this.setData({
+          todos: todoList,
+          todoList: todoList
+        });
+      } else {
+        this._pendingHomeTodos = todoList;
+      }
 
       const banners = Array.isArray(bannersRes.data && bannersRes.data.list)
         ? bannersRes.data.list
@@ -526,24 +566,67 @@ Page({
 
       const countCardAlerts = statsData.count_card_alerts || [];
       const expiringCards = statsData.expiring_time_cards || [];
+      const scheduleCoverage = statsData.schedule_coverage || null;
 
-      // 后台数据到达后，合并到现有待办列表（不覆盖首屏已渲染的今日课程、会员审核）
+      // 后台数据到达后，合并到现有待办列表
+      // 自动刷新时 loadCriticalData 会暂存 _pendingHomeTodos（只含今日课程/会员审核），
+      // 这里将其与统计数据合并，然后用智能合并更新，避免整体替换导致滚动位置跳动
+      const baseTodos = this._pendingHomeTodos || this.data.todoList || [];
       const statsTodos = this.buildTodos(null, statsData);
-      const mergedTodos = this._mergeTodos(this.data.todoList || [], statsTodos);
+      const mergedTodos = this._mergeTodos(baseTodos, statsTodos);
+      this._pendingHomeTodos = null;
 
+      // "排课即将到期"提醒：基于该门店最远一节课的日期计算剩余天数
+      // 阈值7天：剩余天数≤7且>0时显示提醒；无排课或已过期不显示
+      const remainingDays = scheduleCoverage ? scheduleCoverage.remaining_days : null;
+      const showScheduleAlert = remainingDays !== null && remainingDays > 0 && remainingDays <= 7;
+
+      // 先更新非 todos 的统计字段（不影响列表渲染）
       this.setData({
-        todoList: mergedTodos,
-        todos: mergedTodos,
         countCardAlerts: countCardAlerts,
         expiringTimeCards: expiringCards,
         scheduleEndAlert: {
-          visible: expiringCards.length > 0,
-          weeksLeft: 0,
-          daysLeft: expiringCards.length
+          visible: showScheduleAlert,
+          daysLeft: remainingDays || 0
         }
       });
+      // 智能合并 todos：只更新变化的 count，不整体替换数组，保持 wx:for 稳定
+      this._applyTodosSmart(mergedTodos);
     } catch (err) {
       console.error('加载首页统计数据失败', err);
+    }
+  },
+
+  /**
+   * 智能更新 todos：保留原数组结构和对象引用，只更新变化的 count 字段
+   * 避免自动刷新时整体替换数组导致 wx:for 重渲染、页面滚动位置跳动
+   * 仅当 todo 项增减时才整体替换
+   */
+  _applyTodosSmart(newList) {
+    const oldList = this.data.todos || [];
+    if (oldList.length === 0) {
+      this.setData({ todos: newList, todoList: newList });
+      return;
+    }
+    // 检查结构是否一致（项数和 _id 顺序相同）
+    const sameStructure = oldList.length === newList.length &&
+      oldList.every((oldItem, i) => oldItem._id === newList[i]._id);
+    if (sameStructure) {
+      // 结构一致：只更新变化的 count 字段，用路径表达式局部更新
+      const updateData = {};
+      oldList.forEach((oldItem, i) => {
+        const newItem = newList[i];
+        if (oldItem.count !== newItem.count) {
+          updateData[`todos[${i}].count`] = newItem.count;
+          updateData[`todoList[${i}].count`] = newItem.count;
+        }
+      });
+      if (Object.keys(updateData).length > 0) {
+        this.setData(updateData);
+      }
+    } else {
+      // 结构变化（项数或顺序不同）：整体替换
+      this.setData({ todos: newList, todoList: newList });
     }
   },
 
@@ -584,13 +667,13 @@ Page({
     const index = parseInt(e.currentTarget.dataset.index);
     const storeList = this.data.storeList;
     const store = storeList[index];
-    const newStore = store && store._id ? store : null;
+    if (!store || !store._id) return;
     // 同步到全局统一门店选择（与店务管理/运营管理共享）
-    app.globalData.shopStoreId = newStore ? newStore._id : '';
+    app.globalData.shopStoreId = store._id;
     this.setData({
       currentStoreIndex: index,
-      currentStore: newStore,
-      currentStoreName: store ? store.name : '全部门店',
+      currentStore: store,
+      currentStoreName: store.name,
       showStoreModal: false,
       loadingSkeleton: true
     }, () => {
@@ -602,14 +685,40 @@ Page({
     const index = parseInt(e.detail.value);
     const storeList = this.data.storeList;
     const store = storeList[index];
-    const newStore = store && store._id ? store : null;
+    if (!store || !store._id) return;
     // 同步到全局统一门店选择（与店务管理/运营管理共享）
-    app.globalData.shopStoreId = newStore ? newStore._id : '';
+    app.globalData.shopStoreId = store._id;
     this.setData({
       currentStoreIndex: index,
-      currentStore: newStore,
-      currentStoreName: store ? store.name : '全部门店',
-      loadingSkeleton: true
+      currentStore: store,
+      currentStoreName: store.name,
+      loadingSkeleton: true,
+      expandedTodo: '',
+      detailList: [],
+      scheduleList: [],
+      pendingMembers: []
+    }, () => {
+      this.loadAllData();
+    });
+  },
+
+  // 点击门店卡片，切换到该门店（已移除门店卡片视图，保留空函数避免外部引用报错）
+  onStoreCardTap(e) {
+    const storeId = e.currentTarget.dataset.storeId;
+    const storeList = this.data.storeList || [];
+    const idx = storeList.findIndex(s => s._id === storeId);
+    if (idx < 0) return;
+    const store = storeList[idx];
+    app.globalData.shopStoreId = store._id;
+    this.setData({
+      currentStoreIndex: idx,
+      currentStore: store,
+      currentStoreName: store.name,
+      loadingSkeleton: true,
+      expandedTodo: '',
+      detailList: [],
+      scheduleList: [],
+      pendingMembers: []
     }, () => {
       this.loadAllData();
     });
@@ -1162,8 +1271,10 @@ Page({
           date: s.date || '',
           date_display: dateDisplay,
           weekday_display: weekdayDisplay,
-          // 卡片"已预约"显示：已预约 + 已签到（所有实际预约人数）
-          bookedCount: (bookingStats.booked || 0) + (bookingStats.checkedIn || 0),
+          // 卡片"已预约"显示：所有实际预约人数
+          // 注意：bookingStats.booked 已包含 checked_in/completed 状态（见 _loadScheduleBookingStats），
+          // 不能再与 checkedIn 相加，否则已签到人数会被重复计算
+          bookedCount: bookingStats.booked || 0,
           capacity: s.max_bookings || 15,
           checkedInCount: bookingStats.checkedIn,
           // 已取消含豁免取消
@@ -1224,9 +1335,13 @@ Page({
         const isExempted = status === 'exempted' || item.is_exempted;
         // 已签到（含已完成）：checked_in + completed
         const isCheckedIn = item.checked_in || status === 'completed' || status === 'checked_in';
+        // 现场直接签到（无预约流程，管理员补签）：仅计入已签到，不计入已预约
+        // 仅通过 source 判断，check_in_method='onsite' 不作为依据（已预约会员签到也可能被标记为onsite）
+        const isOnsiteCheckIn = item.source === 'onsite';
         if (isCheckedIn) checkedIn++;
-        // 预约人数（卡片显示）：booked + checked_in + completed + 课程取消的cancelled
-        if (status === 'booked' || status === 'checked_in' || status === 'completed' || isCourseCancel) {
+        // 预约人数（卡片显示）：booked + 走过预约流程的签到 + 课程取消的cancelled
+        // 现场直接签到（onsite）未走过预约流程，不计入已预约
+        if (status === 'booked' || (isCheckedIn && !isOnsiteCheckIn) || isCourseCancel) {
           booked++;
         } else if (isExempted) {
           // 豁免归入已取消

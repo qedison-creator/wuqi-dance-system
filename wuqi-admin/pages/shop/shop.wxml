@@ -8,147 +8,220 @@
     </view>
   </view>
 
-  <!-- 运营管理 -->
+  <!-- 公共功能（始终可用，不绑定门店） -->
   <view class="menu-section">
-    <view class="menu-section-title">运营管理</view>
+    <view class="menu-section-title">公共功能</view>
     <view class="menu-card">
-      <view class="menu-item" wx:if="{{permSchedule}}" bindtap="onGoToSchedule">
-        <view class="menu-icon-wrap" style="background:rgba(93,155,155,0.10)">
-          <image class="menu-icon" src="/images/icons/shop-calendar.svg" mode="aspectFit" decoding="async"></image>
+      <!-- 公共画册 -->
+      <view class="menu-item" wx:if="{{permImage}}" bindtap="onGoToPublicImages">
+        <view class="menu-icon-wrap" style="background:rgba(107,163,190,0.10)">
+          <image class="menu-icon" src="/images/icons/shop-image.svg" mode="aspectFit" decoding="async"></image>
         </view>
         <view class="menu-text">
-          <text class="menu-label">排课设置</text>
-          <text class="menu-desc">课程与时间安排</text>
+          <text class="menu-label">公共画册</text>
+          <text class="menu-desc">所有门店展示的画册</text>
         </view>
         <image class="menu-arrow" src="/images/icons/chevron-right.svg" mode="aspectFit" decoding="async"></image>
       </view>
 
-      <view class="menu-item" wx:if="{{permHoliday}}" bindtap="onGoToHolidays">
-        <view class="menu-icon-wrap" style="background:rgba(196,136,90,0.10)">
-          <image class="menu-icon" src="/images/icons/shop-calendar-off.svg" mode="aspectFit" decoding="async"></image>
-        </view>
-        <view class="menu-text">
-          <text class="menu-label">放假管理</text>
-          <text class="menu-desc">节假日与停课</text>
-        </view>
-        <image class="menu-arrow" src="/images/icons/chevron-right.svg" mode="aspectFit" decoding="async"></image>
-      </view>
-
-      <view class="menu-item" wx:if="{{permPackageLog}}" bindtap="onGoToPackageLogs">
-        <view class="menu-icon-wrap" style="background:rgba(184,125,184,0.10)">
-          <image class="menu-icon" src="/images/icons/shop-package.svg" mode="aspectFit" decoding="async"></image>
-        </view>
-        <view class="menu-text">
-          <text class="menu-label">套餐记录</text>
-          <text class="menu-desc">会员套餐明细</text>
-        </view>
-        <image class="menu-arrow" src="/images/icons/chevron-right.svg" mode="aspectFit" decoding="async"></image>
-      </view>
-
-      <view class="menu-item" wx:if="{{permExemption}}" bindtap="onGoToExemption">
-        <view class="menu-icon-wrap" style="background:rgba(123,143,161,0.10)">
-          <image class="menu-icon" src="/images/icons/shop-shield.svg" mode="aspectFit" decoding="async"></image>
-        </view>
-        <view class="menu-text">
-          <text class="menu-label">豁免设置</text>
-          <text class="menu-desc">特殊权限配置</text>
-        </view>
-        <image class="menu-arrow" src="/images/icons/chevron-right.svg" mode="aspectFit" decoding="async"></image>
-      </view>
-    </view>
-  </view>
-
-  <!-- 人员管理 -->
-  <view class="menu-section">
-    <view class="menu-section-title">人员管理</view>
-    <view class="menu-card">
-      <view class="menu-item" wx:if="{{permCoach}}" bindtap="onGoToCoaches">
-        <view class="menu-icon-wrap" style="background:rgba(212,120,110,0.10)">
-          <image class="menu-icon" src="/images/icons/shop-dancing.svg" mode="aspectFit" decoding="async"></image>
-        </view>
-        <view class="menu-text">
-          <text class="menu-label">教练管理</text>
-          <text class="menu-desc">师资团队维护</text>
-        </view>
-        <image class="menu-arrow" src="/images/icons/chevron-right.svg" mode="aspectFit" decoding="async"></image>
-      </view>
-
-      <view class="menu-item" wx:if="{{permSalary}}" bindtap="onGoToSalary">
-        <view class="menu-icon-wrap" style="background:rgba(212,160,74,0.10)">
-          <image class="menu-icon" src="/images/icons/shop-wallet.svg" mode="aspectFit" decoding="async"></image>
-        </view>
-        <view class="menu-text">
-          <text class="menu-label">教练课时与薪酬</text>
-          <text class="menu-desc">教练课时统计与薪酬结算管理</text>
-        </view>
-        <image class="menu-arrow" src="/images/icons/chevron-right.svg" mode="aspectFit" decoding="async"></image>
-      </view>
-    </view>
-  </view>
-
-  <!-- 内容管理 -->
-  <view class="menu-section">
-    <view class="menu-section-title">内容管理</view>
-    <view class="menu-card">
-      <view class="menu-item" wx:if="{{permBanner}}" bindtap="onGoToBanner">
+      <!-- 全平台轮播图 -->
+      <view class="menu-item" wx:if="{{permBanner}}" bindtap="onGoToPublicBanner">
         <view class="menu-icon-wrap" style="background:rgba(139,184,120,0.10)">
           <image class="menu-icon" src="/images/icons/shop-image.svg" mode="aspectFit" decoding="async"></image>
         </view>
         <view class="menu-text">
-          <text class="menu-label">轮播图管理</text>
-          <text class="menu-desc">首页展示配置</text>
+          <text class="menu-label">全平台轮播图</text>
+          <text class="menu-desc">所有门店展示的轮播图</text>
         </view>
         <image class="menu-arrow" src="/images/icons/chevron-right.svg" mode="aspectFit" decoding="async"></image>
       </view>
 
-      <view class="menu-item" wx:if="{{permAnnouncement}}" bindtap="onGoToAnnouncements">
+      <!-- 全平台公告 -->
+      <view class="menu-item" wx:if="{{permAnnouncement}}" bindtap="onGoToPublicAnnouncements">
         <view class="menu-icon-wrap" style="background:rgba(212,107,107,0.10)">
           <image class="menu-icon" src="/images/icons/shop-megaphone.svg" mode="aspectFit" decoding="async"></image>
         </view>
         <view class="menu-text">
-          <text class="menu-label">公告管理</text>
-          <text class="menu-desc">发布门店公告</text>
+          <text class="menu-label">全平台公告</text>
+          <text class="menu-desc">所有门店展示的公告</text>
         </view>
         <image class="menu-arrow" src="/images/icons/chevron-right.svg" mode="aspectFit" decoding="async"></image>
       </view>
 
-      <view class="menu-item" wx:if="{{permImage}}" bindtap="onGoToImages">
-        <view class="menu-icon-wrap" style="background:rgba(107,163,190,0.10)">
-          <image class="menu-icon" src="/images/icons/shop-image.svg" mode="aspectFit" decoding="async"></image>
+      <!-- 多门店执教教练 -->
+      <view class="menu-item" wx:if="{{permCoach}}" bindtap="onGoToPublicCoaches">
+        <view class="menu-icon-wrap" style="background:rgba(212,120,110,0.10)">
+          <image class="menu-icon" src="/images/icons/shop-dancing.svg" mode="aspectFit" decoding="async"></image>
         </view>
         <view class="menu-text">
-          <text class="menu-label">此间画面</text>
-          <text class="menu-desc">图片作品管理</text>
+          <text class="menu-label">多门店执教教练</text>
+          <text class="menu-desc">跨门店执教的教练管理</text>
+        </view>
+        <image class="menu-arrow" src="/images/icons/chevron-right.svg" mode="aspectFit" decoding="async"></image>
+      </view>
+
+      <!-- 舞种管理 -->
+      <view class="menu-item" wx:if="{{permCoach}}" bindtap="onGoToDanceStyles">
+        <view class="menu-icon-wrap" style="background:rgba(184,125,184,0.10)">
+          <image class="menu-icon" src="/images/icons/shop-dancing.svg" mode="aspectFit" decoding="async"></image>
+        </view>
+        <view class="menu-text">
+          <text class="menu-label">舞种管理</text>
+          <text class="menu-desc">舞种分类与排序</text>
         </view>
         <image class="menu-arrow" src="/images/icons/chevron-right.svg" mode="aspectFit" decoding="async"></image>
       </view>
     </view>
   </view>
 
-  <!-- 系统设置 -->
-  <view class="menu-section">
-    <view class="menu-section-title">系统设置</view>
-    <view class="menu-card">
-      <view class="menu-item" wx:if="{{permStore}}" bindtap="onGoToStoreMaintenance">
-        <view class="menu-icon-wrap" style="background:rgba(197,116,75,0.10)">
-          <image class="menu-icon" src="/images/icons/shop-store.svg" mode="aspectFit" decoding="async"></image>
-        </view>
-        <view class="menu-text">
-          <text class="menu-label">门店维护</text>
-          <text class="menu-desc">管理门店信息</text>
-        </view>
-        <image class="menu-arrow" src="/images/icons/chevron-right.svg" mode="aspectFit" decoding="async"></image>
-      </view>
+  <!-- 门店功能（选择具体门店后可用，默认已选中第一个门店） -->
+  <view class="store-section-wrap {{!hasStoreSelected ? 'store-section-disabled' : ''}}">
+    <view class="store-section-mask" wx:if="{{!hasStoreSelected}}">
+      <text class="store-section-tip">请选择门店后使用</text>
+    </view>
 
-      <view class="menu-item" wx:if="{{permSchedule}}" bindtap="onGoToBookingWindow">
-        <view class="menu-icon-wrap" style="background:rgba(107,163,190,0.10)">
-          <image class="menu-icon" src="/images/icons/shop-calendar.svg" mode="aspectFit" decoding="async"></image>
+    <!-- 运营管理 -->
+    <view class="menu-section">
+      <view class="menu-section-title">运营管理</view>
+      <view class="menu-card">
+        <view class="menu-item" wx:if="{{permSchedule}}" data-handler="onGoToSchedule" bindtap="onStoreMenuTap">
+          <view class="menu-icon-wrap" style="background:rgba(93,155,155,0.10)">
+            <image class="menu-icon" src="/images/icons/shop-calendar.svg" mode="aspectFit" decoding="async"></image>
+          </view>
+          <view class="menu-text">
+            <text class="menu-label">排课设置</text>
+            <text class="menu-desc">课程与时间安排</text>
+          </view>
+          <image class="menu-arrow" src="/images/icons/chevron-right.svg" mode="aspectFit" decoding="async"></image>
         </view>
-        <view class="menu-text">
-          <text class="menu-label">预约开放设置</text>
-          <text class="menu-desc">预约时间窗口配置</text>
+
+        <view class="menu-item" wx:if="{{permHoliday}}" data-handler="onGoToHolidays" bindtap="onStoreMenuTap">
+          <view class="menu-icon-wrap" style="background:rgba(196,136,90,0.10)">
+            <image class="menu-icon" src="/images/icons/shop-calendar-off.svg" mode="aspectFit" decoding="async"></image>
+          </view>
+          <view class="menu-text">
+            <text class="menu-label">放假管理</text>
+            <text class="menu-desc">节假日与停课</text>
+          </view>
+          <image class="menu-arrow" src="/images/icons/chevron-right.svg" mode="aspectFit" decoding="async"></image>
         </view>
-        <image class="menu-arrow" src="/images/icons/chevron-right.svg" mode="aspectFit" decoding="async"></image>
+
+        <view class="menu-item" wx:if="{{permPackageLog}}" data-handler="onGoToPackageLogs" bindtap="onStoreMenuTap">
+          <view class="menu-icon-wrap" style="background:rgba(184,125,184,0.10)">
+            <image class="menu-icon" src="/images/icons/shop-package.svg" mode="aspectFit" decoding="async"></image>
+          </view>
+          <view class="menu-text">
+            <text class="menu-label">套餐记录</text>
+            <text class="menu-desc">会员套餐明细</text>
+          </view>
+          <image class="menu-arrow" src="/images/icons/chevron-right.svg" mode="aspectFit" decoding="async"></image>
+        </view>
+
+        <view class="menu-item" wx:if="{{permExemption}}" data-handler="onGoToExemption" bindtap="onStoreMenuTap">
+          <view class="menu-icon-wrap" style="background:rgba(123,143,161,0.10)">
+            <image class="menu-icon" src="/images/icons/shop-shield.svg" mode="aspectFit" decoding="async"></image>
+          </view>
+          <view class="menu-text">
+            <text class="menu-label">豁免设置</text>
+            <text class="menu-desc">特殊权限配置</text>
+          </view>
+          <image class="menu-arrow" src="/images/icons/chevron-right.svg" mode="aspectFit" decoding="async"></image>
+        </view>
+      </view>
+    </view>
+
+    <!-- 人员管理 -->
+    <view class="menu-section">
+      <view class="menu-section-title">人员管理</view>
+      <view class="menu-card">
+        <view class="menu-item" wx:if="{{permSalary}}" data-handler="onGoToSalary" bindtap="onStoreMenuTap">
+          <view class="menu-icon-wrap" style="background:rgba(212,160,74,0.10)">
+            <image class="menu-icon" src="/images/icons/shop-wallet.svg" mode="aspectFit" decoding="async"></image>
+          </view>
+          <view class="menu-text">
+            <text class="menu-label">教练课时与薪酬</text>
+            <text class="menu-desc">教练课时统计与薪酬结算管理</text>
+          </view>
+          <image class="menu-arrow" src="/images/icons/chevron-right.svg" mode="aspectFit" decoding="async"></image>
+        </view>
+
+        <view class="menu-item" wx:if="{{permCoach}}" data-handler="onGoToCoaches" bindtap="onStoreMenuTap">
+          <view class="menu-icon-wrap" style="background:rgba(212,120,110,0.10)">
+            <image class="menu-icon" src="/images/icons/shop-dancing.svg" mode="aspectFit" decoding="async"></image>
+          </view>
+          <view class="menu-text">
+            <text class="menu-label">门店教练</text>
+            <text class="menu-desc">本门店教练管理</text>
+          </view>
+          <image class="menu-arrow" src="/images/icons/chevron-right.svg" mode="aspectFit" decoding="async"></image>
+        </view>
+      </view>
+    </view>
+
+    <!-- 内容管理 -->
+    <view class="menu-section">
+      <view class="menu-section-title">内容管理</view>
+      <view class="menu-card">
+        <view class="menu-item" wx:if="{{permBanner}}" data-handler="onGoToBanner" bindtap="onStoreMenuTap">
+          <view class="menu-icon-wrap" style="background:rgba(139,184,120,0.10)">
+            <image class="menu-icon" src="/images/icons/shop-image.svg" mode="aspectFit" decoding="async"></image>
+          </view>
+          <view class="menu-text">
+            <text class="menu-label">门店轮播图</text>
+            <text class="menu-desc">本门店首页展示配置</text>
+          </view>
+          <image class="menu-arrow" src="/images/icons/chevron-right.svg" mode="aspectFit" decoding="async"></image>
+        </view>
+
+        <view class="menu-item" wx:if="{{permAnnouncement}}" data-handler="onGoToAnnouncements" bindtap="onStoreMenuTap">
+          <view class="menu-icon-wrap" style="background:rgba(212,107,107,0.10)">
+            <image class="menu-icon" src="/images/icons/shop-megaphone.svg" mode="aspectFit" decoding="async"></image>
+          </view>
+          <view class="menu-text">
+            <text class="menu-label">门店公告</text>
+            <text class="menu-desc">发布本门店公告</text>
+          </view>
+          <image class="menu-arrow" src="/images/icons/chevron-right.svg" mode="aspectFit" decoding="async"></image>
+        </view>
+
+        <view class="menu-item" wx:if="{{permImage}}" data-handler="onGoToImages" bindtap="onStoreMenuTap">
+          <view class="menu-icon-wrap" style="background:rgba(107,163,190,0.10)">
+            <image class="menu-icon" src="/images/icons/shop-image.svg" mode="aspectFit" decoding="async"></image>
+          </view>
+          <view class="menu-text">
+            <text class="menu-label">门店画册</text>
+            <text class="menu-desc">本门店图片作品管理</text>
+          </view>
+          <image class="menu-arrow" src="/images/icons/chevron-right.svg" mode="aspectFit" decoding="async"></image>
+        </view>
+      </view>
+    </view>
+
+    <!-- 门店设置 -->
+    <view class="menu-section">
+      <view class="menu-section-title">门店设置</view>
+      <view class="menu-card">
+        <view class="menu-item" wx:if="{{permStore}}" data-handler="onGoToStoreMaintenance" bindtap="onStoreMenuTap">
+          <view class="menu-icon-wrap" style="background:rgba(197,116,75,0.10)">
+            <image class="menu-icon" src="/images/icons/shop-store.svg" mode="aspectFit" decoding="async"></image>
+          </view>
+          <view class="menu-text">
+            <text class="menu-label">门店维护</text>
+            <text class="menu-desc">管理本门店信息</text>
+          </view>
+          <image class="menu-arrow" src="/images/icons/chevron-right.svg" mode="aspectFit" decoding="async"></image>
+        </view>
+
+        <view class="menu-item" wx:if="{{permSchedule}}" data-handler="onGoToBookingWindow" bindtap="onStoreMenuTap">
+          <view class="menu-icon-wrap" style="background:rgba(107,163,190,0.10)">
+            <image class="menu-icon" src="/images/icons/shop-calendar.svg" mode="aspectFit" decoding="async"></image>
+          </view>
+          <view class="menu-text">
+            <text class="menu-label">预约开放设置</text>
+            <text class="menu-desc">本门店预约时间窗口配置</text>
+          </view>
+          <image class="menu-arrow" src="/images/icons/chevron-right.svg" mode="aspectFit" decoding="async"></image>
+        </view>
       </view>
     </view>
   </view>

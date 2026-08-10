@@ -1,94 +1,50 @@
-<page-meta page-style="{{showCoachModal || showDanceStyleModal ? 'overflow: hidden;' : ''}}"/>
+<page-meta page-style="{{showCoachModal ? 'overflow: hidden;' : ''}}"/>
 <view class="coaches-page">
-  <!-- 顶部Tab切换 -->
-  <view class="tab-switch">
-    <view class="tab-item {{activeTab === 'coaches' ? 'active' : ''}}" data-tab="coaches" bindtap="onTabChange">
-      <text>教练管理</text>
+  <!-- 教练列表 -->
+  <view class="section-header">
+    <text class="text-heading">教练列表</text>
+    <view class="add-btn" bindtap="onAddCoach">
+      <text>+ 新增教练</text>
     </view>
-    <view class="tab-item {{activeTab === 'danceStyles' ? 'active' : ''}}" data-tab="danceStyles" bindtap="onTabChange">
-      <text>舞种管理</text>
-    </view>
-    <!-- 门店管理入口已移除，请使用店务管理-门店维护 -->
   </view>
 
-  <!-- 教练管理 -->
-  <view class="tab-content" wx:if="{{activeTab === 'coaches'}}">
-    <view class="section-header">
-      <text class="text-heading">教练列表</text>
-      <view class="add-btn" bindtap="onAddCoach">
-        <text>+ 新增教练</text>
-      </view>
-    </view>
-
-    <view class="coach-list" wx:if="{{coaches.length > 0}}">
-      <view class="coach-item card" wx:for="{{coaches}}" wx:key="_id">
-        <view class="coach-main">
-          <image class="coach-avatar" src="{{item.avatar_url || '/images/default-avatar.svg'}}" mode="aspectFill" decoding="async"></image>
-          <view class="coach-body">
-            <view class="coach-row-top">
-              <view class="coach-info">
-                <view class="coach-name-row">
-                  <text class="coach-name">{{item.name}}</text>
-                  <text class="coach-gender">{{item.gender === 1 ? '男' : (item.gender === 2 ? '女' : '未知')}}</text>
-                  <text class="coach-sort">排序: {{item.sort_order || 0}}</text>
-                </view>
-                <view class="coach-tags-row">
-                  <text class="coach-home-tag {{item.show_on_home !== false ? 'tag-home-show' : 'tag-home-hide'}}">{{item.show_on_home !== false ? '首页展示' : '不展示'}}</text>
-                  <!-- 多门店执教标签：仅多门店执教教练显示，与首页展示标签同一行 -->
-                  <text class="coach-multi-store-tag" wx:if="{{item.isMultiStoreCoach}}">多门店执教</text>
-                </view>
+  <view class="coach-list" wx:if="{{coaches.length > 0}}">
+    <view class="coach-item card" wx:for="{{coaches}}" wx:key="_id">
+      <view class="coach-main">
+        <image class="coach-avatar" src="{{item.avatar_url || '/images/default-avatar.svg'}}" mode="aspectFill" decoding="async"></image>
+        <view class="coach-body">
+          <view class="coach-row-top">
+            <view class="coach-info">
+              <view class="coach-name-row">
+                <text class="coach-name">{{item.name}}</text>
+                <text class="coach-gender">{{item.gender === 1 ? '男' : (item.gender === 2 ? '女' : '未知')}}</text>
+                <text class="coach-sort">排序: {{item.sort_order || 0}}</text>
               </view>
-              <view class="coach-actions">
-                <!-- 多门店执教教练对非超管禁用操作按钮（置灰且不可点击） -->
-                <view class="action-btn-small {{item.canOperate ? '' : 'action-btn-disabled'}}" data-index="{{index}}" bindtap="{{item.canOperate ? 'onEditCoach' : 'onDisabledCoachAction'}}">
-                  <text>编辑</text>
-                </view>
-                <view class="action-btn-small danger {{item.canOperate ? '' : 'action-btn-disabled'}}" data-index="{{index}}" bindtap="{{item.canOperate ? 'onDeleteCoach' : 'onDisabledCoachAction'}}">
-                  <text>删除</text>
-                </view>
-                <switch checked="{{item.status === 'active'}}" data-id="{{item._id}}" data-index="{{index}}" bindchange="{{item.canOperate ? 'onToggleCoach' : 'onDisabledCoachSwitch'}}" color="#FFCC00" disabled="{{!item.canOperate}}"></switch>
+              <view class="coach-tags-row">
+                <text class="coach-home-tag {{item.show_on_home !== false ? 'tag-home-show' : 'tag-home-hide'}}">{{item.show_on_home !== false ? '首页展示' : '不展示'}}</text>
+                <!-- 多门店执教标签：仅多门店执教教练显示，与首页展示标签同一行 -->
+                <text class="coach-multi-store-tag" wx:if="{{item.isMultiStoreCoach}}">多门店执教</text>
               </view>
             </view>
-            <text class="coach-dance">擅长: {{item.dance_style_names || '未设置'}}</text>
+            <view class="coach-actions">
+              <!-- 多门店执教教练对非超管禁用操作按钮（置灰且不可点击） -->
+              <view class="action-btn-small {{item.canOperate ? '' : 'action-btn-disabled'}}" data-index="{{index}}" bindtap="{{item.canOperate ? 'onEditCoach' : 'onDisabledCoachAction'}}">
+                <text>编辑</text>
+              </view>
+              <view class="action-btn-small danger {{item.canOperate ? '' : 'action-btn-disabled'}}" data-index="{{index}}" bindtap="{{item.canOperate ? 'onDeleteCoach' : 'onDisabledCoachAction'}}">
+                <text>删除</text>
+              </view>
+              <switch checked="{{item.status === 'active'}}" data-id="{{item._id}}" data-index="{{index}}" bindchange="{{item.canOperate ? 'onToggleCoach' : 'onDisabledCoachSwitch'}}" color="#FFCC00" disabled="{{!item.canOperate}}"></switch>
+            </view>
           </view>
+          <text class="coach-dance">擅长: {{item.dance_style_names || '未设置'}}</text>
         </view>
       </view>
-    </view>
-    <view class="empty-state" wx:else>
-      <text class="empty-text">暂无教练</text>
-      <view class="add-btn" bindtap="onAddCoach"><text>+ 新增教练</text></view>
     </view>
   </view>
-
-  <!-- 舞种管理 -->
-  <view class="tab-content" wx:if="{{activeTab === 'danceStyles'}}">
-    <view class="section-header">
-      <text class="text-heading">舞种列表</text>
-      <view class="add-btn" bindtap="onAddDanceStyle">
-        <text>+ 新增舞种</text>
-      </view>
-    </view>
-
-    <view class="dance-style-list" wx:if="{{danceStyles.length > 0}}">
-      <view class="dance-style-item card" wx:for="{{danceStyles}}" wx:key="_id">
-        <view class="dance-style-info">
-          <text class="dance-style-name">{{item.name}}</text>
-          <text class="dance-style-order">排序: {{item.sort_order || 0}}</text>
-        </view>
-        <view class="dance-style-actions">
-          <view class="action-btn-small" data-index="{{index}}" bindtap="onEditDanceStyle">
-            <text>编辑</text>
-          </view>
-          <view class="action-btn-small danger" data-index="{{index}}" bindtap="onDeleteDanceStyle">
-            <text>删除</text>
-          </view>
-        </view>
-      </view>
-    </view>
-    <view class="empty-state" wx:else>
-      <text class="empty-text">暂无舞种</text>
-      <view class="add-btn" bindtap="onAddDanceStyle"><text>+ 新增舞种</text></view>
-    </view>
+  <view class="empty-state" wx:else>
+    <text class="empty-text">暂无教练</text>
+    <view class="add-btn" bindtap="onAddCoach"><text>+ 新增教练</text></view>
   </view>
 
   <!-- 新增/编辑教练弹窗（含相册管理） -->
@@ -137,28 +93,6 @@
       <view class="modal-buttons">
         <view class="btn-secondary" bindtap="onCloseCoachModal"><text>取消</text></view>
         <view class="btn-primary" bindtap="onSubmitCoach"><text>确认</text></view>
-      </view>
-    </view>
-  </view>
-
-  <!-- 新增/编辑舞种弹窗 -->
-  <view class="modal-mask" wx:if="{{showDanceStyleModal}}" bindtap="onCloseDanceStyleModal">
-    <view class="modal-content" catchtap="onModalTap">
-      <view class="modal-header">
-        <text class="modal-title">{{danceStyleForm._id ? '编辑舞种' : '新增舞种'}}</text>
-        <text class="modal-close" bindtap="onCloseDanceStyleModal">×</text>
-      </view>
-      <view class="form-group">
-        <text class="form-label">舞种名称 *</text>
-        <input class="input-field" placeholder="请输入舞种名称" value="{{danceStyleForm.name}}" data-field="name" bindinput="onDanceStyleInput" />
-      </view>
-      <view class="form-group">
-        <text class="form-label">排序（数字越小越靠前）</text>
-        <input class="input-field" type="number" placeholder="0" value="{{danceStyleForm.sort_order}}" data-field="sort_order" bindinput="onDanceStyleInput" />
-      </view>
-      <view class="modal-buttons">
-        <view class="btn-secondary" bindtap="onCloseDanceStyleModal"><text>取消</text></view>
-        <view class="btn-primary" bindtap="onSubmitDanceStyle"><text>确认</text></view>
       </view>
     </view>
   </view>

@@ -3,7 +3,7 @@
   <!-- 页面头部 -->
   <view class="page-header">
     <view class="header-left">
-      <text class="page-desc">管理小程序首页轮播图展示</text>
+      <text class="page-desc">{{selectedStoreName ? selectedStoreName + ' 轮播图' : '门店轮播图'}}</text>
     </view>
     <view class="add-btn" bindtap="onAddBanner">
       <text class="add-icon">+</text>
@@ -58,7 +58,7 @@
   <!-- 空状态 -->
   <view class="empty-state" wx:else>
     <view class="empty-icon"></view>
-    <text class="empty-title">暂无轮播图</text>
+    <text class="empty-title">暂无门店轮播图</text>
     <text class="empty-desc">点击上方按钮添加轮播图</text>
     <view class="empty-btn" bindtap="onAddBanner">
       <text>添加轮播图</text>

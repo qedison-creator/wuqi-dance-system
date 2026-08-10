@@ -212,7 +212,22 @@ Page({
             } else if (data && data.action === 'reject') {
               wx.showToast({ title: '审核未通过', icon: 'none', duration: 1500 });
             }
+          },
+          package_update: (data) => {
+            // 套餐信息变更推送（录入/编辑/删除/停卡/复卡/延长）：即时刷新套餐数据
+            console.log('[Profile] 收到套餐更新事件:', data);
+            this._refreshStatsAndPackages();
           }
+        },
+        // WebSocket 断连降级：60秒轮询兜底，确保套餐数据不丢失
+        onFallback: () => {
+          console.log('[Profile] WebSocket降级轮询：刷新套餐数据');
+          this._refreshStatsAndPackages();
+        },
+        // 连接状态变化：重连成功后也会触发 onFallback（sync_ack 机制），
+        // 此处仅记录状态变化供调试
+        onStatusChange: (status) => {
+          console.log('[Profile] WebSocket状态变化:', status);
         }
       });
     } catch (e) {
@@ -348,9 +363,9 @@ Page({
           } else if (currentPkg.package_type === 'time_card') {
             var usage = packageRes.data.timeCardUsage;
             if (usage) {
-              remainingClasses = usage.weekly_remaining !== null ? usage.weekly_remaining : (usage.daily_remaining !== null ? usage.daily_remaining : -1);
+              remainingClasses = usage.daily_remaining !== null ? usage.daily_remaining : (usage.weekly_remaining !== null ? usage.weekly_remaining : (usage.monthly_remaining !== null ? usage.monthly_remaining : -1));
             } else {
-              remainingClasses = currentPkg.daily_limit || currentPkg.weekly_limit || -1;
+              remainingClasses = currentPkg.daily_limit || currentPkg.weekly_limit || currentPkg.monthly_limit || -1;
             }
           }
         }
@@ -381,7 +396,7 @@ Page({
             }];
           } else if (currentPkg.package_type === 'time_card') {
             var fUsage = packageRes.data.timeCardUsage;
-            var fLabel = '本周剩余';
+            var fLabel = '不限次数';
             var fRemaining = -1;
             if (currentPkg.daily_limit) {
               fLabel = '今日剩余';
@@ -389,6 +404,9 @@ Page({
             } else if (currentPkg.weekly_limit) {
               fLabel = '本周剩余';
               fRemaining = fUsage && fUsage.weekly_remaining !== null ? fUsage.weekly_remaining : currentPkg.weekly_limit;
+            } else if (currentPkg.monthly_limit) {
+              fLabel = '本月剩余';
+              fRemaining = fUsage && fUsage.monthly_remaining !== null ? fUsage.monthly_remaining : currentPkg.monthly_limit;
             }
             activeStats = [{
               _id: currentPkg._id,
@@ -578,9 +596,9 @@ Page({
           } else if (currentPkg.package_type === 'time_card') {
             var usage = res.data.timeCardUsage;
             if (usage) {
-              remainingClasses = usage.weekly_remaining !== null ? usage.weekly_remaining : (usage.daily_remaining !== null ? usage.daily_remaining : -1);
+              remainingClasses = usage.daily_remaining !== null ? usage.daily_remaining : (usage.weekly_remaining !== null ? usage.weekly_remaining : (usage.monthly_remaining !== null ? usage.monthly_remaining : -1));
             } else {
-              remainingClasses = currentPkg.daily_limit || currentPkg.weekly_limit || -1;
+              remainingClasses = currentPkg.daily_limit || currentPkg.weekly_limit || currentPkg.monthly_limit || -1;
             }
           }
         }
@@ -612,7 +630,7 @@ Page({
             }];
           } else if (currentPkg.package_type === 'time_card') {
             var tUsage = res.data.timeCardUsage;
-            var tLabel = '本周剩余';
+            var tLabel = '不限次数';
             var tRemaining = -1;
             if (currentPkg.daily_limit) {
               tLabel = '今日剩余';
@@ -620,6 +638,9 @@ Page({
             } else if (currentPkg.weekly_limit) {
               tLabel = '本周剩余';
               tRemaining = tUsage && tUsage.weekly_remaining !== null ? tUsage.weekly_remaining : currentPkg.weekly_limit;
+            } else if (currentPkg.monthly_limit) {
+              tLabel = '本月剩余';
+              tRemaining = tUsage && tUsage.monthly_remaining !== null ? tUsage.monthly_remaining : currentPkg.monthly_limit;
             }
             activeStats = [{
               _id: currentPkg._id,
@@ -955,6 +976,14 @@ Page({
       // 跨店标识：extra_store_ids 非空表示可跨店使用
       pkg._crossStore = Array.isArray(pkg.extra_store_ids) && pkg.extra_store_ids.length > 0;
 
+      // 舞种限制展示文本：populate 后是 [{_id, name}]，空数组=不限舞种
+      var dsl = Array.isArray(pkg.dance_style_limit) ? pkg.dance_style_limit : [];
+      if (dsl.length > 0) {
+        pkg._danceStyleLimitText = dsl.map(function(ds) { return (ds && ds.name) ? ds.name : ''; }).filter(Boolean).join('、');
+      } else {
+        pkg._danceStyleLimitText = '';
+      }
+
       // 套餐类型标签（简短版用于标签）
       pkg._typeLabel = pkg.package_type === 'time_card' ? '时间卡' : '次卡';
       
@@ -1037,12 +1066,29 @@ Page({
 
       // 时间卡使用情况（本周预约数
       if (pkg.package_type === 'time_card' && pkg.timeCardUsage) {
-        pkg._weekUsed = pkg.timeCardUsage.weekly_used !== null ? pkg.timeCardUsage.weekly_used : pkg.timeCardUsage.daily_used;
-        pkg._weekLimit = pkg.timeCardUsage.weekly_limit !== null ? pkg.timeCardUsage.weekly_limit : pkg.timeCardUsage.daily_limit;
-        pkg._weekRemaining = pkg.timeCardUsage.weekly_remaining !== null ? pkg.timeCardUsage.weekly_remaining : pkg.timeCardUsage.daily_remaining;
+        if (pkg.timeCardUsage.daily_limit) {
+          pkg._weekUsed = pkg.timeCardUsage.daily_used;
+          pkg._weekLimit = pkg.timeCardUsage.daily_limit;
+          pkg._weekRemaining = pkg.timeCardUsage.daily_remaining;
+          pkg._periodLabel = '今日';
+        } else if (pkg.timeCardUsage.weekly_limit) {
+          pkg._weekUsed = pkg.timeCardUsage.weekly_used;
+          pkg._weekLimit = pkg.timeCardUsage.weekly_limit;
+          pkg._weekRemaining = pkg.timeCardUsage.weekly_remaining;
+          pkg._periodLabel = '本周';
+        } else if (pkg.timeCardUsage.monthly_limit) {
+          pkg._weekUsed = pkg.timeCardUsage.monthly_used;
+          pkg._weekLimit = pkg.timeCardUsage.monthly_limit;
+          pkg._weekRemaining = pkg.timeCardUsage.monthly_remaining;
+          pkg._periodLabel = '本月';
+        } else {
+          pkg._weekUsed = null;
+          pkg._weekLimit = null;
+          pkg._weekRemaining = -1;
+          pkg._periodLabel = '不限次数';
+        }
         pkg._nextWeekUsed = pkg.timeCardUsage.next_week_used;
         pkg._nextWeekRemaining = pkg.timeCardUsage.next_week_remaining;
-        pkg._periodLabel = pkg.timeCardUsage.weekly_limit ? '本周' : (pkg.timeCardUsage.daily_limit ? '今日' : '');
       }
       
       // 待激活套餐显示文案
@@ -1055,12 +1101,15 @@ Page({
             }
             
             // 待激活套餐使用限制
-            if (pkg.weekly_limit) {
-              pkg._pendingRestrictionLabel = '每周限制';
-              pkg._pendingRestrictionValue = pkg.weekly_limit + ' 次';
-            } else if (pkg.daily_limit) {
+            if (pkg.daily_limit) {
               pkg._pendingRestrictionLabel = '每日限制';
               pkg._pendingRestrictionValue = pkg.daily_limit + ' 次';
+            } else if (pkg.weekly_limit) {
+              pkg._pendingRestrictionLabel = '每周限制';
+              pkg._pendingRestrictionValue = pkg.weekly_limit + ' 次';
+            } else if (pkg.monthly_limit) {
+              pkg._pendingRestrictionLabel = '每月限制';
+              pkg._pendingRestrictionValue = pkg.monthly_limit + ' 次';
             } else {
               pkg._pendingRestrictionLabel = '';
               pkg._pendingRestrictionValue = '';

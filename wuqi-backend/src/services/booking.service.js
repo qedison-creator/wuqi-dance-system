@@ -184,13 +184,30 @@ function buildAttendanceSnapshot(schedule) {
   };
 }
 
+/**
+ * 舞种限制校验：套餐限制了舞种时，课程舞种必须在限制范围内
+ * @param {Object} userPackage - 用户套餐（dance_style_limit 为 ObjectId 数组）
+ * @param {Object} scheduleDanceStyleId - 课程舞种 ID（ObjectId 或字符串）
+ * @returns {boolean} true=允许预约，false=舞种不符
+ */
+function packageMatchesDanceStyle(userPackage, scheduleDanceStyleId) {
+  if (!scheduleDanceStyleId) return true;
+  if (!userPackage.dance_style_limit || userPackage.dance_style_limit.length === 0) return true;
+  const targetId = scheduleDanceStyleId.toString();
+  return userPackage.dance_style_limit.some(id => {
+    const idStr = id._id ? id._id.toString() : (id.toString ? id.toString() : String(id));
+    return idStr === targetId;
+  });
+}
+
 async function checkTimeCardLimit(userPackage, scheduleDate, creditsCost) {
   if (userPackage.package_type !== 'time_card') return { allowed: true };
 
   const dailyLimit = userPackage.daily_limit;
   const weeklyLimit = userPackage.weekly_limit;
+  const monthlyLimit = userPackage.monthly_limit;
 
-  if (!dailyLimit && !weeklyLimit) return { allowed: true };
+  if (!dailyLimit && !weeklyLimit && !monthlyLimit) return { allowed: true };
 
   const bookingDate = bjDate(scheduleDate);
 
@@ -238,6 +255,30 @@ async function checkTimeCardLimit(userPackage, scheduleDate, creditsCost) {
         limitType: 'daily',
         limit: dailyLimit,
         used: usedToday,
+        remaining: remaining
+      };
+    }
+  }
+
+  if (monthlyLimit) {
+    const monthStartDate = bookingDate.startOf('month');
+    const monthEndDate = bookingDate.endOf('month');
+
+    const usedThisMonth = await Booking.countDocuments({
+      user_id: userPackage.user_id,
+      user_package_id: userPackage._id,
+      booking_date: { $gte: monthStartDate.format('YYYY-MM-DD'), $lte: monthEndDate.format('YYYY-MM-DD') },
+      status: { $in: ['booked', 'completed'] },
+    });
+
+    if (usedThisMonth + creditsCost > monthlyLimit) {
+      const remaining = Math.max(0, monthlyLimit - usedThisMonth);
+      return {
+        allowed: false,
+        reason: `本月上课次数已达上限（${monthlyLimit}次/月），本月剩余${remaining}次`,
+        limitType: 'monthly',
+        limit: monthlyLimit,
+        used: usedThisMonth,
         remaining: remaining
       };
     }
@@ -307,6 +348,15 @@ exports.createBooking = async (userId, scheduleId) => {
       status: 'active',
       is_suspended: false,
     });
+    // 本门店套餐优先：store_id 匹配当前门店的排在前面，跨门店授权套餐排在后面
+    // 避免跨门店套餐被误优先选中，确保优先消耗本门店套餐的用量
+    storeActivePackages.sort((a, b) => {
+      const aIsHomeStore = a.store_id && a.store_id.toString() === String(scheduleStoreId);
+      const bIsHomeStore = b.store_id && b.store_id.toString() === String(scheduleStoreId);
+      if (aIsHomeStore && !bIsHomeStore) return -1;
+      if (!aIsHomeStore && bIsHomeStore) return 1;
+      return 0;
+    });
 
     let storePendingPackages = await UserPackage.find({
       user_id: userId,
@@ -325,23 +375,30 @@ exports.createBooking = async (userId, scheduleId) => {
     }
 
     if (storeActivePackages.length === 0 && storePendingPackages.length > 0) {
-      const pendingPkg = storePendingPackages[0];
-      activationNotice = '您的套餐已自动激活';
-      await packageService.activatePackageById(pendingPkg._id, userId, {
-        activationType: 'first_booking',
-        storeId: scheduleStoreId
-      });
-      storeActivePackages = await UserPackage.find({
-        user_id: userId,
-        $or: [{ store_id: scheduleStoreId }, { extra_store_ids: scheduleStoreId }],
-        status: 'active',
-        is_suspended: false,
-      });
+      // 按舞种限制过滤待激活套餐
+      const matchingPending = storePendingPackages.filter(p => packageMatchesDanceStyle(p, scheduleDanceStyleId));
+      if (matchingPending.length > 0) {
+        const pendingPkg = matchingPending[0];
+        activationNotice = '您的套餐已自动激活';
+        await packageService.activatePackageById(pendingPkg._id, userId, {
+          activationType: 'first_booking',
+          storeId: scheduleStoreId
+        });
+        storeActivePackages = await UserPackage.find({
+          user_id: userId,
+          $or: [{ store_id: scheduleStoreId }, { extra_store_ids: scheduleStoreId }],
+          status: 'active',
+          is_suspended: false,
+        });
+      } else {
+        // 有套餐但都不匹配当前课程舞种
+        throw new Error('您的套餐不支持该舞种课程，无法预约');
+      }
     }
 
     let currentPackage = null;
-    const timeCard = storeActivePackages.find(p => p.package_type === 'time_card' && (!p.end_date || new Date() <= p.end_date));
-    const countCard = storeActivePackages.find(p => p.package_type === 'count_card' && p.remaining_credits > 0 && (!p.end_date || new Date() <= p.end_date));
+    const timeCard = storeActivePackages.find(p => p.package_type === 'time_card' && (!p.end_date || new Date() <= p.end_date) && packageMatchesDanceStyle(p, scheduleDanceStyleId));
+    const countCard = storeActivePackages.find(p => p.package_type === 'count_card' && p.remaining_credits > 0 && (!p.end_date || new Date() <= p.end_date) && packageMatchesDanceStyle(p, scheduleDanceStyleId));
 
     if (timeCard) {
       currentPackage = timeCard;
@@ -368,11 +425,17 @@ exports.createBooking = async (userId, scheduleId) => {
       }).sort({ created_at: 1 });
 
       if (storePendingPackages.length > 0) {
-        activationNotice = '您的套餐已自动激活';
-        currentPackage = await packageService.activatePackageById(storePendingPackages[0]._id, userId, {
-          activationType: 'first_booking',
-          storeId: scheduleStoreId
-        });
+        // 按舞种限制过滤待激活套餐
+        const matchingPending = storePendingPackages.filter(p => packageMatchesDanceStyle(p, scheduleDanceStyleId));
+        if (matchingPending.length > 0) {
+          activationNotice = '您的套餐已自动激活';
+          currentPackage = await packageService.activatePackageById(matchingPending[0]._id, userId, {
+            activationType: 'first_booking',
+            storeId: scheduleStoreId
+          });
+        } else {
+          throw new Error('您的套餐不支持该舞种课程，无法预约');
+        }
       } else {
         throw new Error('该门店的所有套餐已用完或已过期，请联系管理员');
       }
@@ -395,7 +458,7 @@ exports.createBooking = async (userId, scheduleId) => {
       // 如果是从时间卡限额满切换过来的，给出更友好的错误信息
       if (currentPackage._fallbackFromTimeCard === true && currentPackage._limitCheck) {
         const lc = currentPackage._limitCheck;
-        const limitLabel = lc.limitType === 'weekly' ? '本周' : '今日';
+        const limitLabel = lc.limitType === 'weekly' ? '本周' : (lc.limitType === 'monthly' ? '本月' : '今日');
         throw new Error(`时间卡${limitLabel}次数已用完，且次卡剩余次数不足，请联系管理员`);
       }
       throw new Error('剩余次数不足');
@@ -405,23 +468,23 @@ exports.createBooking = async (userId, scheduleId) => {
       const creditsCost = schedule.credits_cost || 1;
       const limitCheck = await checkTimeCardLimit(currentPackage, schedule.date, creditsCost);
       if (!limitCheck.allowed) {
-        // 时间卡限额已满，查找同门店可用次卡（pending 或 active）
-        const availableCountCards = await UserPackage.find({
+        // 时间卡限额已满，查找同门店可用次卡（pending 或 active），按舞种限制过滤
+        const availableCountCards = (await UserPackage.find({
           user_id: userId,
           $or: [{ store_id: scheduleStoreId }, { extra_store_ids: scheduleStoreId }],
           package_type: 'count_card',
           status: 'active',
           is_suspended: false,
           remaining_credits: { $gt: 0 },
-        }).sort({ created_at: 1 });
+        }).sort({ created_at: 1 })).filter(p => packageMatchesDanceStyle(p, scheduleDanceStyleId));
 
-        const pendingCountCards = await UserPackage.find({
+        const pendingCountCards = (await UserPackage.find({
           user_id: userId,
           $or: [{ store_id: scheduleStoreId }, { extra_store_ids: scheduleStoreId }],
           package_type: 'count_card',
           status: 'pending',
           is_suspended: false,
-        }).sort({ created_at: 1 });
+        }).sort({ created_at: 1 })).filter(p => packageMatchesDanceStyle(p, scheduleDanceStyleId));
 
         if (availableCountCards.length > 0) {
           // 有已激活的次卡，直接使用次卡
@@ -430,7 +493,8 @@ exports.createBooking = async (userId, scheduleId) => {
           currentPackage._limitCheck = limitCheck;
         } else if (pendingCountCards.length > 0) {
           // 有未激活的次卡，抛出特殊错误让前端弹窗确认
-          const err = new Error('本周时间卡次数已用完，是否激活次卡继续预约？');
+          const limitLabel = limitCheck.limitType === 'weekly' ? '本周' : (limitCheck.limitType === 'monthly' ? '本月' : '今日');
+          const err = new Error(`${limitLabel}时间卡次数已用完，是否激活次卡继续预约？`);
           err.code = 'TIME_CARD_LIMIT_REACHED';
           err.data = {
             limitType: limitCheck.limitType,
@@ -1370,6 +1434,7 @@ exports.promoteWaitlist = async (waitlistId, operatorId) => {
 
   const userId = waitlist.user_id;
   const scheduleStoreId = schedule.store_id ? (schedule.store_id._id || schedule.store_id) : null;
+  const promoteDanceStyleId = schedule.dance_style_id ? (schedule.dance_style_id._id || schedule.dance_style_id) : null;
 
   // 按门店查找套餐（与 createBooking 逻辑一致）
   const storeActivePackages = await UserPackage.find({
@@ -1377,6 +1442,14 @@ exports.promoteWaitlist = async (waitlistId, operatorId) => {
     $or: [{ store_id: scheduleStoreId }, { extra_store_ids: scheduleStoreId }],
     status: 'active',
     is_suspended: false,
+  });
+  // 本门店套餐优先排序
+  storeActivePackages.sort((a, b) => {
+    const aIsHomeStore = a.store_id && a.store_id.toString() === String(scheduleStoreId);
+    const bIsHomeStore = b.store_id && b.store_id.toString() === String(scheduleStoreId);
+    if (aIsHomeStore && !bIsHomeStore) return -1;
+    if (!aIsHomeStore && bIsHomeStore) return 1;
+    return 0;
   });
 
   const storePendingPackages = await UserPackage.find({
@@ -1386,19 +1459,20 @@ exports.promoteWaitlist = async (waitlistId, operatorId) => {
     is_suspended: false,
   }).sort({ created_at: 1 });
 
-  // 自动激活同门店 pending 套餐
-  if (storeActivePackages.length === 0 && storePendingPackages.length > 0) {
-    await packageService.activatePackageById(storePendingPackages[0]._id, userId, {
+  // 自动激活同门店 pending 套餐（按舞种限制过滤）
+  const matchingPendingForPromote = storePendingPackages.filter(p => packageMatchesDanceStyle(p, promoteDanceStyleId));
+  if (storeActivePackages.length === 0 && matchingPendingForPromote.length > 0) {
+    await packageService.activatePackageById(matchingPendingForPromote[0]._id, userId, {
       activationType: 'admin_promote',
       storeId: scheduleStoreId
     });
-    storeActivePackages.push(await UserPackage.findById(storePendingPackages[0]._id));
+    storeActivePackages.push(await UserPackage.findById(matchingPendingForPromote[0]._id));
   }
 
-  // 套餐选择：时间卡优先，限额满时 fallback 到次卡
+  // 套餐选择：时间卡优先，限额满时 fallback 到次卡（按舞种限制过滤）
   let currentPackage = null;
-  const timeCard = storeActivePackages.find(p => p.package_type === 'time_card' && (!p.end_date || new Date() <= p.end_date));
-  const countCard = storeActivePackages.find(p => p.package_type === 'count_card' && p.remaining_credits > 0 && (!p.end_date || new Date() <= p.end_date));
+  const timeCard = storeActivePackages.find(p => p.package_type === 'time_card' && (!p.end_date || new Date() <= p.end_date) && packageMatchesDanceStyle(p, promoteDanceStyleId));
+  const countCard = storeActivePackages.find(p => p.package_type === 'count_card' && p.remaining_credits > 0 && (!p.end_date || new Date() <= p.end_date) && packageMatchesDanceStyle(p, promoteDanceStyleId));
 
   if (timeCard) {
     const creditsCost = schedule.credits_cost || 1;
@@ -1586,6 +1660,16 @@ exports.notifyWaitlistUsers = async (scheduleId) => {
         status: 'active',
         is_suspended: false,
       });
+      // 本门店套餐优先排序
+      storeActivePackages.sort((a, b) => {
+        const aIsHomeStore = a.store_id && a.store_id.toString() === String(scheduleStoreId);
+        const bIsHomeStore = b.store_id && b.store_id.toString() === String(scheduleStoreId);
+        if (aIsHomeStore && !bIsHomeStore) return -1;
+        if (!aIsHomeStore && bIsHomeStore) return 1;
+        return 0;
+      });
+
+      const notifyDanceStyleId = schedule.dance_style_id ? (schedule.dance_style_id._id || schedule.dance_style_id) : null;
 
       const storePendingPackages = await UserPackage.find({
         user_id: userId,
@@ -1594,19 +1678,20 @@ exports.notifyWaitlistUsers = async (scheduleId) => {
         is_suspended: false,
       }).sort({ created_at: 1 });
 
-      // 自动激活 pending 套餐
-      if (storeActivePackages.length === 0 && storePendingPackages.length > 0) {
-        await packageService.activatePackageById(storePendingPackages[0]._id, userId, {
+      // 自动激活 pending 套餐（按舞种限制过滤）
+      const matchingPendingForNotify = storePendingPackages.filter(p => packageMatchesDanceStyle(p, notifyDanceStyleId));
+      if (storeActivePackages.length === 0 && matchingPendingForNotify.length > 0) {
+        await packageService.activatePackageById(matchingPendingForNotify[0]._id, userId, {
           activationType: 'auto_waitlist',
           storeId: scheduleStoreId
         });
-        storeActivePackages.push(await UserPackage.findById(storePendingPackages[0]._id));
+        storeActivePackages.push(await UserPackage.findById(matchingPendingForNotify[0]._id));
       }
 
-      // 套餐选择：时间卡优先，限额满时 fallback 次卡
+      // 套餐选择：时间卡优先，限额满时 fallback 次卡（按舞种限制过滤）
       let currentPackage = null;
-      const timeCard = storeActivePackages.find(p => p.package_type === 'time_card' && (!p.end_date || new Date() <= p.end_date));
-      const countCard = storeActivePackages.find(p => p.package_type === 'count_card' && p.remaining_credits > 0);
+      const timeCard = storeActivePackages.find(p => p.package_type === 'time_card' && (!p.end_date || new Date() <= p.end_date) && packageMatchesDanceStyle(p, notifyDanceStyleId));
+      const countCard = storeActivePackages.find(p => p.package_type === 'count_card' && p.remaining_credits > 0 && packageMatchesDanceStyle(p, notifyDanceStyleId));
 
       if (timeCard) {
         const creditsCost = schedule.credits_cost || 1;
@@ -1739,6 +1824,7 @@ exports.confirmWaitlistBooking = async (userId, waitlistId) => {
 
   const scheduleStoreIdRaw = schedule.store_id ? (schedule.store_id._id || schedule.store_id) : null;
   const scheduleStoreId = scheduleStoreIdRaw ? new mongoose.Types.ObjectId(scheduleStoreIdRaw.toString()) : null;
+  const waitlistDanceStyleId = schedule.dance_style_id ? (schedule.dance_style_id._id || schedule.dance_style_id) : null;
 
   // 查找同门店套餐
   const storeActivePackages = await UserPackage.find({
@@ -1746,6 +1832,14 @@ exports.confirmWaitlistBooking = async (userId, waitlistId) => {
     $or: [{ store_id: scheduleStoreId }, { extra_store_ids: scheduleStoreId }],
     status: 'active',
     is_suspended: false,
+  });
+  // 本门店套餐优先：store_id 匹配当前门店的排在前面，跨门店授权套餐排在后面
+  storeActivePackages.sort((a, b) => {
+    const aIsHomeStore = a.store_id && a.store_id.toString() === String(scheduleStoreId);
+    const bIsHomeStore = b.store_id && b.store_id.toString() === String(scheduleStoreId);
+    if (aIsHomeStore && !bIsHomeStore) return -1;
+    if (!aIsHomeStore && bIsHomeStore) return 1;
+    return 0;
   });
 
   const storePendingPackages = await UserPackage.find({
@@ -1755,19 +1849,20 @@ exports.confirmWaitlistBooking = async (userId, waitlistId) => {
     is_suspended: false,
   }).sort({ created_at: 1 });
 
-  // 自动激活 pending 套餐
-  if (storeActivePackages.length === 0 && storePendingPackages.length > 0) {
-    await packageService.activatePackageById(storePendingPackages[0]._id, userId, {
+  // 自动激活 pending 套餐（按舞种限制过滤）
+  const matchingPending = storePendingPackages.filter(p => packageMatchesDanceStyle(p, waitlistDanceStyleId));
+  if (storeActivePackages.length === 0 && matchingPending.length > 0) {
+    await packageService.activatePackageById(matchingPending[0]._id, userId, {
       activationType: 'waitlist_confirm',
       storeId: scheduleStoreId
     });
-    storeActivePackages.push(await UserPackage.findById(storePendingPackages[0]._id));
+    storeActivePackages.push(await UserPackage.findById(matchingPending[0]._id));
   }
 
-  // 套餐选择：时间卡优先，限额满时 fallback 次卡
+  // 套餐选择：时间卡优先，限额满时 fallback 次卡（按舞种限制过滤）
   let currentPackage = null;
-  const timeCard = storeActivePackages.find(p => p.package_type === 'time_card' && (!p.end_date || new Date() <= p.end_date));
-  const countCard = storeActivePackages.find(p => p.package_type === 'count_card' && p.remaining_credits > 0 && (!p.end_date || new Date() <= p.end_date));
+  const timeCard = storeActivePackages.find(p => p.package_type === 'time_card' && (!p.end_date || new Date() <= p.end_date) && packageMatchesDanceStyle(p, waitlistDanceStyleId));
+  const countCard = storeActivePackages.find(p => p.package_type === 'count_card' && p.remaining_credits > 0 && (!p.end_date || new Date() <= p.end_date) && packageMatchesDanceStyle(p, waitlistDanceStyleId));
 
   if (timeCard) {
     const creditsCost = schedule.credits_cost || 1;
@@ -1787,6 +1882,11 @@ exports.confirmWaitlistBooking = async (userId, waitlistId) => {
   if (!currentPackage) {
     const anyPackage = await UserPackage.findOne({ user_id: userId, status: { $in: ['active', 'pending'] } });
     if (anyPackage) {
+      // 检查是否因舞种限制导致无可用套餐
+      const hasMatchingDance = storeActivePackages.some(p => packageMatchesDanceStyle(p, waitlistDanceStyleId));
+      if (!hasMatchingDance && storeActivePackages.length > 0) {
+        throw new Error('您的套餐不支持该舞种课程，无法预约');
+      }
       const storeName = schedule.store_id && schedule.store_id.name ? schedule.store_id.name : '该门店';
       throw new Error(`您没有${storeName}的可用套餐，请在首页切换到正确的门店`);
     }
@@ -1931,6 +2031,32 @@ exports.checkIn = async (scheduleId, userId, operatorId = null, isOnsite = false
       throw new Error('该会员未预约本节课');
     }
 
+    // 舞种限制预校验：补签前检查会员是否有匹配该课程舞种的套餐
+    // 注意：仅校验当前门店可用套餐（本门店套餐 + 跨门店授权套餐），避免误用其他门店套餐
+    const checkInDanceStyleId = schedule.dance_style_id ? (schedule.dance_style_id._id || schedule.dance_style_id) : null;
+    const checkInStoreId = schedule.store_id ? (schedule.store_id._id || schedule.store_id.toString()) : null;
+    if (checkInDanceStyleId) {
+      // 跨门店条件：本门店套餐 或 附加门店包含当前门店的套餐
+      const danceStyleQuery = {
+        user_id: userId,
+        status: { $in: ['active', 'suspended'] },
+      };
+      if (checkInStoreId) {
+        danceStyleQuery.$or = [
+          { store_id: checkInStoreId },
+          { extra_store_ids: checkInStoreId }
+        ];
+      }
+      const activePkgsForDance = await UserPackage.find(danceStyleQuery).lean();
+      if (activePkgsForDance.length > 0) {
+        const hasMatchingPkg = activePkgsForDance.some(p => packageMatchesDanceStyle(p, checkInDanceStyleId));
+        if (!hasMatchingPkg) {
+          pushCheckInFailed(userId, CHECK_IN_ERROR_CODE.NO_AVAILABLE_PACKAGE, '您的套餐不支持该舞种课程，无法签到', 'dance style not allowed', true);
+          throw new Error('您的套餐不支持该舞种课程，无法签到');
+        }
+      }
+    }
+
     booking = await Booking.create({
       user_id: userId,
       schedule_id: scheduleId,
@@ -1944,18 +2070,47 @@ exports.checkIn = async (scheduleId, userId, operatorId = null, isOnsite = false
       source: 'onsite',
       check_in_time: new Date(),
       check_in_by: operatorId,
+      check_in_method: checkInMethod,  // 签到方式（onsite/admin）
       ...buildBookingSnapshot(schedule),  // 课程快照
     });
 
     if (booking.credits_deducted > 0) {
       try {
-        // 查找可用套餐：包含停卡中的套餐（签到后自动恢复停卡）
-        const userPackage = await UserPackage.findOne({
+        // 查找可用套餐：仅限当前门店可用套餐（本门店套餐 + 跨门店授权套餐），
+        // 并优先选择舞种匹配的套餐，避免误用其他门店套餐
+        const packageQuery = {
           user_id: userId,
           status: { $in: ['active', 'suspended'] },
-        }).sort({ created_at: -1 });
+        };
+        if (checkInStoreId) {
+          packageQuery.$or = [
+            { store_id: checkInStoreId },
+            { extra_store_ids: checkInStoreId }
+          ];
+        }
+        // 按创建时间倒序取最新套餐；后续会做舞种过滤
+        let candidates = await UserPackage.find(packageQuery).sort({ created_at: -1 });
+        // 优先选择舞种匹配的套餐；若无匹配则回退到不限舞种的套餐
+        const matchingDance = candidates.filter(p => packageMatchesDanceStyle(p, checkInDanceStyleId));
+        const userPackage = matchingDance.length > 0 ? matchingDance[0] : (candidates.length > 0 ? candidates[0] : null);
 
         if (userPackage) {
+          // 关联套餐到 booking，便于后续用量统计按套餐维度进行
+          booking.user_package_id = userPackage._id;
+          await booking.save();
+
+          // 时间卡签到前校验周期限制（日/周/月），与 onsiteCheckIn 保持一致
+          if (userPackage.package_type === 'time_card') {
+            const limitCheck = await checkTimeCardLimit(userPackage, schedule.date, booking.credits_deducted);
+            if (!limitCheck.allowed) {
+              // 已创建的 booking 需要回滚，避免绕过限制留下已扣课时的 completed 记录
+              await Booking.deleteOne({ _id: booking._id });
+              const limitLabel = limitCheck.limitType === 'weekly' ? '本周' : (limitCheck.limitType === 'monthly' ? '本月' : '今日');
+              pushCheckInFailed(userId, CHECK_IN_ERROR_CODE.CREDITS_INSUFFICIENT, `${limitLabel}预约次数已达上限`, 'time card limit: ' + limitCheck.reason, true);
+              throw new Error(limitCheck.reason);
+            }
+          }
+
           // 停卡套餐自动恢复：签到即结束停卡，恢复正常使用
           if (userPackage.is_suspended) {
             userPackage.is_suspended = false;
@@ -1992,10 +2147,19 @@ exports.checkIn = async (scheduleId, userId, operatorId = null, isOnsite = false
       throw new Error('已签到过');
     }
 
+    // 已预约会员签到：'onsite' 语义不适用（现场签到仅用于无预约流程的补签）
+    // 即使管理员通过"现场签到模式"操作已预约会员，实际仍为有预约流程的签到
+    // 此处重置 isOnsite/checkInMethod，确保 booking/attendance 的 source='booking'、check_in_method='admin'
+    if (isOnsite) {
+      isOnsite = false;
+      checkInMethod = 'admin';
+    }
+
     booking.status = 'completed';
     booking.check_in_time = new Date();
     booking.check_in_by = operatorId;
     booking.checked_in = true;
+    booking.check_in_method = checkInMethod;  // 签到方式（scan/admin）
     await booking.save();
   }
 
@@ -2173,6 +2337,9 @@ exports.onsiteCheckIn = async (scheduleId, userId, operatorId = null, userPackag
     user_id: userId,
   });
 
+  // 标记是否有预约流程：已有预约记录的签到走 'booking'/'admin'，无预约的现场补签走 'onsite'/'onsite'
+  let hadExistingBooking = false;
+
   if (booking) {
     if (booking.status === 'completed' && booking.checked_in) {
       pushCheckInFailed(userId, CHECK_IN_ERROR_CODE.ALREADY_CHECKED_IN, '您已签到过本节课', 'booking already completed', false);
@@ -2183,10 +2350,13 @@ exports.onsiteCheckIn = async (scheduleId, userId, operatorId = null, userPackag
       throw new Error('该会员已取消预约，请先重新预约再签到');
     }
     // 已有 booked 预约，直接签到
+    // 注意：已预约会员签到不设置 check_in_method='onsite'，'onsite' 仅用于无预约流程的现场补签
+    // 否则前端会误判为现场签到，导致已预约名单不显示该会员
+    hadExistingBooking = true;
     booking.status = 'completed';
     booking.checked_in = true;
     booking.check_in_time = new Date();
-    booking.check_in_method = 'onsite';
+    booking.check_in_method = 'admin';
     booking.checked_in_by = operatorId;
     await booking.save();
   } else {
@@ -2220,17 +2390,34 @@ exports.onsiteCheckIn = async (scheduleId, userId, operatorId = null, userPackag
       }
     } else {
       // 查找可用套餐：包含停卡中的套餐（签到后自动恢复停卡）
-      pkg = await UserPackage.findOne({
+      // 本门店套餐优先，避免跨门店套餐被误优先选中
+      const onsiteCandidates = await UserPackage.find({
         user_id: userId,
         $or: [{ store_id: scheduleStoreId }, { extra_store_ids: scheduleStoreId }],
         status: { $in: ['active', 'suspended'] },
         is_activated: true,
       }).sort({ package_type: 1, created_at: -1 });
+      // 本门店套餐（store_id 匹配）排在前面
+      onsiteCandidates.sort((a, b) => {
+        const aIsHomeStore = a.store_id && a.store_id.toString() === String(scheduleStoreId);
+        const bIsHomeStore = b.store_id && b.store_id.toString() === String(scheduleStoreId);
+        if (aIsHomeStore && !bIsHomeStore) return -1;
+        if (!aIsHomeStore && bIsHomeStore) return 1;
+        return 0;
+      });
+      pkg = onsiteCandidates.length > 0 ? onsiteCandidates[0] : null;
     }
 
     if (!pkg) {
       pushCheckInFailed(userId, CHECK_IN_ERROR_CODE.NO_AVAILABLE_PACKAGE, '无可用套餐，请联系门店处理', 'no available package', true);
       throw new Error('无可用套餐，无法补签到');
+    }
+
+    // 舞种限制校验：套餐限制了舞种时，课程舞种必须在限制范围内
+    const onsiteDanceStyleId = schedule.dance_style_id ? (schedule.dance_style_id._id || schedule.dance_style_id) : null;
+    if (!packageMatchesDanceStyle(pkg, onsiteDanceStyleId)) {
+      pushCheckInFailed(userId, CHECK_IN_ERROR_CODE.NO_AVAILABLE_PACKAGE, '您的套餐不支持该舞种课程，无法签到', 'dance style not allowed', true);
+      throw new Error('您的套餐不支持该舞种课程，无法签到');
     }
 
     // 检查套餐是否过期
@@ -2249,11 +2436,12 @@ exports.onsiteCheckIn = async (scheduleId, userId, operatorId = null, userPackag
       }
     }
 
-    // 时间卡检查日/周限制
+    // 时间卡检查日/周/月限制
     if (pkg.package_type === 'time_card') {
       const limitCheck = await checkTimeCardLimit(pkg, schedule.date, schedule.credits_cost || 1);
       if (!limitCheck.allowed) {
-        pushCheckInFailed(userId, CHECK_IN_ERROR_CODE.CREDITS_INSUFFICIENT, '本周预约次数已达上限', 'time card limit: ' + limitCheck.reason, true);
+        const limitLabel = limitCheck.limitType === 'weekly' ? '本周' : (limitCheck.limitType === 'monthly' ? '本月' : '今日');
+        pushCheckInFailed(userId, CHECK_IN_ERROR_CODE.CREDITS_INSUFFICIENT, `${limitLabel}预约次数已达上限`, 'time card limit: ' + limitCheck.reason, true);
         throw new Error(limitCheck.reason);
       }
     }
@@ -2329,6 +2517,8 @@ exports.onsiteCheckIn = async (scheduleId, userId, operatorId = null, userPackag
   }
 
   // 创建 attendance 记录
+  // 已预约会员签到：source='booking'、check_in_method='admin'
+  // 无预约现场补签：source='onsite'、check_in_method='onsite'
   try {
     const attendanceService = require('./attendance.service');
     await attendanceService.createAttendance({
@@ -2340,8 +2530,8 @@ exports.onsiteCheckIn = async (scheduleId, userId, operatorId = null, userPackag
       dance_style_id: schedule.dance_style_id,
       check_in_time: booking.check_in_time,
       check_in_by: operatorId,
-      source: 'onsite',
-      check_in_method: 'onsite',
+      source: hadExistingBooking ? 'booking' : 'onsite',
+      check_in_method: hadExistingBooking ? 'admin' : 'onsite',
       credits_cost: booking.credits_deducted || schedule.credits_cost || 0,
       date: schedule.date,
       course_name: schedule.course_name || '',

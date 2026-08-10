@@ -2,7 +2,7 @@
   <view class="page-header">
     <view class="ph-left">
       <text class="ph-title">此间画面</text>
-      <text class="ph-desc">{{currentStoreName ? currentStoreName + ' 画册' : '公共画册'}}</text>
+      <text class="ph-desc">{{currentStoreName ? currentStoreName + ' 画册' : '门店画册'}}</text>
     </view>
     <view class="ph-right">
       <view class="btn-add" bindtap="onShowAdd">+ 上传图片</view>
@@ -104,19 +104,9 @@
         <input class="fi-input" placeholder="请输入图片名称" value="{{formTitle}}" bindinput="onTitleInput" />
       </view>
 
-      <view class="form-item form-item-col">
+      <view class="form-item">
         <text class="fi-label">所属画册</text>
-        <view class="fi-coach-trigger" bindtap="onToggleGalleryPicker">
-          <text class="{{formStoreId ? '' : 'fi-placeholder'}}">{{formStoreId ? (currentStoreName || '当前门店') + ' 画册' : '公共画册'}}</text>
-          <view class="fi-arrow {{showGalleryPicker ? 'up' : ''}}" wx:if="{{isSuperAdmin}}"></view>
-        </view>
-        <!-- 画册选择面板（仅超管可切换） -->
-        <view class="fi-coach-panel" wx:if="{{showGalleryPicker && isSuperAdmin}}">
-          <view class="fcp-item" wx:for="{{galleryOptions}}" wx:key="value" bindtap="onGallerySelect" data-value="{{item.value}}">
-            <view class="fcp-check {{formStoreId === item.value ? 'checked' : ''}}">{{formStoreId === item.value ? '√' : ''}}</view>
-            <text class="fcp-name">{{item.label}}</text>
-          </view>
-        </view>
+        <text class="fi-input">{{currentStoreName ? currentStoreName + ' 画册' : '当前门店画册'}}</text>
       </view>
 
       <view class="form-item form-item-col">

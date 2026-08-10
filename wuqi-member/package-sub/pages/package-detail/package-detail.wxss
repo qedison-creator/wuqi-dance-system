@@ -111,6 +111,11 @@
   font-weight: 700;
 }
 
+.pkg-val.dance-limit {
+  color: #C5744B;
+  font-weight: 500;
+}
+
 .pkg-actions {
   padding: 0 28rpx 28rpx;
 }

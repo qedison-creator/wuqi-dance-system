@@ -25,11 +25,11 @@ Page({
     selectedIds: [],
     selectAll: false,
     // 画册归属
-    isSuperAdmin: false,         // 是否超管（可切换公共/门店画册）
+    isSuperAdmin: false,         // 是否超管
     currentStoreName: '',        // 当前选中门店名称
-    formStoreId: '',             // 弹窗中选中的画册归属：'' = 公共画册；有值 = 门店画册
+    formStoreId: '',             // 弹窗中选中的画册归属：固定当前门店画册
     showGalleryPicker: false,    // 画册选择面板
-    galleryOptions: [],          // 画册可选项 [{ value: '', label: '公共画册' }, { value: 'xxx', label: '门店画册' }]
+    galleryOptions: [],          // 画册可选项（仅当前门店画册）
   },
 
   onShow() {
@@ -42,7 +42,7 @@ Page({
     const userInfo = app.globalData.userInfo || {};
     const isSuperAdmin = userInfo.role === 'super_admin';
     const shopStoreId = app.globalData.shopStoreId || '';
-    // 画册上下文下：未选门店 = 公共画册，currentStoreName 置空
+    // 当前选中门店名称
     let currentStoreName = '';
     if (shopStoreId) {
       const storeList = app.globalData.storeList || [];
@@ -50,15 +50,12 @@ Page({
       currentStoreName = matched ? matched.name : '';
     }
 
-    // 画册可选项：超管在选中门店时可切换公共/门店画册
+    // 画册可选项：仅当前门店画册
     let galleryOptions = [];
-    if (isSuperAdmin) {
+    if (shopStoreId) {
       galleryOptions = [
-        { value: '', label: '公共画册' },
+        { value: shopStoreId, label: (currentStoreName || '当前门店') + ' 画册' }
       ];
-      if (shopStoreId) {
-        galleryOptions.push({ value: shopStoreId, label: (currentStoreName || '当前门店') + ' 画册' });
-      }
     }
 
     this.setData({ isSuperAdmin, currentStoreName, galleryOptions });
@@ -72,14 +69,8 @@ Page({
       if (this.data.filterCoachId) params.coach_id = this.data.filterCoachId;
       if (this.data.filterShowHome !== '') params.show_on_home = this.data.filterShowHome;
 
-      // 按统一门店选择过滤图片：
-      // - 选中具体门店：传 store_id，仅显示该门店画册
-      // - 未选门店（超管"全部门店"）：传 gallery_type=public，仅显示公共画册
-      if (shopStoreId) {
-        params.store_id = shopStoreId;
-      } else {
-        params.gallery_type = 'public';
-      }
+      // 固定加载当前门店画册
+      params.store_id = shopStoreId;
 
       const [imageRes, coachRes] = await Promise.all([
         api.images.getList(params),
@@ -150,7 +141,7 @@ Page({
 
   // 显示上传弹窗
   onShowAdd() {
-    // 默认画册归属：选中门店 → 门店画册；未选门店（超管） → 公共画册
+    // 默认画册归属：固定当前门店画册
     const shopStoreId = app.globalData.shopStoreId || '';
     this.setData({
       showModal: true,
