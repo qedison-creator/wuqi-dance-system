@@ -191,11 +191,18 @@ function getConnectionStatus() {
 
 /**
  * 关闭旧 socketTask 并置空引用
+ * 注意：readyState=0（CONNECTING）时调用 close() 会触发
+ *       "WebSocket is closed before the connection is established" 控制台错误，
+ *       因此仅在已连接状态调用 close()，连接中状态直接置空引用即可
+ *       （connectionEpoch 递增后旧连接回调会被忽略，连接超时后自行关闭）
  */
 function _closeSocketTask() {
   if (socketTask) {
     try {
-      socketTask.close({ code: 1000, reason: '清理旧连接' });
+      // readyState: 0=CONNECTING, 1=OPEN, 2=CLOSING, 3=CLOSED
+      if (socketTask.readyState !== 0) {
+        socketTask.close({ code: 1000, reason: '清理旧连接' });
+      }
     } catch (e) {}
     socketTask = null;
   }

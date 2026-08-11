@@ -211,6 +211,22 @@
   color: var(--text-secondary);
 }
 
+/* 跨门店会员提示 */
+.cross-store-hint {
+  font-size: 22rpx;
+  color: #52C41A;
+  background: rgba(82, 196, 26, 0.1);
+  padding: 2rpx 12rpx;
+  border-radius: 16rpx;
+  align-self: flex-start;
+}
+
+/* 跨门店会员豁免次数只读展示 */
+.exemption-readonly {
+  font-size: 26rpx;
+  color: var(--text-tertiary);
+}
+
 .member-exemption {
   display: flex;
   flex-direction: column;

@@ -3,7 +3,20 @@ const auth = require('../middleware/auth');
 const checkPermission = require('../middleware/permission');
 const storeFilter = require('../middleware/storeFilter');
 const packageService = require('../services/package.service');
-const { success, paginate } = require('../utils/response');
+const { success, paginate, error } = require('../utils/response');
+const { assertPackageOwnership, getAllowedStoreIds } = require('../utils/storeOwnership');
+
+// 套餐归属校验中间件：单门店角色只能操作 store_id 命中允许门店的套餐
+// 超管/审核员直接通过
+const packageOwnershipGuard = async (req, res, next) => {
+  const packageId = req.params.id;
+  if (!packageId) return next();
+  const access = await assertPackageOwnership(packageId, req.user);
+  if (!access.ok) {
+    return res.status(403).json(error(403, access.reason));
+  }
+  next();
+};
 
 // ========== 具体命名路由（必须在 /:id 参数化路由之前） ==========
 
@@ -30,6 +43,20 @@ router.get('/', auth, checkPermission(['admin', 'staff', 'super_admin', 'store_m
 // POST /api/v1/packages - 录入套餐/创建套餐模板(admin/staff)
 router.post('/', auth, checkPermission(['admin', 'staff', 'super_admin', 'store_manager']), storeFilter(), async (req, res, next) => {
   try {
+    // 门店隔离校验：单门店角色创建套餐时，store_id 必须命中允许门店
+    // extra_store_ids 仅超管可设置（单门店角色不可创建跨门店套餐）
+    const allowedStoreIds = getAllowedStoreIds(req.user);
+    if (allowedStoreIds !== null) {
+      const bodyStoreId = req.body.store_id ? String(req.body.store_id) : null;
+      if (!bodyStoreId || !allowedStoreIds.includes(bodyStoreId)) {
+        return res.status(403).json(error(403, '无权为非所属门店创建套餐'));
+      }
+      // 单门店角色不可设置 extra_store_ids（仅超管可创建跨门店套餐）
+      if (req.body.extra_store_ids && req.body.extra_store_ids.length > 0) {
+        return res.status(403).json(error(403, '无权创建跨门店套餐'));
+      }
+    }
+
     const { user_id } = req.body;
     let result;
     if (user_id) {
@@ -66,7 +93,7 @@ router.put('/:id/activate', auth, checkPermission(['member']), async (req, res, 
 });
 
 // DELETE /api/v1/packages/user/:id - 删除用户套餐(super_admin/store_manager/staff)
-router.delete('/user/:id', auth, checkPermission(['super_admin', 'store_manager', 'staff']), storeFilter(), async (req, res, next) => {
+router.delete('/user/:id', auth, checkPermission(['super_admin', 'store_manager', 'staff']), storeFilter(), packageOwnershipGuard, async (req, res, next) => {
   try {
     const result = await packageService.deleteUserPackage(req.params.id, req.user.id);
     res.json(success(result, '删除套餐成功'));
@@ -112,7 +139,7 @@ router.get('/extension-records', auth, checkPermission(['super_admin', 'store_ma
 });
 
 // PUT /api/v1/packages/:id/extend - 延长套餐有效期
-router.put('/:id/extend', auth, checkPermission(['super_admin', 'store_manager', 'staff']), storeFilter(), async (req, res, next) => {
+router.put('/:id/extend', auth, checkPermission(['super_admin', 'store_manager', 'staff']), storeFilter(), packageOwnershipGuard, async (req, res, next) => {
   try {
     const { extend_days, reason, extend_value, extend_unit } = req.body;
     if (!extend_days || extend_days <= 0) {
@@ -219,7 +246,7 @@ router.get('/:id', auth, checkPermission(['admin', 'staff', 'super_admin', 'stor
 });
 
 // PUT /api/v1/packages/:id - 编辑套餐(admin/staff)
-router.put('/:id', auth, checkPermission(['super_admin', 'store_manager', 'staff']), storeFilter(), async (req, res, next) => {
+router.put('/:id', auth, checkPermission(['super_admin', 'store_manager', 'staff']), storeFilter(), packageOwnershipGuard, async (req, res, next) => {
   try {
     const pkg = await packageService.updatePackage(req.params.id, req.body);
     res.json(success(pkg, '更新套餐成功'));

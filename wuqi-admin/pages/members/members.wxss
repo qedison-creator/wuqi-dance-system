@@ -636,6 +636,17 @@
   color: #C5744B;
 }
 
+/* 跨门店会员标签 */
+.cross-store-tag {
+  padding: 4rpx 16rpx;
+  border-radius: 20rpx;
+  font-size: 22rpx;
+  font-weight: 500;
+  background: rgba(82, 196, 26, 0.1);
+  color: #52C41A;
+  border: 1rpx solid rgba(82, 196, 26, 0.3);
+}
+
 .store-tag-text {
   font-size: 22rpx;
 }
@@ -1006,6 +1017,11 @@
 .picker-arrow {
   font-size: 24rpx;
   color: #B8AF9E;
+}
+
+.picker-field-locked {
+  background: #F0EDE8;
+  border-color: #E0DBD0;
 }
 
 .package-type-selector {

@@ -4,7 +4,8 @@ const checkPermission = require('../middleware/permission');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
-const { success } = require('../utils/response');
+const { success, error: errorResp } = require('../utils/response');
+const contentSecurityService = require('../services/content-security.service');
 
 let sharp = null;
 try {
@@ -145,6 +146,19 @@ router.post('/image', auth, checkPermission(['super_admin', 'store_manager', 'st
     if (compressedSize !== null) {
       optimizedSize = compressedSize;
       finalSize = compressedSize;
+    }
+
+    // 图片内容安全检测（微信审核强制要求）
+    // 管理端上传的图片会展示给会员端用户，使用会员端小程序 access_token 检测
+    const checkResult = await contentSecurityService.checkImage(req.file.path, 'member');
+    if (!checkResult.safe) {
+      // 检测不通过：删除已上传的图片，返回业务错误
+      try { fs.unlinkSync(req.file.path); } catch (e) {}
+      return res.status(200).json({
+        code: 'CONTENT_UNSAFE',
+        message: '图片含违规内容，请更换后重新上传',
+        data: null
+      });
     }
 
     res.json(success({

@@ -7,6 +7,7 @@ const auth = require('../middleware/auth');
 const checkPermission = require('../middleware/permission');
 const storeFilter = require('../middleware/storeFilter');
 const imageService = require('../services/image.service');
+const contentSecurityService = require('../services/content-security.service');
 const { success, error } = require('../utils/response');
 
 // 上传临时目录
@@ -44,6 +45,31 @@ router.post('/', auth, checkPermission(['super_admin', 'store_manager', 'staff']
     if (!req.file) {
       return res.status(400).json(error('请选择图片'));
     }
+
+    // 图片内容安全检测（微信审核强制要求）
+    const checkResult = await contentSecurityService.checkImage(req.file.path, 'member');
+    if (!checkResult.safe) {
+      try { fs.unlinkSync(req.file.path); } catch (e) {}
+      return res.status(200).json({
+        code: 'CONTENT_UNSAFE',
+        message: '图片含违规内容，请更换后重新上传',
+        data: null
+      });
+    }
+
+    // 标题文本内容安全检测
+    if (req.body.title) {
+      const textResult = await contentSecurityService.checkText(req.body.title, 'member');
+      if (!textResult.safe) {
+        try { fs.unlinkSync(req.file.path); } catch (e) {}
+        return res.status(200).json({
+          code: 'CONTENT_UNSAFE',
+          message: '标题含违规内容，请修改后重新提交',
+          data: null
+        });
+      }
+    }
+
     const image = await imageService.create(req.file, req.body);
     res.json(success(image));
   } catch (err) {
@@ -54,6 +80,17 @@ router.post('/', auth, checkPermission(['super_admin', 'store_manager', 'staff']
 // PUT /api/v1/images/:id - 编辑图片（需登录 + 管理端角色 + 门店隔离）
 router.put('/:id', auth, checkPermission(['super_admin', 'store_manager', 'staff']), storeFilter(), async (req, res, next) => {
   try {
+    // 标题文本内容安全检测
+    if (req.body.title) {
+      const textResult = await contentSecurityService.checkText(req.body.title, 'member');
+      if (!textResult.safe) {
+        return res.status(200).json({
+          code: 'CONTENT_UNSAFE',
+          message: '标题含违规内容，请修改后重新提交',
+          data: null
+        });
+      }
+    }
     const image = await imageService.update(req.params.id, req.body, req.user);
     if (!image) return res.status(404).json(error('图片不存在'));
     res.json(success(image));

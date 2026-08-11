@@ -7,6 +7,7 @@ const { checkModulePermission } = require('../middleware/permission');
 const storeFilter = require('../middleware/storeFilter');
 const Banner = require('../models/Banner');
 const { success, paginate } = require('../utils/response');
+const contentSecurityService = require('../services/content-security.service');
 const { getAllowedStoreIds } = require('../utils/storeOwnership');
 
 // 把图片URL升级为 HTTPS（修复存量 HTTP 图片在小程序端无法显示的问题）
@@ -64,6 +65,18 @@ router.get('/', async (req, res, next) => {
 // POST /api/v1/banners - 新增轮播图
 router.post('/', auth, checkModulePermission('banner'), storeFilter(), async (req, res, next) => {
   try {
+    // 文本内容安全检测（微信审核强制要求）
+    const textResult = await contentSecurityService.checkTextFields({
+      title: req.body.title,
+    }, 'member');
+    if (!textResult.safe) {
+      return res.status(200).json({
+        code: 'CONTENT_UNSAFE',
+        message: '轮播图标题含违规内容，请修改后重新提交',
+        data: null
+      });
+    }
+
     const allowedStoreIds = getAllowedStoreIds(req.user);
     // 单门店角色只能创建所属门店的轮播图；超管/审核员可创建多门店展示(store_id=null)或指定门店
     let storeId = req.body.store_id;
@@ -90,6 +103,18 @@ router.post('/', auth, checkModulePermission('banner'), storeFilter(), async (re
 // PUT /api/v1/banners/:id - 编辑轮播图
 router.put('/:id', auth, checkModulePermission('banner'), storeFilter(), async (req, res, next) => {
   try {
+    // 文本内容安全检测（微信审核强制要求）
+    const textResult = await contentSecurityService.checkTextFields({
+      title: req.body.title,
+    }, 'member');
+    if (!textResult.safe) {
+      return res.status(200).json({
+        code: 'CONTENT_UNSAFE',
+        message: '轮播图标题含违规内容，请修改后重新提交',
+        data: null
+      });
+    }
+
     const existing = await Banner.findById(req.params.id);
     if (!existing) {
       return res.status(404).json({ code: 404, message: '轮播图不存在', data: null });

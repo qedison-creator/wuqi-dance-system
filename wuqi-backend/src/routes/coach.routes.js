@@ -4,6 +4,7 @@ const checkPermission = require('../middleware/permission');
 const { checkModulePermission } = require('../middleware/permission');
 const storeFilter = require('../middleware/storeFilter');
 const coachService = require('../services/coach.service');
+const contentSecurityService = require('../services/content-security.service');
 const { success, paginate } = require('../utils/response');
 
 // 管理端接口挂载门店过滤（Coach 用 store_ids，allowAll 避免自动注入 store_id 到 body/query）
@@ -45,6 +46,19 @@ router.get('/:id', async (req, res, next) => {
 // POST /api/v1/coaches - 新增教练
 router.post('/', auth, checkModulePermission('coach'), adminStoreFilter, async (req, res, next) => {
   try {
+    // 文本内容安全检测（微信审核强制要求）
+    const textResult = await contentSecurityService.checkTextFields({
+      name: req.body.name,
+      introduction: req.body.introduction,
+    }, 'member');
+    if (!textResult.safe) {
+      return res.status(200).json({
+        code: 'CONTENT_UNSAFE',
+        message: '教练信息含违规内容，请修改后重新提交',
+        data: null
+      });
+    }
+
     const coach = await coachService.createCoach(req.body, req.user);
     res.json(success(coach, '创建教练成功'));
   } catch (err) {
@@ -55,6 +69,19 @@ router.post('/', auth, checkModulePermission('coach'), adminStoreFilter, async (
 // PUT /api/v1/coaches/:id - 编辑教练
 router.put('/:id', auth, checkModulePermission('coach'), adminStoreFilter, async (req, res, next) => {
   try {
+    // 文本内容安全检测（微信审核强制要求）
+    const textResult = await contentSecurityService.checkTextFields({
+      name: req.body.name,
+      introduction: req.body.introduction,
+    }, 'member');
+    if (!textResult.safe) {
+      return res.status(200).json({
+        code: 'CONTENT_UNSAFE',
+        message: '教练信息含违规内容，请修改后重新提交',
+        data: null
+      });
+    }
+
     const coach = await coachService.updateCoach(req.params.id, req.body, req.user);
     res.json(success(coach, '编辑教练成功'));
   } catch (err) {

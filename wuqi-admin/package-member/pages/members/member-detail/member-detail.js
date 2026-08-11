@@ -75,6 +75,7 @@ Page({
     addPackageForm: {},
     addPackageStoreList: [],
     addPackageFormStoreIndex: 0,
+    addPackageStoreLocked: false,  // 单门店权限时锁定所属门店为本门店
     addExtraStoreOptions: [],
     // 编辑套餐附加门店开关选项
     editExtraStoreOptions: [],
@@ -290,6 +291,27 @@ Page({
       // 预约记录按年月分组
       const bookingGroups = this._groupBookingsByYearMonth(bookings || []);
 
+      // 跨门店访问标志：后端返回 _crossStoreAccess=true 表示该会员非本门店归属
+      // 跨门店访问时可查看但不可修改会员个人信息、不可修改豁免次数
+      const crossStoreAccess = !!data._crossStoreAccess;
+      // 获取当前操作门店ID（用于判断套餐是否可操作）
+      const app = getApp();
+      const currentStoreId = app.getDefaultStoreId ? app.getDefaultStoreId() : '';
+
+      // 为每个套餐计算 canOperate 标志：
+      // - 非跨门店访问：所有套餐都可操作（受角色限制）
+      // - 跨门店访问：仅 store_id=当前门店 且非跨门店套餐（extra_store_ids 为空）可操作
+      packages.forEach(pkg => {
+        const pkgStoreId = pkg.store_id && typeof pkg.store_id === 'object' ? String(pkg.store_id._id || pkg.store_id) : String(pkg.store_id || '');
+        const isCrossStorePackage = pkg.extra_store_ids && pkg.extra_store_ids.length > 0;
+        if (crossStoreAccess) {
+          // 跨门店访问：仅本门店专属套餐可操作
+          pkg.canOperate = pkgStoreId === String(currentStoreId) && !isCrossStorePackage;
+        } else {
+          pkg.canOperate = true;
+        }
+      });
+
       this.setData({
         member: member,
         packages: packages,
@@ -301,7 +323,12 @@ Page({
         hasActivePackage: hasActive,
         hasSuspendedPackage: hasSuspended,
         showFullPhone: false,  // 每次加载详情重置为脱敏显示
-        loading: false
+        loading: false,
+        // 跨门店权限控制标志
+        crossStoreAccess,
+        canEditMember: !crossStoreAccess,        // 编辑姓名、状态、门店
+        canDeleteMember: !crossStoreAccess && this.data.isAdmin, // 删除会员
+        canSetExemption: !crossStoreAccess       // 修改豁免次数
       });
 
       // 预加载上课记录总数（用于角标即时显示，不阻塞页面渲染）
@@ -443,9 +470,11 @@ Page({
     // 确保门店列表已加载（供附加门店多选使用）
     if (!this.data.addPackageStoreList || this.data.addPackageStoreList.length === 0) {
       try {
+        const app = getApp();
         const storeRes = await request({ url: '/stores' });
         const stores = storeRes.data && (Array.isArray(storeRes.data) ? storeRes.data : (storeRes.data.list || []));
-        const storeList = stores.filter(s => s.status === 'active').map(s => ({ ...s, _id: _normalizeStoreId(s._id) }));
+        // 按当前用户角色过滤可访问门店（单门店角色仅返回所属门店）
+        const storeList = app.filterStoresForUser(stores).filter(s => s.status === 'active').map(s => ({ ...s, _id: _normalizeStoreId(s._id) }));
         this.setData({ addPackageStoreList: storeList });
       } catch (err) {
         console.error('获取门店列表失败', err);
@@ -464,6 +493,14 @@ Page({
         remaining_credits: pkg.remaining_credits || '',
         duration_value: pkg.duration_value || '',
         duration_unit: pkg.duration_unit || 'month',
+        // 服务有效期（已激活套餐可直接编辑 end_date，无需通过 duration_value 重算）
+        start_date: pkg.start_date ? this.formatDate(pkg.start_date) : '',
+        end_date: pkg.end_date ? this.formatDate(pkg.end_date) : '',
+        // 记录原始值，提交时对比判断是否实际变化
+        _orig_duration_value: pkg.duration_value || '',
+        _orig_duration_unit: pkg.duration_unit || 'month',
+        _orig_start_date: pkg.start_date ? this.formatDate(pkg.start_date) : '',
+        _orig_end_date: pkg.end_date ? this.formatDate(pkg.end_date) : '',
         limit_type: (pkg.daily_limit || pkg.weekly_limit || pkg.monthly_limit) ? 'limited' : 'unlimited',
         limit_cycle: pkg.daily_limit ? 'daily' : (pkg.weekly_limit ? 'weekly' : (pkg.monthly_limit ? 'monthly' : 'weekly')),
         limit_value: pkg.daily_limit || pkg.weekly_limit || pkg.monthly_limit || '',
@@ -660,6 +697,15 @@ Page({
   },
 
   /**
+   * 套餐编辑弹窗 - 服务有效期截止日期变更（已激活套餐直接调整）
+   */
+  onEditEndDateChange(e) {
+    this.setData({
+      'editPackageForm.end_date': e.detail.value
+    });
+  },
+
+  /**
    * 套餐编辑弹窗 - 输入处理
    */
   onEditPackageInput(e) {
@@ -734,18 +780,29 @@ Page({
 
   /**
    * 提交套餐编辑
+   * 业务逻辑：
+   *   - 已激活套餐：通过 end_date 直接调整服务有效期，不强制 duration_value
+   *     （避免仅修改周期限制等字段时 duration_value 重算 end_date 的漏洞）
+   *   - 未激活套餐：通过 duration_value/duration_unit 设置有效时长（激活时计算 end_date）
+   *   - 仅发送实际发生变化的字段，减少不必要的副作用
    */
   async onSubmitPackageEdit() {
     const { editingPackage, editPackageForm } = this.data;
+    const isActivated = editingPackage && editingPackage.is_activated;
 
     // 验证必填字段
-
     if (editPackageForm.package_type === 'count_card' && !editPackageForm.total_credits) {
       wx.showToast({ title: '请输入次数', icon: 'none' });
       return;
     }
-    if (!editPackageForm.duration_value) {
+    // 未激活套餐才要求 duration_value（已激活套餐通过 end_date 直接管理有效期）
+    if (!isActivated && !editPackageForm.duration_value) {
       wx.showToast({ title: '请输入有效时长', icon: 'none' });
+      return;
+    }
+    // 已激活套餐要求 end_date 必须有效
+    if (isActivated && !editPackageForm.end_date) {
+      wx.showToast({ title: '请设置服务有效期截止日期', icon: 'none' });
       return;
     }
 
@@ -771,11 +828,28 @@ Page({
       const postData = {
         remark: editPackageForm.remark,
         package_type: editPackageForm.package_type,
-        duration_value: parseInt(editPackageForm.duration_value),
-        duration_unit: editPackageForm.duration_unit,
         extra_store_ids: editPackageForm.extra_store_ids || [],
         dance_style_limit: editPackageForm.dance_style_limit || []
       };
+
+      // 有效期处理：
+      // - 已激活套餐：直接发送 end_date（后端优先使用显式日期，不重算）
+      // - 未激活套餐：发送 duration_value/duration_unit（仅变化时发送，后端激活时计算）
+      if (isActivated) {
+        // 已激活：发送 end_date 供后端直接设置
+        if (editPackageForm.end_date && editPackageForm.end_date !== editPackageForm._orig_end_date) {
+          postData.end_date = editPackageForm.end_date;
+        }
+        // duration_value/duration_unit 不发送，避免后端重算 end_date
+      } else {
+        // 未激活：发送 duration_value/duration_unit（仅变化时发送）
+        if (editPackageForm.duration_value &&
+            (String(editPackageForm.duration_value) !== String(editPackageForm._orig_duration_value) ||
+             editPackageForm.duration_unit !== editPackageForm._orig_duration_unit)) {
+          postData.duration_value = parseInt(editPackageForm.duration_value);
+          postData.duration_unit = editPackageForm.duration_unit;
+        }
+      }
 
       if (editPackageForm.package_type === 'count_card') {
         postData.total_credits = parseInt(editPackageForm.total_credits);
@@ -825,6 +899,10 @@ Page({
   // ========== 新增套餐 ==========
   async onAddPackage() {
     const { member } = this.data;
+    const app = getApp();
+    const isSingleStore = app.isSingleStoreRole();
+    const defaultStoreId = app.getDefaultStoreId ? app.getDefaultStoreId() : '';
+
     const defaultForm = {
       package_type: 'count_card',
       store_id: '',
@@ -840,25 +918,35 @@ Page({
       dance_style_limit: []
     };
 
-    const memberStoreId = _normalizeStoreId(member.store_id && (member.store_id._id || member.store_id));
-    const memberStoreName = member.store_name || '';
-    if (memberStoreId) {
-      defaultForm.store_id = memberStoreId;
-      defaultForm.store_name = memberStoreName;
-    }
-
     let storeList = [];
     let storeIndex = 0;
     try {
       const storeRes = await request({ url: '/stores' });
       const stores = storeRes.data && (Array.isArray(storeRes.data) ? storeRes.data : (storeRes.data.list || []));
-      storeList = stores.filter(s => s.status === 'active').map(s => ({ ...s, _id: _normalizeStoreId(s._id) }));
+      // 按当前用户角色过滤可访问门店（单门店角色仅返回所属门店）
+      const filteredStores = app.filterStoresForUser(stores).filter(s => s.status === 'active');
+      storeList = filteredStores.map(s => ({ ...s, _id: _normalizeStoreId(s._id) }));
+    } catch (err) {
+      console.error('获取门店列表失败', err);
+    }
+
+    if (isSingleStore && defaultStoreId) {
+      // 单门店权限：所属门店固定为本门店，不可切换
+      const ownStore = storeList.find(s => s._id === defaultStoreId);
+      defaultForm.store_id = defaultStoreId;
+      defaultForm.store_name = ownStore ? ownStore.name : '';
+      storeIndex = storeList.findIndex(s => s._id === defaultStoreId);
+      if (storeIndex < 0) storeIndex = 0;
+    } else {
+      // 超管/审核员/多门店权限：默认取会员归属门店，可通过选择器自由切换
+      const memberStoreId = _normalizeStoreId(member.store_id && (member.store_id._id || member.store_id));
+      const memberStoreName = member.store_name || '';
       if (memberStoreId) {
+        defaultForm.store_id = memberStoreId;
+        defaultForm.store_name = memberStoreName;
         const idx = storeList.findIndex(s => s._id === memberStoreId);
         if (idx >= 0) storeIndex = idx;
       }
-    } catch (err) {
-      console.error('获取门店列表失败', err);
     }
 
     // 加载舞种列表
@@ -868,7 +956,8 @@ Page({
       showAddPackageModal: true,
       addPackageForm: defaultForm,
       addPackageStoreList: storeList,
-      addPackageFormStoreIndex: storeIndex
+      addPackageFormStoreIndex: storeIndex,
+      addPackageStoreLocked: isSingleStore
     });
     this._buildAddExtraStoreOptions();
     this._refreshDanceStyleText('add');

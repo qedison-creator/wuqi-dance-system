@@ -46,11 +46,14 @@
       <view class="filter-item {{activeFilter === 'active' ? 'active' : ''}}" data-filter="active" bindtap="onFilterChange">
         <text>使用中</text>
       </view>
-      <view class="filter-item {{activeFilter === 'suspended' ? 'active' : ''}}" data-filter="suspended" bindtap="onFilterChange">
-        <text>已停卡</text>
+      <view class="filter-item {{activeFilter === 'cross_store' ? 'active' : ''}}" data-filter="cross_store" bindtap="onFilterChange">
+        <text>跨门店</text>
       </view>
       <view class="filter-item {{activeFilter === 'unactivated' ? 'active' : ''}}" data-filter="unactivated" bindtap="onFilterChange">
         <text>待激活</text>
+      </view>
+      <view class="filter-item {{activeFilter === 'suspended' ? 'active' : ''}}" data-filter="suspended" bindtap="onFilterChange">
+        <text>已停卡</text>
       </view>
       <view class="filter-item {{activeFilter === 'expired' ? 'active' : ''}}" data-filter="expired" bindtap="onFilterChange">
         <text>已过期</text>
@@ -69,6 +72,10 @@
             <view class="member-name-row">
               <text class="member-name">{{item.real_name || item.nickname || '未知'}}</text>
               <view class="member-tags">
+                <!-- 跨门店标签 -->
+                <view class="cross-store-tag" wx:if="{{item.cross_store_access}}">
+                  <text>跨门店</text>
+                </view>
                 <!-- 门店标签 -->
                 <view class="store-tag" wx:for="{{item.store_labels}}" wx:key="id" wx:for-item="store">
                   <text class="store-tag-text">{{store.name}}</text>
@@ -162,10 +169,10 @@
 
       <view class="form-group">
         <text class="form-label">所属门店 *</text>
-        <picker mode="selector" range="{{storeListForPicker}}" range-key="name" value="{{packageFormStoreIndex}}" bindchange="onPackageStoreChange">
-          <view class="picker-field">
+        <picker mode="selector" range="{{storeListForPicker}}" range-key="name" value="{{packageFormStoreIndex}}" bindchange="onPackageStoreChange" disabled="{{packageStoreLocked}}">
+          <view class="picker-field {{packageStoreLocked ? 'picker-field-locked' : ''}}">
             <text class="picker-text">{{packageForm.store_name || '请选择门店'}}</text>
-            <text class="picker-arrow">▼</text>
+            <text class="picker-arrow" wx:if="{{!packageStoreLocked}}">▼</text>
           </view>
         </picker>
       </view>

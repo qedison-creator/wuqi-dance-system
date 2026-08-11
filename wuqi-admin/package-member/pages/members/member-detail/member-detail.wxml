@@ -6,8 +6,15 @@
     <view class="member-info">
       <view class="member-name-row">
         <text class="member-name">{{member.real_name || member.nick_name || '未知用户'}}</text>
-        <text class="member-nick-name" wx:if="{{member.nick_name}}">{{member.nick_name}}</text>
-        <view class="edit-name-btn" bindtap="onEditName">
+        <view class="gender-icon male" wx:if="{{member.gender === 1}}">
+          <view class="gender-icon-m"></view>
+        </view>
+        <view class="gender-icon female" wx:if="{{member.gender === 2}}">
+          <view class="gender-icon-f"></view>
+        </view>
+        <text class="cross-store-badge" wx:if="{{crossStoreAccess}}">跨门店</text>
+        <text class="member-nick-name" wx:if="{{member.nick_name && member.nick_name !== '微信用户'}}">{{member.nick_name}}</text>
+        <view class="edit-name-btn" wx:if="{{canEditMember}}" bindtap="onEditName">
           <text>编辑</text>
         </view>
       </view>
@@ -23,18 +30,17 @@
         <text class="member-phone secondary">{{(showFullPhone && !isReviewer) ? member.wechat_phone_raw : member.wechat_phone_masked}}</text>
       </view>
       <view class="member-tags">
-        <text class="gender-tag">{{member.gender_display}}</text>
         <text class="status-badge {{memberStatusClass}}">{{memberStatusText}}</text>
         <text class="store-tag-sm" wx:for="{{member.linkedStores}}" wx:key="_id">{{item.name}}</text>
       </view>
       <view class="member-actions">
-        <view class="toggle-status-btn {{member.status === 'disabled' ? 'enable' : 'disable'}}" bindtap="onToggleMemberStatus">
+        <view class="toggle-status-btn {{member.status === 'disabled' ? 'enable' : 'disable'}}" wx:if="{{canEditMember}}" bindtap="onToggleMemberStatus">
           <text>{{member.status === 'disabled' ? '解除限制' : '限制账号'}}</text>
         </view>
-        <view class="inline-suspend-btn" bindtap="onSuspendCard" wx:if="{{hasActivePackage}}">
+        <view class="inline-suspend-btn" wx:if="{{hasActivePackage && canSetExemption}}" bindtap="onSuspendCard">
           <text>停卡</text>
         </view>
-        <view class="inline-unsuspend-btn" bindtap="onUnsuspendCard" wx:if="{{hasSuspendedPackage}}">
+        <view class="inline-unsuspend-btn" wx:if="{{hasSuspendedPackage && canSetExemption}}" bindtap="onUnsuspendCard">
           <text>恢复停卡</text>
         </view>
       </view>
@@ -53,11 +59,11 @@
         <text class="info-label">录入套餐时间</text>
         <text class="info-value">{{member.package_created_at_display}}</text>
       </view>
-      <view class="info-row info-row-tap" bindtap="onChangeStore">
+      <view class="info-row {{canEditMember ? 'info-row-tap' : ''}}" bindtap="{{canEditMember ? 'onChangeStore' : ''}}">
         <text class="info-label">所属门店</text>
         <view class="info-value-row">
           <text class="info-value">{{member.store_name || '未指定'}}</text>
-          <text class="info-arrow">></text>
+          <text class="info-arrow" wx:if="{{canEditMember}}">></text>
         </view>
       </view>
     </view>
@@ -81,13 +87,13 @@
             <text class="package-status-badge {{item.is_suspended ? 'suspended' : (item.is_activated ? (item._displayStatus || item.status) : 'pending')}}">{{item.is_suspended ? '已停用' : (item.is_activated ? ((item._displayStatus || item.status) === 'active' ? '使用中' : ((item._displayStatus || item.status) === 'expired' ? '已过期' : '已用完')) : '待激活')}}</text>
           </view>
           <view class="package-actions">
-            <view class="package-edit-btn" data-id="{{item._id}}" bindtap="onEditPackage">
+            <view class="package-edit-btn" wx:if="{{item.canOperate}}" data-id="{{item._id}}" bindtap="onEditPackage">
               <text>修改</text>
             </view>
-            <view class="package-extend-btn" wx:if="{{item.is_activated && (item._displayStatus || item.status) === 'active'}}" data-id="{{item._id}}" data-end="{{item.end_date_display}}" catchtap="onExtendPackage">
+            <view class="package-extend-btn" wx:if="{{item.canOperate && item.is_activated && (item._displayStatus || item.status) === 'active'}}" data-id="{{item._id}}" data-end="{{item.end_date_display}}" catchtap="onExtendPackage">
               <text>延长</text>
             </view>
-            <view class="package-delete-btn" data-id="{{item._id}}" bindtap="onDeletePackage">
+            <view class="package-delete-btn" wx:if="{{item.canOperate}}" data-id="{{item._id}}" bindtap="onDeletePackage">
               <text>删除</text>
             </view>
           </view>
@@ -310,7 +316,7 @@
   </view>
 
   <!-- 危险操作区域（页面底部，与内容有间距） -->
-  <view class="danger-zone" wx:if="{{isAdmin}}">
+  <view class="danger-zone" wx:if="{{canDeleteMember}}">
     <view class="danger-zone-title">危险操作</view>
     <view class="danger-zone-desc">删除后该会员的所有数据将无法恢复</view>
     <view class="delete-member-btn" bindtap="onDeleteMember">
@@ -427,10 +433,10 @@
 
       <view class="form-group">
         <text class="form-label">所属门店 *</text>
-        <picker mode="selector" range="{{addPackageStoreList}}" range-key="name" value="{{addPackageFormStoreIndex}}" bindchange="onAddPackageStoreChange">
-          <view class="picker-field">
+        <picker mode="selector" range="{{addPackageStoreList}}" range-key="name" value="{{addPackageFormStoreIndex}}" bindchange="onAddPackageStoreChange" disabled="{{addPackageStoreLocked}}">
+          <view class="picker-field {{addPackageStoreLocked ? 'picker-field-locked' : ''}}">
             <text class="picker-text">{{addPackageForm.store_name || '请选择门店'}}</text>
-            <text class="picker-arrow">▼</text>
+            <text class="picker-arrow" wx:if="{{!addPackageStoreLocked}}">▼</text>
           </view>
         </picker>
       </view>
@@ -576,8 +582,8 @@
         <input class="input-field" type="number" placeholder="请输入剩余次数" value="{{editPackageForm.remaining_credits}}" data-field="remaining_credits" bindinput="onEditPackageInput" />
       </view>
 
-      <!-- 有效时长 -->
-      <view class="form-group">
+      <!-- 有效时长（未激活套餐：通过时长设置有效期） -->
+      <view class="form-group" wx:if="{{!editingPackage.is_activated}}">
         <text class="form-label">有效时长 *</text>
         <view class="duration-input-row">
           <input class="input-field duration-input" type="number" placeholder="请输入时长" value="{{editPackageForm.duration_value}}" data-field="duration_value" bindinput="onEditPackageInput" />
@@ -590,6 +596,17 @@
             </view>
           </view>
         </view>
+      </view>
+
+      <!-- 服务有效期（已激活套餐：直接调整截止日期，避免 duration_value 重算漏洞） -->
+      <view class="form-group" wx:if="{{editingPackage.is_activated}}">
+        <text class="form-label">服务有效期截止日期 *</text>
+        <view class="duration-input-row">
+          <picker class="input-field date-picker-field" mode="date" value="{{editPackageForm.end_date}}" bindchange="onEditEndDateChange">
+            <text class="{{editPackageForm.end_date ? 'date-value' : 'date-placeholder'}}">{{editPackageForm.end_date || '请选择截止日期'}}</text>
+          </picker>
+        </view>
+        <text class="form-hint" wx:if="{{editPackageForm.start_date}}">起始日期：{{editPackageForm.start_date}}</text>
       </view>
 
       <!-- 时间卡：次数限制 -->

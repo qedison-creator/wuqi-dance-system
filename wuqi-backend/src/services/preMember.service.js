@@ -139,7 +139,7 @@ async function getPreMemberList(query = {}) {
   const [list, total] = await Promise.all([
     User.find(filter)
       .populate('store_id', 'name')
-      .sort({ created_at: -1 })
+      .sort({ created_at: -1, _id: -1 })
       .skip(skip)
       .limit(Number(pageSize))
       .lean(),

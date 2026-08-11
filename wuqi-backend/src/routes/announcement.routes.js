@@ -6,6 +6,7 @@ const storeFilter = require('../middleware/storeFilter');
 const checkRecordOwnership = require('../middleware/checkRecordOwnership');
 const Announcement = require('../models/Announcement');
 const announcementService = require('../services/announcement.service');
+const contentSecurityService = require('../services/content-security.service');
 
 // 公告归属校验中间件实例
 const checkAnnouncementOwnership = checkRecordOwnership(Announcement, {
@@ -56,6 +57,19 @@ router.get('/:id', async (req, res) => {
 // POST / - 创建公告（需登录 + 管理端角色）
 router.post('/', auth, checkPermission(['super_admin', 'store_manager', 'staff']), storeFilter(), async (req, res) => {
   try {
+    // 文本内容安全检测（微信审核强制要求）
+    const textResult = await contentSecurityService.checkTextFields({
+      title: req.body.title,
+      content: req.body.content,
+    }, 'member');
+    if (!textResult.safe) {
+      return res.status(200).json({
+        code: 'CONTENT_UNSAFE',
+        message: '公告内容含违规信息，请修改后重新提交',
+        data: null
+      });
+    }
+
     const { operatorId, operatorName } = getOperator(req);
     const announcement = await announcementService.createAnnouncement(req.body, operatorId, operatorName, req.user);
     res.json({ code: 200, data: announcement });
@@ -68,6 +82,19 @@ router.post('/', auth, checkPermission(['super_admin', 'store_manager', 'staff']
 // PUT /:id - 更新公告（需登录 + 管理端角色）
 router.put('/:id', auth, checkPermission(['super_admin', 'store_manager', 'staff']), storeFilter(), async (req, res) => {
   try {
+    // 文本内容安全检测（微信审核强制要求）
+    const textResult = await contentSecurityService.checkTextFields({
+      title: req.body.title,
+      content: req.body.content,
+    }, 'member');
+    if (!textResult.safe) {
+      return res.status(200).json({
+        code: 'CONTENT_UNSAFE',
+        message: '公告内容含违规信息，请修改后重新提交',
+        data: null
+      });
+    }
+
     const { operatorId, operatorName } = getOperator(req);
     const announcement = await announcementService.updateAnnouncement(req.params.id, req.body, operatorId, operatorName, req.user);
     res.json({ code: 200, data: announcement });

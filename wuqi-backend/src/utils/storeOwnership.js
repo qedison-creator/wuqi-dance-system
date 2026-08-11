@@ -120,8 +120,77 @@ async function assertMemberAccessibleForCheckin(userId, reqUser) {
   return { ok: false, reason: '非本门店会员，无权限查看会员信息' };
 }
 
+/**
+ * 校验单门店角色是否可访问指定会员（用于会员详情页、列表等场景）
+ * assertMemberAccessibleForCheckin 的语义别名，复用同一套跨门店套餐判定逻辑
+ */
+async function assertMemberAccessible(userId, reqUser) {
+  return assertMemberAccessibleForCheckin(userId, reqUser);
+}
+
+/**
+ * 校验单门店角色是否可操作（修改/删除）指定套餐
+ * 规则：
+ *   - 超管/审核员：直接通过
+ *   - 套餐 store_id 命中允许门店：通过（原门店店长可编辑跨门店套餐）
+ *   - 套餐 store_id 不在允许范围：拒绝
+ *   - 套餐无 store_id（全局套餐）：拒绝（仅超管可操作）
+ * @param {string} packageId - 套餐ID
+ * @param {Object} reqUser - req.user 对象
+ * @returns {Promise<{ok: boolean, reason?: string}>}
+ */
+async function assertPackageOwnership(packageId, reqUser) {
+  const allowedStoreIds = getAllowedStoreIds(reqUser);
+  // 超管/审核员：不限门店
+  if (allowedStoreIds === null) {
+    return { ok: true };
+  }
+
+  if (!allowedStoreIds || allowedStoreIds.length === 0) {
+    return { ok: false, reason: '无权操作该套餐' };
+  }
+
+  const UserPackage = require('../models/UserPackage');
+  const pkg = await UserPackage.findById(packageId).select('store_id').lean();
+  if (!pkg) {
+    return { ok: false, reason: '套餐不存在' };
+  }
+
+  const pkgStoreId = pkg.store_id ? String(pkg.store_id) : null;
+  if (!pkgStoreId || !allowedStoreIds.includes(pkgStoreId)) {
+    return { ok: false, reason: '无权操作该套餐' };
+  }
+
+  return { ok: true };
+}
+
+/**
+ * 校验单门店角色是否可操作（修改/审核/删除）指定会员的个人信息
+ * 规则：
+ *   - 超管/审核员：直接通过
+ *   - 会员归属门店在允许范围内：通过
+ *   - 跨门店套餐会员（通过套餐关系访问但非归属门店）：拒绝，不可修改个人信息
+ * @param {string} userId - 会员用户ID
+ * @param {Object} reqUser - req.user 对象
+ * @returns {Promise<{ok: boolean, reason?: string}>}
+ */
+async function assertMemberOwnership(userId, reqUser) {
+  const access = await assertMemberAccessible(userId, reqUser);
+  if (!access.ok) {
+    return access;
+  }
+  // 跨门店访问：可查看但不可修改个人信息
+  if (access.crossStore) {
+    return { ok: false, reason: '跨门店会员仅可查看，无权修改会员信息' };
+  }
+  return { ok: true };
+}
+
 module.exports = {
   checkStoreOwnership,
   getAllowedStoreIds,
   assertMemberAccessibleForCheckin,
+  assertMemberAccessible,
+  assertPackageOwnership,
+  assertMemberOwnership,
 };

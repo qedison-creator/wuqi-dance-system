@@ -536,8 +536,16 @@ exports.updatePackage = async (id, data) => {
   // 已激活的套餐只允许修改部分字段
   const isActivated = userPackage.is_activated;
   const allowedFields = isActivated
-    ? ['remaining_credits', 'end_date', 'daily_limit', 'weekly_limit', 'monthly_limit', 'dance_style_limit', 'status', 'remark', 'extra_store_ids']
+    ? ['remaining_credits', 'start_date', 'end_date', 'daily_limit', 'weekly_limit', 'monthly_limit', 'dance_style_limit', 'status', 'remark', 'extra_store_ids']
     : ['package_type', 'total_credits', 'remaining_credits', 'duration_value', 'duration_unit', 'daily_limit', 'weekly_limit', 'monthly_limit', 'dance_style_limit', 'status', 'remark', 'extra_store_ids'];
+
+  // 记录 duration_value/duration_unit 是否实际发生变化（用于判断是否需要重算有效期）
+  const durationValueChanged = data.duration_value !== undefined && Number(data.duration_value) !== Number(userPackage.duration_value);
+  const durationUnitChanged = data.duration_unit !== undefined && data.duration_unit !== userPackage.duration_unit;
+  const durationChanged = durationValueChanged || durationUnitChanged;
+  // 是否显式提供了 end_date（管理员直接调整服务有效期截止日期）
+  const hasExplicitEndDate = data.end_date !== undefined && data.end_date !== null && data.end_date !== '';
+  const hasExplicitStartDate = data.start_date !== undefined && data.start_date !== null && data.start_date !== '';
 
   for (const key of Object.keys(data)) {
     if (allowedFields.includes(key)) {
@@ -549,16 +557,24 @@ exports.updatePackage = async (id, data) => {
     }
   }
 
-  // 如果修改了有效期，重新计算 end_date
-  if (!isActivated && data.duration_value && data.duration_unit) {
-    // pending 套餐不计算 end_date，激活时计算
-  } else if (isActivated && data.duration_value && data.duration_unit) {
+  // 有效期重算逻辑（修复漏洞：仅修改周期限制等非有效期字段时不应重算 end_date）：
+  // 1. 管理员显式提供了 end_date（直接调整服务有效期）→ 使用管理员提供的日期，不重算
+  // 2. 未激活套餐：不重算（激活时再计算）
+  // 3. 已激活套餐且 duration_value/duration_unit 实际发生变化 → 从 start_date 重算 end_date
+  // 4. 已激活套餐但 duration 未变化（仅修改其他字段如 weekly_limit）→ 保持原有效期不变
+  if (hasExplicitEndDate) {
+    // 管理员直接调整 end_date，同步更新 original_end_date
+    if (userPackage.end_date) {
+      userPackage.original_end_date = new Date(userPackage.end_date);
+    }
+  } else if (isActivated && durationChanged && data.duration_value && data.duration_unit) {
     const startMoment = dayjs(userPackage.start_date || new Date()).tz(BEIJING_TZ);
     const { start_date, end_date } = calculateValidityDates(startMoment, data.duration_value, data.duration_unit);
     userPackage.start_date = start_date;
     userPackage.end_date = end_date;
     userPackage.original_end_date = new Date(end_date);
   }
+  // 其他情况：保持原有 start_date/end_date 不变
 
   await userPackage.save();
 

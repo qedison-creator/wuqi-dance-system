@@ -14,7 +14,7 @@ const BEIJING_TZ = 'Asia/Shanghai';
 
 // 获取会员列表(支持status/keyword/store_id/package_active/package_suspended/package_expired/package_pending/package_exhausted筛选)
 exports.getMemberList = async (query) => {
-  const { status, keyword, store_id, member_status, package_active, package_suspended, package_expired, package_pending, package_exhausted, no_package, no_store, page = 1, pageSize = 20 } = query;
+  const { status, keyword, store_id, member_status, package_active, package_suspended, package_expired, package_pending, package_exhausted, no_package, no_store, cross_store, page = 1, pageSize = 20 } = query;
   const filter = { user_type: 'member' };
 
   // 将字符串 store_id 转为 ObjectId，供聚合查询使用
@@ -22,20 +22,97 @@ exports.getMemberList = async (query) => {
 
   if (status) filter.status = status;
   if (member_status) filter.member_status = member_status;
-  if (store_id) filter.store_id = store_id;
   if (no_store === 'true' || no_store === true) {
     // ObjectId 类型字段，只需检查 null 和不存在
     filter.store_id = { $in: [null, undefined] };
+  } else if (cross_store === 'true' || cross_store === true) {
+    // 跨门店筛选：查询有 active 套餐且 extra_store_ids 非空（可跨店使用）的会员
+    // 与门店选择器无关，"全部门店"或具体门店均可使用
+    if (store_id) {
+      // 指定了具体门店：跨门店套餐命中当前门店，且会员归属门店 ≠ 当前门店
+      const crossStoreUserIds = await UserPackage.distinct('user_id', {
+        status: 'active',
+        $or: [
+          { store_id: storeObjectId },
+          { extra_store_ids: storeObjectId }
+        ]
+      });
+      const targetIds = crossStoreUserIds.map(id => id.toString());
+      if (targetIds.length === 0) {
+        return { list: [], total: 0, pendingCount: 0, page: Number(page), pageSize: Number(pageSize) };
+      }
+      const storeCondition = { _id: { $in: targetIds }, store_id: { $ne: storeObjectId } };
+      if (filter.$or) {
+        const keywordOr = filter.$or;
+        delete filter.$or;
+        filter.$and = [{ $or: keywordOr }, storeCondition];
+      } else {
+        Object.assign(filter, storeCondition);
+      }
+    } else {
+      // 全部门店：查询所有有跨店套餐（extra_store_ids 非空）的会员
+      const crossStoreUserIds = await UserPackage.distinct('user_id', {
+        status: 'active',
+        extra_store_ids: { $exists: true, $type: 'array', $ne: [] }
+      });
+      if (crossStoreUserIds.length === 0) {
+        return { list: [], total: 0, pendingCount: 0, page: Number(page), pageSize: Number(pageSize) };
+      }
+      const storeCondition = { _id: { $in: crossStoreUserIds } };
+      if (filter.$or) {
+        const keywordOr = filter.$or;
+        delete filter.$or;
+        filter.$and = [{ $or: keywordOr }, storeCondition];
+      } else {
+        Object.assign(filter, storeCondition);
+      }
+    }
+  } else if (store_id) {
+    // 门店过滤：包含本门店会员 + 跨门店套餐会员
+    // 跨门店套餐会员：有 status=active 且 store_id 或 extra_store_ids 命中当前门店的套餐
+    const crossStoreUserIds = await UserPackage.distinct('user_id', {
+      status: 'active',
+      $or: [
+        { store_id: storeObjectId },
+        { extra_store_ids: storeObjectId }
+      ]
+    });
+    // 构建门店过滤条件：User.store_id 命中 或 user_id 在跨门店套餐会员集合中
+    const storeCondition = crossStoreUserIds.length > 0
+      ? { $or: [{ store_id: store_id }, { _id: { $in: crossStoreUserIds } }] }
+      : { store_id: store_id };
+    // 合并到 filter（处理 keyword 已占用 $or 的情况）
+    if (filter.$or) {
+      const keywordOr = filter.$or;
+      delete filter.$or;
+      filter.$and = [{ $or: keywordOr }, storeCondition];
+    } else {
+      Object.assign(filter, storeCondition);
+    }
   }
   if (keyword) {
-    filter.$or = [
-      { nick_name: { $regex: keyword, $options: 'i' } },
-      { real_name: { $regex: keyword, $options: 'i' } },
-      { phone: { $regex: keyword, $options: 'i' } },
-      { wechat_phone: { $regex: keyword, $options: 'i' } },
-      { reserve_phone: { $regex: keyword, $options: 'i' } },
-      { member_code: { $regex: keyword, $options: 'i' } },
-    ];
+    // 如果 store_id 已经构建了 $and，把 keyword 的 $or 追加进去
+    if (filter.$and) {
+      filter.$and.push({
+        $or: [
+          { nick_name: { $regex: keyword, $options: 'i' } },
+          { real_name: { $regex: keyword, $options: 'i' } },
+          { phone: { $regex: keyword, $options: 'i' } },
+          { wechat_phone: { $regex: keyword, $options: 'i' } },
+          { reserve_phone: { $regex: keyword, $options: 'i' } },
+          { member_code: { $regex: keyword, $options: 'i' } },
+        ]
+      });
+    } else {
+      filter.$or = [
+        { nick_name: { $regex: keyword, $options: 'i' } },
+        { real_name: { $regex: keyword, $options: 'i' } },
+        { phone: { $regex: keyword, $options: 'i' } },
+        { wechat_phone: { $regex: keyword, $options: 'i' } },
+        { reserve_phone: { $regex: keyword, $options: 'i' } },
+        { member_code: { $regex: keyword, $options: 'i' } },
+      ];
+    }
   }
 
   // 根据套餐状态筛选会员
@@ -130,7 +207,7 @@ exports.getMemberList = async (query) => {
   const list = await User.find(filter)
     .select('-password -__v')
     .populate('store_id', 'name')
-    .sort({ created_at: -1 })
+    .sort({ created_at: -1, _id: -1 })
     .skip((page - 1) * pageSize)
     .limit(Number(pageSize));
 
@@ -152,6 +229,13 @@ exports.getMemberList = async (query) => {
     // 别名：前端统一使用 avatar / nickname
     userObj.avatar = userObj.avatar_url;
     userObj.nickname = userObj.nick_name;
+    // 跨门店访问标志：会员归属门店与当前查询门店不一致时为 true
+    if (store_id) {
+      const userStoreId = userObj.store_id && userObj.store_id._id ? String(userObj.store_id._id) : null;
+      userObj.cross_store_access = !userStoreId || userStoreId !== String(store_id);
+    } else {
+      userObj.cross_store_access = false;
+    }
     return userObj;
   }));
 

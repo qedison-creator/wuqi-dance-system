@@ -6,7 +6,31 @@ const checkRecordOwnership = require('../middleware/checkRecordOwnership');
 const User = require('../models/User');
 const memberService = require('../services/member.service');
 const { success, paginate, error } = require('../utils/response');
-const { assertMemberAccessibleForCheckin } = require('../utils/storeOwnership');
+const { assertMemberAccessibleForCheckin, assertMemberAccessible, assertMemberOwnership } = require('../utils/storeOwnership');
+
+// 会员访问权限中间件（可查看，含跨门店套餐会员）
+// 通过校验后 req.memberAccess 包含 { ok, crossStore? }
+const memberAccessibleGuard = async (req, res, next) => {
+  const userId = req.params.id || req.params.userId;
+  if (!userId) return next();
+  const access = await assertMemberAccessible(userId, req.user);
+  if (!access.ok) {
+    return res.status(403).json(error(403, access.reason));
+  }
+  req.memberAccess = access;
+  next();
+};
+
+// 会员操作权限中间件（可修改，跨门店会员拒绝）
+const memberOwnershipGuard = async (req, res, next) => {
+  const userId = req.params.id || req.params.userId;
+  if (!userId) return next();
+  const access = await assertMemberOwnership(userId, req.user);
+  if (!access.ok) {
+    return res.status(403).json(error(403, access.reason));
+  }
+  next();
+};
 const { broadcastMemberCountUpdate, sendToUser, broadcastToAdmins } = require('../services/websocket.service');
 
 // 会员归属校验中间件实例（复用 User 模型，校验 :id 对应会员的 store_id 归属）
@@ -140,9 +164,11 @@ router.post('/info-change/request', auth, checkPermission(['member']), async (re
 // ========== 参数化路由（必须放在最后，避免拦截具体命名路由） ==========
 
 // GET /api/v1/members/:id - 获取会员详情
-router.get('/:id', auth, checkPermission(['super_admin', 'store_manager', 'staff']), storeFilter(), checkMemberOwnership, async (req, res, next) => {
+router.get('/:id', auth, checkPermission(['super_admin', 'store_manager', 'staff']), storeFilter(), memberAccessibleGuard, async (req, res, next) => {
   try {
     const member = await memberService.getMemberById(req.params.id);
+    // 标记跨门店访问，供前端控制操作按钮显隐
+    member._crossStoreAccess = (req.memberAccess && req.memberAccess.crossStore) || false;
     res.json(success(member));
   } catch (err) {
     next(err);
@@ -150,7 +176,7 @@ router.get('/:id', auth, checkPermission(['super_admin', 'store_manager', 'staff
 });
 
 // PUT /api/v1/members/:id - 更新会员信息
-router.put('/:id', auth, checkPermission(['super_admin', 'store_manager']), storeFilter(), checkMemberOwnership, async (req, res, next) => {
+router.put('/:id', auth, checkPermission(['super_admin', 'store_manager']), storeFilter(), memberOwnershipGuard, async (req, res, next) => {
   try {
     const member = await memberService.updateMember(req.params.id, req.body);
     res.json(success(member, '更新会员信息成功'));
@@ -160,7 +186,7 @@ router.put('/:id', auth, checkPermission(['super_admin', 'store_manager']), stor
 });
 
 // PUT /api/v1/members/:id/status - 启用/禁用会员（黑名单管控）
-router.put('/:id/status', auth, checkPermission(['super_admin', 'store_manager']), storeFilter(), checkMemberOwnership, async (req, res, next) => {
+router.put('/:id/status', auth, checkPermission(['super_admin', 'store_manager']), storeFilter(), memberOwnershipGuard, async (req, res, next) => {
   try {
     const { status } = req.body;
     if (!status || !['active', 'disabled'].includes(status)) {
@@ -199,7 +225,7 @@ router.put('/:id/review', auth, checkPermission(['super_admin', 'store_manager',
 });
 
 // PUT /api/v1/members/:id/store - 修改会员门店（管理员）
-router.put('/:id/store', auth, checkPermission(['super_admin', 'store_manager']), storeFilter(), checkMemberOwnership, async (req, res, next) => {
+router.put('/:id/store', auth, checkPermission(['super_admin', 'store_manager']), storeFilter(), memberOwnershipGuard, async (req, res, next) => {
   try {
     const { store_id } = req.body;
     if (!store_id) {
@@ -215,7 +241,7 @@ router.put('/:id/store', auth, checkPermission(['super_admin', 'store_manager'])
 });
 
 // PUT /api/v1/members/:id/exemption - 设置豁免次数
-router.put('/:id/exemption', auth, checkPermission(['super_admin', 'store_manager', 'staff']), storeFilter(), checkMemberOwnership, async (req, res, next) => {
+router.put('/:id/exemption', auth, checkPermission(['super_admin', 'store_manager', 'staff']), storeFilter(), memberOwnershipGuard, async (req, res, next) => {
   try {
     const { exemption_count } = req.body;
     if (exemption_count === undefined || exemption_count === null) {
@@ -229,7 +255,7 @@ router.put('/:id/exemption', auth, checkPermission(['super_admin', 'store_manage
 });
 
 // GET /api/v1/members/:id/exemption-logs - 获取豁免次数使用记录
-router.get('/:id/exemption-logs', auth, checkPermission(['super_admin', 'store_manager', 'staff']), storeFilter(), checkMemberOwnership, async (req, res, next) => {
+router.get('/:id/exemption-logs', auth, checkPermission(['super_admin', 'store_manager', 'staff']), storeFilter(), memberAccessibleGuard, async (req, res, next) => {
   try {
     const { page = 1, pageSize = 20 } = req.query;
     const result = await memberService.getExemptionLogs(req.params.id, page, pageSize);
@@ -240,7 +266,7 @@ router.get('/:id/exemption-logs', auth, checkPermission(['super_admin', 'store_m
 });
 
 // PUT /api/v1/members/:id/suspend - 停卡
-router.put('/:id/suspend', auth, checkPermission(['super_admin', 'store_manager', 'staff']), storeFilter(), checkMemberOwnership, async (req, res, next) => {
+router.put('/:id/suspend', auth, checkPermission(['super_admin', 'store_manager', 'staff']), storeFilter(), memberOwnershipGuard, async (req, res, next) => {
   try {
     const { suspend_days } = req.body;
     if (!suspend_days || suspend_days <= 0) {
@@ -254,7 +280,7 @@ router.put('/:id/suspend', auth, checkPermission(['super_admin', 'store_manager'
 });
 
 // PUT /api/v1/members/:id/unsuspend - 复卡
-router.put('/:id/unsuspend', auth, checkPermission(['super_admin', 'store_manager', 'staff']), storeFilter(), checkMemberOwnership, async (req, res, next) => {
+router.put('/:id/unsuspend', auth, checkPermission(['super_admin', 'store_manager', 'staff']), storeFilter(), memberOwnershipGuard, async (req, res, next) => {
   try {
     const member = await memberService.unsuspendMember(req.params.id, req.user.id);
     res.json(success(member, '复卡成功'));
@@ -264,7 +290,7 @@ router.put('/:id/unsuspend', auth, checkPermission(['super_admin', 'store_manage
 });
 
 // PUT /api/v1/members/:id/assign-code - 分配会员编码
-router.put('/:id/assign-code', auth, checkPermission(['super_admin', 'store_manager', 'staff']), storeFilter(), checkMemberOwnership, async (req, res, next) => {
+router.put('/:id/assign-code', auth, checkPermission(['super_admin', 'store_manager', 'staff']), storeFilter(), memberOwnershipGuard, async (req, res, next) => {
   try {
     const memberCode = await memberService.assignMemberCode(req.params.id);
     res.json(success({ member_code: memberCode }, '会员编码分配成功'));
@@ -288,7 +314,7 @@ router.get('/:id/info-status', auth, checkPermission(['super_admin', 'store_mana
 });
 
 // PUT /api/v1/members/:id/phone-audit - 审核预留手机号修改
-router.put('/:id/phone-audit', auth, checkPermission(['super_admin', 'store_manager']), storeFilter(), checkMemberOwnership, async (req, res, next) => {
+router.put('/:id/phone-audit', auth, checkPermission(['super_admin', 'store_manager']), storeFilter(), memberOwnershipGuard, async (req, res, next) => {
   try {
     const { action, reason } = req.body;
     if (!action || !['approve', 'reject'].includes(action)) {
@@ -309,7 +335,7 @@ router.put('/:id/phone-audit', auth, checkPermission(['super_admin', 'store_mana
 });
 
 // PUT /api/v1/members/:id/info-change-audit - 审核信息修改请求
-router.put('/:id/info-change-audit', auth, checkPermission(['super_admin', 'store_manager']), storeFilter(), checkMemberOwnership, async (req, res, next) => {
+router.put('/:id/info-change-audit', auth, checkPermission(['super_admin', 'store_manager']), storeFilter(), memberOwnershipGuard, async (req, res, next) => {
   try {
     const { action, reason } = req.body;
     if (!action || !['approve', 'reject'].includes(action)) {

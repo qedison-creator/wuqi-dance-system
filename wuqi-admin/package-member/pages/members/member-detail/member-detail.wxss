@@ -112,12 +112,40 @@
   gap: 12rpx;
 }
 
-.gender-tag {
-  font-size: 24rpx;
-  color: var(--text-secondary);
-  background: var(--color-completed-bg);
-  padding: 4rpx 14rpx;
-  border-radius: var(--radius-xl);
+/* 性别图标（参考会员端 hero-gender 样式，纯 CSS 几何形状） */
+.gender-icon {
+  width: 32rpx;
+  height: 32rpx;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 4rpx;
+  margin-right: 8rpx;
+  flex-shrink: 0;
+}
+
+.gender-icon.male {
+  background: rgba(93, 155, 155, 0.12);
+}
+
+.gender-icon-m {
+  width: 0;
+  height: 0;
+  border-left: 5rpx solid transparent;
+  border-right: 5rpx solid transparent;
+  border-bottom: 12rpx solid #5D9B9B;
+}
+
+.gender-icon.female {
+  background: rgba(212, 120, 110, 0.12);
+}
+
+.gender-icon-f {
+  width: 12rpx;
+  height: 12rpx;
+  border-radius: 50%;
+  border: 2.5rpx solid #D4786E;
 }
 
 .status-badge {
@@ -163,6 +191,18 @@
   color: var(--color-info);
   background: var(--color-info-bg);
   border: 1rpx solid rgba(123, 158, 179, 0.25);
+  padding: 4rpx 14rpx;
+  border-radius: var(--radius-xl);
+  margin-left: 8rpx;
+}
+
+/* 跨门店访问标识 */
+.cross-store-badge {
+  display: inline-block;
+  font-size: 22rpx;
+  color: var(--color-primary);
+  background: rgba(160, 120, 80, 0.1);
+  border: 1rpx solid rgba(160, 120, 80, 0.3);
   padding: 4rpx 14rpx;
   border-radius: var(--radius-xl);
   margin-left: 8rpx;
@@ -285,6 +325,11 @@
 .picker-arrow {
   font-size: 24rpx;
   color: var(--text-tertiary);
+}
+
+.picker-field-locked {
+  background: var(--bg-disabled, #f5f5f5);
+  border-color: var(--border);
 }
 
 .info-list {
@@ -1060,6 +1105,30 @@
 
 .duration-input {
   flex: 1;
+}
+
+/* 服务有效期日期选择器（已激活套餐编辑弹窗） */
+.date-picker-field {
+  flex: 1;
+  display: flex;
+  align-items: center;
+}
+
+.date-value {
+  font-size: 28rpx;
+  color: var(--text-primary);
+}
+
+.date-placeholder {
+  font-size: 28rpx;
+  color: var(--text-tertiary);
+}
+
+.form-hint {
+  display: block;
+  font-size: 24rpx;
+  color: var(--text-tertiary);
+  margin-top: 8rpx;
 }
 
 .duration-unit-selector {

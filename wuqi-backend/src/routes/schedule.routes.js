@@ -7,6 +7,7 @@ const checkRecordOwnership = require('../middleware/checkRecordOwnership');
 const Schedule = require('../models/Schedule');
 const scheduleService = require('../services/schedule.service');
 const { broadcastCourseUpdate } = require('../services/websocket.service');
+const contentSecurityService = require('../services/content-security.service');
 const { success, paginate } = require('../utils/response');
 
 // 排课归属校验中间件实例
@@ -83,6 +84,19 @@ router.get('/:id', optionalAuth, async (req, res, next) => {
 // POST /api/v1/schedules - 新增排课
 router.post('/', auth, checkPermission(['super_admin', 'store_manager', 'staff']), storeFilter(), async (req, res, next) => {
   try {
+    // 文本内容安全检测（微信审核强制要求）
+    const textResult = await contentSecurityService.checkTextFields({
+      course_name: req.body.course_name,
+      note: req.body.note,
+    }, 'member');
+    if (!textResult.safe) {
+      return res.status(200).json({
+        code: 'CONTENT_UNSAFE',
+        message: '课程信息含违规内容，请修改后重新提交',
+        data: null
+      });
+    }
+
     const schedule = await scheduleService.createSchedule(req.body, req.user.id);
     // 排课写入数据库成功后，通过 WebSocket 广播课程更新事件
     broadcastCourseUpdate({ action: 'create', scheduleId: schedule._id, storeId: schedule.store_id });
@@ -98,6 +112,22 @@ router.post('/batch-create', auth, checkPermission(['super_admin', 'store_manage
     const { schedules } = req.body;
     if (!schedules || !Array.isArray(schedules) || schedules.length === 0) {
       return res.status(400).json({ code: 400, message: '请提供排课数据数组' });
+    }
+
+    // 文本内容安全检测：批量检查所有课程名称
+    const allCourseNames = schedules
+      .map(s => s.course_name)
+      .filter(n => n && String(n).trim())
+      .join(' ');
+    if (allCourseNames) {
+      const textResult = await contentSecurityService.checkText(allCourseNames, 'member');
+      if (!textResult.safe) {
+        return res.status(200).json({
+          code: 'CONTENT_UNSAFE',
+          message: '课程信息含违规内容，请修改后重新提交',
+          data: null
+        });
+      }
     }
 
     const result = await scheduleService.batchCreateSchedules(schedules, req.user.id);
@@ -124,6 +154,19 @@ router.post('/batch-create', auth, checkPermission(['super_admin', 'store_manage
 // PUT /api/v1/schedules/:id - 编辑排课
 router.put('/:id', auth, checkPermission(['super_admin', 'store_manager', 'staff']), storeFilter(), checkScheduleOwnership, async (req, res, next) => {
   try {
+    // 文本内容安全检测（微信审核强制要求）
+    const textResult = await contentSecurityService.checkTextFields({
+      course_name: req.body.course_name,
+      note: req.body.note,
+    }, 'member');
+    if (!textResult.safe) {
+      return res.status(200).json({
+        code: 'CONTENT_UNSAFE',
+        message: '课程信息含违规内容，请修改后重新提交',
+        data: null
+      });
+    }
+
     const schedule = await scheduleService.updateSchedule(req.params.id, req.body, req.user.id);
     res.json(success(schedule, '编辑排课成功'));
   } catch (err) {

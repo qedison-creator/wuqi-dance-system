@@ -4,6 +4,7 @@ const { optionalAuth } = require('../middleware/auth');
 const checkPermission = require('../middleware/permission');
 const Store = require('../models/Store');
 const { success, error } = require('../utils/response');
+const contentSecurityService = require('../services/content-security.service');
 const { getAllowedStoreIds } = require('../utils/storeOwnership');
 const { broadcastStoreUpdate } = require('../services/websocket.service');
 
@@ -109,6 +110,22 @@ router.post('/', auth, checkPermission(['super_admin']), async (req, res, next) 
     if (!name) {
       return res.status(400).json({ code: 400, message: '门店名称不能为空', data: null });
     }
+
+    // 文本内容安全检测（微信审核强制要求）
+    const textResult = await contentSecurityService.checkTextFields({
+      name: name,
+      address: address,
+      phone: phone,
+      business_hours: business_hours,
+    }, 'member');
+    if (!textResult.safe) {
+      return res.status(200).json({
+        code: 'CONTENT_UNSAFE',
+        message: '门店信息含违规内容，请修改后重新提交',
+        data: null
+      });
+    }
+
     const store = await Store.create({ name, address, phone, business_hours, location });
     res.json(success(store, '创建门店成功'));
   } catch (err) {
@@ -120,6 +137,21 @@ router.post('/', auth, checkPermission(['super_admin']), async (req, res, next) 
 // 超管可编辑任意门店；单门店角色只能编辑所属门店
 router.put('/:id', auth, checkPermission(['super_admin', 'store_manager']), async (req, res, next) => {
   try {
+    // 文本内容安全检测（微信审核强制要求）
+    const textResult = await contentSecurityService.checkTextFields({
+      name: req.body.name,
+      address: req.body.address,
+      phone: req.body.phone,
+      business_hours: req.body.business_hours,
+    }, 'member');
+    if (!textResult.safe) {
+      return res.status(200).json({
+        code: 'CONTENT_UNSAFE',
+        message: '门店信息含违规内容，请修改后重新提交',
+        data: null
+      });
+    }
+
     // 门店归属校验：单门店角色只能编辑所属门店
     const allowedStoreIds = getAllowedStoreIds(req.user);
     if (allowedStoreIds !== null) {

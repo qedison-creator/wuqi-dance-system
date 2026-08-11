@@ -490,6 +490,14 @@ Page({
         const isCourseCancel = isCourseCancelType(item.cancel_type);
         const isExempted = item.status === 'exempted' || item.is_exempted;
         const onsite = isOnsiteCheckIn(item);
+        // 取消原因文案：管理员/课程取消时取 cancel_reason，用户取消时取 cancel_reason
+        let cancelReasonText = '';
+        if (item.status === 'cancelled') {
+          cancelReasonText = (item.cancel_reason || '').replace(/，\s*课时已退还/g, '').replace(/课时已退还/g, '').trim();
+          if (!cancelReasonText) {
+            cancelReasonText = isCourseCancel ? '课程取消' : (isExempted ? '豁免取消' : '会员取消');
+          }
+        }
         memberGroup = {
           user_id: userId,
           user_info: item.user_info,
@@ -501,6 +509,8 @@ Page({
           // 取消类型（取最新一条取消记录的cancel_type）
           _cancelType: item.status === 'cancelled' ? item.cancel_type : null,
           _cancelTypeText: item.status === 'cancelled' ? item.cancel_type_text : '',
+          // 取消原因文案（用于已预约列表中的标签显示）
+          _cancelReasonText: cancelReasonText,
           // 标记是否为课程/admin原因取消
           _isCourseCancel: isCourseCancel,
           // 标记是否为豁免取消
@@ -565,9 +575,11 @@ Page({
               mg._expanded = false;
 
               // 计算三个分类标记（与运营管理页面 classifyBooking 逻辑一致）
-              // 已预约：booked + 走过预约流程的签到（排除onsite）+ 课程取消
+              // 已预约：booked + 走过预约流程的签到（排除onsite）+ 管理员/课程取消
               // 已签到：checked_in + completed（含现场直接签到 onsite）
-              // 已取消：用户自行取消 + 豁免 + 课程取消
+              // 已取消：仅会员自行取消（normal）+ 豁免（exempted）
+              //   - 管理员手动取消（admin_cancel）/ 课程取消（min_bookings_not_met/holiday/after_checkin_cancel）：
+              //     只在"已预约"列表展示，不在"已取消"列表
               // 注意：同一个会员可以同时出现在多个分类中（如已签到的会员同时计入已预约）
               mg._inBooked = mg.records.some(r =>
                 r.status === 'booked' ||
@@ -578,8 +590,8 @@ Page({
                 r.status === 'completed' || r.status === 'checked_in'
               );
               mg._inCancelled = mg.records.some(r =>
-                r.status === 'cancelled' || r.status === 'exempted'
-              );
+                r.status === 'cancelled' && !isCourseCancelType(r.cancel_type)
+              ) || mg.records.some(r => r.status === 'exempted');
 
               // 提取最新签到记录的扣次和签到方式（已签到区块显示用）
               const checkInRecords = mg.records.filter(r => r.status === 'completed' || r.status === 'checked_in');
@@ -591,9 +603,9 @@ Page({
               }
             });
             // 分类计数（3个分类：已预约/已签到/已取消）
-            // 已预约 = 走过预约流程的人数（含已签到/已完成，不含现场直接签到）
+            // 已预约 = 走过预约流程的人数（含已签到/已完成，不含现场直接签到）+ 管理员/课程取消
             // 已签到 = 已签到/已完成的人数（含现场直接签到）
-            // 已取消 = 用户取消 + 豁免 + 课程取消
+            // 已取消 = 仅会员自行取消 + 豁免（管理员/课程取消不计入已取消）
             schedule.bookedCount = schedule.memberGroups.filter(mg => mg._inBooked).length;
             schedule.checkedInCount = schedule.memberGroups.filter(mg => mg._inCheckedIn).length;
             schedule.cancelledCount = schedule.memberGroups.filter(mg => mg._inCancelled).length;

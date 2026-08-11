@@ -244,7 +244,7 @@
                                   </view>
                                 </view>
                                 <view class="mc-status-badge badge-course-cancel" wx:if="{{mg._isCourseCancel}}">
-                                  <text>课程已取消</text>
+                                  <text>{{mg._cancelReasonText || '课程已取消'}}</text>
                                 </view>
                                 <view class="mc-status-badge badge-checked-in" wx:elif="{{mg._inCheckedIn || course._coursePhase === 'completed'}}">
                                   <text>已签到</text>

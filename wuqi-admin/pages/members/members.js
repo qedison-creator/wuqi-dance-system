@@ -93,6 +93,7 @@ Page({
     },
     storeListForPicker: [],
     packageFormStoreIndex: 0,
+    packageStoreLocked: false,  // 单门店权限时锁定所属门店为本门店
     showDanceStylePicker: false,
     showStoreSwitcher: true,
     // 舞种限制
@@ -299,14 +300,17 @@ Page({
       this.setData({ storeList: list });
       app.globalData.storeList = list;
       // 加载会员列表需要在门店列表加载完成后进行
-
-      this.loadMembers(forceLoadMembers);
+      // 仅在显式请求时加载会员列表，自动刷新时不触发（避免翻页后 concat 导致重复）
+      if (forceLoadMembers) {
+        this.loadMembers(true);
+      }
     } catch (err) {
       console.error('获取门店列表失败', err);
       wx.showToast({ title: '加载门店失败', icon: 'none' });
       // 即使获取门店列表失败，也尝试加载会员列表
-
-      this.loadMembers(forceLoadMembers);
+      if (forceLoadMembers) {
+        this.loadMembers(true);
+      }
     }
   },
 
@@ -428,6 +432,7 @@ Page({
     const filterLabelMap = {
       'all': '全部会员',
       'active': '使用中',
+      'cross_store': '跨门店',
       'suspended': '已停卡',
       'unactivated': '待激活',
       'exhausted': '已用完',
@@ -494,6 +499,8 @@ Page({
 
       if (this.data.activeFilter === 'active') {
         data.package_active = true;
+      } else if (this.data.activeFilter === 'cross_store') {
+        data.cross_store = true;
       } else if (this.data.activeFilter === 'suspended') {
         data.package_suspended = true;
       } else if (this.data.activeFilter === 'unactivated') {
@@ -829,6 +836,9 @@ Page({
       return;
     }
 
+    const isSingleStore = app.isSingleStoreRole();
+    const defaultStoreId = app.getDefaultStoreId ? app.getDefaultStoreId() : '';
+
     const defaultForm = {
       package_type: 'count_card',
       store_id: '',
@@ -843,25 +853,34 @@ Page({
       remark: ''
     };
 
-    const memberStoreId = member.store_id && (member.store_id._id || member.store_id);
-    const memberStoreName = member.store_id && member.store_id.name ? member.store_id.name : '';
-    if (memberStoreId) {
-      defaultForm.store_id = memberStoreId;
-      defaultForm.store_name = memberStoreName;
-    }
-
     let storeListForPicker = [];
     let packageFormStoreIndex = 0;
     try {
       const storeRes = await request({ url: '/stores' });
       const stores = storeRes.data && (Array.isArray(storeRes.data) ? storeRes.data : (storeRes.data.list || []));
-      storeListForPicker = stores.filter(s => s.status === 'active');
-      if (memberStoreId) {
-        const idx = storeListForPicker.findIndex(s => s._id === memberStoreId || s._id.toString() === memberStoreId.toString());
-        if (idx >= 0) packageFormStoreIndex = idx;
-      }
+      // 按当前用户角色过滤可访问门店（单门店角色仅返回所属门店）
+      storeListForPicker = app.filterStoresForUser(stores).filter(s => s.status === 'active');
     } catch (err) {
       console.error('获取门店列表失败', err);
+    }
+
+    if (isSingleStore && defaultStoreId) {
+      // 单门店权限：所属门店固定为本门店，不可切换
+      const ownStore = storeListForPicker.find(s => String(s._id) === String(defaultStoreId));
+      defaultForm.store_id = defaultStoreId;
+      defaultForm.store_name = ownStore ? ownStore.name : '';
+      const idx = storeListForPicker.findIndex(s => String(s._id) === String(defaultStoreId));
+      packageFormStoreIndex = idx >= 0 ? idx : 0;
+    } else {
+      // 超管/审核员/多门店权限：默认取会员归属门店，可通过选择器自由切换
+      const memberStoreId = member.store_id && (member.store_id._id || member.store_id);
+      const memberStoreName = member.store_id && member.store_id.name ? member.store_id.name : '';
+      if (memberStoreId) {
+        defaultForm.store_id = memberStoreId;
+        defaultForm.store_name = memberStoreName;
+        const idx = storeListForPicker.findIndex(s => s._id === memberStoreId || (s._id && s._id.toString && memberStoreId.toString && s._id.toString() === memberStoreId.toString()));
+        if (idx >= 0) packageFormStoreIndex = idx;
+      }
     }
 
     try {
@@ -902,12 +921,13 @@ Page({
         if (activePkg.package_type === 'count_card') {
           defaultForm.total_credits = activePkg.remaining_credits || '';
         }
-        if (activePkg.store_id) {
+        // 单门店权限时所属门店已固定为本门店，不可被活跃套餐覆盖
+        if (activePkg.store_id && !isSingleStore) {
           const pkgStoreId = activePkg.store_id._id || activePkg.store_id;
           const pkgStoreName = activePkg.store_id.name || '';
           defaultForm.store_id = pkgStoreId;
           defaultForm.store_name = pkgStoreName;
-          const idx = storeListForPicker.findIndex(s => s._id === pkgStoreId || s._id.toString() === pkgStoreId.toString());
+          const idx = storeListForPicker.findIndex(s => s._id === pkgStoreId || (s._id && s._id.toString && pkgStoreId.toString && s._id.toString() === pkgStoreId.toString()));
           if (idx >= 0) packageFormStoreIndex = idx;
         }
       }
@@ -923,7 +943,8 @@ Page({
       packageMember: member,
       packageForm: defaultForm,
       storeListForPicker,
-      packageFormStoreIndex
+      packageFormStoreIndex,
+      packageStoreLocked: isSingleStore
     });
     this._refreshDanceStyleText();
   },

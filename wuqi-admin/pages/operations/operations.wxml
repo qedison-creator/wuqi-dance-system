@@ -205,8 +205,8 @@
             </view>
           </view>
           <view class="booking-actions-row">
-            <!-- 课程已取消：课时已退还，不可操作 -->
-            <block wx:if="{{item.scheduleStatus === 'cancelled'}}">
+            <!-- 管理员/课程取消：课时已退还，不可操作 -->
+            <block wx:if="{{item.isCourseCancel}}">
               <text class="booking-refunded">已退还{{item.creditsRefunded}}次</text>
               <text class="course-cancelled-tag">{{item.cancelReasonText || '课程已取消'}}</text>
             </block>
@@ -215,7 +215,7 @@
               <text class="booking-credits">扣{{item.creditsDeducted}}次</text>
               <text class="checked-in-tag">已签到</text>
             </block>
-            <!-- 正常可操作的预约 -->
+            <!-- 正常可操作的预约（待上课） -->
             <block wx:else>
               <text class="booking-credits">扣{{item.creditsDeducted}}次</text>
               <view class="booking-btn btn-checkin" data-id="{{item._id}}" bindtap="onCheckIn">
