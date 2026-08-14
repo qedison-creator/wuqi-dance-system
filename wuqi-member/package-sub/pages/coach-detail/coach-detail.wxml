@@ -64,7 +64,6 @@
       </view>
       <view wx:if="{{courses.length > 0}}">
         <view class="cd-course-card" wx:for="{{courses}}" wx:key="_id" data-id="{{item._id}}" bindtap="onCourseTap">
-          <view class="cd-course-accent"></view>
           <view class="cd-course-body">
             <text class="cd-course-name">{{item.course_name || '课程名称'}}</text>
             <view class="cd-course-tag" wx:if="{{item.danceStyleName}}" style="background: {{item.danceTagBg}}; color: {{item.danceTagText}}">{{item.danceStyleName}}</view>

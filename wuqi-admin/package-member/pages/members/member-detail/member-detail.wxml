@@ -88,7 +88,7 @@
           </view>
           <view class="package-actions">
             <view class="package-edit-btn" wx:if="{{item.canOperate}}" data-id="{{item._id}}" bindtap="onEditPackage">
-              <text>修改</text>
+              <text>变更</text>
             </view>
             <view class="package-extend-btn" wx:if="{{item.canOperate && item.is_activated && (item._displayStatus || item.status) === 'active'}}" data-id="{{item._id}}" data-end="{{item.end_date_display}}" catchtap="onExtendPackage">
               <text>延长</text>
@@ -135,10 +135,13 @@
             </block>
           </block>
 
-          <!-- 延长记录 -->
-          <view class="package-extensions" wx:if="{{item.extensions && item.extensions.length > 0}}">
+          <!-- 变更记录列表（新在上，旧在下） -->
+          <view class="package-extensions package-change-summary" wx:if="{{item.extensions && item.extensions.length > 0}}" catchtap="onViewPackageChanges" data-user-id="{{memberId}}" data-user-name="{{member.real_name || member.nick_name}}">
             <view class="extension-item" wx:for="{{item.extensions}}" wx:for-item="ext" wx:key="_id">
-              <text class="extension-text">{{ext.extend_text}}</text>
+              <text class="extension-text">{{ext.summary_text}}</text>
+            </view>
+            <view class="extension-footer">
+              <text class="extension-footer-text">查看完整变更记录 ></text>
             </view>
           </view>
 
@@ -210,6 +213,11 @@
                         <text class="detail-label">授课教练</text>
                         <text class="detail-value coach">{{booking.schedule_id.coach_id.name}}</text>
                       </view>
+                      <view class="booking-detail-row" wx:if="{{booking.store_name}}">
+                        <text class="detail-icon"></text>
+                        <text class="detail-label">上课门店</text>
+                        <text class="detail-value">{{booking.store_name}}</text>
+                      </view>
                       <view class="booking-detail-row" wx:if="{{booking.created_at_display}}">
                         <text class="detail-icon"></text>
                         <text class="detail-label">预约时间</text>
@@ -222,10 +230,6 @@
             </view>
           </view>
         </view>
-      </view>
-      <view class="view-all-btn card" wx:if="{{bookings.length > 5}}" bindtap="onViewAllBookings">
-        <text>查看全部预约记录 ({{bookings.length}}条)</text>
-        <text class="arrow">></text>
       </view>
     </view>
     <view class="empty-state" wx:if="{{recordTab === 'booking' && bookings.length === 0}}">
@@ -570,14 +574,14 @@
         </view>
       </view>
 
-      <!-- 次卡：课时数量（仅未激活可修改）-->
-      <view class="form-group" wx:if="{{!editingPackage.is_activated && editPackageForm.package_type === 'count_card'}}">
-        <text class="form-label">次数 *</text>
+      <!-- 次卡：总次数（已激活/未激活均可修改）-->
+      <view class="form-group" wx:if="{{editPackageForm.package_type === 'count_card'}}">
+        <text class="form-label">总次数 *</text>
         <input class="input-field" type="number" placeholder="请输入次数" value="{{editPackageForm.total_credits}}" data-field="total_credits" bindinput="onEditPackageInput" />
       </view>
 
-      <!-- 次卡：剩余课时（可修改） -->
-      <view class="form-group" wx:if="{{editPackageForm.package_type === 'count_card'}}">
+      <!-- 次卡：剩余次数（仅未激活时可设置；已激活由后端按实际签到用量自动计算） -->
+      <view class="form-group" wx:if="{{!editingPackage.is_activated && editPackageForm.package_type === 'count_card'}}">
         <text class="form-label">剩余次数 *</text>
         <input class="input-field" type="number" placeholder="请输入剩余次数" value="{{editPackageForm.remaining_credits}}" data-field="remaining_credits" bindinput="onEditPackageInput" />
       </view>

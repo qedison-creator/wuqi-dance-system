@@ -733,6 +733,12 @@ Page({
     this.setData({ yearGroups });
   },
 
+  onMemberTap(e) {
+    const userId = e.currentTarget.dataset.userId;
+    if (!userId) return;
+    wx.navigateTo({ url: `/package-member/pages/members/member-detail/member-detail?id=${userId}` });
+  },
+
   onToggleMember(e) {
     const { yearIndex, monthIndex, dateIndex, courseIndex, userId } = e.currentTarget.dataset;
     const yearGroups = [...this.data.yearGroups];

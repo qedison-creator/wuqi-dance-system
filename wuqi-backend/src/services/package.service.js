@@ -3,6 +3,7 @@ const Package = require('../models/Package');
 const UserPackage = require('../models/UserPackage');
 const PackageActivation = require('../models/PackageActivation');
 const PackageExtension = require('../models/PackageExtension');
+const PackageChange = require('../models/PackageChange');
 const Booking = require('../models/Booking');
 const User = require('../models/User');
 const logService = require('./log.service');
@@ -34,6 +35,46 @@ function calculateValidityDates(startMoment, durationValue, durationUnit) {
     end = start.add(durationValue, 'day').subtract(1, 'day').endOf('day');
   }
   return { start_date: start.toDate(), end_date: end.toDate() };
+}
+
+/**
+ * 将扁平记录列表按 user_id 分组，同会员的多条记录整合到一个卡片中
+ * 每组按最新记录时间倒序排列（有最新记录的会员显示在最前面）
+ * @param {Array} records - 扁平记录列表（每条记录包含 user_id, user_name, created_at 等字段）
+ * @returns {Array} 分组后的列表
+ */
+function groupRecordsByUser(records) {
+  const groupMap = new Map();
+  for (const record of records) {
+    const key = record.user_id || String(record._id);
+    if (!groupMap.has(key)) {
+      groupMap.set(key, {
+        _id: key,
+        user_id: key,
+        user_name: record.user_name,
+        user_real_name: record.user_real_name || '',
+        user_nick_name: record.user_nick_name || '',
+        user_phone: record.user_phone || '',
+        user_deleted: record.user_deleted || false,
+        latest_created_at: null,
+        record_count: 0,
+        records: []
+      });
+    }
+    const group = groupMap.get(key);
+    group.records.push(record);
+    group.record_count++;
+    const recordTime = new Date(record.created_at || record.activated_at).getTime();
+    const groupTime = group.latest_created_at ? new Date(group.latest_created_at).getTime() : 0;
+    if (recordTime > groupTime) {
+      group.latest_created_at = record.created_at || record.activated_at;
+    }
+  }
+  return Array.from(groupMap.values()).sort((a, b) => {
+    const ta = a.latest_created_at ? new Date(a.latest_created_at).getTime() : 0;
+    const tb = b.latest_created_at ? new Date(b.latest_created_at).getTime() : 0;
+    return tb - ta;
+  });
 }
 
 exports.getMyPackage = async (userId) => {
@@ -261,6 +302,56 @@ exports._buildActivationSnapshot = async (userPackage) => {
   return { member_snapshot: memberSnapshot, package_snapshot: packageSnapshot };
 };
 
+/**
+ * 通用辅助函数：为套餐修改操作创建 PackageChange 变更记录
+ * 用于 delete/suspend/unsuspend 等非 updatePackage 路径的变更记录
+ * 失败不阻塞主流程
+ * @param {Object} userPackage - Mongoose UserPackage 文档（修改后的状态）
+ * @param {Array} changes - 变更明细列表 [{ field, field_label, old_value, new_value }]
+ * @param {String|ObjectId} operatorId - 操作人ID
+ * @param {String} remark - 备注
+ */
+exports._recordPackageChange = async (userPackage, changes, operatorId, remark = '') => {
+  if (!changes || changes.length === 0) return;
+  try {
+    let operatorName = '系统';
+    const opId = operatorId || userPackage.created_by;
+    if (opId) {
+      const operator = await User.findById(opId).select('real_name nick_name username');
+      if (operator) {
+        operatorName = operator.real_name || operator.nick_name || operator.username || '系统';
+      }
+    }
+    const member = await User.findById(userPackage.user_id).select('real_name nick_name reserve_phone wechat_phone member_code').lean();
+    const memberSnapshot = member ? {
+      real_name: member.real_name || '',
+      nick_name: member.nick_name || '',
+      phone: member.reserve_phone || member.wechat_phone || '',
+      member_code: member.member_code || ''
+    } : {};
+    const packageSnapshot = {
+      package_type: userPackage.package_type || '',
+      total_credits: userPackage.total_credits || 0,
+      duration_value: userPackage.duration_value || 0,
+      duration_unit: userPackage.duration_unit || ''
+    };
+    await PackageChange.create({
+      user_package_id: userPackage._id,
+      user_id: userPackage.user_id,
+      store_id: userPackage.store_id,
+      operator_id: opId || null,
+      operator_name: operatorName,
+      changes,
+      remark,
+      member_snapshot: memberSnapshot,
+      package_snapshot: packageSnapshot
+    });
+    console.log(`[Package] 变更记录已保存: 套餐=${userPackage._id}, 变更字段数=${changes.length}, 操作人=${operatorName}`);
+  } catch (err) {
+    console.error('[Package] 记录变更历史失败:', err.message, err.stack);
+  }
+};
+
 exports.createPackage = async (data, operatorId) => {
   const { user_id, package_id, store_id, extra_store_ids, package_type, total_credits, duration_value, duration_unit, daily_limit, weekly_limit, monthly_limit, dance_style_limit, remark } = data;
 
@@ -293,6 +384,7 @@ exports.createPackage = async (data, operatorId) => {
     extra_store_ids: extra_store_ids || [],
     package_type,
     total_credits: total_credits || 0,
+    original_total_credits: total_credits || 0,  // 原始录入值，修改 total_credits 时不变
     remaining_credits: total_credits || 0,
     duration_value: duration_value || null,
     duration_unit: duration_unit || 'month',
@@ -529,14 +621,18 @@ exports.checkAutoActivation = async () => {
 };
 
 // 编辑套餐(支持修改套餐类型、课时数、有效期、限制次数等)
-exports.updatePackage = async (id, data) => {
+// 同时记录字段变更历史到 PackageChange 表（仅记录实际发生变化的字段）
+exports.updatePackage = async (id, data, operatorId = null) => {
   const userPackage = await UserPackage.findById(id);
   if (!userPackage) throw new Error('套餐记录不存在');
 
   // 已激活的套餐只允许修改部分字段
+  // 修复：允许已激活次卡修改 total_credits（业务场景：发现套餐录入错误，需调整总次数）
+  //   - 同步传递 remaining_credits 保持已消耗次数不变（消耗 = 旧total - 旧remaining + 校验）
+  //   - 实际消耗次数 = 旧 total_credits - 旧 remaining_credits，新 remaining_credits = 新 total_credits - 已消耗次数
   const isActivated = userPackage.is_activated;
   const allowedFields = isActivated
-    ? ['remaining_credits', 'start_date', 'end_date', 'daily_limit', 'weekly_limit', 'monthly_limit', 'dance_style_limit', 'status', 'remark', 'extra_store_ids']
+    ? ['total_credits', 'remaining_credits', 'start_date', 'end_date', 'daily_limit', 'weekly_limit', 'monthly_limit', 'dance_style_limit', 'status', 'remark', 'extra_store_ids']
     : ['package_type', 'total_credits', 'remaining_credits', 'duration_value', 'duration_unit', 'daily_limit', 'weekly_limit', 'monthly_limit', 'dance_style_limit', 'status', 'remark', 'extra_store_ids'];
 
   // 记录 duration_value/duration_unit 是否实际发生变化（用于判断是否需要重算有效期）
@@ -547,8 +643,74 @@ exports.updatePackage = async (id, data) => {
   const hasExplicitEndDate = data.end_date !== undefined && data.end_date !== null && data.end_date !== '';
   const hasExplicitStartDate = data.start_date !== undefined && data.start_date !== null && data.start_date !== '';
 
+  // 已激活次卡修改 total_credits 时，自动同步 remaining_credits
+  // 消耗次数从 Booking 表精确查询（credits_deducted - credits_refunded），不依赖 oldTotal-oldRemaining
+  // 这样即使 remaining_credits 被历史 bug 污染，也能修正为真实消耗
+  if (isActivated && userPackage.package_type === 'count_card' && data.total_credits !== undefined) {
+    const newTotal = Number(data.total_credits);
+    if (newTotal < 0) throw new Error('总次数不能小于0');
+
+    // 旧数据兼容：如果 original_total_credits 不存在，设置它为修改前的 oldTotal
+    // 这样至少保留"修改前的值"作为原始录入值，防止后续修改继续覆盖
+    if (userPackage.original_total_credits === undefined || userPackage.original_total_credits === null) {
+      userPackage.original_total_credits = Number(userPackage.total_credits) || 0;
+    }
+
+    // 精确查询该套餐的实际消耗次数（预约时扣减，取消时退还）
+    const bookings = await Booking.find({
+      user_package_id: userPackage._id
+    }).select('credits_deducted credits_refunded');
+    const consumed = bookings.reduce((sum, b) => {
+      const deducted = Number(b.credits_deducted) || 0;
+      const refunded = Number(b.credits_refunded) || 0;
+      return sum + Math.max(0, deducted - refunded);
+    }, 0);
+
+    // 新 remaining = 新 total - 实际已消耗次数（不小于0）
+    data.remaining_credits = Math.max(0, newTotal - consumed);
+    console.log(`[Package] 次卡改总次数: 旧total=${userPackage.total_credits}, 新total=${newTotal}, 原始录入=${userPackage.original_total_credits}, 实际消耗=${consumed}, 新remaining=${data.remaining_credits}`);
+  }
+
+  // 收集变更记录：字段名(中文)、旧值、新值
+  const fieldLabelMap = {
+    total_credits: '总次数',
+    remaining_credits: '剩余次数',
+    package_type: '套餐类型',
+    duration_value: '时长数值',
+    duration_unit: '时长单位',
+    daily_limit: '每日限制',
+    weekly_limit: '每周限制',
+    monthly_limit: '每月限制',
+    start_date: '开始日期',
+    end_date: '到期日期',
+    status: '状态',
+    remark: '备注'
+  };
+  const changes = [];
   for (const key of Object.keys(data)) {
     if (allowedFields.includes(key)) {
+      const oldValue = userPackage[key];
+      const newValue = data[key];
+      // 跳过未实际变化的字段
+      if (key === 'dance_style_limit' || key === 'extra_store_ids') {
+        // 数组类字段单独处理：仅当长度或内容变化时记录
+        const oldArr = Array.isArray(oldValue) ? oldValue.map(String).sort().join(',') : '';
+        const newArr = Array.isArray(newValue) ? newValue.map(String).sort().join(',') : '';
+        if (oldArr === newArr) continue;
+        changes.push({
+          field: key,
+          field_label: key === 'dance_style_limit' ? '舞种限制' : '附加门店',
+          old_value: oldArr || '无',
+          new_value: newArr || '无'
+        });
+      } else if (String(oldValue) !== String(newValue)) {
+        changes.push({
+          field: key,
+          field_label: fieldLabelMap[key] || key,
+          old_value: oldValue === undefined ? '' : String(oldValue),
+          new_value: newValue === undefined ? '' : String(newValue)
+        });
+      }
       userPackage[key] = data[key];
       // 防御：对数组/对象类型字段显式标记已修改，避免 Mongoose 修改检测遗漏导致 save() 不持久化
       if (Array.isArray(data[key]) || (data[key] !== null && typeof data[key] === 'object' && !(data[key] instanceof Date))) {
@@ -578,6 +740,52 @@ exports.updatePackage = async (id, data) => {
 
   await userPackage.save();
 
+  // 记录套餐变更历史（仅当存在字段变更时）
+  if (changes.length > 0) {
+    try {
+      // 取操作人姓名（优先传入的 operatorId，否则取 userPackage.created_by）
+      // 注意：变量名不能用 operatorId，会与函数参数同名导致 TDZ ReferenceError
+      let operatorName = '系统';
+      const opId = operatorId || userPackage.created_by;
+      if (opId) {
+        const operator = await User.findById(opId).select('real_name nick_name username');
+        if (operator) {
+          operatorName = operator.real_name || operator.nick_name || operator.username || '系统';
+        }
+      }
+      // 会员快照
+      const member = await User.findById(userPackage.user_id).select('real_name nick_name reserve_phone wechat_phone member_code').lean();
+      const memberSnapshot = member ? {
+        real_name: member.real_name || '',
+        nick_name: member.nick_name || '',
+        phone: member.reserve_phone || member.wechat_phone || '',
+        member_code: member.member_code || ''
+      } : {};
+      // 套餐快照（保存修改后的当前值，用于变更记录卡片显示套餐名称）
+      const packageSnapshot = {
+        package_type: userPackage.package_type,
+        total_credits: userPackage.total_credits,
+        duration_value: userPackage.duration_value,
+        duration_unit: userPackage.duration_unit
+      };
+      await PackageChange.create({
+        user_package_id: userPackage._id,
+        user_id: userPackage.user_id,
+        store_id: userPackage.store_id,
+        operator_id: opId || null,
+        operator_name: operatorName,
+        changes,
+        remark: data.remark || '',
+        member_snapshot: memberSnapshot,
+        package_snapshot: packageSnapshot
+      });
+      console.log(`[Package] 变更记录已保存: 套餐=${userPackage._id}, 变更字段数=${changes.length}, 操作人=${operatorName}`);
+    } catch (err) {
+      console.error('[Package] 记录变更历史失败:', err.message, err.stack);
+      // 失败不阻塞主流程
+    }
+  }
+
   // 推送套餐变更事件给会员端，即时刷新套餐数据
   try {
     sendToUser(userPackage.user_id, 'package_update', { action: 'update', package_id: String(userPackage._id) });
@@ -592,6 +800,14 @@ exports.updatePackage = async (id, data) => {
 exports.deleteUserPackage = async (id, operatorId) => {
   const userPackage = await UserPackage.findById(id);
   if (!userPackage) throw new Error('套餐记录不存在');
+
+  // 记录套餐变更记录（删除前记录，保留原始快照）
+  await exports._recordPackageChange(userPackage, [{
+    field: 'status',
+    field_label: '状态',
+    old_value: userPackage.status || 'active',
+    new_value: '已删除'
+  }], operatorId, '管理员删除套餐');
 
   // 记录日志
   await logService.createLog({
@@ -700,7 +916,7 @@ exports.deletePackage = async (id) => {
 };
 
 exports.getActivationRecords = async (query) => {
-  const { page = 1, pageSize = 20, store_id } = query;
+  const { page = 1, pageSize = 20, store_id, keyword } = query;
 
   const activationCount = await PackageActivation.countDocuments();
   const activatedPkgCount = await UserPackage.countDocuments({
@@ -718,20 +934,61 @@ exports.getActivationRecords = async (query) => {
     // 忽略修复失败，不影响查询
   }
 
-  const filter = {};
-  if (store_id) filter.store_id = store_id;
+  // 为支持 keyword 会员搜索：先按 keyword 在 User 表中查到匹配的 user_id 列表
+  let matchedUserIds = null;
+  if (keyword) {
+    const escaped = keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const users = await User.find({
+      $or: [
+        { real_name: { $regex: escaped, $options: 'i' } },
+        { nick_name: { $regex: escaped, $options: 'i' } },
+        { reserve_phone: { $regex: escaped, $options: 'i' } },
+        { wechat_phone: { $regex: escaped, $options: 'i' } }
+      ]
+    }).select('_id').lean();
+    matchedUserIds = users.map(u => u._id);
+  }
 
-  const list = await PackageActivation.find(filter)
+  const filter = {};
+  if (store_id) filter.store_id = mongoose.isValidObjectId(store_id) ? new mongoose.Types.ObjectId(store_id) : store_id;
+  if (keyword) {
+    filter.$or = [
+      { user_id: { $in: matchedUserIds } },
+      { 'member_snapshot.real_name': { $regex: keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), $options: 'i' } },
+      { 'member_snapshot.phone': { $regex: keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), $options: 'i' } }
+    ];
+  }
+
+  // 按会员分组：先聚合获取去重 user_id 列表（按最新激活时间倒序），再分页
+  const skip = (Number(page) - 1) * Number(pageSize);
+  const limit = Number(pageSize);
+
+  const userGroups = await PackageActivation.aggregate([
+    { $match: filter },
+    { $group: { _id: '$user_id', latest_at: { $max: '$activated_at' }, count: { $sum: 1 } } },
+    { $sort: { latest_at: -1 } },
+    { $skip: skip },
+    { $limit: limit }
+  ]);
+  const userIds = userGroups.map(g => g._id).filter(Boolean);
+  const totalAgg = await PackageActivation.aggregate([
+    { $match: filter },
+    { $group: { _id: '$user_id' } },
+    { $count: 'total' }
+  ]);
+  const total = (totalAgg[0] && totalAgg[0].total) || 0;
+
+  // 拉取这些 user_id 的全部激活记录（不再分页，分页已在 user 维度完成）
+  const fetchFilter = { user_id: { $in: userIds } };
+  if (store_id) fetchFilter.store_id = mongoose.isValidObjectId(store_id) ? new mongoose.Types.ObjectId(store_id) : store_id;
+
+  const list = await PackageActivation.find(fetchFilter)
     .populate('user_id', 'nick_name real_name phone')
     .populate('user_package_id', 'member_snapshot package_snapshot package_type total_credits duration_value duration_unit start_date end_date created_by remark')
     .populate('package_id', 'name')
     .populate('activated_by', 'nick_name username')
     .populate('store_id', 'name')
-    .sort({ activated_at: -1 })
-    .skip((page - 1) * pageSize)
-    .limit(Number(pageSize));
-
-  const total = await PackageActivation.countDocuments(filter);
+    .sort({ activated_at: -1 });
 
   const records = list.map(r => {
     const user = r.user_id;
@@ -789,6 +1046,7 @@ exports.getActivationRecords = async (query) => {
     }
     return {
       _id: r._id,
+      user_id: r.user_id ? String(r.user_id._id || r.user_id) : '',
       user_name: userRealName,
       user_real_name: (user && user.real_name) ? user.real_name : (upMemberSnapshot.real_name || snapshot.real_name || ''),
       user_nick_name: (user && user.nick_name) ? user.nick_name : (upMemberSnapshot.nick_name || snapshot.nick_name || ''),
@@ -806,36 +1064,120 @@ exports.getActivationRecords = async (query) => {
     };
   });
 
-  return { list: records, total, page: Number(page), pageSize: Number(pageSize) };
+  // 按 user_id 分组
+  const groupList = groupRecordsByUser(records);
+
+  return { list: groupList, total, page: Number(page), pageSize: Number(pageSize) };
 };
 
 exports.getExtensionRecords = async (query) => {
-  const { page = 1, pageSize = 20, store_id } = query;
-  const filter = {};
-  if (store_id) filter.store_id = store_id;
-  filter.operation_type = 'extend';
+  const { page = 1, pageSize = 20, store_id, keyword } = query;
 
-  // 回填历史记录中缺失的快照数据（幂等，已修复的记录快速跳过）
+  // 为支持 keyword 会员搜索：先按 keyword 在 User 表中查到匹配的 user_id 列表
+  let matchedUserIds = null;
+  if (keyword) {
+    const escaped = keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const users = await User.find({
+      $or: [
+        { real_name: { $regex: escaped, $options: 'i' } },
+        { nick_name: { $regex: escaped, $options: 'i' } },
+        { reserve_phone: { $regex: escaped, $options: 'i' } },
+        { wechat_phone: { $regex: escaped, $options: 'i' } }
+      ]
+    }).select('_id').lean();
+    matchedUserIds = users.map(u => u._id);
+  }
+
+  // 延长记录筛选条件（PackageExtension）
+  const extFilter = { operation_type: 'extend' };
+  if (store_id) extFilter.store_id = mongoose.isValidObjectId(store_id) ? new mongoose.Types.ObjectId(store_id) : store_id;
+  if (keyword) {
+    extFilter.$or = [
+      { user_id: { $in: matchedUserIds } },
+      { 'member_snapshot.real_name': { $regex: keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), $options: 'i' } },
+      { 'member_snapshot.phone': { $regex: keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), $options: 'i' } }
+    ];
+  }
+
+  // 变更记录筛选条件（PackageChange）
+  const pcFilter = {};
+  if (store_id) {
+    pcFilter.store_id = mongoose.isValidObjectId(store_id) ? new mongoose.Types.ObjectId(store_id) : store_id;
+  }
+  if (keyword) {
+    pcFilter.$or = [
+      { user_id: { $in: matchedUserIds } },
+      { 'member_snapshot.real_name': { $regex: keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), $options: 'i' } },
+      { 'member_snapshot.phone': { $regex: keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), $options: 'i' } }
+    ];
+  }
+
+  // 回填历史记录中缺失的快照数据（幂等）
   try {
     await exports.repairExtensionSnapshots();
   } catch (e) {
     // 忽略修复失败，不影响查询
   }
 
-  const list = await PackageExtension.find(filter)
-    .populate('user_id', 'nick_name real_name phone')
-    .populate('user_package_id', 'member_snapshot package_snapshot package_type total_credits duration_value duration_unit end_date remark')
-    .populate('package_id', 'name')
-    .populate('operated_by', 'nick_name username')
-    .populate('store_id', 'name')
-    .populate('holiday_id', 'name')
-    .sort({ created_at: -1 })
-    .skip((page - 1) * pageSize)
-    .limit(Number(pageSize));
+  // 按会员分组：聚合两个集合的去重 user_id，按最新记录时间倒序，分页
+  const skip = (Number(page) - 1) * Number(pageSize);
+  const limit = Number(pageSize);
 
-  const total = await PackageExtension.countDocuments(filter);
+  const [extUserAgg, pcUserAgg] = await Promise.all([
+    PackageExtension.aggregate([
+      { $match: extFilter },
+      { $group: { _id: '$user_id', latest_at: { $max: '$created_at' } } }
+    ]),
+    PackageChange.aggregate([
+      { $match: pcFilter },
+      { $group: { _id: '$user_id', latest_at: { $max: '$created_at' } } }
+    ])
+  ]);
 
-  const records = list.map(r => {
+  // 合并两个集合的 user 维度，取每人在两个集合中的最新时间
+  const userLatestMap = new Map();
+  for (const u of [...extUserAgg, ...pcUserAgg]) {
+    if (!u._id) continue;
+    const key = String(u._id);
+    const existing = userLatestMap.get(key);
+    if (!existing || new Date(u.latest_at) > new Date(existing)) {
+      userLatestMap.set(key, u.latest_at);
+    }
+  }
+  const sortedUsers = Array.from(userLatestMap.entries())
+    .map(([id, latest]) => ({ _id: id, latest_at: latest }))
+    .sort((a, b) => new Date(b.latest_at) - new Date(a.latest_at));
+  const total = sortedUsers.length;
+  const pagedUsers = sortedUsers.slice(skip, skip + limit);
+  const userIds = pagedUsers.map(u => u._id);
+
+  // 拉取这些 user_id 的全部记录（延长 + 变更），不再分页
+  const extFetchFilter = { operation_type: 'extend', user_id: { $in: userIds } };
+  if (store_id) extFetchFilter.store_id = mongoose.isValidObjectId(store_id) ? new mongoose.Types.ObjectId(store_id) : store_id;
+  const pcFetchFilter = { user_id: { $in: userIds } };
+  if (store_id) pcFetchFilter.store_id = mongoose.isValidObjectId(store_id) ? new mongoose.Types.ObjectId(store_id) : store_id;
+
+  const [extList, pcList] = await Promise.all([
+    PackageExtension.find(extFetchFilter)
+      .populate('user_id', 'nick_name real_name phone')
+      .populate('user_package_id', 'member_snapshot package_snapshot package_type total_credits duration_value duration_unit end_date remark')
+      .populate('package_id', 'name')
+      .populate('operated_by', 'nick_name username')
+      .populate('store_id', 'name')
+      .populate('holiday_id', 'name')
+      .sort({ created_at: -1 })
+      .lean(),
+    PackageChange.find(pcFetchFilter)
+      .populate('user_id', 'nick_name real_name phone')
+      .populate('user_package_id', 'package_type total_credits duration_value duration_unit')
+      .populate('store_id', 'name')
+      .populate('operator_id', 'nick_name username real_name')
+      .sort({ created_at: -1 })
+      .lean()
+  ]);
+
+  // 转换延长记录
+  const extRecords = extList.map(r => {
     const user = r.user_id;
     const pkg = r.package_id;
     const up = r.user_package_id;
@@ -844,7 +1186,6 @@ exports.getExtensionRecords = async (query) => {
     const typeMap = { extend: 'manual', revoke: 'system' };
     let displayType = typeMap[r.operation_type] || 'manual';
     if (holiday && holiday.name) displayType = 'holiday';
-    // 会员信息：user_id populate > UserPackage.member_snapshot > PackageExtension.member_snapshot > UserPackage.remark提取
     const snapshot = r.member_snapshot || {};
     const pkgSnapshot = r.package_snapshot || {};
     const upMemberSnapshot = (up && up.member_snapshot) ? up.member_snapshot : {};
@@ -852,7 +1193,6 @@ exports.getExtensionRecords = async (query) => {
     let userRealName = (user && (user.real_name || user.nick_name))
       ? (user.real_name || user.nick_name)
       : (upMemberSnapshot.real_name || upMemberSnapshot.nick_name || snapshot.real_name || snapshot.nick_name || '');
-    // 兜底：从 UserPackage.remark 提取（格式："张三 的套餐（会员已删除）"）
     if (!userRealName && up && up.remark) {
       const nameMatch = up.remark.match(/^(.+?)\s*的套餐/);
       if (nameMatch && nameMatch[1] && nameMatch[1] !== '已删除会员') {
@@ -860,22 +1200,28 @@ exports.getExtensionRecords = async (query) => {
       }
     }
     if (!userRealName) userRealName = '未知会员';
-    // 套餐名：package_id populate > UserPackage.package_snapshot > PackageExtension.package_snapshot
     let packageName = (pkg && pkg.name) ? pkg.name : (upPkgSnapshot.name || pkgSnapshot.name || '');
     if (!packageName && up) {
       packageName = up.package_type === 'count_card' ? `${up.total_credits}次卡` : `${up.duration_value || ''}${up.duration_unit === 'month' ? '个月' : '天'}时间卡`;
     }
+    // 套餐类型
+    const pkgType = (up && up.package_type) || pkgSnapshot.package_type || '';
     return {
-      _id: r._id,
+      _id: String(r._id),
+      record_type: 'extend',  // 延长记录
+      user_id: r.user_id ? String(r.user_id._id || r.user_id) : '',
       user_name: userRealName,
       user_real_name: (user && user.real_name) ? user.real_name : (upMemberSnapshot.real_name || snapshot.real_name || ''),
       user_nick_name: (user && user.nick_name) ? user.nick_name : (upMemberSnapshot.nick_name || snapshot.nick_name || ''),
       user_phone: (user && user.phone) ? user.phone : (upMemberSnapshot.phone || snapshot.phone || ''),
       user_deleted: !user,
       package_name: packageName,
+      package_type: pkgType,
       type: displayType,
       operation_type: r.operation_type,
       extend_days: r.extend_days || 0,
+      extend_value: r.extend_value || r.extend_days || 0,
+      extend_unit: r.extend_unit || 'day',
       original_expire: r.original_expire_at,
       new_expire: r.new_expire_at,
       holiday_name: holiday.name || '',
@@ -885,7 +1231,59 @@ exports.getExtensionRecords = async (query) => {
     };
   });
 
-  return { list: records, total, page: Number(page), pageSize: Number(pageSize) };
+  // 转换字段变更记录
+  const pcRecords = pcList.map(pc => {
+    const user = pc.user_id;
+    const up = pc.user_package_id;
+    const operator = pc.operator_id || {};
+    const snapshot = pc.member_snapshot || {};
+    const pkgSnapshot = pc.package_snapshot || {};
+
+    let userRealName = (user && (user.real_name || user.nick_name))
+      ? (user.real_name || user.nick_name)
+      : (snapshot.real_name || snapshot.nick_name || '');
+    if (!userRealName) userRealName = '未知会员';
+
+    // 套餐类型：优先用 UserPackage 当前类型，回退到 snapshot
+    const pkgType = (up && up.package_type) || pkgSnapshot.package_type || '';
+
+    // 套餐名称：从 snapshot 拼接
+    let packageName = '';
+    if (pkgSnapshot.package_type === 'count_card') {
+      packageName = `${pkgSnapshot.total_credits || 0}次卡`;
+    } else if (pkgSnapshot.package_type === 'time_card') {
+      packageName = `${pkgSnapshot.duration_value || ''}${pkgSnapshot.duration_unit === 'month' ? '个月' : '天'}时间卡`;
+    }
+
+    return {
+      _id: String(pc._id),
+      record_type: 'change',  // 字段变更记录
+      user_id: pc.user_id ? String(pc.user_id._id || pc.user_id) : '',
+      user_name: userRealName,
+      user_real_name: (user && user.real_name) ? user.real_name : (snapshot.real_name || ''),
+      user_nick_name: (user && user.nick_name) ? user.nick_name : (snapshot.nick_name || ''),
+      user_phone: (user && user.phone) ? user.phone : (snapshot.phone || ''),
+      user_deleted: !user,
+      package_name: packageName,
+      package_type: pkgType,
+      created_at: pc.created_at,
+      operator_name: operator.real_name || operator.nick_name || operator.username || pc.operator_name || '',
+      remark: pc.remark || '',
+      changes: pc.changes || [],
+    };
+  });
+
+  // 合并并按 created_at 倒序排列
+  const merged = [...extRecords, ...pcRecords].sort((a, b) => {
+    const ta = new Date(a.created_at).getTime();
+    const tb = new Date(b.created_at).getTime();
+    return tb - ta;
+  });
+
+  // 按 user_id 分组（分页已在 user 维度完成，这里无需再切片）
+  const groupList = groupRecordsByUser(merged);
+
+  return { list: groupList, total, page: Number(page), pageSize: Number(pageSize) };
 };
 
 exports.extendPackage = async (packageId, extendDays, operatorId, operatorName, options = {}) => {
@@ -1447,12 +1845,13 @@ exports.repairUserPackageMemberSnapshots = async () => {
   return { repaired };
 };
 
-// 获取套餐录入记录
-// 直接从 UserPackage 表查询：UserPackage 每条记录就是一次套餐录入，包含完整的真实数据
-// （package_type, total_credits, duration_value, created_at, created_by, member_snapshot 等）
-// UserPackage 记录不会被删除（删除会员时仅标记为 expired），数据完整可靠
+// 获取套餐录入记录（同时合并套餐变更记录）
+// 直接从 UserPackage 表查询：UserPackage 每条记录就是一次套餐录入
+// 同时查询 PackageChange 表：每条记录是一次套餐字段变更
+// 两种记录合并按 created_at 倒序统一分页
+// 支持 keyword 参数搜索会员（姓名/手机号）
 exports.getEntryRecords = async (query) => {
-  const { page = 1, pageSize = 20, store_id } = query;
+  const { page = 1, pageSize = 20, store_id, keyword } = query;
 
   // 清理历史遗留的虚假记录（幂等，无虚假记录时快速返回）
   try {
@@ -1468,36 +1867,80 @@ exports.getEntryRecords = async (query) => {
     console.error('[getEntryRecords] repairUserPackageMemberSnapshots 失败:', e.message);
   }
 
-  // 直接从 UserPackage 表查询，排除已被 cleanupFakeRepairRecords 清理的虚假记录
-  const filter = { remark: { $ne: '已删除会员套餐记录恢复' } };
-  if (store_id) {
-    // 将 store_id 字符串转为 ObjectId，确保与 MongoDB 中 ObjectId 类型字段匹配
-    filter.store_id = mongoose.isValidObjectId(store_id) ? new mongoose.Types.ObjectId(store_id) : store_id;
+  // 构造筛选条件
+  // 为支持 keyword 会员搜索：先按 keyword 在 User 表中查到匹配的 user_id 列表，再带入筛选
+  let matchedUserIds = null;
+  if (keyword) {
+    const escaped = keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const users = await User.find({
+      $or: [
+        { real_name: { $regex: escaped, $options: 'i' } },
+        { nick_name: { $regex: escaped, $options: 'i' } },
+        { reserve_phone: { $regex: escaped, $options: 'i' } },
+        { wechat_phone: { $regex: escaped, $options: 'i' } }
+      ]
+    }).select('_id').lean();
+    matchedUserIds = users.map(u => u._id);
   }
 
-  const list = await UserPackage.find(filter)
+  // 录入记录筛选条件（仅 UserPackage，不再合并 PackageChange）
+  // 变更记录已迁移到 getExtensionRecords（"套餐变更"TAB）
+  const upFilter = { remark: { $ne: '已删除会员套餐记录恢复' } };
+  if (store_id) {
+    upFilter.store_id = mongoose.isValidObjectId(store_id) ? new mongoose.Types.ObjectId(store_id) : store_id;
+  }
+  if (keyword) {
+    // 优先匹配会员 user_id；同时兜底匹配 member_snapshot（已删除会员的情况）
+    upFilter.$or = [
+      { user_id: { $in: matchedUserIds } },
+      { 'member_snapshot.real_name': { $regex: keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), $options: 'i' } },
+      { 'member_snapshot.phone': { $regex: keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), $options: 'i' } }
+    ];
+  }
+
+  const limit = Number(pageSize);
+  const skip = (Number(page) - 1) * limit;
+
+  // 按会员分组：聚合去重 user_id，按最新录入时间倒序，分页
+  const userGroups = await UserPackage.aggregate([
+    { $match: upFilter },
+    { $group: { _id: '$user_id', latest_at: { $max: '$created_at' }, count: { $sum: 1 } } },
+    { $sort: { latest_at: -1 } },
+    { $skip: skip },
+    { $limit: limit }
+  ]);
+  const userIds = userGroups.map(g => g._id).filter(Boolean);
+  const totalAgg = await UserPackage.aggregate([
+    { $match: upFilter },
+    { $group: { _id: '$user_id' } },
+    { $count: 'total' }
+  ]);
+  const total = (totalAgg[0] && totalAgg[0].total) || 0;
+
+  // 拉取这些 user_id 的全部录入记录
+  const fetchFilter = { ...upFilter, user_id: { $in: userIds } };
+  // 清除 upFilter 中的 $or（keyword 搜索已在聚合时完成），保留 store_id 和 remark 过滤
+  delete fetchFilter.$or;
+
+  const upList = await UserPackage.find(fetchFilter)
     .populate('user_id', 'nick_name real_name phone')
     .populate('package_id', 'name')
     .populate('store_id', 'name')
     .populate('created_by', 'nick_name username')
     .sort({ created_at: -1 })
-    .skip((page - 1) * pageSize)
-    .limit(Number(pageSize));
+    .lean();
 
-  const total = await UserPackage.countDocuments(filter);
-
-  const records = list.map(up => {
+  // 转换为统一的记录格式
+  const records = upList.map(up => {
     const user = up.user_id;
     const pkg = up.package_id;
     const operator = up.created_by || {};
     const snapshot = up.member_snapshot || {};
     const pkgSnapshot = up.package_snapshot || {};
 
-    // 会员名称优先级：user_id populate > member_snapshot > remark提取
     let userRealName = (user && (user.real_name || user.nick_name))
       ? (user.real_name || user.nick_name)
       : (snapshot.real_name || snapshot.nick_name || '');
-    // 兜底：从 remark 提取（格式："张三 的套餐（会员已删除）"）
     if (!userRealName && up.remark) {
       const nameMatch = up.remark.match(/^(.+?)\s*的套餐/);
       if (nameMatch && nameMatch[1] && nameMatch[1] !== '已删除会员') {
@@ -1506,40 +1949,82 @@ exports.getEntryRecords = async (query) => {
     }
     if (!userRealName) userRealName = '未知会员';
 
-    // 套餐名称优先级：package_id populate > package_snapshot.name > 从字段拼接
     let packageName = (pkg && pkg.name) ? pkg.name : (pkgSnapshot.name || '');
     if (!packageName) {
+      // 录入记录显示原始录入值（original_total_credits），而非修改后的值
+      const displayTotal = up.original_total_credits !== undefined && up.original_total_credits !== null
+        ? up.original_total_credits
+        : up.total_credits || 0;
       if (up.package_type === 'count_card') {
-        packageName = `${up.total_credits || 0}次卡`;
+        packageName = `${displayTotal}次卡`;
       } else if (up.package_type === 'time_card') {
         packageName = `${up.duration_value || ''}${up.duration_unit === 'month' ? '个月' : '天'}时间卡`;
       }
     }
 
-    // 套餐类型/课时/时长：直接从 UserPackage 字段获取（真实数据）
-    const packageType = up.package_type || '';
-    const totalCredits = up.total_credits || 0;
-    const durationValue = up.duration_value || 0;
-    const durationUnit = up.duration_unit || '';
+    // 录入记录显示原始录入值（original_total_credits），无则回退到当前 total_credits
+    const entryDisplayTotal = up.original_total_credits !== undefined && up.original_total_credits !== null
+      ? up.original_total_credits
+      : up.total_credits || 0;
 
     return {
-      _id: up._id,
+      _id: String(up._id),
+      record_type: 'entry',  // 录入记录
+      user_id: up.user_id ? String(up.user_id._id || up.user_id) : '',
       user_name: userRealName,
       user_real_name: (user && user.real_name) ? user.real_name : (snapshot.real_name || ''),
       user_nick_name: (user && user.nick_name) ? user.nick_name : (snapshot.nick_name || ''),
       user_phone: (user && user.phone) ? user.phone : (snapshot.phone || ''),
       user_deleted: !user,
       package_name: packageName,
-      package_type: packageType,
-      total_credits: totalCredits,
-      duration_value: durationValue,
-      duration_unit: durationUnit,
-      created_at: up.created_at,  // 录入时间=UserPackage创建时间
+      package_type: up.package_type || '',
+      total_credits: entryDisplayTotal,  // 显示原始录入值
+      duration_value: up.duration_value || 0,
+      duration_unit: up.duration_unit || '',
+      created_at: up.created_at,
       operator_name: operator.nick_name || operator.username || '',
       remark: up.remark || '',
-      status: up.status || 'active',
+      status: up.status || 'active'
     };
   });
 
-  return { list: records, total, page: Number(page), pageSize: Number(pageSize) };
+  // 对于旧数据（无 original_total_credits 字段），从 PackageChange 表回查最早的 total_credits old_value
+  // 这样修改过的旧套餐在录入记录中也能显示原始录入值
+  const upIdsNeedingOriginal = upList
+    .filter(up => up.original_total_credits === undefined || up.original_total_credits === null)
+    .map(up => up._id);
+  if (upIdsNeedingOriginal.length > 0) {
+    const earliestChanges = await PackageChange.aggregate([
+      { $match: { user_package_id: { $in: upIdsNeedingOriginal } } },
+      { $unwind: '$changes' },
+      { $match: { 'changes.field': 'total_credits' } },
+      { $sort: { created_at: 1 } },
+      { $group: { _id: '$user_package_id', old_value: { $first: '$changes.old_value' } } }
+    ]);
+    const originalMap = new Map();
+    earliestChanges.forEach(ec => {
+      originalMap.set(String(ec._id), ec.old_value);
+    });
+    records.forEach((record, idx) => {
+      const up = upList[idx];
+      if ((up.original_total_credits === undefined || up.original_total_credits === null)) {
+        const originalValueStr = originalMap.get(String(up._id));
+        if (originalValueStr !== undefined) {
+          const originalValue = Number(originalValueStr);
+          if (!isNaN(originalValue)) {
+            record.total_credits = originalValue;
+            // 同步更新 package_name 中的次数
+            if (up.package_type === 'count_card') {
+              record.package_name = `${originalValue}次卡`;
+            }
+          }
+        }
+      }
+    });
+  }
+
+  // 按 user_id 分组
+  const groupList = groupRecordsByUser(records);
+
+  return { list: groupList, total, page: Number(page), pageSize: Number(pageSize) };
 };

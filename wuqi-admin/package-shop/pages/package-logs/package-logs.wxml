@@ -4,51 +4,65 @@
       <text>激活记录</text>
     </view>
     <view class="tab-item {{activeTab === 'extension' ? 'active' : ''}}" bindtap="onTabChange" data-tab="extension">
-      <text>延长记录</text>
+      <text>套餐变更</text>
     </view>
     <view class="tab-item {{activeTab === 'entry' ? 'active' : ''}}" bindtap="onTabChange" data-tab="entry">
       <text>套餐录入</text>
     </view>
   </view>
 
+  <!-- ========== 激活记录 TAB ========== -->
   <view class="tab-content" wx:if="{{activeTab === 'activation'}}">
     <view class="page-header">
       <text class="page-title text-heading">套餐激活记录</text>
+      <view class="search-box">
+        <input class="search-input" type="text" placeholder="搜索会员姓名/手机号" value="{{activationKeyword}}" bindinput="onActivationKeywordInput" confirm-type="search" bindconfirm="onActivationSearch" />
+        <view class="search-btn" wx:if="{{activationKeyword}}" bindtap="onActivationSearch">搜索</view>
+        <view class="search-clear" wx:if="{{activationKeyword}}" bindtap="onActivationClearSearch">✕</view>
+      </view>
     </view>
 
     <view class="logs-list" wx:if="{{activationList.length > 0}}">
       <view class="log-item card" wx:for="{{activationList}}" wx:key="_id" wx:if="{{index < visibleCount}}">
+        <!-- 会员头部 -->
         <view class="log-header">
           <view class="log-title-wrap">
             <text class="log-title">{{item.user_name}}</text>
             <text class="deleted-tag" wx:if="{{item.user_deleted}}">已删除</text>
+            <text class="record-count-badge">{{item.record_count}}条</text>
           </view>
-          <text class="log-type">{{item.typeLabel}}</text>
         </view>
+        <!-- 记录列表 -->
         <view class="log-body">
-          <view class="log-row">
-            <text class="log-label">套餐名称</text>
-            <text class="log-value">{{item.package_name || '-'}}</text>
-          </view>
-          <view class="log-row">
-            <text class="log-label">激活时间</text>
-            <text class="log-value">{{item.activated_at_display || '-'}}</text>
-          </view>
-          <view class="log-row">
-            <text class="log-label">生效日期</text>
-            <text class="log-value">{{item.effective_date_display || '-'}}</text>
-          </view>
-          <view class="log-row">
-            <text class="log-label">到期日期</text>
-            <text class="log-value">{{item.expire_date_display || '-'}}</text>
-          </view>
-          <view class="log-row" wx:if="{{item.operator_name}}">
-            <text class="log-label">操作人</text>
-            <text class="log-value">{{item.operator_name}}</text>
-          </view>
-          <view class="log-row" wx:if="{{item.remark}}">
-            <text class="log-label">备注</text>
-            <text class="log-value">{{item.remark}}</text>
+          <view class="sub-record" wx:for="{{item.records}}" wx:for-item="record" wx:key="_id">
+            <view class="sub-record-divider" wx:if="{{index > 0}}"></view>
+            <view class="sub-record-header">
+              <text class="log-type">{{record.typeLabel}}</text>
+            </view>
+            <view class="log-row">
+              <text class="log-label">套餐名称</text>
+              <text class="log-value">{{record.package_name || '-'}}</text>
+            </view>
+            <view class="log-row">
+              <text class="log-label">激活时间</text>
+              <text class="log-value">{{record.activated_at_display || '-'}}</text>
+            </view>
+            <view class="log-row">
+              <text class="log-label">生效日期</text>
+              <text class="log-value">{{record.effective_date_display || '-'}}</text>
+            </view>
+            <view class="log-row">
+              <text class="log-label">到期日期</text>
+              <text class="log-value">{{record.expire_date_display || '-'}}</text>
+            </view>
+            <view class="log-row" wx:if="{{record.operator_name}}">
+              <text class="log-label">操作人</text>
+              <text class="log-value">{{record.operator_name}}</text>
+            </view>
+            <view class="log-row" wx:if="{{record.remark}}">
+              <text class="log-label">备注</text>
+              <text class="log-value">{{record.remark}}</text>
+            </view>
           </view>
         </view>
       </view>
@@ -57,98 +71,167 @@
     <empty-state wx:if="{{!loading && activationList.length === 0}}" icon="" text="暂无激活记录"></empty-state>
   </view>
 
+  <!-- ========== 套餐变更 TAB ========== -->
   <view class="tab-content" wx:if="{{activeTab === 'extension'}}">
     <view class="page-header">
-      <text class="page-title text-heading">套餐有效期延长记录</text>
+      <text class="page-title text-heading">套餐变更记录</text>
+      <view class="search-box">
+        <input class="search-input" type="text" placeholder="搜索会员姓名/手机号" value="{{extensionKeyword}}" bindinput="onExtensionKeywordInput" confirm-type="search" bindconfirm="onExtensionSearch" />
+        <view class="search-btn" wx:if="{{extensionKeyword}}" bindtap="onExtensionSearch">搜索</view>
+        <view class="search-clear" wx:if="{{extensionKeyword}}" bindtap="onExtensionClearSearch">✕</view>
+      </view>
     </view>
 
     <view class="logs-list" wx:if="{{extensionList.length > 0}}">
       <view class="log-item card" wx:for="{{extensionList}}" wx:key="_id" wx:if="{{index < visibleCount}}">
+        <!-- 会员头部 -->
         <view class="log-header">
           <view class="log-title-wrap">
             <text class="log-title">{{item.user_name}}</text>
             <text class="deleted-tag" wx:if="{{item.user_deleted}}">已删除</text>
+            <text class="record-count-badge">{{item.record_count}}条</text>
           </view>
-          <text class="log-type">{{item.typeLabel}}</text>
         </view>
+        <!-- 记录列表 -->
         <view class="log-body">
-          <view class="log-row">
-            <text class="log-label">套餐名称</text>
-            <text class="log-value">{{item.package_name || '-'}}</text>
-          </view>
-          <view class="log-row">
-            <text class="log-label">延长时间</text>
-            <text class="log-value">{{item.created_at_display || '-'}}</text>
-          </view>
-          <view class="log-row">
-            <text class="log-label">延长天数</text>
-            <text class="log-value highlight">+{{item.extend_days}}天</text>
-          </view>
-          <view class="log-row">
-            <text class="log-label">原到期日</text>
-            <text class="log-value">{{item.original_expire_display || '-'}}</text>
-          </view>
-          <view class="log-row">
-            <text class="log-label">新到期日</text>
-            <text class="log-value">{{item.new_expire_display || '-'}}</text>
-          </view>
-          <view class="log-row" wx:if="{{item.holiday_name}}">
-            <text class="log-label">关联放假</text>
-            <text class="log-value">{{item.holiday_name}}</text>
-          </view>
-          <view class="log-row" wx:if="{{item.operator_name}}">
-            <text class="log-label">操作人</text>
-            <text class="log-value">{{item.operator_name}}</text>
-          </view>
-          <view class="log-row" wx:if="{{item.remark}}">
-            <text class="log-label">备注</text>
-            <text class="log-value">{{item.remark}}</text>
+          <view class="sub-record" wx:for="{{item.records}}" wx:for-item="record" wx:key="_id">
+            <view class="sub-record-divider" wx:if="{{index > 0}}"></view>
+            <view class="sub-record-header">
+              <text class="log-type {{record.record_type === 'change' ? 'log-type-change' : ''}}">{{record.record_type === 'change' ? '套餐变更' : (record.typeLabel || '套餐延长')}}</text>
+            </view>
+            <!-- 套餐延长记录 -->
+            <block wx:if="{{record.record_type !== 'change'}}">
+              <view class="log-row">
+                <text class="log-label">套餐名称</text>
+                <text class="log-value">{{record.package_name || '-'}}</text>
+              </view>
+              <view class="log-row">
+                <text class="log-label">套餐类型</text>
+                <text class="log-value">{{record.packageTypeLabel || '-'}}</text>
+              </view>
+              <view class="log-row">
+                <text class="log-label">延长时间</text>
+                <text class="log-value">{{record.created_at_display || '-'}}</text>
+              </view>
+              <view class="log-row">
+                <text class="log-label">延长时长</text>
+                <text class="log-value highlight">{{record.extend_value_text}}</text>
+              </view>
+              <view class="log-row">
+                <text class="log-label">原到期日</text>
+                <text class="log-value">{{record.original_expire_display || '-'}}</text>
+              </view>
+              <view class="log-row">
+                <text class="log-label">新到期日</text>
+                <text class="log-value">{{record.new_expire_display || '-'}}</text>
+              </view>
+              <view class="log-row" wx:if="{{record.holiday_name}}">
+                <text class="log-label">关联放假</text>
+                <text class="log-value">{{record.holiday_name}}</text>
+              </view>
+              <view class="log-row" wx:if="{{record.operator_name}}">
+                <text class="log-label">操作人</text>
+                <text class="log-value">{{record.operator_name}}</text>
+              </view>
+              <view class="log-row" wx:if="{{record.remark}}">
+                <text class="log-label">备注</text>
+                <text class="log-value">{{record.remark}}</text>
+              </view>
+            </block>
+            <!-- 套餐字段变更记录 -->
+            <block wx:else>
+              <view class="log-row">
+                <text class="log-label">套餐名称</text>
+                <text class="log-value">{{record.package_name || '-'}}</text>
+              </view>
+              <view class="log-row">
+                <text class="log-label">变更时间</text>
+                <text class="log-value">{{record.created_at_display || '-'}}</text>
+              </view>
+              <view class="log-row">
+                <text class="log-label">套餐类型</text>
+                <text class="log-value">{{record.packageTypeLabel || '-'}}</text>
+              </view>
+              <!-- 变更明细列表 -->
+              <view class="change-detail" wx:for="{{record.changes}}" wx:for-item="change" wx:key="field">
+                <view class="change-row">
+                  <text class="change-label">{{change.field_label}}</text>
+                  <view class="change-values">
+                    <text class="change-old">{{change.old_value || '无'}}</text>
+                    <text class="change-arrow">→</text>
+                    <text class="change-new">{{change.new_value || '无'}}</text>
+                  </view>
+                </view>
+              </view>
+              <view class="log-row" wx:if="{{record.operator_name}}">
+                <text class="log-label">操作人</text>
+                <text class="log-value">{{record.operator_name}}</text>
+              </view>
+              <view class="log-row" wx:if="{{record.remark}}">
+                <text class="log-label">备注</text>
+                <text class="log-value">{{record.remark}}</text>
+              </view>
+            </block>
           </view>
         </view>
       </view>
     </view>
 
-    <empty-state wx:if="{{!loading && extensionList.length === 0}}" icon="" text="暂无延长记录"></empty-state>
+    <empty-state wx:if="{{!loading && extensionList.length === 0}}" icon="" text="暂无变更记录"></empty-state>
   </view>
 
+  <!-- ========== 套餐录入 TAB ========== -->
   <view class="tab-content" wx:if="{{activeTab === 'entry'}}">
     <view class="page-header">
       <text class="page-title text-heading">套餐录入记录</text>
+      <view class="search-box">
+        <input class="search-input" type="text" placeholder="搜索会员姓名/手机号" value="{{entryKeyword}}" bindinput="onEntryKeywordInput" confirm-type="search" bindconfirm="onEntrySearch" />
+        <view class="search-btn" wx:if="{{entryKeyword}}" bindtap="onEntrySearch">搜索</view>
+        <view class="search-clear" wx:if="{{entryKeyword}}" bindtap="onEntryClearSearch">✕</view>
+      </view>
     </view>
 
     <view class="logs-list" wx:if="{{entryList.length > 0}}">
       <view class="log-item card" wx:for="{{entryList}}" wx:key="_id" wx:if="{{index < visibleCount}}">
+        <!-- 会员头部 -->
         <view class="log-header">
           <view class="log-title-wrap">
             <text class="log-title">{{item.user_name}}</text>
             <text class="deleted-tag" wx:if="{{item.user_deleted}}">已删除</text>
+            <text class="record-count-badge">{{item.record_count}}条</text>
           </view>
-          <text class="log-type">套餐录入</text>
         </view>
+        <!-- 记录列表 -->
         <view class="log-body">
-          <view class="log-row">
-            <text class="log-label">套餐名称</text>
-            <text class="log-value">{{item.package_name || '-'}}</text>
-          </view>
-          <view class="log-row">
-            <text class="log-label">录入时间</text>
-            <text class="log-value">{{item.created_at_display || '-'}}</text>
-          </view>
-          <view class="log-row">
-            <text class="log-label">套餐类型</text>
-            <text class="log-value">{{item.packageTypeLabel}}</text>
-          </view>
-          <view class="log-row" wx:if="{{item.creditsText}}">
-            <text class="log-label">课时/时长</text>
-            <text class="log-value">{{item.creditsText}}</text>
-          </view>
-          <view class="log-row" wx:if="{{item.operator_name}}">
-            <text class="log-label">操作人</text>
-            <text class="log-value">{{item.operator_name}}</text>
-          </view>
-          <view class="log-row" wx:if="{{item.remark}}">
-            <text class="log-label">备注</text>
-            <text class="log-value">{{item.remark}}</text>
+          <view class="sub-record" wx:for="{{item.records}}" wx:for-item="record" wx:key="_id">
+            <view class="sub-record-divider" wx:if="{{index > 0}}"></view>
+            <view class="sub-record-header">
+              <text class="log-type">套餐录入</text>
+            </view>
+            <view class="log-row">
+              <text class="log-label">套餐名称</text>
+              <text class="log-value">{{record.package_name || '-'}}</text>
+            </view>
+            <view class="log-row">
+              <text class="log-label">录入时间</text>
+              <text class="log-value">{{record.created_at_display || '-'}}</text>
+            </view>
+            <view class="log-row">
+              <text class="log-label">套餐类型</text>
+              <text class="log-value">{{record.packageTypeLabel}}</text>
+            </view>
+            <view class="log-row" wx:if="{{record.creditsText}}">
+              <text class="log-label">课时/时长</text>
+              <text class="log-value">{{record.creditsText}}</text>
+            </view>
+            <view class="log-row" wx:if="{{record.operator_name}}">
+              <text class="log-label">操作人</text>
+              <text class="log-value">{{record.operator_name}}</text>
+            </view>
+            <view class="log-row" wx:if="{{record.remark}}">
+              <text class="log-label">备注</text>
+              <text class="log-value">{{record.remark}}</text>
+            </view>
           </view>
         </view>
       </view>

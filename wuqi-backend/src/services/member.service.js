@@ -3,6 +3,7 @@ const UserPackage = require('../models/UserPackage');
 const Booking = require('../models/Booking');
 const ExemptionLog = require('../models/ExemptionLog');
 const logService = require('./log.service');
+const packageService = require('./package.service');
 const { sendToUser } = require('./websocket.service');
 const mongoose = require('mongoose');
 const dayjs = require('dayjs');
@@ -259,24 +260,63 @@ exports.getMemberById = async (id) => {
     .sort({ created_at: -1 })
     .lean();
 
-  // 为每个套餐加载延长记录
+  // 为每个套餐加载延长记录 + 字段变更记录，合并为统一变更日志
   const PackageExtension = require('../models/PackageExtension');
+  const PackageChange = require('../models/PackageChange');
   for (const pkg of packages) {
-    const extensions = await PackageExtension.find({
-      user_package_id: pkg._id,
-      operation_type: 'extend',
-    })
-      .populate('operated_by', 'nick_name username')
-      .sort({ created_at: -1 });
-    pkg.extensions = extensions.map(ext => ({
-      _id: ext._id,
-      extend_days: ext.extend_days || 0,
-      extend_value: ext.extend_value || ext.extend_days || 0,
-      extend_unit: ext.extend_unit || 'day',
-      created_at: ext.created_at,
-      operator_name: (ext.operated_by && (ext.operated_by.nick_name || ext.operated_by.username)) || '',
-      reason: ext.reason || ext.remark || '',
-    }));
+    const [extensions, changes] = await Promise.all([
+      PackageExtension.find({
+        user_package_id: pkg._id,
+        operation_type: 'extend',
+      })
+        .populate('operated_by', 'nick_name username')
+        .sort({ created_at: -1 })
+        .lean(),
+      PackageChange.find({ user_package_id: pkg._id })
+        .populate('operator_id', 'nick_name username')
+        .sort({ created_at: -1 })
+        .lean()
+    ]);
+
+    // 延长记录 → 统一变更日志项
+    const extLogs = extensions.map(ext => {
+      const unitText = ext.extend_unit === 'month' ? '月' : '天';
+      const value = ext.extend_value || ext.extend_days || 0;
+      return {
+        _id: ext._id,
+        record_type: 'extend',
+        created_at: ext.created_at,
+        operator_name: (ext.operated_by && (ext.operated_by.nick_name || ext.operated_by.username)) || '',
+        event_name: `延长服务有效期 +${value}${unitText}`,
+        extend_days: ext.extend_days || 0,
+        extend_value: value,
+        extend_unit: ext.extend_unit || 'day',
+        reason: ext.reason || ext.remark || '',
+      };
+    });
+    // 字段变更记录 → 统一变更日志项
+    const changeLogs = changes.map(ch => {
+      const labels = (ch.changes || []).map(c => c.field_label).filter(Boolean);
+      const event_name = labels.length > 0 ? `变更${labels.join('、')}` : '套餐字段变更';
+      return {
+        _id: ch._id,
+        record_type: 'change',
+        created_at: ch.created_at,
+        operator_name: ch.operator_name || (ch.operator_id && (ch.operator_id.nick_name || ch.operator_id.username)) || '',
+        event_name,
+        changes: ch.changes || [],
+        reason: ch.remark || '',
+      };
+    });
+    // 合并并按时间倒序排列
+    const change_logs = [...extLogs, ...changeLogs].sort((a, b) => {
+      const ta = a.created_at ? new Date(a.created_at).getTime() : 0;
+      const tb = b.created_at ? new Date(b.created_at).getTime() : 0;
+      return tb - ta;
+    });
+    // 兼容旧字段 extensions（保留最新一条用于摘要展示）
+    pkg.extensions = change_logs;
+    pkg.change_logs = change_logs;
     // 已激活的时间卡套餐：计算当前限制周期剩余次数
     if (pkg.is_activated && pkg.status === 'active' && pkg.package_type === 'time_card' &&
         (pkg.daily_limit || pkg.weekly_limit || pkg.monthly_limit)) {
@@ -293,7 +333,10 @@ exports.getMemberById = async (id) => {
   const bookings = await Booking.find({ user_id: id })
     .populate({
       path: 'schedule_id',
-      populate: { path: 'coach_id' }
+      populate: [
+        { path: 'coach_id' },
+        { path: 'store_id', select: 'name' }
+      ]
     })
     .sort({ created_at: -1 });
 
@@ -472,21 +515,41 @@ exports.suspendMember = async (userId, suspendDays, operatorId) => {
   let suspendedCount = 0;
   
   for (const pkg of activePackages) {
+    // 记录变更前的值
+    const oldEndDate = pkg.end_date;
+
     // 冻结当前数据
     pkg.is_suspended = true;
     pkg.suspended_at = now;
     pkg.suspend_end_date = suspendEndDate;
     pkg.frozen_remaining_credits = pkg.remaining_credits;
     pkg.frozen_end_date = pkg.end_date;
-    
+
     // 延长到期时间（停卡期间不算）
     if (pkg.end_date) {
       const extendedEnd = new Date(pkg.end_date.getTime() + suspendDays * 24 * 60 * 60 * 1000);
       pkg.end_date = extendedEnd;
     }
-    
+
     await pkg.save();
     suspendedCount++;
+
+    // 记录套餐变更记录
+    const changes = [{
+      field: 'is_suspended',
+      field_label: '停卡状态',
+      old_value: '正常',
+      new_value: '停卡'
+    }];
+    if (oldEndDate && pkg.end_date && oldEndDate.getTime() !== pkg.end_date.getTime()) {
+      changes.push({
+        field: 'end_date',
+        field_label: '到期日期',
+        old_value: oldEndDate.toISOString().split('T')[0],
+        new_value: pkg.end_date.toISOString().split('T')[0]
+      });
+    }
+    await packageService._recordPackageChange(pkg, changes, operatorId, `管理员停卡${suspendDays}天`);
   }
   
   // 记录日志
@@ -519,7 +582,8 @@ exports.unsuspendMember = async (userId, operatorId) => {
   
   for (const pkg of suspendedPackages) {
     const suspendedAt = pkg.suspended_at;
-    
+    const oldEndDate = pkg.end_date;
+
     // 计算实际停卡天数（按自然天计算，向上取整）
     let actualSuspendDays = 0;
     if (suspendedAt) {
@@ -527,22 +591,39 @@ exports.unsuspendMember = async (userId, operatorId) => {
       actualSuspendDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
       if (actualSuspendDays < 1) actualSuspendDays = 1; // 至少计1天
     }
-    
+
     // 校准 end_date：frozen_end_date + 实际停卡天数
     if (pkg.frozen_end_date && actualSuspendDays > 0) {
       const correctedEndDate = new Date(pkg.frozen_end_date.getTime() + actualSuspendDays * 24 * 60 * 60 * 1000);
       pkg.end_date = correctedEndDate;
     }
-    
+
     pkg.is_suspended = false;
     pkg.suspended_at = null;
     pkg.suspend_end_date = null;
     pkg.frozen_remaining_credits = null;
     pkg.frozen_end_date = null;
-    
+
     await pkg.save();
     unsuspendedCount++;
     totalDays = actualSuspendDays; // 所有套餐停卡天数相同，取最后一个即可
+
+    // 记录套餐变更记录
+    const changes = [{
+      field: 'is_suspended',
+      field_label: '停卡状态',
+      old_value: '停卡',
+      new_value: '正常'
+    }];
+    if (oldEndDate && pkg.end_date && oldEndDate.getTime() !== pkg.end_date.getTime()) {
+      changes.push({
+        field: 'end_date',
+        field_label: '到期日期',
+        old_value: oldEndDate.toISOString().split('T')[0],
+        new_value: pkg.end_date.toISOString().split('T')[0]
+      });
+    }
+    await packageService._recordPackageChange(pkg, changes, operatorId, `管理员复卡（实际停卡${actualSuspendDays}天）`);
   }
   
   await logService.createLog({

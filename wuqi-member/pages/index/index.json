@@ -3,5 +3,6 @@
     "login-modal": "/components/login-modal/login-modal"
   },
   "navigationStyle": "custom",
-  "navigationBarTextStyle": "white"
+  "navigationBarTextStyle": "white",
+  "disableScroll": true
 }

@@ -757,6 +757,12 @@ Page({
     this.setData({ activeTab: e.currentTarget.dataset.tab });
   },
 
+  onMemberTap(e) {
+    const userId = e.currentTarget.dataset.userId;
+    if (!userId) return;
+    wx.navigateTo({ url: `/package-member/pages/members/member-detail/member-detail?id=${userId}` });
+  },
+
   async onCheckIn(e) {
     const bookingId = e.currentTarget.dataset.id;
     // 从已预约列表中找到 booking 记录，取出 schedule_id 和 user_id

@@ -46,9 +46,9 @@
 
 
     <scroll-view class="course-list-scroll" scroll-y enhanced show-scrollbar="{{false}}" wx:if="{{courses.length > 0}}">
+      <view class="course-list-inner">
       <view class="course-card" wx:for="{{courses}}" wx:key="_id" bindtap="onCourseTap" data-course="{{item}}">
-        <view class="course-accent-bar" style="background: {{dc.getBarColor(index)}};"></view>
-        <view class="card-left">
+          <view class="card-left">
           <image class="coach-avatar" src="{{item.r.coachAvatar}}" mode="aspectFill" wx:if="{{item.r.coachAvatar && !imageErrors['coach_' + item._id]}}" binderror="onCoachImgError" data-id="{{item._id}}" />
           <image class="coach-avatar" src="/images/default-avatar.svg" mode="aspectFill" wx:else />
           <text class="coach-name-below">{{item.r.coachName}}</text>
@@ -94,6 +94,7 @@
       </view>
       <view class="list-bottom-safe"></view>
       <view class="booking-disclaimer">成人零基础・舞蹈健身服务</view>
+      </view>
     </scroll-view>
 
     <!-- 骨架屏加载 -->

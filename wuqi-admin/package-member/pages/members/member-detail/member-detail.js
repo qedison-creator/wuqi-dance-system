@@ -132,6 +132,23 @@ Page({
       isAdmin: userInfo.role === 'super_admin',
       isReviewer: userInfo.role === 'reviewer'
     });
+    // 标志位：会员套餐/状态数据是否有变更（用于返回列表页时通知局部刷新）
+    this._memberDataModified = false;
+  },
+
+  onUnload() {
+    // 离开详情页时，若数据有变更，通知列表页局部刷新该会员（不重载列表、不影响滚动位置）
+    if (this._memberDataModified && this.data.memberId) {
+      const pages = getCurrentPages();
+      // 列表页通常为上一页
+      for (let i = pages.length - 2; i >= 0; i--) {
+        const prevPage = pages[i];
+        if (prevPage && typeof prevPage._refreshSingleMember === 'function') {
+          prevPage._refreshSingleMember(this.data.memberId);
+          break;
+        }
+      }
+    }
   },
 
   onPullDownRefresh() {
@@ -146,6 +163,13 @@ Page({
   },
 
   loadMemberDetail() {
+    // 首次加载完成后置标志位，后续调用 loadMemberDetail 视为"数据已变更"
+    // 用于 onUnload 时通知列表页局部刷新该会员
+    if (!this._memberDetailLoaded) {
+      this._memberDetailLoaded = true;
+    } else {
+      this._memberDataModified = true;
+    }
     this.setData({ loading: true });
     return request({
       url: `/members/${this.data.memberId}`,
@@ -232,16 +256,16 @@ Page({
         if (!pkg.is_activated && pkg.auto_activate_at) {
           pkg.auto_activate_at_display = this.formatDate(pkg.auto_activate_at);
         }
-        // 格式化延长记录日期与单位
+        // 格式化变更日志（延长记录 + 字段变更记录合并）日期与摘要文本
         if (pkg.extensions && pkg.extensions.length > 0) {
           pkg.extensions = pkg.extensions.map(ext => {
-            const unitText = ext.extend_unit === 'month' ? '月' : '天';
             const operatorName = ext.operator_name || '管理员';
-            const reasonText = ext.reason ? ' 原因：' + ext.reason : '';
+            const dateStr = ext.created_at ? this.formatDate(ext.created_at) : '';
+            // 摘要格式：日期 操作人 事件名
             return {
               ...ext,
-              created_at_display: ext.created_at ? this.formatDate(ext.created_at) : '',
-              extend_text: `${ext.created_at ? this.formatDate(ext.created_at) : ''} ${operatorName} 延长 +${ext.extend_value || ext.extend_days || 0}${unitText}${reasonText}`
+              created_at_display: dateStr,
+              summary_text: `${dateStr} ${operatorName} ${ext.event_name || ''}`
             };
           });
         }
@@ -269,6 +293,11 @@ Page({
         }
         // 统一预约状态文案
         booking.statusText = getBookingStatusText(booking.status);
+        // 提取上课门店名称（schedule_id.store_id populate 后为 { _id, name }）
+        if (booking.schedule_id && booking.schedule_id.store_id) {
+          const store = booking.schedule_id.store_id;
+          booking.store_name = typeof store === 'object' ? (store.name || '') : '';
+        }
         return booking;
       });
 
@@ -852,8 +881,12 @@ Page({
       }
 
       if (editPackageForm.package_type === 'count_card') {
+        // 已激活次卡：仅发送 total_credits，remaining_credits 由后端按实际签到用量自动计算
+        // 未激活次卡：发送 total_credits + remaining_credits（管理员初始化设置）
         postData.total_credits = parseInt(editPackageForm.total_credits);
-        postData.remaining_credits = parseInt(editPackageForm.remaining_credits);
+        if (!isActivated) {
+          postData.remaining_credits = parseInt(editPackageForm.remaining_credits);
+        }
       }
 
       // 时间卡可以修改限制次数
@@ -1343,16 +1376,6 @@ Page({
   },
 
   /**
-   * 查看全部预约记录
-   */
-  onViewAllBookings() {
-    const { memberId, member } = this.data;
-    wx.navigateTo({
-      url: `/package-member/pages/members/booking-list/booking-list?memberId=${memberId}&memberName=${encodeURIComponent(member.real_name || member.nick_name || '会员')}`
-    });
-  },
-
-  /**
    * 切换记录TAB
    */
   onSwitchRecordTab(e) {
@@ -1558,6 +1581,15 @@ Page({
       wx.hideLoading();
       wx.showToast({ title: err.data?.message || '删除失败', icon: 'none' });
     }
+  },
+
+  // ========== 查看套餐变更记录 ==========
+  onViewPackageChanges(e) {
+    const { userName } = e.currentTarget.dataset;
+    // 跳转到套餐记录查询页面的"套餐变更"TAB，并按会员姓名搜索
+    wx.navigateTo({
+      url: `/package-shop/pages/package-logs/package-logs?tab=extension&keyword=${encodeURIComponent(userName || '')}`
+    });
   },
 
   // ========== 延长服务有效期 ==========

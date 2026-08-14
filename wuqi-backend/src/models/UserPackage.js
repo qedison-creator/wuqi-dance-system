@@ -7,6 +7,9 @@ const userPackageSchema = new mongoose.Schema({
   extra_store_ids: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Store' }],
   package_type: { type: String, enum: ['count_card', 'time_card'], required: true, default: 'count_card' },
   total_credits: { type: Number, required: true },
+  // 原始录入总次数（创建时设置，修改 total_credits 时不变）
+  // 用于"套餐录入记录"中显示原始录入值，而非修改后的值
+  original_total_credits: { type: Number },
   remaining_credits: { type: Number, required: true },
   duration_value: { type: Number },
   duration_unit: { type: String, enum: ['month', 'day'], default: 'month' },

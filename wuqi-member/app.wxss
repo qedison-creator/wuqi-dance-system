@@ -6,6 +6,14 @@ page {
   box-sizing: border-box;
 }
 
+/* 全局隐藏页面级滚动条（右侧滑动指示器） */
+::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+  color: transparent;
+}
+
 :root {
   --clr-primary: #D4786E;
   --clr-primary-deep: #C05D53;

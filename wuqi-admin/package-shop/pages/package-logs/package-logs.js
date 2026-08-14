@@ -35,6 +35,29 @@ Page({
     // 返回顶部按钮
     showBackToTop: false,
     backToTopThreshold: 0,
+    // 各TAB的会员搜索关键字
+    activationKeyword: '',
+    extensionKeyword: '',
+    entryKeyword: ''
+  },
+
+  onLoad(options) {
+    // 接收跳转参数：tab=指定初始TAB，keyword=会员搜索关键字
+    if (options.tab) {
+      this.setData({ activeTab: options.tab });
+    }
+    if (options.keyword) {
+      const kw = decodeURIComponent(options.keyword);
+      if (options.tab === 'extension') {
+        this.setData({ extensionKeyword: kw });
+      } else if (options.tab === 'activation') {
+        this.setData({ activationKeyword: kw });
+      } else if (options.tab === 'entry') {
+        this.setData({ entryKeyword: kw });
+      } else {
+        this.setData({ activationKeyword: kw });
+      }
+    }
   },
 
   async onShow() {
@@ -85,6 +108,106 @@ Page({
     this.loadList();
   },
 
+  // ========== 搜索相关 ==========
+  onActivationKeywordInput(e) {
+    this.setData({ activationKeyword: e.detail.value });
+  },
+  onActivationSearch() {
+    if (this.data.loading) return;
+    this.setData({
+      loading: true,
+      page: 1,
+      hasMore: true,
+      visibleCount: PAGE_SIZE,
+      currentTotal: 0,
+      showBackToTop: false,
+      backToTopThreshold: 0,
+      activationList: []
+    });
+    this.loadActivationList();
+  },
+  onActivationClearSearch() {
+    if (this.data.loading) return;
+    this.setData({
+      activationKeyword: '',
+      loading: true,
+      page: 1,
+      hasMore: true,
+      visibleCount: PAGE_SIZE,
+      currentTotal: 0,
+      showBackToTop: false,
+      backToTopThreshold: 0,
+      activationList: []
+    });
+    this.loadActivationList();
+  },
+
+  onExtensionKeywordInput(e) {
+    this.setData({ extensionKeyword: e.detail.value });
+  },
+  onExtensionSearch() {
+    if (this.data.loading) return;
+    this.setData({
+      loading: true,
+      page: 1,
+      hasMore: true,
+      visibleCount: PAGE_SIZE,
+      currentTotal: 0,
+      showBackToTop: false,
+      backToTopThreshold: 0,
+      extensionList: []
+    });
+    this.loadExtensionList();
+  },
+  onExtensionClearSearch() {
+    if (this.data.loading) return;
+    this.setData({
+      extensionKeyword: '',
+      loading: true,
+      page: 1,
+      hasMore: true,
+      visibleCount: PAGE_SIZE,
+      currentTotal: 0,
+      showBackToTop: false,
+      backToTopThreshold: 0,
+      extensionList: []
+    });
+    this.loadExtensionList();
+  },
+
+  onEntryKeywordInput(e) {
+    this.setData({ entryKeyword: e.detail.value });
+  },
+  onEntrySearch() {
+    if (this.data.loading) return;
+    this.setData({
+      loading: true,
+      page: 1,
+      hasMore: true,
+      visibleCount: PAGE_SIZE,
+      currentTotal: 0,
+      showBackToTop: false,
+      backToTopThreshold: 0,
+      entryList: []
+    });
+    this.loadEntryList();
+  },
+  onEntryClearSearch() {
+    if (this.data.loading) return;
+    this.setData({
+      entryKeyword: '',
+      loading: true,
+      page: 1,
+      hasMore: true,
+      visibleCount: PAGE_SIZE,
+      currentTotal: 0,
+      showBackToTop: false,
+      backToTopThreshold: 0,
+      entryList: []
+    });
+    this.loadEntryList();
+  },
+
   async loadActivationList() {
     const currentRequestId = Date.now();
     this.setData({ requestId: currentRequestId });
@@ -97,21 +220,27 @@ Page({
         data: {
           page: this.data.page,
           pageSize: this.data.pageSize,
-          store_id: app.globalData.shopStoreId || ''
+          store_id: app.globalData.shopStoreId || '',
+          keyword: this.data.activationKeyword || ''
         }
       });
 
       if (this.data.requestId !== currentRequestId) return;
 
       const data = res.data || {};
+      const typeMap = { manual: '手动激活', auto: '自动激活', booking: '预约激活', default: '默认激活' };
       const newList = (data.list || []).map(item => {
-        const typeMap = { manual: '手动激活', auto: '自动激活', booking: '预约激活', default: '默认激活' };
+        // 对内层 records 数组中的每条记录做字段格式化
+        const records = (item.records || []).map(record => ({
+          ...record,
+          typeLabel: typeMap[record.type] || record.type || '',
+          activated_at_display: record.activated_at ? this.formatDateTime(record.activated_at) : '-',
+          effective_date_display: record.effective_date ? record.effective_date.split('T')[0] : '-',
+          expire_date_display: record.expire_date ? record.expire_date.split('T')[0] : '-',
+        }));
         return {
           ...item,
-          typeLabel: typeMap[item.type] || item.type || '',
-          activated_at_display: item.activated_at ? this.formatDateTime(item.activated_at) : '-',
-          effective_date_display: item.effective_date ? item.effective_date.split('T')[0] : '-',
-          expire_date_display: item.expire_date ? item.expire_date.split('T')[0] : '-',
+          records,
         };
       });
 
@@ -151,21 +280,34 @@ Page({
         data: {
           page: this.data.page,
           pageSize: this.data.pageSize,
-          store_id: app.globalData.shopStoreId || ''
+          store_id: app.globalData.shopStoreId || '',
+          keyword: this.data.extensionKeyword || ''
         }
       });
 
       if (this.data.requestId !== currentRequestId) return;
 
       const data = res.data || {};
+      const typeMap = { manual: '手动延长', holiday: '放假顺延', system: '系统延长' };
+      const packageTypeMap = { count_card: '次卡', time_card: '时间卡' };
       const newList = (data.list || []).map(item => {
-        const typeMap = { manual: '手动延长', holiday: '放假顺延', system: '系统延长' };
+        // 对内层 records 数组中的每条记录做字段格式化
+        const records = (item.records || []).map(record => {
+          const unitText = record.extend_unit === 'month' ? '月' : '天';
+          const extendValue = record.extend_value || record.extend_days || 0;
+          return {
+            ...record,
+            typeLabel: typeMap[record.type] || record.type || '',
+            packageTypeLabel: packageTypeMap[record.package_type] || record.package_type || '',
+            created_at_display: record.created_at ? this.formatDateTime(record.created_at) : '-',
+            original_expire_display: record.original_expire ? record.original_expire.split('T')[0] : '-',
+            new_expire_display: record.new_expire ? record.new_expire.split('T')[0] : '-',
+            extend_value_text: `+${extendValue}${unitText}`,
+          };
+        });
         return {
           ...item,
-          typeLabel: typeMap[item.type] || item.type || '',
-          created_at_display: item.created_at ? this.formatDateTime(item.created_at) : '-',
-          original_expire_display: item.original_expire ? item.original_expire.split('T')[0] : '-',
-          new_expire_display: item.new_expire ? item.new_expire.split('T')[0] : '-',
+          records,
         };
       });
 
@@ -213,7 +355,8 @@ Page({
         data: {
           page: this.data.page,
           pageSize: this.data.pageSize,
-          store_id: app.globalData.shopStoreId || ''
+          store_id: app.globalData.shopStoreId || '',
+          keyword: this.data.entryKeyword || ''
         }
       });
 
@@ -221,20 +364,27 @@ Page({
       if (this.data.requestId !== currentRequestId) return;
 
       const data = res.data || {};
+      const packageTypeMap = { count_card: '次卡', time_card: '时间卡' };
       const newList = (data.list || []).map(item => {
-        const packageTypeMap = { count_card: '次卡', time_card: '时间卡' };
-        let creditsText = '';
-        if (item.package_type === 'count_card') {
-          creditsText = `${item.total_credits}课时`;
-        } else if (item.package_type === 'time_card') {
-          const unitText = item.duration_unit === 'month' ? '个月' : '天';
-          creditsText = `${item.duration_value}${unitText}`;
-        }
+        // 对内层 records 数组中的每条记录做字段格式化
+        const records = (item.records || []).map(record => {
+          let creditsText = '';
+          if (record.package_type === 'count_card') {
+            creditsText = `${record.total_credits}课时`;
+          } else if (record.package_type === 'time_card') {
+            const unitText = record.duration_unit === 'month' ? '个月' : '天';
+            creditsText = `${record.duration_value}${unitText}`;
+          }
+          return {
+            ...record,
+            packageTypeLabel: packageTypeMap[record.package_type] || record.package_type,
+            creditsText,
+            created_at_display: record.created_at ? this.formatDateTime(record.created_at) : '-',
+          };
+        });
         return {
           ...item,
-          packageTypeLabel: packageTypeMap[item.package_type] || item.package_type,
-          creditsText,
-          created_at_display: item.created_at ? this.formatDateTime(item.created_at) : '-',
+          records,
         };
       });
 

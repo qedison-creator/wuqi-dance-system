@@ -33,6 +33,7 @@ const HEARTBEAT_TIMEOUT = 5000;    // 心跳响应超时（毫秒）
 const RECONNECT_DELAYS = [2000, 5000, 10000]; // 重连递增延迟
 const MAX_RECONNECT = 5;           // 最大重连次数
 const FALLBACK_POLL_INTERVAL = 60000; // 降级轮询间隔（毫秒）
+const CONNECT_TIMEOUT = 10000;     // 连接建立超时（毫秒）
 
 // 根据 HTTP baseUrl 推导 WebSocket 地址
 // 管理端 prod: https://admin-api.yuekeme.cn/api/v1 -> wss://admin-api.yuekeme.cn/ws
@@ -56,6 +57,7 @@ let heartbeatTimer = null;
 let heartbeatTimeoutTimer = null;
 let reconnectTimer = null;
 let fallbackPollTimer = null;
+let connectTimeoutTimer = null;     // 连接建立超时定时器
 
 // 事件处理器映射：{ event: handler }
 let messageHandlers = {};
@@ -98,14 +100,19 @@ function connect(options = {}) {
       if (myEpoch !== connectionEpoch) return;  // 旧连接的回调，忽略
       console.error('[Admin WebSocket] 连接请求失败:', err);
       isConnecting = false;
+      _clearConnectTimeout();
       _handleDisconnect();
     }
   });
+
+  // 连接建立超时保护：超时未 onOpen 则主动关闭重连，避免连接卡死在 CONNECTING 状态
+  _startConnectTimeout();
 
   // 连接打开
   socketTask.onOpen(() => {
     if (myEpoch !== connectionEpoch) return;  // 旧连接的回调，忽略
     isConnecting = false;
+    _clearConnectTimeout();
     isConnected = true;
     reconnectCount = 0;
 
@@ -143,6 +150,7 @@ function connect(options = {}) {
   // 连接关闭：统一在此处理断连逻辑
   socketTask.onClose(() => {
     if (myEpoch !== connectionEpoch) return;  // 旧连接的回调，忽略
+    _clearConnectTimeout();
     // 主动断开时不触发重连
     if (isManualDisconnect) {
       isConnecting = false;
@@ -168,6 +176,7 @@ function disconnect() {
   _stopHeartbeat();
   _stopReconnect();
   _stopFallbackPoll();
+  _clearConnectTimeout();
   reconnectCount = 0;
 
   _closeSocketTask();
@@ -191,20 +200,39 @@ function getConnectionStatus() {
 
 /**
  * 关闭旧 socketTask 并置空引用
- * 注意：readyState=0（CONNECTING）时调用 close() 会触发
- *       "WebSocket is closed before the connection is established" 控制台错误，
- *       因此仅在已连接状态调用 close()，连接中状态直接置空引用即可
- *       （connectionEpoch 递增后旧连接回调会被忽略，连接超时后自行关闭）
+ * 注意：CONNECTING 状态调用 close() 会输出
+ *       "WebSocket is closed before the connection is established" 控制台警告，
+ *       但该警告不影响功能；若跳过 close() 会导致后续 wx.connectSocket 报
+ *       "未完成的操作" 错误，因此统一调用 close() 真正关闭底层 socket。
  */
 function _closeSocketTask() {
   if (socketTask) {
     try {
-      // readyState: 0=CONNECTING, 1=OPEN, 2=CLOSING, 3=CLOSED
-      if (socketTask.readyState !== 0) {
-        socketTask.close({ code: 1000, reason: '清理旧连接' });
-      }
+      socketTask.close({ code: 1000, reason: '清理旧连接' });
     } catch (e) {}
     socketTask = null;
+  }
+}
+
+/**
+ * 连接建立超时保护：超时未 onOpen 则主动关闭重连，避免连接卡死在 CONNECTING 状态
+ */
+function _startConnectTimeout() {
+  _clearConnectTimeout();
+  connectTimeoutTimer = setTimeout(() => {
+    if (isConnecting && !isConnected) {
+      console.warn('[Admin WebSocket] 连接建立超时，主动关闭重连');
+      _closeSocketTask();
+      isConnecting = false;
+      _handleDisconnect();
+    }
+  }, CONNECT_TIMEOUT);
+}
+
+function _clearConnectTimeout() {
+  if (connectTimeoutTimer) {
+    clearTimeout(connectTimeoutTimer);
+    connectTimeoutTimer = null;
   }
 }
 
@@ -261,6 +289,7 @@ function _handleDisconnect() {
   isHandlingDisconnect = true;
 
   _stopHeartbeat();
+  _clearConnectTimeout();
   // 不调 _closeSocketTask()：onClose 触发时 socket 已关闭，再调 close() 会报 "closed before established"
   socketTask = null;
   connectionEpoch++;  // 使旧连接的后续回调（onError/onClose）全部失效

@@ -523,150 +523,7 @@ Page({
       const total = result.total || 0;
       const pending = result.pendingCount || 0;
 
-      const newList = list.map(member => {
-        const maskPhone = (p) => {
-          if (p && p.length === 11) {
-            return p.replace(/(\d{3})\d{4}(\d{4})/, '$1****$2');
-          }
-          return p;
-        };
-        const reservePhoneRaw = member.reserve_phone || member.phone || '';
-        const wechatPhoneRaw = member.wechat_phone || '';
-        const reservePhone = maskPhone(reservePhoneRaw);
-        const wechatPhone = maskPhone(wechatPhoneRaw);
-
-        // 构建套餐信息文本
-
-        let packageInfo = '';
-        let packageDanceStyleText = '';
-        if (member.member_status === 'official' && member.packages && member.packages.length > 0) {
-          const usablePkg = member.packages.find(p => p.status === 'active') || member.packages.find(p => p.status === 'pending');
-          if (usablePkg) {
-            const typeLabel = usablePkg.package_type === 'time_card' ? '时间卡' : '次卡';
-            const statusPrefix = usablePkg.status === 'pending' ? '未激活·' : '';
-            const startDate = usablePkg.start_date ? formatDate(usablePkg.start_date) : '';
-            const endDate = usablePkg.end_date ? formatDate(usablePkg.end_date) : '';
-            const dateRange = (startDate || endDate) ? `有效期${startDate}至${endDate}` : '';
-            if (usablePkg.package_type === 'count_card') {
-              const total = usablePkg.total_credits || 0;
-              const remaining = usablePkg.remaining_credits || 0;
-              packageInfo = `${statusPrefix}${typeLabel} · ${remaining}/${total}次`;
-              if (dateRange) packageInfo += ' · ' + dateRange;
-            } else {
-              const duration = usablePkg.duration_value || 0;
-              const unit = usablePkg.duration_unit === 'month' ? '个月' : '天';
-              let limitStr = '';
-              if (usablePkg.daily_limit) {
-                limitStr = `每日${usablePkg.daily_limit}次`;
-              } else if (usablePkg.weekly_limit) {
-                limitStr = `每周${usablePkg.weekly_limit}次`;
-              } else if (usablePkg.monthly_limit) {
-                limitStr = `每月${usablePkg.monthly_limit}次`;
-              }
-              if (usablePkg.status === 'pending') {
-                packageInfo = `${statusPrefix}${typeLabel} · ${duration}${unit}`;
-                if (limitStr) packageInfo += ' · ' + limitStr;
-              } else {
-                const remainDays = usablePkg.remaining_days;
-                const remainStr = remainDays !== undefined && remainDays !== null ? `${remainDays}天剩余` : '';
-                packageInfo = `${typeLabel}`;
-                if (limitStr) packageInfo += ' · ' + limitStr;
-                if (remainStr) packageInfo += ' · ' + remainStr;
-                if (dateRange) packageInfo += ' · ' + dateRange;
-              }
-            }
-            // 舞种限制文本：populate 后是 [{_id, name}]，未 populate 时是 ObjectId 数组
-            const dsl = usablePkg.dance_style_limit || [];
-            if (Array.isArray(dsl) && dsl.length > 0) {
-              packageDanceStyleText = dsl
-                .map(ds => (typeof ds === 'object' ? (ds.name || '') : ''))
-                .filter(Boolean)
-                .join('、');
-            }
-          }
-        }
-
-        // 处理门店标签
-
-        let storeLabels = [];
-        if (member.packages && member.packages.length > 0) {
-          // 有套餐：显示套餐所属门店
-
-          const storeMap = new Map();
-          member.packages.forEach(pkg => {
-            if (pkg.store_id && pkg.store_id._id && pkg.store_id.name) {
-              if (!storeMap.has(pkg.store_id._id)) {
-                storeMap.set(pkg.store_id._id, {
-                  id: pkg.store_id._id,
-                  name: pkg.store_id.name
-                });
-              }
-            }
-          });
-          storeLabels = Array.from(storeMap.values());
-        } else if (member.store_id && member.store_id._id && member.store_id.name) {
-          // 无套餐：显示用户选择或审核时选择的门店
-          storeLabels = [{
-            id: member.store_id._id,
-            name: member.store_id.name
-          }];
-        }
-
-        let displayStatus = 'inactive';
-        let canEditPackage = false;
-        
-        if (member.status === 'disabled') {
-          displayStatus = 'disabled';
-        } else if (member.member_status === 'registered') {
-          displayStatus = 'pending';
-        } else if (!member.packages || member.packages.length === 0) {
-          displayStatus = 'no-package';
-        } else {
-          // 按优先级判断套餐状态：active > suspended > pending > exhausted > expired
-
-          const activePkg = member.packages.find(p => p.status === 'active' && p.is_activated && !p.is_suspended);
-          const suspendedPkg = member.packages.find(p => p.status === 'active' && p.is_activated && p.is_suspended);
-          const pendingPkg = member.packages.find(p => p.status === 'pending' && !p.is_activated);
-          const exhaustedPkg = member.packages.find(p => p.status === 'exhausted');
-          const expiredPkg = member.packages.find(p => p.status === 'expired');
-          
-          if (activePkg) {
-            displayStatus = 'active';
-            canEditPackage = true;
-          } else if (suspendedPkg) {
-            displayStatus = 'suspended';
-          } else if (pendingPkg) {
-            displayStatus = 'unactivated';
-            canEditPackage = true;
-          } else if (exhaustedPkg) {
-            displayStatus = 'exhausted';
-          } else if (expiredPkg) {
-            displayStatus = 'expired';
-          } else {
-            displayStatus = 'no-package';
-          }
-        }
-
-        return {
-          ...member,
-          nickname: member.nick_name,
-          avatar: normalizeAvatarUrl(member.avatar_url),
-          phone: reservePhone,
-          reserve_phone: reservePhone,
-          reserve_phone_raw: reservePhoneRaw,
-          wechat_phone_display: wechatPhone,
-          wechat_phone_raw: wechatPhoneRaw,
-          created_at: formatDate(member.created_at),
-          reviewed_at: formatReviewDate(member.updated_at || member.created_at),
-          status: displayStatus,
-          member_status: member.member_status,
-          has_package: member.packages && member.packages.length > 0,
-          can_edit_package: canEditPackage,
-          package_info: packageInfo,
-          package_dance_style_text: packageDanceStyleText,
-          store_labels: storeLabels
-        };
-      });
+      const newList = list.map(member => this._buildMemberListItem(member));
 
       const isFirstPage = this.data.page === 1;
       const mergedList = isFirstPage ? newList : this.data.members.concat(newList);
@@ -706,6 +563,175 @@ Page({
   },
 
   onReachBottom() {},
+
+  /**
+   * 构建会员列表项数据（供 loadMembers 和 _refreshSingleMember 复用）
+   * 包含手机号脱敏、套餐信息文本、门店标签、状态判断等
+   */
+  _buildMemberListItem(member) {
+    const maskPhone = (p) => {
+      if (p && p.length === 11) {
+        return p.replace(/(\d{3})\d{4}(\d{4})/, '$1****$2');
+      }
+      return p;
+    };
+    const reservePhoneRaw = member.reserve_phone || member.phone || '';
+    const wechatPhoneRaw = member.wechat_phone || '';
+    const reservePhone = maskPhone(reservePhoneRaw);
+    const wechatPhone = maskPhone(wechatPhoneRaw);
+
+    // 构建套餐信息文本
+    let packageInfo = '';
+    let packageDanceStyleText = '';
+    if (member.member_status === 'official' && member.packages && member.packages.length > 0) {
+      const usablePkg = member.packages.find(p => p.status === 'active') || member.packages.find(p => p.status === 'pending');
+      if (usablePkg) {
+        const typeLabel = usablePkg.package_type === 'time_card' ? '时间卡' : '次卡';
+        const statusPrefix = usablePkg.status === 'pending' ? '未激活·' : '';
+        const startDate = usablePkg.start_date ? formatDate(usablePkg.start_date) : '';
+        const endDate = usablePkg.end_date ? formatDate(usablePkg.end_date) : '';
+        const dateRange = (startDate || endDate) ? `有效期${startDate}至${endDate}` : '';
+        if (usablePkg.package_type === 'count_card') {
+          const total = usablePkg.total_credits || 0;
+          const remaining = usablePkg.remaining_credits || 0;
+          packageInfo = `${statusPrefix}${typeLabel} · ${remaining}/${total}次`;
+          if (dateRange) packageInfo += ' · ' + dateRange;
+        } else {
+          const duration = usablePkg.duration_value || 0;
+          const unit = usablePkg.duration_unit === 'month' ? '个月' : '天';
+          let limitStr = '';
+          if (usablePkg.daily_limit) {
+            limitStr = `每日${usablePkg.daily_limit}次`;
+          } else if (usablePkg.weekly_limit) {
+            limitStr = `每周${usablePkg.weekly_limit}次`;
+          } else if (usablePkg.monthly_limit) {
+            limitStr = `每月${usablePkg.monthly_limit}次`;
+          }
+          if (usablePkg.status === 'pending') {
+            packageInfo = `${statusPrefix}${typeLabel} · ${duration}${unit}`;
+            if (limitStr) packageInfo += ' · ' + limitStr;
+          } else {
+            const remainDays = usablePkg.remaining_days;
+            const remainStr = remainDays !== undefined && remainDays !== null ? `${remainDays}天剩余` : '';
+            packageInfo = `${typeLabel}`;
+            if (limitStr) packageInfo += ' · ' + limitStr;
+            if (remainStr) packageInfo += ' · ' + remainStr;
+            if (dateRange) packageInfo += ' · ' + dateRange;
+          }
+        }
+        const dsl = usablePkg.dance_style_limit || [];
+        if (Array.isArray(dsl) && dsl.length > 0) {
+          packageDanceStyleText = dsl
+            .map(ds => (typeof ds === 'object' ? (ds.name || '') : ''))
+            .filter(Boolean)
+            .join('、');
+        }
+      }
+    }
+
+    // 处理门店标签
+    let storeLabels = [];
+    if (member.packages && member.packages.length > 0) {
+      const storeMap = new Map();
+      member.packages.forEach(pkg => {
+        if (pkg.store_id && pkg.store_id._id && pkg.store_id.name) {
+          if (!storeMap.has(pkg.store_id._id)) {
+            storeMap.set(pkg.store_id._id, {
+              id: pkg.store_id._id,
+              name: pkg.store_id.name
+            });
+          }
+        }
+      });
+      storeLabels = Array.from(storeMap.values());
+    } else if (member.store_id && member.store_id._id && member.store_id.name) {
+      storeLabels = [{
+        id: member.store_id._id,
+        name: member.store_id.name
+      }];
+    }
+
+    let displayStatus = 'inactive';
+    let canEditPackage = false;
+    if (member.status === 'disabled') {
+      displayStatus = 'disabled';
+    } else if (member.member_status === 'registered') {
+      displayStatus = 'pending';
+    } else if (!member.packages || member.packages.length === 0) {
+      displayStatus = 'no-package';
+    } else {
+      const activePkg = member.packages.find(p => p.status === 'active' && p.is_activated && !p.is_suspended);
+      const suspendedPkg = member.packages.find(p => p.status === 'active' && p.is_activated && p.is_suspended);
+      const pendingPkg = member.packages.find(p => p.status === 'pending' && !p.is_activated);
+      const exhaustedPkg = member.packages.find(p => p.status === 'exhausted');
+      const expiredPkg = member.packages.find(p => p.status === 'expired');
+      if (activePkg) {
+        displayStatus = 'active';
+        canEditPackage = true;
+      } else if (suspendedPkg) {
+        displayStatus = 'suspended';
+      } else if (pendingPkg) {
+        displayStatus = 'unactivated';
+        canEditPackage = true;
+      } else if (exhaustedPkg) {
+        displayStatus = 'exhausted';
+      } else if (expiredPkg) {
+        displayStatus = 'expired';
+      } else {
+        displayStatus = 'no-package';
+      }
+    }
+
+    return {
+      ...member,
+      nickname: member.nick_name,
+      avatar: normalizeAvatarUrl(member.avatar_url),
+      phone: reservePhone,
+      reserve_phone: reservePhone,
+      reserve_phone_raw: reservePhoneRaw,
+      wechat_phone_display: wechatPhone,
+      wechat_phone_raw: wechatPhoneRaw,
+      created_at: formatDate(member.created_at),
+      reviewed_at: formatReviewDate(member.updated_at || member.created_at),
+      status: displayStatus,
+      member_status: member.member_status,
+      has_package: member.packages && member.packages.length > 0,
+      can_edit_package: canEditPackage,
+      package_info: packageInfo,
+      package_dance_style_text: packageDanceStyleText,
+      store_labels: storeLabels
+    };
+  },
+
+  /**
+   * 局部刷新单个会员数据（从详情页返回后调用）
+   * 仅更新该会员在列表中的数据，不重载列表、不影响滚动位置
+   */
+  async _refreshSingleMember(memberId) {
+    if (!memberId) return;
+    try {
+      const res = await request({
+        url: `/members/${memberId}`,
+        method: 'GET',
+        timeout: 15000
+      });
+      const member = res.data || {};
+      const newItem = this._buildMemberListItem(member);
+      // 在已加载列表中找到该会员索引
+      const members = this.data.members;
+      const idx = members.findIndex(m => String(m._id) === String(memberId));
+      if (idx >= 0) {
+        // 局部更新该会员，保留 _showPhone 等UI状态
+        const preserved = {
+          _showPhone: members[idx]._showPhone
+        };
+        this.setData({ [`members[${idx}]`]: { ...newItem, ...preserved } });
+      }
+      // 注：套餐修改不影响 pendingClaimCount（预建档统计）和 infoChangeCount（信息变更统计），无需刷新
+    } catch (err) {
+      console.error('局部刷新会员数据失败', err);
+    }
+  },
 
   // 点击"查看更多"加载下一页：走静默加载路径，不切换 loading 状态，避免按钮显隐导致列表闪动
   onLoadMore() {

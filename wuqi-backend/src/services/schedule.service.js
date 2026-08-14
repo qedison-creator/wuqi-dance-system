@@ -573,7 +573,7 @@ exports.getScheduleList = async (query, req = null) => {
             await autoCheckInAtStart(schedule._id);
             const updated = await Schedule.findById(schedule._id).lean();
             if (updated) schedule.status = updated.status;
-          } else if (now.isAfter(bookingDeadlineTime) && currentBookings < (schedule.min_bookings || 5)) {
+          } else if (now.isAfter(bookingDeadlineTime) && schedule.current_bookings < (schedule.min_bookings || 5)) {
             // 截止时间已过且人数不足（含0预约）→ 触发 checkAndCancelIfInsufficient（兜底）
             // 预约截止时间已过，说明课程已创建一段时间，0预约也应取消（人数不足）
             await checkAndCancelIfInsufficient(schedule._id);

@@ -192,7 +192,7 @@
 
       <scroll-view class="sheet-list" scroll-y wx:if="{{activeTab === 'booked'}}">
         <view class="booking-row booking-row-vertical" wx:for="{{bookedList}}" wx:key="_id">
-          <view class="booking-user">
+          <view class="booking-user" catchtap="onMemberTap" data-user-id="{{item.userId}}">
             <image class="booking-avatar" src="{{item.userAvatar || '/images/default-avatar.svg'}}" mode="aspectFill" decoding="async"></image>
             <view class="booking-user-info">
               <view class="booking-user-name-row">
@@ -234,7 +234,7 @@
 
       <scroll-view class="sheet-list" scroll-y wx:if="{{activeTab === 'checkedIn'}}">
         <view class="booking-row" wx:for="{{checkedInList}}" wx:key="_id">
-          <view class="booking-user">
+          <view class="booking-user" catchtap="onMemberTap" data-user-id="{{item.userId}}">
             <image class="booking-avatar" src="{{item.userAvatar || '/images/default-avatar.svg'}}" mode="aspectFill" decoding="async"></image>
             <view class="booking-user-info">
               <view class="booking-user-name-row">
@@ -258,7 +258,7 @@
 
       <scroll-view class="sheet-list" scroll-y wx:if="{{activeTab === 'cancelled'}}">
         <view class="booking-row booking-row-vertical is-cancelled" wx:for="{{cancelledList}}" wx:key="_id">
-          <view class="booking-user">
+          <view class="booking-user" catchtap="onMemberTap" data-user-id="{{item.userId}}">
             <image class="booking-avatar" src="{{item.userAvatar || '/images/default-avatar.svg'}}" mode="aspectFill" decoding="async"></image>
             <view class="booking-user-info">
               <view class="booking-user-name-row">

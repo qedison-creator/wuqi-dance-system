@@ -133,6 +133,7 @@ Page({
         const isExempted = status === 'exempted' || item.is_exempted;
         const booking = {
           _id: item._id,
+          userId: item.user_id?._id ? String(item.user_id._id) : '',
           userName: displayName,
           userNickName: nickNameDisplay,
           userPhone: item.user_id?.phone || '',
@@ -272,6 +273,7 @@ Page({
         }
         return {
           _id: item.booking_id || item._id,
+          userId: item.user_id?._id ? String(item.user_id._id) : '',
           userName: displayName,
           userNickName: nickNameDisplay,
           userPhone: item.user_id?.phone || '',
@@ -309,6 +311,13 @@ Page({
   onTabChange(e) {
     const { tab } = e.currentTarget.dataset;
     this.setData({ activeTab: tab });
+  },
+
+  // 点击会员头像/姓名跳转会员详情页
+  onMemberTap(e) {
+    const userId = e.currentTarget.dataset.userId;
+    if (!userId) return;
+    wx.navigateTo({ url: `/package-member/pages/members/member-detail/member-detail?id=${userId}` });
   },
 
   // 管理员手动取消预约

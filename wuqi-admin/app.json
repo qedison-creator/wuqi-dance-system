@@ -65,7 +65,6 @@
       "root": "package-member",
       "pages": [
         "pages/members/member-detail/member-detail",
-        "pages/members/booking-list/booking-list",
         "pages/members/member-review/member-review",
         "pages/members/phone-review/phone-review",
         "pages/members/info-review/info-review",

@@ -34,7 +34,7 @@
   <!-- 已预约名单（含已签到/已完成/课程取消，与运营管理页面一致） -->
   <view class="booking-list" wx:if="{{viewMode !== 'attendance' && activeTab === 'booked'}}">
     <view class="booking-item card" wx:for="{{bookedList}}" wx:key="_id">
-      <view class="user-info">
+      <view class="user-info" catchtap="onMemberTap" data-user-id="{{item.userId}}">
         <image class="user-avatar" src="{{item.userAvatar || '/images/default-avatar.svg'}}" mode="aspectFill" lazy-load decoding="async"></image>
         <view class="user-detail">
           <view class="user-name-row">
@@ -75,7 +75,7 @@
   <!-- 已签到名单（含已完成） -->
   <view class="booking-list" wx:if="{{viewMode !== 'attendance' && activeTab === 'checkedIn'}}">
     <view class="booking-item card" wx:for="{{checkedInList}}" wx:key="_id">
-      <view class="user-info">
+      <view class="user-info" catchtap="onMemberTap" data-user-id="{{item.userId}}">
         <image class="user-avatar" src="{{item.userAvatar || '/images/default-avatar.svg'}}" mode="aspectFill" lazy-load decoding="async"></image>
         <view class="user-detail">
           <view class="user-name-row">
@@ -102,7 +102,7 @@
   <!-- 已取消名单（含豁免取消） -->
   <view class="booking-list" wx:if="{{viewMode !== 'attendance' && activeTab === 'cancelled'}}">
     <view class="booking-item card cancelled" wx:for="{{cancelledList}}" wx:key="_id">
-      <view class="user-info">
+      <view class="user-info" catchtap="onMemberTap" data-user-id="{{item.userId}}">
         <image class="user-avatar" src="{{item.userAvatar || '/images/default-avatar.svg'}}" mode="aspectFill" lazy-load decoding="async"></image>
         <view class="user-detail">
           <view class="user-name-row">
@@ -132,7 +132,7 @@
   <!-- 上课记录（attendance视图） -->
   <view class="booking-list" wx:if="{{viewMode === 'attendance'}}">
     <view class="booking-item card" wx:for="{{attendanceList}}" wx:key="_id">
-      <view class="user-info">
+      <view class="user-info" catchtap="onMemberTap" data-user-id="{{item.userId}}">
         <image class="user-avatar" src="{{item.userAvatar || '/images/default-avatar.svg'}}" mode="aspectFill" lazy-load decoding="async"></image>
         <view class="user-detail">
           <view class="user-name-row">

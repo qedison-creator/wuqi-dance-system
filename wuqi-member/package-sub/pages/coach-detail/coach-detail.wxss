@@ -185,10 +185,10 @@
 }
 
 .cd-course-card {
-  background: linear-gradient(135deg, #F0E8FF 0%, #FDF2EF 45%, #EEF5F4 100%);
+  background: linear-gradient(135deg, #F1E9FF 0%, #F9ECEA 45%, #E7F1F0 100%);
   border-radius: 24rpx;
   padding: 28rpx;
-  box-shadow: 0 4rpx 20rpx rgba(42, 33, 34, 0.05);
+  box-shadow: 0 4rpx 12rpx rgba(42, 33, 34, 0.10), -10rpx 0 24rpx rgba(42,33,34,0.07), 10rpx 0 24rpx rgba(42,33,34,0.07);
   display: flex;
   align-items: flex-start;
   transition: all 0.2s ease;
@@ -203,16 +203,7 @@
 
 .cd-course-card:active {
   transform: scale(0.985);
-}
-
-.cd-course-accent {
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: 5rpx;
-  background: linear-gradient(180deg, #D4786E, #B89CDA);
-  border-radius: 3rpx 0 0 3rpx;
+  box-shadow: 0 2rpx 14rpx rgba(42,33,34,0.08), 0 1rpx 6rpx rgba(212,120,110,0.05);
 }
 
 .cd-course-body {

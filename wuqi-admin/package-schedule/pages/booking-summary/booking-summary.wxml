@@ -119,8 +119,8 @@
                           <view class="member-cards">
                             <view class="member-card status-completed" wx:for="{{course._sortedMemberGroups}}" wx:for-item="mg" wx:key="user_id" wx:if="{{mg._inCheckedIn}}">
                               <view class="mc-header">
-                                <image class="mc-avatar" src="{{mg.user_info.avatar_url || '/images/default-avatar.svg'}}" mode="aspectFill" decoding="async"></image>
-                                <view class="mc-info">
+                                <image class="mc-avatar" src="{{mg.user_info.avatar_url || '/images/default-avatar.svg'}}" mode="aspectFill" decoding="async" catchtap="onMemberTap" data-user-id="{{mg.user_id}}"></image>
+                                <view class="mc-info" catchtap="onMemberTap" data-user-id="{{mg.user_id}}">
                                   <view class="mc-name-row">
                                     <text class="mc-name">{{mg.user_info.real_name || mg.user_info.nick_name || '未知会员'}}</text>
                                   </view>
@@ -175,8 +175,8 @@
                           <view class="member-cards">
                             <view class="member-card status-cancelled" wx:for="{{course._sortedMemberGroups}}" wx:for-item="mg" wx:key="user_id" wx:if="{{mg._inCancelled}}">
                               <view class="mc-header">
-                                <image class="mc-avatar" src="{{mg.user_info.avatar_url || '/images/default-avatar.svg'}}" mode="aspectFill" decoding="async"></image>
-                                <view class="mc-info">
+                                <image class="mc-avatar" src="{{mg.user_info.avatar_url || '/images/default-avatar.svg'}}" mode="aspectFill" decoding="async" catchtap="onMemberTap" data-user-id="{{mg.user_id}}"></image>
+                                <view class="mc-info" catchtap="onMemberTap" data-user-id="{{mg.user_id}}">
                                   <view class="mc-name-row">
                                     <text class="mc-name">{{mg.user_info.real_name || mg.user_info.nick_name || '未知会员'}}</text>
                                   </view>
@@ -233,8 +233,8 @@
                           <view class="member-cards">
                             <view class="member-card status-booked" wx:for="{{course._sortedMemberGroups}}" wx:for-item="mg" wx:key="user_id" wx:if="{{mg._inBooked}}">
                               <view class="mc-header">
-                                <image class="mc-avatar" src="{{mg.user_info.avatar_url || '/images/default-avatar.svg'}}" mode="aspectFill" decoding="async"></image>
-                                <view class="mc-info">
+                                <image class="mc-avatar" src="{{mg.user_info.avatar_url || '/images/default-avatar.svg'}}" mode="aspectFill" decoding="async" catchtap="onMemberTap" data-user-id="{{mg.user_id}}"></image>
+                                <view class="mc-info" catchtap="onMemberTap" data-user-id="{{mg.user_id}}">
                                   <view class="mc-name-row">
                                     <text class="mc-name">{{mg.user_info.real_name || mg.user_info.nick_name || '未知会员'}}</text>
                                   </view>

@@ -540,7 +540,7 @@
 .package-extensions {
   display: flex;
   flex-direction: column;
-  gap: 4rpx;
+  gap: 6rpx;
   margin-top: 8rpx;
   padding: 12rpx 16rpx;
   background: rgba(76, 175, 147, 0.06);
@@ -550,12 +550,54 @@
 .extension-item {
   display: flex;
   align-items: center;
+  justify-content: space-between;
+  padding: 4rpx 0;
+}
+
+.extension-item + .extension-item {
+  border-top: 1rpx solid rgba(212, 120, 110, 0.1);
+  margin-top: 2rpx;
+  padding-top: 8rpx;
 }
 
 .extension-text {
   font-size: 22rpx;
   color: #4CAF93;
   line-height: 1.5;
+  flex: 1;
+}
+
+/* 变更记录列表（可点击） */
+.package-change-summary {
+  background: rgba(212, 120, 110, 0.06);
+  padding: 10rpx 16rpx 6rpx;
+}
+
+.package-change-summary .extension-text {
+  color: #D4786E;
+}
+
+.package-change-summary:active {
+  background: rgba(212, 120, 110, 0.12);
+}
+
+.extension-footer {
+  margin-top: 6rpx;
+  padding-top: 6rpx;
+  border-top: 1rpx solid rgba(212, 120, 110, 0.12);
+  text-align: center;
+}
+
+.extension-footer-text {
+  font-size: 20rpx;
+  color: #C4B3A4;
+}
+
+.extension-arrow {
+  font-size: 24rpx;
+  color: #C4B3A4;
+  margin-left: 8rpx;
+  flex-shrink: 0;
 }
 
 .booking-item {
@@ -602,13 +644,13 @@
 
 .detail-label {
   font-size: 26rpx;
-  color: var(--text-tertiary);
+  color: var(--text-secondary);
   min-width: 120rpx;
 }
 
 .detail-value {
   font-size: 26rpx;
-  color: var(--text-secondary);
+  color: var(--text-primary);
   flex: 1;
 }
 
@@ -617,7 +659,7 @@
 }
 
 .detail-value.booking-time-text {
-  color: var(--text-tertiary);
+  color: var(--text-primary);
 }
 
 .detail-value.highlight {

@@ -248,7 +248,7 @@ router.get('/:id', auth, checkPermission(['admin', 'staff', 'super_admin', 'stor
 // PUT /api/v1/packages/:id - 编辑套餐(admin/staff)
 router.put('/:id', auth, checkPermission(['super_admin', 'store_manager', 'staff']), storeFilter(), packageOwnershipGuard, async (req, res, next) => {
   try {
-    const pkg = await packageService.updatePackage(req.params.id, req.body);
+    const pkg = await packageService.updatePackage(req.params.id, req.body, req.user.id);
     res.json(success(pkg, '更新套餐成功'));
   } catch (err) {
     next(err);

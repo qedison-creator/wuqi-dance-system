@@ -279,9 +279,9 @@
   display: flex;
   align-items: center;
   background: #FFFFFF;
-  border-radius: 16rpx;
+  border-radius: 24rpx;
   border: 1rpx solid #E8E2D8;
-  padding: 0 20rpx;
+  padding: 8rpx 8rpx 8rpx 20rpx;
   box-shadow: 0 2rpx 16rpx rgba(139, 126, 106, 0.06);
 }
 
@@ -293,8 +293,8 @@
 
 .search-input {
   flex: 1;
-  height: 80rpx;
-  font-size: 28rpx;
+  height: 56rpx;
+  font-size: 26rpx;
   color: #2C2416;
   background: transparent;
 }
@@ -303,19 +303,30 @@
   color: #C4BFB4;
 }
 
-.search-clear {
-  width: 44rpx;
-  height: 44rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 50%;
-  background: #E8E2D8;
+/* 搜索按钮（有输入时显示） */
+.search-btn {
+  font-size: 24rpx;
+  color: #FFFFFF;
+  background: var(--color-primary, #D4786E);
+  border-radius: 18rpx;
+  padding: 8rpx 18rpx;
+  margin-left: 8rpx;
 }
 
-.search-clear text {
-  font-size: 22rpx;
+.search-btn:active {
+  opacity: 0.7;
+}
+
+/* 清除按钮（有输入时显示） */
+.search-clear {
+  font-size: 28rpx;
   color: #8B7E6A;
+  padding: 8rpx 12rpx;
+  margin-left: 4rpx;
+}
+
+.search-clear:active {
+  color: #6B5D4E;
 }
 
 .distribution-section {

@@ -352,6 +352,7 @@ async function createPackageForUser(userId, storeId, packageData, operatorId, is
 
   if (package_type === 'count_card') {
     packageRecord.total_credits = Number(total_credits);
+    packageRecord.original_total_credits = Number(total_credits);  // 原始录入值，修改时不变
     packageRecord.remaining_credits = Number(total_credits);
   } else {
     // 时间卡

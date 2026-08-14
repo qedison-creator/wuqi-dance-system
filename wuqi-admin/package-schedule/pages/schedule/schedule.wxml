@@ -372,6 +372,17 @@
           </view>
           <input wx:if="{{formData.cancelBookingDeadline === -1}}" class="input-field" type="number" placeholder="请输入分钟数" value="{{formData.customCancelBookingDeadline}}" data-field="customCancelBookingDeadline" bindinput="onFormInput" />
         </view>
+
+        <!-- 冲突规则说明 -->
+        <view class="conflict-rules-section">
+          <view class="conflict-rules-title">排课冲突规则</view>
+          <view class="conflict-rules-list">
+            <view class="conflict-rule-item">同一教练同一时间段不能排多节课（含跨门店）</view>
+            <view class="conflict-rule-item">同一教室同一时间段不能排多节课</view>
+            <view class="conflict-rule-item">已取消、已下线、已删除、已完成、未开放状态的排课不参与冲突检测</view>
+            <view class="conflict-rule-item">编辑排课时排除自身，模板预览项不参与冲突检测</view>
+          </view>
+        </view>
       </scroll-view>
 
       <view class="modal-buttons">
