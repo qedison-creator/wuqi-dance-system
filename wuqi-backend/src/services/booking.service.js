@@ -209,26 +209,38 @@ async function checkTimeCardLimit(userPackage, scheduleDate, creditsCost) {
 
   if (!dailyLimit && !weeklyLimit && !monthlyLimit) return { allowed: true };
 
+  // 周期限制按"课时"口径统计：每周N次 = N课时额度，
+  // 即可上两节扣1课时的课，或上一节扣2课时的课（而非按预约条数）
+  const usedCreditsInRange = async (dateFrom, dateTo) => {
+    const res = await Booking.aggregate([
+      {
+        $match: {
+          user_id: userPackage.user_id,
+          user_package_id: userPackage._id,
+          booking_date: { $gte: dateFrom, $lte: dateTo },
+          status: { $in: ['booked', 'completed'] },
+        }
+      },
+      {
+        $group: { _id: null, total: { $sum: '$credits_deducted' } }
+      }
+    ]);
+    return res.length > 0 ? (res[0].total || 0) : 0;
+  };
+
   const bookingDate = bjDate(scheduleDate);
 
   if (weeklyLimit) {
-    const isoWeekNum = bookingDate.isoWeek();
-    const weekYear = bookingDate.isoWeekYear();
     const weekStartDate = bookingDate.startOf('isoWeek');
     const weekEndDate = bookingDate.endOf('isoWeek');
 
-    const usedThisWeek = await Booking.countDocuments({
-      user_id: userPackage.user_id,
-      user_package_id: userPackage._id,
-      booking_date: { $gte: weekStartDate.format('YYYY-MM-DD'), $lte: weekEndDate.format('YYYY-MM-DD') },
-      status: { $in: ['booked', 'completed'] },
-    });
+    const usedThisWeek = await usedCreditsInRange(weekStartDate.format('YYYY-MM-DD'), weekEndDate.format('YYYY-MM-DD'));
 
     if (usedThisWeek + creditsCost > weeklyLimit) {
       const remaining = Math.max(0, weeklyLimit - usedThisWeek);
       return {
         allowed: false,
-        reason: `本周上课次数已达上限（${weeklyLimit}次/周），本周剩余${remaining}次`,
+        reason: `本周课时已达上限（每周${weeklyLimit}课时，已用${usedThisWeek}课时，本课程需${creditsCost}课时，剩余${remaining}课时）`,
         limitType: 'weekly',
         limit: weeklyLimit,
         used: usedThisWeek,
@@ -240,18 +252,13 @@ async function checkTimeCardLimit(userPackage, scheduleDate, creditsCost) {
   if (dailyLimit) {
     const dateStr = bookingDate.format('YYYY-MM-DD');
 
-    const usedToday = await Booking.countDocuments({
-      user_id: userPackage.user_id,
-      user_package_id: userPackage._id,
-      booking_date: dateStr,
-      status: { $in: ['booked', 'completed'] },
-    });
+    const usedToday = await usedCreditsInRange(dateStr, dateStr);
 
     if (usedToday + creditsCost > dailyLimit) {
       const remaining = Math.max(0, dailyLimit - usedToday);
       return {
         allowed: false,
-        reason: `今日上课次数已达上限（${dailyLimit}次/天），今日剩余${remaining}次`,
+        reason: `今日课时已达上限（每日${dailyLimit}课时，已用${usedToday}课时，本课程需${creditsCost}课时，剩余${remaining}课时）`,
         limitType: 'daily',
         limit: dailyLimit,
         used: usedToday,
@@ -264,18 +271,13 @@ async function checkTimeCardLimit(userPackage, scheduleDate, creditsCost) {
     const monthStartDate = bookingDate.startOf('month');
     const monthEndDate = bookingDate.endOf('month');
 
-    const usedThisMonth = await Booking.countDocuments({
-      user_id: userPackage.user_id,
-      user_package_id: userPackage._id,
-      booking_date: { $gte: monthStartDate.format('YYYY-MM-DD'), $lte: monthEndDate.format('YYYY-MM-DD') },
-      status: { $in: ['booked', 'completed'] },
-    });
+    const usedThisMonth = await usedCreditsInRange(monthStartDate.format('YYYY-MM-DD'), monthEndDate.format('YYYY-MM-DD'));
 
     if (usedThisMonth + creditsCost > monthlyLimit) {
       const remaining = Math.max(0, monthlyLimit - usedThisMonth);
       return {
         allowed: false,
-        reason: `本月上课次数已达上限（${monthlyLimit}次/月），本月剩余${remaining}次`,
+        reason: `本月课时已达上限（每月${monthlyLimit}课时，已用${usedThisMonth}课时，本课程需${creditsCost}课时，剩余${remaining}课时）`,
         limitType: 'monthly',
         limit: monthlyLimit,
         used: usedThisMonth,

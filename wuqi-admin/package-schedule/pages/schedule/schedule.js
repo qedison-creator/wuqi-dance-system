@@ -44,6 +44,10 @@ Page({
     currentWeekStart: '',
     currentWeekEnd: '',
     showAddModal: false,
+    // 编辑已有会员预约的课程时锁定核心字段
+    editingBookedCount: 0,
+    editingLocked: false,
+    originalSchedule: null,
     showCopyModal: false,
     showManageModal: false,
     showManageDatePicker: false,
@@ -850,6 +854,9 @@ Page({
       showAddModal: true,
       showCustomDuration: false,
       isCustomDuration: false,
+      editingBookedCount: 0,
+      editingLocked: false,
+      originalSchedule: null,
       formData: {
         _id: '',
         course_name: '',
@@ -890,11 +897,27 @@ Page({
     const danceStyleName = schedule.dance_style_id && schedule.dance_style_id.name ? schedule.dance_style_id.name : schedule.dance_style_name;
     const coachId = schedule.coach_id && schedule.coach_id._id ? schedule.coach_id._id : schedule.coach_id;
     const coachName = schedule.coach_id && schedule.coach_id.name ? schedule.coach_id.name : schedule.coach_name;
-    
+
+    // 已有会员预约的月视图课程：锁定核心字段（时间/教练/课程名称/舞种/扣课次数）
+    const bookedCount = schedule._id ? (schedule.current_bookings || 0) : 0;
+    const editingLocked = bookedCount > 0;
+
     this.setData({
       showAddModal: true,
       showCustomDuration: false,
       isCustomDuration: !COURSE_DURATIONS.some(d => d.value === (schedule.duration || DEFAULT_DURATION)),
+      editingBookedCount: bookedCount,
+      editingLocked,
+      originalSchedule: editingLocked ? {
+        course_name: schedule.course_name || '',
+        danceStyleId: danceStyleId || '',
+        coachId: coachId || '',
+        startTime: schedule.start_time,
+        duration: schedule.duration || DEFAULT_DURATION,
+        creditsCost: schedule.credits_cost || 1,
+        booking_deadline: schedule.booking_deadline,
+        cancel_deadline: schedule.cancel_deadline
+      } : null,
       formData: {
         _id: schedule._id || schedule.template_id,
         course_name: schedule.course_name || '',
@@ -1347,6 +1370,44 @@ Page({
     if (minBookings > maxBookings) {
       wx.showToast({ title: '最低人数不能大于最大人数', icon: 'none' });
       return;
+    }
+
+    // 已有会员预约的课程：核心字段不可修改，截止时间只能往后调（新截止时刻不能早于当下）
+    if (formData._id && this.data.editingLocked && this.data.originalSchedule) {
+      const orig = this.data.originalSchedule;
+      if (
+        formData.course_name !== orig.course_name ||
+        formData.danceStyleId !== orig.danceStyleId ||
+        formData.coachId !== orig.coachId ||
+        formData.startTime !== orig.startTime ||
+        Number(formData.duration) !== Number(orig.duration) ||
+        Number(creditsCost) !== Number(orig.creditsCost)
+      ) {
+        wx.showModal({
+          title: '无法修改',
+          content: '该课程已有会员预约，上课时间、教练、课程名称、扣课次数不能修改',
+          showCancel: false,
+          confirmText: '知道了'
+        });
+        return;
+      }
+
+      const nowTs = Date.now();
+      const classStartTs = new Date(`${this.data.currentDate}T${formData.startTime}:00+08:00`).getTime();
+      if (Number(bookingDeadline) !== Number(orig.booking_deadline)) {
+        const newDeadlineTs = classStartTs - Number(bookingDeadline) * 60000;
+        if (newDeadlineTs < nowTs) {
+          wx.showToast({ title: '预约截止时间只能往后调整，不能早于当下时间', icon: 'none' });
+          return;
+        }
+      }
+      if (Number(cancelBookingDeadline) !== Number(orig.cancel_deadline)) {
+        const newCancelTs = classStartTs - Number(cancelBookingDeadline) * 60000;
+        if (newCancelTs < nowTs) {
+          wx.showToast({ title: '取消预约截止时间只能往后调整，不能早于当下时间', icon: 'none' });
+          return;
+        }
+      }
     }
 
     // 星期视图模式，保存到本地模板

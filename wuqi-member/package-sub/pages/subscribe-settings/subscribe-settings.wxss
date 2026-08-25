@@ -137,6 +137,30 @@
   transform: scale(0.96);
 }
 
+/* 续订按钮（一次性授权补充配额）：橙色描边 */
+.setting-status-btn.renew {
+  background: #FFF7EF;
+  border-color: #E8985E;
+  color: #E8985E;
+}
+
+.setting-status-btn.renew:active {
+  background: #E8985E;
+  color: #fff;
+}
+
+/* 去设置开启按钮（已拒绝恢复）：灰色描边 */
+.setting-status-btn.setting {
+  background: #F5F5F5;
+  border-color: #C0C0C0;
+  color: #666;
+}
+
+.setting-status-btn.setting:active {
+  background: #C0C0C0;
+  color: #fff;
+}
+
 .setting-status.subscribed {
   color: #52C41A;
 }

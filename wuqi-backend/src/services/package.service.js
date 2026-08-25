@@ -186,27 +186,36 @@ async function calcTimeCardUsage(userPackage) {
     next_week_start: null, next_week_end: null,
   };
 
+  // 周期限制按"课时"口径统计（与 checkTimeCardLimit 一致）：
+  // 每周N次 = N课时额度，上扣2课时的课消耗2额度，而非按预约条数
+  const usedCreditsInRange = async (dateFrom, dateTo) => {
+    const res = await Booking.aggregate([
+      {
+        $match: {
+          user_id: userPackage.user_id,
+          user_package_id: userPackage._id,
+          booking_date: { $gte: dateFrom, $lte: dateTo },
+          status: { $in: ['booked', 'completed'] },
+        }
+      },
+      {
+        $group: { _id: null, total: { $sum: '$credits_deducted' } }
+      }
+    ]);
+    return res.length > 0 ? (res[0].total || 0) : 0;
+  };
+
   if (userPackage.weekly_limit) {
     const weekStart = now.startOf('isoWeek');
     const weekEnd = now.endOf('isoWeek');
-    const usedThisWeek = await Booking.countDocuments({
-      user_id: userPackage.user_id,
-      user_package_id: userPackage._id,
-      booking_date: { $gte: weekStart.format('YYYY-MM-DD'), $lte: weekEnd.format('YYYY-MM-DD') },
-      status: { $in: ['booked', 'completed'] },
-    });
+    const usedThisWeek = await usedCreditsInRange(weekStart.format('YYYY-MM-DD'), weekEnd.format('YYYY-MM-DD'));
     result.weekly_used = usedThisWeek;
     result.weekly_limit = userPackage.weekly_limit;
     result.weekly_remaining = Math.max(0, userPackage.weekly_limit - usedThisWeek);
 
     const nextWeekStart = now.add(1, 'week').startOf('isoWeek');
     const nextWeekEnd = now.add(1, 'week').endOf('isoWeek');
-    const usedNextWeek = await Booking.countDocuments({
-      user_id: userPackage.user_id,
-      user_package_id: userPackage._id,
-      booking_date: { $gte: nextWeekStart.format('YYYY-MM-DD'), $lte: nextWeekEnd.format('YYYY-MM-DD') },
-      status: { $in: ['booked', 'completed'] },
-    });
+    const usedNextWeek = await usedCreditsInRange(nextWeekStart.format('YYYY-MM-DD'), nextWeekEnd.format('YYYY-MM-DD'));
     result.next_week_used = usedNextWeek;
     result.next_week_remaining = Math.max(0, userPackage.weekly_limit - usedNextWeek);
     result.next_week_start = nextWeekStart.format('YYYY-MM-DD');
@@ -215,12 +224,7 @@ async function calcTimeCardUsage(userPackage) {
 
   if (userPackage.daily_limit) {
     const todayStr = now.format('YYYY-MM-DD');
-    const usedToday = await Booking.countDocuments({
-      user_id: userPackage.user_id,
-      user_package_id: userPackage._id,
-      booking_date: todayStr,
-      status: { $in: ['booked', 'completed'] },
-    });
+    const usedToday = await usedCreditsInRange(todayStr, todayStr);
     result.daily_used = usedToday;
     result.daily_limit = userPackage.daily_limit;
     result.daily_remaining = Math.max(0, userPackage.daily_limit - usedToday);
@@ -229,12 +233,7 @@ async function calcTimeCardUsage(userPackage) {
   if (userPackage.monthly_limit) {
     const monthStart = now.startOf('month');
     const monthEnd = now.endOf('month');
-    const usedThisMonth = await Booking.countDocuments({
-      user_id: userPackage.user_id,
-      user_package_id: userPackage._id,
-      booking_date: { $gte: monthStart.format('YYYY-MM-DD'), $lte: monthEnd.format('YYYY-MM-DD') },
-      status: { $in: ['booked', 'completed'] },
-    });
+    const usedThisMonth = await usedCreditsInRange(monthStart.format('YYYY-MM-DD'), monthEnd.format('YYYY-MM-DD'));
     result.monthly_used = usedThisMonth;
     result.monthly_limit = userPackage.monthly_limit;
     result.monthly_remaining = Math.max(0, userPackage.monthly_limit - usedThisMonth);

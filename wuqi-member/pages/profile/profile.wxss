@@ -18,7 +18,7 @@ page {
   border-radius: 32rpx;
   padding: 36rpx 32rpx;
   margin-bottom: 24rpx;
-  box-shadow: 0 4rpx 20rpx rgba(212, 120, 110, 0.08);
+  box-shadow: 0 2rpx 8rpx rgba(42,33,34,0.04), 0 8rpx 24rpx rgba(42,33,34,0.06);
   position: relative;
   overflow: hidden;
 }
@@ -296,6 +296,18 @@ page {
   color: #6B5D5E;
 }
 
+/* 豁免取消剩余次数胶囊（状态行最右侧） */
+.hero-exemption {
+  margin-left: auto;
+  padding: 8rpx 18rpx;
+  border-radius: 20rpx;
+  font-size: 22rpx;
+  font-weight: 500;
+  color: #E8985E;
+  background: rgba(232, 152, 94, 0.10);
+  flex-shrink: 0;
+}
+
 .pending-section {
   margin-bottom: 24rpx;
 }
@@ -307,6 +319,7 @@ page {
   display: flex;
   align-items: center;
   border: 1rpx solid rgba(212, 120, 110, 0.08);
+  box-shadow: 0 2rpx 8rpx rgba(42,33,34,0.04), 0 8rpx 24rpx rgba(42,33,34,0.06);
 }
 
 .pending-icon-wrap {
@@ -357,6 +370,7 @@ page {
   align-items: center;
   border: 1rpx solid rgba(212, 120, 110, 0.12);
   transition: all 0.2s;
+  box-shadow: 0 2rpx 8rpx rgba(42,33,34,0.04), 0 8rpx 24rpx rgba(42,33,34,0.06);
 }
 
 .setup-guide-card:active {
@@ -418,7 +432,7 @@ page {
   display: flex;
   align-items: center;
   justify-content: space-around;
-  box-shadow: 0 3rpx 16rpx rgba(212, 120, 110, 0.06);
+  box-shadow: 0 2rpx 8rpx rgba(42,33,34,0.04), 0 8rpx 24rpx rgba(42,33,34,0.06);
 }
 
 /* 四列统计卡布局（次卡+时间卡同时展示时） */
@@ -485,7 +499,7 @@ page {
   height: 88rpx;
   background: linear-gradient(145deg, #FFFFFF 0%, #FEF9F8 100%);
   border-radius: 24rpx;
-  box-shadow: 0 3rpx 14rpx rgba(212, 120, 110, 0.05);
+  box-shadow: 0 2rpx 8rpx rgba(42,33,34,0.04), 0 8rpx 24rpx rgba(42,33,34,0.06);
   margin-right: 16rpx;
   transition: transform 0.2s ease;
 }
@@ -1170,7 +1184,7 @@ page {
   padding: 22rpx 28rpx;
   background: linear-gradient(145deg, #FFFFFF 0%, #FEF9F8 100%);
   border-radius: 24rpx;
-  box-shadow: 0 2rpx 10rpx rgba(212, 120, 110, 0.04);
+  box-shadow: 0 2rpx 8rpx rgba(42,33,34,0.04), 0 8rpx 24rpx rgba(42,33,34,0.06);
 }
 
 .phs-toggle-text {
@@ -1214,7 +1228,7 @@ page {
   text-align: center;
   background: linear-gradient(145deg, #FFFFFF 0%, #FEF9F8 100%);
   border-radius: 24rpx;
-  box-shadow: 0 3rpx 14rpx rgba(212, 120, 110, 0.05);
+  box-shadow: 0 2rpx 8rpx rgba(42,33,34,0.04), 0 8rpx 24rpx rgba(42,33,34,0.06);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1364,7 +1378,7 @@ page {
   background: linear-gradient(145deg, #FFFFFF 0%, #FEF9F8 100%);
   border-radius: 24rpx;
   overflow: hidden;
-  box-shadow: 0 3rpx 12rpx rgba(212, 120, 110, 0.04);
+  box-shadow: 0 2rpx 8rpx rgba(42,33,34,0.04), 0 8rpx 24rpx rgba(42,33,34,0.06);
 }
 
 .menu-item {

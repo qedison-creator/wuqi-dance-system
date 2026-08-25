@@ -18,6 +18,7 @@ Page({
   },
 
   onShow() {
+    // 从小程序设置页返回时自动刷新（用户可能在设置页手动开启了订阅）
     this.loadSubscribedStatus();
   },
 
@@ -47,10 +48,9 @@ Page({
           const itemSettings = subscriptions.itemSettings || {};
           // 微信订阅消息状态判定：
           // - wxStatus === 'accept'：用户勾了"总是保持"并点了允许，微信永久记录
-          // - wxStatus === 'reject'/'ban'：用户永久拒绝，无法再弹窗
-          // - wxStatus === undefined：用户点过"允许"但未勾"总是保持"（一次性消费），或从未授权
-          //   此时本地 subscribe_accepted_map 记录了用户曾点过"允许"，应视为"已订阅"（一次性配额已发放）
-          //   只有本地也无记录时，才是"待授权"
+          // - wxStatus === 'reject'/'ban'：用户永久拒绝，无法再弹窗，只能去设置页开启
+          // - wxStatus === undefined：一次性授权（未勾"总是保持"）或从未授权
+          //   本地 subscribe_accepted_map 记录了用户曾点过"允许"，视为"已授权(一次性)"
           const templatesWithStatus = allIds.map(item => {
             const wxStatus = itemSettings[item.id];
             const isAccepted = wxStatus === 'accept';
@@ -61,10 +61,11 @@ Page({
               subscribed: isAccepted,
               onceAccepted: isOnceAccepted,
               rejected: isRejected,
-              canSubscribe: !isAccepted && !isOnceAccepted && !isRejected
+              // 待授权和一次性都可再次发起授权（一次性可续订补充配额）
+              canSubscribe: !isAccepted && !isRejected
             };
           });
-          const unsubscribedCount = templatesWithStatus.filter(t => t.canSubscribe).length;
+          const unsubscribedCount = templatesWithStatus.filter(t => !t.subscribed && !t.onceAccepted && !t.rejected).length;
           this.setData({ templatesWithStatus, loading: false, unsubscribedCount });
         },
         fail: () => {
@@ -76,30 +77,38 @@ Page({
             rejected: false,
             canSubscribe: !localAccepted[item.id]
           }));
-          const unsubscribedCount = templatesWithStatus.filter(t => t.canSubscribe).length;
+          const unsubscribedCount = templatesWithStatus.filter(t => !t.onceAccepted).length;
           this.setData({ templatesWithStatus, loading: false, unsubscribedCount });
         }
       });
     });
   },
 
-  // 单条授权：点击"待授权"对该模板单独弹出授权窗口
+  // 单条授权/续订：自动凑批（带上其他待授权模板，最多3个），
+  // 弹窗包含多个模板时才会出现「总是保持以上选择」勾选框，允许后即长期订阅
   onSubscribeSingle(e) {
     const { id } = e.currentTarget.dataset;
     if (!id) return;
 
+    // 凑批：本模板优先，再补充其他可授权模板（最多3个，微信单次上限）
+    const others = this.data.templatesWithStatus
+      .filter(t => t.id !== id && t.canSubscribe)
+      .slice(0, 2)
+      .map(t => t.id);
+    const batchIds = [id, ...others];
+
     wx.requestSubscribeMessage({
-      tmplIds: [id],
+      tmplIds: batchIds,
       success: (res) => {
+        const accepted = batchIds.filter(tid => res[tid] === 'accept');
+        if (accepted.length > 0) markTemplatesAccepted(accepted);
         if (res[id] === 'accept') {
-          markTemplatesAccepted([id]);
-          // 重新读取微信真实状态，准确区分永久订阅/一次性授权
-          this.loadSubscribedStatus();
           wx.showToast({ title: '订阅成功', icon: 'success' });
         } else {
           wx.showToast({ title: '未授权', icon: 'none' });
-          this.loadSubscribedStatus();
         }
+        // 重新读取微信真实状态，准确区分长期订阅/一次性授权/已拒绝
+        this.loadSubscribedStatus();
       },
       fail: () => {
         wx.showToast({ title: '授权失败，请重试', icon: 'none' });
@@ -107,19 +116,25 @@ Page({
     });
   },
 
-  // "一键订阅"：微信限制每次用户点击只能弹1次授权窗，每次最多3个模板
-  // 每次点击处理一批（最多3个），剩余的提示用户再次点击继续
-  // 不能在 wx.requestSubscribeMessage 的 success 回调中链式调用下一批，
-  // 因为异步回调已脱离用户 tap 事件上下文，微信不会弹出授权窗
+  // 已拒绝的模板：跳转小程序设置页，让用户在「订阅消息」中手动开启
+  // 返回后 onShow 自动刷新状态
+  onGoToSetting() {
+    wx.openSetting({
+      withSubscriptions: true
+    });
+  },
+
+  // "一键订阅"：每批最多3个模板，批间通过 modal「继续授权」衔接完成全部授权
+  // （modal 的确认点击保留手势上下文，可在回调中继续调用 wx.requestSubscribeMessage）
   onSubscribeAll() {
     const canSubscribe = this.data.templatesWithStatus.filter(item => item.canSubscribe);
+    const rejectedCount = this.data.templatesWithStatus.filter(item => item.rejected).length;
 
     if (canSubscribe.length === 0) {
-      const rejected = this.data.templatesWithStatus.filter(item => item.rejected && !item.subscribed);
-      if (rejected.length > 0) {
+      if (rejectedCount > 0) {
         wx.showModal({
-          title: '无法订阅',
-          content: `有 ${rejected.length} 个通知模板已被永久拒绝，无法再次弹出授权。请在微信「设置→订阅消息」中手动开启。`,
+          title: '无法自动订阅',
+          content: `有 ${rejectedCount} 个通知类型已被拒绝，无法再次弹出授权窗口。请点击对应类型的「去设置开启」按钮，在小程序设置页中手动开启。`,
           showCancel: false,
           confirmText: '知道了'
         });
@@ -129,65 +144,55 @@ Page({
       return;
     }
 
-    // 取第一批（最多3个），微信单次授权上限为3个模板
-    const batch = canSubscribe.slice(0, 3);
+    this._subscribeBatches(canSubscribe, rejectedCount);
+  },
+
+  // 递归分批授权：每批3个，授权完弹「继续授权」处理下一批
+  _subscribeBatches(remainingList, totalRejected) {
+    const batch = remainingList.slice(0, 3);
     const batchIds = batch.map(item => item.id);
 
     wx.requestSubscribeMessage({
       tmplIds: batchIds,
       success: (res) => {
-        const accepted = [];
-        const rejectedInBatch = [];
-        batch.forEach(item => {
-          if (res[item.id] === 'accept') {
-            accepted.push(item.id);
-          } else {
-            rejectedInBatch.push(item.id);
-          }
-        });
+        const accepted = batchIds.filter(id => res[id] === 'accept');
+        if (accepted.length > 0) markTemplatesAccepted(accepted);
 
-        if (accepted.length > 0) {
-          markTemplatesAccepted(accepted);
-        }
-
-        // 更新列表状态：已接受和本批已拒绝的都标记为不可再订阅
-        const acceptedSet = new Set(accepted);
-        const rejectedSet = new Set(rejectedInBatch);
-        const updatedList = this.data.templatesWithStatus.map(item => {
-          if (acceptedSet.has(item.id)) {
-            return { ...item, subscribed: true, canSubscribe: false };
-          }
-          if (rejectedSet.has(item.id)) {
-            return { ...item, canSubscribe: false };
-          }
-          return item;
-        });
-        const remainingAfter = updatedList.filter(t => t.canSubscribe).length;
-        this.setData({ templatesWithStatus: updatedList, unsubscribedCount: remainingAfter });
-
-        if (remainingAfter > 0) {
-          // 还有剩余，提示用户再次点击继续授权
+        const rest = remainingList.slice(3);
+        if (rest.length > 0) {
+          // 更新已授权部分的状态（列表刷新交给 loadSubscribedStatus，批次队列自己维护避免竞态）
+          this.loadSubscribedStatus();
           wx.showModal({
             title: '本批授权完成',
-            content: `已授权 ${accepted.length} 个，还有 ${remainingAfter} 个待授权。请再次点击「一键订阅」继续授权剩余通知。`,
-            showCancel: false,
-            confirmText: '知道了',
-            confirmColor: '#C5744B'
+            content: `已授权 ${accepted.length}/${batch.length} 个，还剩 ${rest.length} 个待授权。建议在授权弹窗中勾选「总是保持以上选择」，一次授权长期有效。`,
+            confirmText: '继续授权',
+            cancelText: '稍后再说',
+            showCancel: true,
+            confirmColor: '#C5744B',
+            success: (modalRes) => {
+              if (modalRes.confirm) {
+                this._subscribeBatches(rest, totalRejected);
+              }
+            }
           });
         } else {
-          // 全部处理完毕
-          if (accepted.length > 0 && rejectedInBatch.length === 0) {
+          // 全部批次处理完毕
+          this.loadSubscribedStatus();
+          const notAcceptedInBatch = batch.length - accepted.length;
+          if (accepted.length > 0 && notAcceptedInBatch === 0 && totalRejected === 0) {
             wx.showToast({ title: '全部订阅完成', icon: 'success' });
           } else {
+            const parts = [`已成功订阅 ${accepted.length} 个通知`];
+            if (notAcceptedInBatch > 0) parts.push(`${notAcceptedInBatch} 个未授权`);
+            if (totalRejected > 0) parts.push(`${totalRejected} 个已被拒绝（可点击「去设置开启」恢复）`);
             wx.showModal({
-              title: '订阅完成',
-              content: `已成功订阅 ${accepted.length} 个通知${rejectedInBatch.length > 0 ? `，${rejectedInBatch.length} 个未授权` : ''}。`,
+              title: '订阅结束',
+              content: parts.join('，') + '。',
               showCancel: false,
               confirmText: '知道了',
               confirmColor: '#C5744B'
             });
           }
-          this.loadSubscribedStatus();
         }
       },
       fail: () => {

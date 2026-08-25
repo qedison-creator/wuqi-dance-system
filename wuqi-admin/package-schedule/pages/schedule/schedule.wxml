@@ -212,9 +212,9 @@
 
       <scroll-view class="modal-body-scroll" scroll-y enhanced show-scrollbar="{{false}}">
         <!-- 课程名称 -->
-        <view class="form-group">
+        <view class="form-group {{editingLocked ? 'locked' : ''}}">
           <text class="form-label">课程名称</text>
-          <input class="input-field" placeholder="请输入课程名称" value="{{formData.course_name}}" data-field="course_name" bindinput="onFormInput" />
+          <input class="input-field" placeholder="请输入课程名称" value="{{formData.course_name}}" data-field="course_name" bindinput="onFormInput" disabled="{{editingLocked}}" />
         </view>
 
         <!-- 课程封面 -->
@@ -243,7 +243,7 @@
         </view>
 
         <!-- 舞种选择（点选） -->
-        <view class="form-group">
+        <view class="form-group {{editingLocked ? 'locked' : ''}}">
           <text class="form-label">舞种 *</text>
           <view class="select-list">
             <view class="select-item {{formData.danceStyleId === item._id ? 'active' : ''}}" wx:for="{{danceStyles}}" wx:key="_id" data-id="{{item._id}}" data-name="{{item.name}}" bindtap="onSelectDanceStyle">
@@ -253,7 +253,7 @@
         </view>
 
         <!-- 教练选择（点选） -->
-        <view class="form-group">
+        <view class="form-group {{editingLocked ? 'locked' : ''}}">
           <text class="form-label">教练 *</text>
           <view class="select-list">
             <view class="select-item {{formData.coachId === item._id ? 'active' : ''}}" wx:for="{{coaches}}" wx:key="_id" data-id="{{item._id}}" data-name="{{item.name}}" bindtap="onSelectCoach">
@@ -263,7 +263,7 @@
         </view>
 
         <!-- 开课时间 -->
-        <view class="form-group">
+        <view class="form-group {{editingLocked ? 'locked' : ''}}">
           <text class="form-label">开课时间 *</text>
           <view class="input-field {{formData.startTime ? '' : 'placeholder'}}" bindtap="onShowTimePicker">
             <text>{{formData.startTime || '请选择开课时间'}}</text>
@@ -271,7 +271,7 @@
         </view>
 
         <!-- 课程时长 -->
-        <view class="form-group">
+        <view class="form-group {{editingLocked ? 'locked' : ''}}">
           <text class="form-label">课程时长</text>
           <view class="duration-list">
             <view class="duration-item {{formData.duration === item.value ? 'active' : ''}}" wx:for="{{courseDurations}}" wx:key="value" data-value="{{item.value}}" bindtap="onSelectDuration">
@@ -285,7 +285,7 @@
         </view>
 
         <!-- 扣除课时次 -->
-        <view class="form-group">
+        <view class="form-group {{editingLocked ? 'locked' : ''}}">
           <text class="form-label">扣除次数</text>
           <view class="credit-cost-list">
             <view class="credit-cost-item {{formData.creditsCost === 1 ? 'active' : ''}}" bindtap="onSelectCreditsCost" data-value="1">

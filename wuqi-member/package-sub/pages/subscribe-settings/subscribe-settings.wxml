@@ -24,8 +24,18 @@
           </view>
           <view class="setting-action">
             <text class="setting-status subscribed" wx:if="{{item.subscribed}}">✓ 已订阅</text>
-            <text class="setting-status once" wx:elif="{{item.onceAccepted}}">已授权(一次性)</text>
-            <text class="setting-status rejected" wx:elif="{{item.rejected}}">已拒绝</text>
+            <block wx:elif="{{item.onceAccepted}}">
+              <text class="setting-status once">已授权(一次性)</text>
+              <view class="setting-status-btn renew" catchtap="onSubscribeSingle" data-id="{{item.id}}">
+                <text>续订</text>
+              </view>
+            </block>
+            <block wx:elif="{{item.rejected}}">
+              <text class="setting-status rejected">已拒绝</text>
+              <view class="setting-status-btn setting" catchtap="onGoToSetting">
+                <text>去设置开启</text>
+              </view>
+            </block>
             <view class="setting-status-btn" wx:else catchtap="onSubscribeSingle" data-id="{{item.id}}" data-index="{{index}}">
               <text>待授权</text>
             </view>
@@ -37,6 +47,6 @@
   </view>
 
   <view class="tips-section">
-    <text class="tips-text">💡 微信订阅消息为一次性消费授权，每授权一次仅能接收一条通知。"已授权(一次性)"表示配额可能已消耗，如需长期接收请勾选「总是保持以上选择」。每次点击最多授权3个，如有剩余请再次点击「一键订阅」。</text>
+    <text class="tips-text">💡 微信订阅消息为一次性消费授权，每授权一次仅能接收一条通知。建议在授权弹窗中勾选「总是保持以上选择」，一次授权长期有效。「已授权(一次性)」可点「续订」补充配额；「已拒绝」的类型可点「去设置开启」在小程序设置中恢复。一键订阅每批最多3个，可连续授权直到完成。</text>
   </view>
 </view>

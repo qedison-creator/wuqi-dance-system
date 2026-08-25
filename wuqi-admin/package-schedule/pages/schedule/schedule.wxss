@@ -785,6 +785,15 @@
   padding-right: 20rpx;
 }
 
+/* 已有预约课程：锁定区域置灰并禁止交互 */
+.form-group.locked .select-list,
+.form-group.locked .duration-list,
+.form-group.locked .credit-cost-list,
+.form-group.locked .input-field {
+  opacity: 0.45;
+  pointer-events: none;
+}
+
 .modal-buttons {
   display: flex;
   gap: 24rpx;

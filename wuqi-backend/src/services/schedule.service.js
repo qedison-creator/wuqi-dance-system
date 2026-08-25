@@ -861,7 +861,41 @@ exports.updateSchedule = async (id, data, operatorId) => {
   });
 
   if (bookingCount > 0) {
-    // 已有预约，仅可修改教室、备注、人数设置和截止时间，清除其他字段避免误触发冲突检查
+    // 已有会员预约：核心课程信息（时间/教练/课程名称/舞种/扣课次数）不可修改，明确报错拦截而非静默忽略
+    const protectedFields = [
+      ['date', '上课日期'],
+      ['start_time', '上课时间'],
+      ['end_time', '下课时间'],
+      ['duration', '课程时长'],
+      ['coach_id', '教练'],
+      ['course_name', '课程名称'],
+      ['dance_style_id', '舞种'],
+      ['credits_cost', '扣课次数'],
+      ['store_id', '门店'],
+    ];
+    for (const [field, label] of protectedFields) {
+      if (data[field] !== undefined && String(data[field]) !== String(schedule[field] ?? '')) {
+        throw new Error(`该课程已有会员预约，不能修改${label}`);
+      }
+    }
+
+    // 预约截止/取消预约截止只能往后调：新截止时刻不能早于当下时间
+    const nowLocked = dayjs().tz(BEIJING_TZ);
+    const classStart = dayjs.tz(`${schedule.date} ${schedule.start_time}`, BEIJING_TZ);
+    if (data.booking_deadline !== undefined && Number(data.booking_deadline) !== Number(schedule.booking_deadline)) {
+      const newDeadlineAt = classStart.subtract(Number(data.booking_deadline), 'minute');
+      if (newDeadlineAt.isBefore(nowLocked)) {
+        throw new Error(`预约截止时间只能往后调整，新截止时间（${newDeadlineAt.format('MM-DD HH:mm')}）已早于当前时间`);
+      }
+    }
+    if (data.cancel_deadline !== undefined && Number(data.cancel_deadline) !== Number(schedule.cancel_deadline)) {
+      const newCancelAt = classStart.subtract(Number(data.cancel_deadline), 'minute');
+      if (newCancelAt.isBefore(nowLocked)) {
+        throw new Error(`取消预约截止时间只能往后调整，新截止时间（${newCancelAt.format('MM-DD HH:mm')}）已早于当前时间`);
+      }
+    }
+
+    // 仅允许修改教室、备注、封面、人数设置和截止时间，清除其他字段避免误触发冲突检查
     const allowedFields = ['classroom', 'remark', 'note', 'cover', 'max_bookings', 'min_bookings', 'booking_deadline', 'cancel_deadline'];
     const filteredData = {};
     for (const key of allowedFields) {

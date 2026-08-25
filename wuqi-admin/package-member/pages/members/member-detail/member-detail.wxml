@@ -66,6 +66,12 @@
           <text class="info-arrow" wx:if="{{canEditMember}}">></text>
         </view>
       </view>
+      <view class="info-row exemption-row">
+        <text class="info-label">豁免取消</text>
+        <view class="info-value-row exemption-value-row">
+          <text class="info-value">{{member.exemption_count || 0}} 次</text>
+        </view>
+      </view>
     </view>
   </view>
 

@@ -35,6 +35,9 @@
           <text>{{memberStatusText}}</text>
         </view>
         <text class="status-sub" wx:if="{{currentPackageType}}">当前套餐：{{currentPackageType}}</text>
+        <view class="hero-exemption" wx:if="{{userInfo.exemption_count > 0}}">
+          <text>豁免取消剩余{{userInfo.exemption_count}}次</text>
+        </view>
       </view>
     </view>
 
