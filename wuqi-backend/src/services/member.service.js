@@ -23,6 +23,21 @@ exports.getMemberList = async (query) => {
 
   if (status) filter.status = status;
   if (member_status) filter.member_status = member_status;
+
+  // 关键词搜索必须先于门店过滤处理：
+  // 门店过滤（cross_store/store_id 分支）会把已存在的 filter.$or（关键词条件）
+  // 正确合并进 $and；若顺序颠倒，keyword 的 $or 会覆盖门店过滤的 $or，导致跨店搜索泄漏
+  if (keyword) {
+    filter.$or = [
+      { nick_name: { $regex: keyword, $options: 'i' } },
+      { real_name: { $regex: keyword, $options: 'i' } },
+      { phone: { $regex: keyword, $options: 'i' } },
+      { wechat_phone: { $regex: keyword, $options: 'i' } },
+      { reserve_phone: { $regex: keyword, $options: 'i' } },
+      { member_code: { $regex: keyword, $options: 'i' } },
+    ];
+  }
+
   if (no_store === 'true' || no_store === true) {
     // ObjectId 类型字段，只需检查 null 和不存在
     filter.store_id = { $in: [null, undefined] };
@@ -89,30 +104,6 @@ exports.getMemberList = async (query) => {
       filter.$and = [{ $or: keywordOr }, storeCondition];
     } else {
       Object.assign(filter, storeCondition);
-    }
-  }
-  if (keyword) {
-    // 如果 store_id 已经构建了 $and，把 keyword 的 $or 追加进去
-    if (filter.$and) {
-      filter.$and.push({
-        $or: [
-          { nick_name: { $regex: keyword, $options: 'i' } },
-          { real_name: { $regex: keyword, $options: 'i' } },
-          { phone: { $regex: keyword, $options: 'i' } },
-          { wechat_phone: { $regex: keyword, $options: 'i' } },
-          { reserve_phone: { $regex: keyword, $options: 'i' } },
-          { member_code: { $regex: keyword, $options: 'i' } },
-        ]
-      });
-    } else {
-      filter.$or = [
-        { nick_name: { $regex: keyword, $options: 'i' } },
-        { real_name: { $regex: keyword, $options: 'i' } },
-        { phone: { $regex: keyword, $options: 'i' } },
-        { wechat_phone: { $regex: keyword, $options: 'i' } },
-        { reserve_phone: { $regex: keyword, $options: 'i' } },
-        { member_code: { $regex: keyword, $options: 'i' } },
-      ];
     }
   }
 
@@ -230,13 +221,11 @@ exports.getMemberList = async (query) => {
     // 别名：前端统一使用 avatar / nickname
     userObj.avatar = userObj.avatar_url;
     userObj.nickname = userObj.nick_name;
-    // 跨门店访问标志：会员归属门店与当前查询门店不一致时为 true
-    if (store_id) {
-      const userStoreId = userObj.store_id && userObj.store_id._id ? String(userObj.store_id._id) : null;
-      userObj.cross_store_access = !userStoreId || userStoreId !== String(store_id);
-    } else {
-      userObj.cross_store_access = false;
-    }
+    // 跨门店标志：会员有生效中的套餐授权了跨门店使用（extra_store_ids 非空）时为 true
+    // 与"跨门店"筛选口径一致，与会员归属门店无关
+    userObj.cross_store_access = packages.some(p =>
+      p.status === 'active' && Array.isArray(p.extra_store_ids) && p.extra_store_ids.length > 0
+    );
     return userObj;
   }));
 

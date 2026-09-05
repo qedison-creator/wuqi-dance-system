@@ -341,21 +341,58 @@
   color: #B8AF9E;
 }
 
-/* 舞种限制标签（仅在有舞种限制时显示） */
-.dance-style-tag {
-  display: inline-flex;
+/* 套餐行：一个套餐一行，行尾标注该套餐的激活状态 */
+.pkg-row {
+  display: flex;
   align-items: center;
-  padding: 4rpx 16rpx;
-  margin-top: 8rpx;
-  border-radius: 20rpx;
-  background: rgba(196, 102, 62, 0.1);
-  border: 1rpx solid rgba(196, 102, 62, 0.3);
+  justify-content: space-between;
+  gap: 16rpx;
+  padding: 6rpx 0;
 }
 
-.dance-style-tag-text {
+.pkg-row-divider {
+  border-bottom: 1rpx solid #F5F1EA;
+}
+
+.pkg-row-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.pkg-row-info .package-text {
+  display: block;
+  line-height: 1.5;
+}
+
+.pkg-row-dance {
+  display: block;
   font-size: 22rpx;
   color: #C4663E;
+  margin-top: 4rpx;
+}
+
+/* 套餐状态标签：与会员管理页 member-status 体系完全一致 */
+.pkg-row-status {
+  flex-shrink: 0;
+  padding: 4rpx 16rpx;
+  border-radius: 20rpx;
+  font-size: 22rpx;
   font-weight: 500;
+}
+
+.pkg-status-active {
+  background: rgba(91, 140, 90, 0.1);
+  color: #5B8C5A;
+}
+
+.pkg-status-pending {
+  background: #FAEEE4;
+  color: #C4663E;
+}
+
+.pkg-status-default {
+  background: rgba(184, 175, 158, 0.08);
+  color: #8B7E6A;
 }
 
 .member-actions {

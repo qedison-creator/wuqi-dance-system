@@ -613,6 +613,7 @@
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
+  flex-wrap: wrap;
   margin-bottom: 6rpx;
 }
 
@@ -620,8 +621,9 @@
   font-size: 30rpx;
   font-weight: 600;
   color: #2C2416;
-  flex: 1;
+  flex: 0 1 auto;
   min-width: 0;
+  max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -632,10 +634,11 @@
 .member-tags {
   display: flex;
   align-items: center;
-  flex-shrink: 0;
   gap: 8rpx;
   flex-wrap: wrap;
   justify-content: flex-end;
+  max-width: 100%;
+  margin-left: auto;
 }
 
 .store-tag {
@@ -645,6 +648,14 @@
   font-weight: 500;
   background: rgba(197, 116, 75, 0.1);
   color: #C5744B;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+/* 福永店门店标签：蓝色系（其他门店保持棕色系） */
+.store-tag.store-tag-fuyong {
+  background: rgba(72, 125, 232, 0.1);
+  color: #487DE8;
 }
 
 /* 跨门店会员标签 */
@@ -660,6 +671,10 @@
 
 .store-tag-text {
   font-size: 22rpx;
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .member-status {
@@ -750,6 +765,42 @@
   border-top: 1rpx solid #F0EBE4;
 }
 
+/* 套餐行：一个套餐一行，行尾标注该套餐的激活状态 */
+.package-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16rpx;
+  padding: 6rpx 0;
+}
+
+.package-row-divider {
+  border-bottom: 1rpx solid #F5F1EA;
+}
+
+.package-row-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.package-row-info .meta-text {
+  display: block;
+  margin-right: 0;
+  white-space: normal;
+  line-height: 1.5;
+}
+
+.package-row-dance {
+  display: block;
+  font-size: 22rpx;
+  color: #C5744B;
+  margin-top: 4rpx;
+}
+
+.package-row-status {
+  margin-left: auto;
+}
+
 .member-meta {
   display: flex;
   align-items: center;
@@ -760,23 +811,6 @@
   font-size: 24rpx;
   color: #8B7E6A;
   margin-right: 16rpx;
-}
-
-/* 舞种限制标签（仅在有舞种限制时显示） */
-.dance-style-tag {
-  display: inline-flex;
-  align-items: center;
-  padding: 4rpx 16rpx;
-  margin-top: 12rpx;
-  border-radius: 20rpx;
-  background: rgba(197, 116, 75, 0.1);
-  border: 1rpx solid rgba(197, 116, 75, 0.3);
-}
-
-.dance-style-tag-text {
-  font-size: 22rpx;
-  color: #C5744B;
-  font-weight: 500;
 }
 
 .meta-expire {

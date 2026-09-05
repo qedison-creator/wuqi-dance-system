@@ -148,6 +148,22 @@ exports.wxLogin = async (code, storeId, clientType = 'member', profileData = {})
     if (storeId && !user.store_id) user.store_id = storeId;
     if (user.member_status === 'guest') user.member_status = 'registered';
     await user.save();
+
+    // 存量预建档自动合并：已注册会员的登录账号存在时，检查是否有同手机号的待认领预建档
+    // （历史双账号数据），将套餐转移到当前账号并清理预建档记录
+    if (phoneNumber) {
+      try {
+        const preMemberService = require('./preMember.service');
+        const mergeResult = await preMemberService.mergePendingClaimByPhone(phoneNumber, String(user._id));
+        if (mergeResult) {
+          const totalPackages = mergeResult.merged.reduce((sum, m) => sum + m.transferred_packages, 0);
+          console.log(`[预建档合并] 手机号 ${phoneNumber.substring(0, 3)}****${phoneNumber.substring(7)} 的待认领预建档已合并到当前账号，转移套餐 ${totalPackages} 个`);
+        }
+      } catch (err) {
+        // 异常自动降级：不影响登录主流程
+        console.error('[预建档合并] 异常，降级跳过:', err.message);
+      }
+    }
   }
 
   // 3. 生成JWT token

@@ -162,15 +162,24 @@ Page({
           }
         }
       } else {
-        // 首次进入本页：参考全局统一门店选择
-        const shopStoreId = app.globalData.shopStoreId || '';
-        if (shopStoreId) {
-          const found = storeList.find(s => String(s._id) === String(shopStoreId));
-          if (found) {
-            currentStoreId = found._id;
-            currentStoreName = found.name;
+        // 首次进入本页：恢复上次手动选择的门店（本地持久化）；无记录时默认"全部门店"视图
+        let savedStoreId = '';
+        try { savedStoreId = wx.getStorageSync('members_selected_store_id') || ''; } catch (e) { /* 忽略读取失败 */ }
+        if (savedStoreId) {
+          if (storeList.length > 0) {
+            const found = storeList.find(s => String(s._id) === String(savedStoreId));
+            if (found) {
+              currentStoreId = found._id;
+              currentStoreName = found.name;
+            } else {
+              // 上次选择的门店已不存在：清除记忆并回退"全部门店"
+              try { wx.removeStorageSync('members_selected_store_id'); } catch (e) { /* 忽略 */ }
+              currentStoreId = '';
+              currentStoreName = '全部门店';
+            }
           } else {
-            currentStoreId = shopStoreId;
+            // 全局门店列表尚未就绪：先保留选择，名称由 loadStoreList 完成后回填
+            currentStoreId = savedStoreId;
             currentStoreName = '';
           }
         } else {
@@ -299,6 +308,17 @@ Page({
 
       this.setData({ storeList: list });
       app.globalData.storeList = list;
+      // 门店名称回填：冷启动时全局门店列表可能未就绪，onShow 保留了已选门店但名称为空
+      if (this.data.currentStoreId && !this.data.currentStoreName) {
+        const found = list.find(s => String(s._id) === String(this.data.currentStoreId));
+        if (found) {
+          this.setData({ currentStoreName: found.name });
+        } else if (!app.isSingleStoreRole()) {
+          // 上次手动选择的门店已被删除（多门店角色）：回退"全部门店"并清除记忆
+          try { wx.removeStorageSync('members_selected_store_id'); } catch (e) { /* 忽略 */ }
+          this.setData({ currentStoreId: '', currentStoreName: '全部门店' });
+        }
+      }
       // 加载会员列表需要在门店列表加载完成后进行
       // 仅在显式请求时加载会员列表，自动刷新时不触发（避免翻页后 concat 导致重复）
       if (forceLoadMembers) {
@@ -408,6 +428,14 @@ Page({
     app.globalData.currentStoreId = id;
     // 同步到全局统一门店选择（与首页/店务管理/运营管理共享）
     app.globalData.shopStoreId = id;
+    // 持久化本页手动选择的门店：选"全部门店"时清除记忆（下次进入即默认全部）
+    try {
+      if (id) {
+        wx.setStorageSync('members_selected_store_id', id);
+      } else {
+        wx.removeStorageSync('members_selected_store_id');
+      }
+    } catch (e) { /* 忽略存储失败 */ }
     this.setData({
       currentStoreId: id,
       currentStoreName: currentStore ? currentStore.name : '全部门店',
@@ -580,56 +608,102 @@ Page({
     const reservePhone = maskPhone(reservePhoneRaw);
     const wechatPhone = maskPhone(wechatPhoneRaw);
 
-    // 构建套餐信息文本
-    let packageInfo = '';
-    let packageDanceStyleText = '';
+    // 构建套餐行数据：一个套餐一行，每行携带自己的状态标签（已激活/待激活/已停卡/已过期/已用完）
+    let packageRows = [];
     if (member.member_status === 'official' && member.packages && member.packages.length > 0) {
-      const usablePkg = member.packages.find(p => p.status === 'active') || member.packages.find(p => p.status === 'pending');
-      if (usablePkg) {
-        const typeLabel = usablePkg.package_type === 'time_card' ? '时间卡' : '次卡';
-        const statusPrefix = usablePkg.status === 'pending' ? '未激活·' : '';
-        const startDate = usablePkg.start_date ? formatDate(usablePkg.start_date) : '';
-        const endDate = usablePkg.end_date ? formatDate(usablePkg.end_date) : '';
-        const dateRange = (startDate || endDate) ? `有效期${startDate}至${endDate}` : '';
-        if (usablePkg.package_type === 'count_card') {
-          const total = usablePkg.total_credits || 0;
-          const remaining = usablePkg.remaining_credits || 0;
-          packageInfo = `${statusPrefix}${typeLabel} · ${remaining}/${total}次`;
-          if (dateRange) packageInfo += ' · ' + dateRange;
-        } else {
-          const duration = usablePkg.duration_value || 0;
-          const unit = usablePkg.duration_unit === 'month' ? '个月' : '天';
-          let limitStr = '';
-          if (usablePkg.daily_limit) {
-            limitStr = `每日${usablePkg.daily_limit}次`;
-          } else if (usablePkg.weekly_limit) {
-            limitStr = `每周${usablePkg.weekly_limit}次`;
-          } else if (usablePkg.monthly_limit) {
-            limitStr = `每月${usablePkg.monthly_limit}次`;
-          }
-          if (usablePkg.status === 'pending') {
-            packageInfo = `${statusPrefix}${typeLabel} · ${duration}${unit}`;
-            if (limitStr) packageInfo += ' · ' + limitStr;
+      // 展示排序：使用中 > 已停卡 > 待激活 > 已用完 > 已过期
+      const statusOrder = { active: 0, suspended: 1, pending: 2, exhausted: 3, expired: 4 };
+      const getPkgOrder = (p) => {
+        if (p.status === 'active' && p.is_suspended) return statusOrder.suspended;
+        return statusOrder[p.status] !== undefined ? statusOrder[p.status] : 9;
+      };
+      packageRows = member.packages
+        .slice()
+        .sort((a, b) => getPkgOrder(a) - getPkgOrder(b))
+        .map((pkg, idx) => {
+          const typeLabel = pkg.package_type === 'time_card' ? '时间卡' : '次卡';
+          const startDate = pkg.start_date ? formatDate(pkg.start_date) : '';
+          const endDate = pkg.end_date ? formatDate(pkg.end_date) : '';
+          const dateRange = (startDate || endDate) ? `${startDate}至${endDate}` : '';
+          const duration = pkg.duration_value || 0;
+          const unit = pkg.duration_unit === 'month' ? '个月' : '天';
+          let info = '';
+          if (pkg.package_type === 'count_card') {
+            const total = pkg.total_credits || 0;
+            const remaining = pkg.remaining_credits || 0;
+            info = `${typeLabel} · ${remaining}/${total}次`;
+            if (pkg.status === 'pending') {
+              // 待激活：显示卡面时长（XX个月/XX天），激活时才起算有效期
+              if (duration) info += ` · ${duration}${unit}`;
+            } else if (dateRange) {
+              info += ' · ' + dateRange;
+            }
           } else {
-            const remainDays = usablePkg.remaining_days;
-            const remainStr = remainDays !== undefined && remainDays !== null ? `${remainDays}天剩余` : '';
-            packageInfo = `${typeLabel}`;
-            if (limitStr) packageInfo += ' · ' + limitStr;
-            if (remainStr) packageInfo += ' · ' + remainStr;
-            if (dateRange) packageInfo += ' · ' + dateRange;
+            let limitStr = '不限次数';
+            if (pkg.daily_limit) {
+              limitStr = `每日${pkg.daily_limit}次`;
+            } else if (pkg.weekly_limit) {
+              limitStr = `每周${pkg.weekly_limit}次`;
+            } else if (pkg.monthly_limit) {
+              limitStr = `每月${pkg.monthly_limit}次`;
+            }
+            if (pkg.status === 'pending') {
+              info = `${typeLabel}`;
+              if (limitStr) info += ' · ' + limitStr;
+              if (duration) info += ` · ${duration}${unit}`;
+            } else {
+              const remainDays = pkg.remaining_days;
+              const remainStr = remainDays !== undefined && remainDays !== null ? `${remainDays}天剩余` : '';
+              info = `${typeLabel}`;
+              if (limitStr) info += ' · ' + limitStr;
+              if (remainStr) info += ' · ' + remainStr;
+              if (dateRange) info += ' · ' + dateRange;
+            }
           }
-        }
-        const dsl = usablePkg.dance_style_limit || [];
-        if (Array.isArray(dsl) && dsl.length > 0) {
-          packageDanceStyleText = dsl
-            .map(ds => (typeof ds === 'object' ? (ds.name || '') : ''))
-            .filter(Boolean)
-            .join('、');
-        }
-      }
+          // 舞种限制（该套餐独有）
+          const dsl = pkg.dance_style_limit || [];
+          let danceStyleText = '';
+          if (Array.isArray(dsl) && dsl.length > 0) {
+            danceStyleText = dsl
+              .map(ds => (typeof ds === 'object' ? (ds.name || '') : ''))
+              .filter(Boolean)
+              .join('、');
+          }
+          // 套餐状态标签
+          let statusText = '';
+          let statusCls = '';
+          if (pkg.is_suspended) {
+            statusText = '已停卡';
+            statusCls = 'status-danger';
+          } else if (pkg.status === 'active') {
+            statusText = '已激活';
+            statusCls = 'status-active';
+          } else if (pkg.status === 'pending') {
+            statusText = '待激活';
+            statusCls = 'status-warning';
+          } else if (pkg.status === 'exhausted') {
+            statusText = '已用完';
+            statusCls = 'status-default';
+          } else if (pkg.status === 'expired') {
+            statusText = '已过期';
+            statusCls = 'status-default';
+          } else {
+            statusText = '未激活';
+            statusCls = 'status-default';
+          }
+          return {
+            key: pkg._id || String(idx),
+            info,
+            dance_style_text: danceStyleText,
+            status_text: statusText,
+            status_cls: statusCls
+          };
+        });
     }
 
     // 处理门店标签
+    // 福永店使用蓝色系标签，与其他门店（棕色系）视觉区分
+    const isFuyongStore = (name) => (name || '').indexOf('福永') !== -1;
     let storeLabels = [];
     if (member.packages && member.packages.length > 0) {
       const storeMap = new Map();
@@ -638,7 +712,8 @@ Page({
           if (!storeMap.has(pkg.store_id._id)) {
             storeMap.set(pkg.store_id._id, {
               id: pkg.store_id._id,
-              name: pkg.store_id.name
+              name: pkg.store_id.name,
+              isFuyong: isFuyongStore(pkg.store_id.name)
             });
           }
         }
@@ -647,7 +722,8 @@ Page({
     } else if (member.store_id && member.store_id._id && member.store_id.name) {
       storeLabels = [{
         id: member.store_id._id,
-        name: member.store_id.name
+        name: member.store_id.name,
+        isFuyong: isFuyongStore(member.store_id.name)
       }];
     }
 
@@ -697,8 +773,7 @@ Page({
       member_status: member.member_status,
       has_package: member.packages && member.packages.length > 0,
       can_edit_package: canEditPackage,
-      package_info: packageInfo,
-      package_dance_style_text: packageDanceStyleText,
+      package_rows: packageRows,
       store_labels: storeLabels
     };
   },

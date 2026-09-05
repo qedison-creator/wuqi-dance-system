@@ -8,7 +8,12 @@
       <view class="schedule-item {{selectedSchedule && selectedSchedule._id === item._id ? 'active' : ''}}"
             wx:for="{{schedules}}" wx:key="_id"
             data-schedule="{{item}}" bindtap="onScheduleSelect">
-        <text class="schedule-time">{{item.timeStr}}</text>
+        <view class="schedule-item-top">
+          <text class="schedule-time">{{item.timeStr}}</text>
+          <text class="schedule-day-tag" wx:if="{{item.isYesterday}}">昨天</text>
+          <text class="schedule-status-tag {{item.status === 'in_progress' ? 'tag-in-progress' : 'tag-ended'}}"
+                wx:if="{{item.status === 'completed' || item.status === 'in_progress'}}">{{item.status === 'in_progress' ? '进行中' : '已结束'}}</text>
+        </view>
         <text class="schedule-name">{{item.className}}</text>
         <text class="schedule-coach">{{item.coachName || ''}}</text>
       </view>

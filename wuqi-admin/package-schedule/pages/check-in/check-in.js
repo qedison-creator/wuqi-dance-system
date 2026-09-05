@@ -35,15 +35,17 @@ Page({
   loadTodaySchedules() {
     this.setData({ loading: true });
     const today = formatDate(new Date(), 'YYYY-MM-DD');
+    const yesterday = formatDate(new Date(Date.now() - 24 * 60 * 60 * 1000), 'YYYY-MM-DD');
     request({
       url: '/schedules',
-      data: { date: today }
+      // 含昨天+今天全部状态课程：支持下课后/次日为已结束课程补签（pageSize 兜底防止单日超20节被截断）
+      data: { start_date: yesterday, end_date: today, status: 'all', pageSize: 100 }
     }).then(res => {
       let data = res.data;
       if (data && data.list) data = data.list;
-      // 过滤：排除已取消、已结束、已下架、已删除、未开放的课程，只保留可签到的
-
-      const excludedStatuses = ['cancelled', 'completed', 'offline', 'deleted', 'not_open'];
+      // 过滤：排除已取消、已下架、已删除的课程
+      // 已结束（completed）课程保留可选中，支持课后补签；not_open（今天尚未开放）课程尚未开课，不展示
+      const excludedStatuses = ['cancelled', 'offline', 'deleted'];
       // 门店过滤：优先使用全局统一门店选择（与首页/运营管理/店务管理共享）
       // - 单门店角色：固定所属门店
       // - 多门店角色：使用 app.globalData.shopStoreId（在其他页面选择的门店）
@@ -56,6 +58,7 @@ Page({
       }
       const schedules = (data || [])
         .filter(s => !excludedStatuses.includes(s.status))
+        .filter(s => !(s.date === today && s.status === 'not_open'))
         .filter(s => {
           if (!filterStoreId) return true;
           const sid = s.store_id ? (s.store_id._id ? String(s.store_id._id) : String(s.store_id)) : '';
@@ -63,6 +66,7 @@ Page({
         })
         .map(s => ({
           ...s,
+          isYesterday: s.date === yesterday,
           timeStr: `${s.start_time || ''} - ${s.end_time || ''}`,
           className: s.course_name || '未命名课程',
           coachName: s.coach_id ? s.coach_id.name : '',
@@ -70,12 +74,32 @@ Page({
         }));
       this.setData({ schedules, loading: false });
       if (schedules.length > 0 && !this.data.selectedSchedule) {
-        this.onScheduleSelect({ currentTarget: { dataset: { schedule: schedules[0] } } });
+        const defaultIndex = this._pickDefaultScheduleIndex(schedules);
+        this.onScheduleSelect({ currentTarget: { dataset: { schedule: schedules[defaultIndex] } } });
       }
     }).catch(() => {
       this.setData({ loading: false });
       wx.showToast({ title: '加载排课失败', icon: 'none' });
     });
+  },
+
+  // 智能默认选中课程：优先今天进行中 → 今天下一节未开始 → 今天最后一节（刚下课补签）→ 昨天最后一节（次日补签）
+  _pickDefaultScheduleIndex(schedules) {
+    const now = new Date();
+    const nowTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+    // 1. 今天进行中的课程
+    const inProgressIdx = schedules.findIndex(s => !s.isYesterday && s.status === 'in_progress');
+    if (inProgressIdx >= 0) return inProgressIdx;
+    // 2. 今天下一节未开始的课程
+    const upcomingIdx = schedules.findIndex(s =>
+      !s.isYesterday && s.status !== 'completed' && s.start_time && s.start_time > nowTime);
+    if (upcomingIdx >= 0) return upcomingIdx;
+    // 3. 今天的课程（含已结束，取最后一节）
+    let lastTodayIdx = -1;
+    schedules.forEach((s, i) => { if (!s.isYesterday) lastTodayIdx = i; });
+    if (lastTodayIdx >= 0) return lastTodayIdx;
+    // 4. 今天无课程：取昨天最后一节
+    return schedules.length - 1;
   },
 
   onScheduleSelect(e) {

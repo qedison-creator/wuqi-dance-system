@@ -69,7 +69,11 @@ async function checkPhoneUnique(reservePhone, excludeUserId = null) {
     return { unique: false, reason: '手机号格式不正确' };
   }
   const query = {
-    reserve_phone: reservePhone,
+    // 同时校验预留手机号与微信授权手机号，防止同手机号产生双账号
+    $or: [
+      { reserve_phone: reservePhone },
+      { wechat_phone: reservePhone }
+    ],
     member_status: { $in: ['pending_claim', 'registered', 'official'] }
   };
   if (excludeUserId) {
@@ -289,22 +293,29 @@ async function createPreMember(data, operatorId) {
 
 /**
  * 为用户创建套餐记录（内部辅助函数）
+ * @param {boolean} isOldMember - 是否老会员
+ * 套餐级激活方式（packageData.activate_mode，仅老会员生效，新会员恒为待激活）：
+ *   'active'（默认）：直接生效，需传 start_date/end_date
+ *   'pending'：预约激活，需传 duration_value，认领后首次预约激活或60天自动激活
  */
 async function createPackageForUser(userId, storeId, packageData, operatorId, isOldMember = false) {
-  const { package_type, total_credits, start_date, end_date, duration_value, duration_unit, weekly_limit, daily_limit, monthly_limit, period_type, dance_style_limit, remark, extra_store_ids } = packageData;
+  const { package_type, total_credits, start_date, end_date, duration_value, duration_unit, weekly_limit, daily_limit, monthly_limit, period_type, dance_style_limit, remark, extra_store_ids, activate_mode } = packageData;
 
   if (!package_type || !['count_card', 'time_card'].includes(package_type)) {
     throw new Error('套餐类型必须为次卡(count_card)或时间卡(time_card)');
   }
 
-  // 老会员必须传 start_date/end_date；新会员必须传 duration_value
-  if (isOldMember) {
+  // 计算该套餐的实际激活模式：新会员恒为待激活；老会员按套餐级 activate_mode（默认直接生效）
+  const usePendingMode = isOldMember ? (activate_mode === 'pending') : true;
+
+  // 直接生效必须传 start_date/end_date；预约激活必须传 duration_value
+  if (!usePendingMode) {
     if (!start_date || !end_date) {
-      throw new Error('老会员必须填写套餐有效期起止日期');
+      throw new Error('直接生效的套餐必须填写有效期起止日期');
     }
   } else {
     if (!duration_value || Number(duration_value) <= 0) {
-      throw new Error('新会员必须填写套餐有效期时长');
+      throw new Error('预约激活的套餐必须填写有效期时长');
     }
   }
 
@@ -322,16 +333,16 @@ async function createPackageForUser(userId, storeId, packageData, operatorId, is
     store_id: storeId,
     extra_store_ids: extra_store_ids || [],
     package_type: package_type,
-    is_activated: isOldMember,
-    activated_at: isOldMember ? now : null,
-    status: isOldMember ? 'active' : 'pending',
-    auto_activate_at: isOldMember ? null : new Date(now.getTime() + 60 * 24 * 60 * 60 * 1000),
+    is_activated: !usePendingMode,
+    activated_at: !usePendingMode ? now : null,
+    status: !usePendingMode ? 'active' : 'pending',
+    auto_activate_at: usePendingMode ? new Date(now.getTime() + 60 * 24 * 60 * 60 * 1000) : null,
     created_by: operatorId,
     remark: remark || '',
     dance_style_limit: Array.isArray(dance_style_limit) ? dance_style_limit : []
   };
 
-  if (isOldMember) {
+  if (!usePendingMode) {
     // 老会员：直接用起止日期，并据此计算 duration_value/duration_unit 供前端展示
     const startDateObj = new Date(start_date);
     const endDateObj = new Date(end_date);
@@ -343,7 +354,7 @@ async function createPackageForUser(userId, storeId, packageData, operatorId, is
       packageRecord.duration_unit = duration.unit;
     }
   } else {
-    // 新会员：duration_value/duration_unit 存入记录，激活时由 package.service 计算起止日期
+    // 预约激活（新会员/老会员待激活套餐）：duration_value/duration_unit 存入记录，激活时由 package.service 计算起止日期
     packageRecord.duration_value = Number(duration_value);
     packageRecord.duration_unit = duration_unit || 'month';
     packageRecord.start_date = null;
@@ -370,22 +381,28 @@ async function createPackageForUser(userId, storeId, packageData, operatorId, is
  * 更新用户已有套餐记录（内部辅助函数）
  * 直接修改现有套餐字段，保留 _id 不变，避免破坏 Booking/PackageActivation 等引用关系
  * 校验逻辑与 createPackageForUser 保持一致
+ * 套餐级激活方式（packageData.activate_mode，仅老会员生效）：
+ *   'active'（默认）：直接生效，起止日期模式
+ *   'pending'：预约激活，时长模式；支持从"直接生效"切换为"预约激活"（及反向切换），同步转换状态字段
  */
 async function updatePackageForUser(packageId, packageData, operatorId, isOldMember = false) {
-  const { package_type, total_credits, start_date, end_date, duration_value, duration_unit, weekly_limit, daily_limit, monthly_limit, period_type, dance_style_limit, remark, extra_store_ids } = packageData;
+  const { package_type, total_credits, start_date, end_date, duration_value, duration_unit, weekly_limit, daily_limit, monthly_limit, period_type, dance_style_limit, remark, extra_store_ids, activate_mode } = packageData;
 
   if (!package_type || !['count_card', 'time_card'].includes(package_type)) {
     throw new Error('套餐类型必须为次卡(count_card)或时间卡(time_card)');
   }
 
-  // 老会员必须传 start_date/end_date；新会员必须传 duration_value
-  if (isOldMember) {
+  // 计算该套餐的实际激活模式：新会员恒为待激活；老会员按套餐级 activate_mode（默认直接生效）
+  const usePendingMode = isOldMember ? (activate_mode === 'pending') : true;
+
+  // 直接生效必须传 start_date/end_date；预约激活必须传 duration_value
+  if (!usePendingMode) {
     if (!start_date || !end_date) {
-      throw new Error('老会员必须填写套餐有效期起止日期');
+      throw new Error('直接生效的套餐必须填写有效期起止日期');
     }
   } else {
     if (!duration_value || Number(duration_value) <= 0) {
-      throw new Error('新会员必须填写套餐有效期时长');
+      throw new Error('预约激活的套餐必须填写有效期时长');
     }
   }
 
@@ -402,15 +419,19 @@ async function updatePackageForUser(packageId, packageData, operatorId, isOldMem
     throw new Error('待更新的套餐不存在');
   }
 
-  // 更新字段（保留 _id、user_id、store_id、is_activated、activated_at、status、auto_activate_at、created_by 等不变）
+  // 更新字段（保留 _id、user_id、store_id、created_by 等不变）
   existingPkg.package_type = package_type;
   existingPkg.extra_store_ids = extra_store_ids || [];
   existingPkg.remark = remark || '';
   existingPkg.updated_by = operatorId;
   existingPkg.dance_style_limit = Array.isArray(dance_style_limit) ? dance_style_limit : [];
 
-  if (isOldMember) {
-    // 老会员：直接用起止日期，并据此计算 duration_value/duration_unit 供前端展示
+  // 激活状态字段随模式同步（支持双向切换）：
+  //   直接生效 → status='active'，写入起止日期，清 auto_activate_at
+  //   预约激活 → status='pending'，清起止日期，写 duration 与 auto_activate_at（60天后自动激活）
+  const now = new Date();
+  if (!usePendingMode) {
+    // 直接生效：直接用起止日期，并据此计算 duration_value/duration_unit 供前端展示
     const startDateObj = new Date(start_date);
     const endDateObj = new Date(end_date);
     existingPkg.start_date = startDateObj;
@@ -420,10 +441,20 @@ async function updatePackageForUser(packageId, packageData, operatorId, isOldMem
       existingPkg.duration_value = duration.value;
       existingPkg.duration_unit = duration.unit;
     }
+    existingPkg.is_activated = true;
+    existingPkg.activated_at = existingPkg.activated_at || now;
+    existingPkg.status = 'active';
+    existingPkg.auto_activate_at = null;
   } else {
-    // 新会员：duration_value/duration_unit 存入记录，激活时由 package.service 计算起止日期
+    // 预约激活：duration_value/duration_unit 存入记录，激活时由 package.service 计算起止日期
     existingPkg.duration_value = Number(duration_value);
     existingPkg.duration_unit = duration_unit || 'month';
+    existingPkg.start_date = null;
+    existingPkg.end_date = null;
+    existingPkg.is_activated = false;
+    existingPkg.activated_at = null;
+    existingPkg.status = 'pending';
+    existingPkg.auto_activate_at = new Date(now.getTime() + 60 * 24 * 60 * 60 * 1000);
   }
 
   if (package_type === 'count_card') {
@@ -666,6 +697,70 @@ async function claimByPhone(wechatPhone, openid) {
 }
 
 /**
+ * 存量预建档自动合并（会员登录时触发）
+ *
+ * 场景：会员先注册登录（openid 已有正式账号），之后管理员才录入预建档，
+ *       导致同手机号存在"正式账号 + 待认领预建档"双记录，预建档永远停在待认领。
+ * 处理：
+ *   1. 待认领预建档的套餐（UserPackage）全部转移到当前登录账号
+ *   2. 回填当前账号缺失的预留手机号/归属门店/真实姓名（仅在为空时填充，不覆盖已有数据）
+ *   3. 删除已合并的僵尸预建档记录
+ *   4. WebSocket 通知管理端刷新
+ *
+ * @param {string} phone - 手机号（预留/微信授权）
+ * @param {string} targetUserId - 当前登录的正式账号ID
+ * @returns {Promise<Object|null>} 合并结果，未命中待合并预建档返回 null
+ */
+async function mergePendingClaimByPhone(phone, targetUserId) {
+  if (!phone || !targetUserId) return null;
+
+  const currentUser = await User.findById(targetUserId).select('reserve_phone store_id real_name');
+  if (!currentUser) return null;
+
+  // 查找同手机号的待认领预建档（排除当前账号自身）
+  const pendingClaims = await User.find({
+    _id: { $ne: currentUser._id },
+    member_status: 'pending_claim',
+    $or: [
+      { reserve_phone: phone },
+      { wechat_phone: phone }
+    ]
+  });
+  if (pendingClaims.length === 0) return null;
+
+  const merged = [];
+  for (const pending of pendingClaims) {
+    // 1. 转移套餐到当前账号（保留套餐 _id，Booking/PackageActivation 等引用不受影响）
+    const transferResult = await UserPackage.updateMany(
+      { user_id: pending._id },
+      { $set: { user_id: currentUser._id } }
+    );
+    // 2. 回填当前账号缺失的信息（仅空值时填充，不覆盖已有数据）
+    if (!currentUser.reserve_phone && pending.reserve_phone) currentUser.reserve_phone = pending.reserve_phone;
+    if (!currentUser.store_id && pending.store_id) currentUser.store_id = pending.store_id;
+    if (!currentUser.real_name && pending.real_name) currentUser.real_name = pending.real_name;
+    // 3. 删除僵尸预建档记录
+    await User.deleteOne({ _id: pending._id });
+    merged.push({
+      pre_member_id: pending._id,
+      real_name: pending.real_name,
+      transferred_packages: transferResult.modifiedCount || 0
+    });
+  }
+  await currentUser.save();
+
+  // 4. 通知管理端刷新
+  notifyPreMemberChange('merge', {
+    user_id: currentUser._id,
+    phone: phone.substring(0, 3) + '****' + phone.substring(7),
+    merged_count: merged.length,
+    real_name: currentUser.real_name
+  });
+
+  return { user_id: currentUser._id, merged };
+}
+
+/**
  * 门店名称模糊匹配（与 routes 层 cleanStoreName 等效）
  * 支持：精确匹配 / 去括号短名匹配 / 括号关键词匹配 / 包含匹配
  * @param {string} input - 用户输入的门店名称
@@ -819,7 +914,14 @@ async function importPreMembers(rows, operatorId) {
       } else {
         row._package_type = row.package_type === '次卡' ? 'count_card' : 'time_card';
 
-        // 有效期校验
+        // 激活方式校验：已激活（默认）/ 待激活
+        if (row.activate_mode && !['已激活', '待激活'].includes(row.activate_mode)) {
+          errors.push('激活方式仅可填「已激活 / 待激活」（留空默认已激活）');
+        } else {
+          row._activate_mode = row.activate_mode === '待激活' ? 'pending' : 'active';
+        }
+
+        // 有效期校验（两种模式均必填：已激活直接用起止日期；待激活按起止日期跨度推算时长）
         if (!row.start_date) {
           errors.push('填写了套餐类型时，有效期开始日期必填');
         }
@@ -954,13 +1056,23 @@ async function importPreMembers(rows, operatorId) {
   if (stillValidAfterDedup.length > 0) {
     const phones = [...new Set(stillValidAfterDedup.map(r => r.reserve_phone))];
     const existing = await User.find({
-      reserve_phone: { $in: phones },
+      // 同时校验预留手机号与微信授权手机号，防止同手机号产生双账号
+      $or: [
+        { reserve_phone: { $in: phones } },
+        { wechat_phone: { $in: phones } }
+      ],
       member_status: { $in: ['pending_claim', 'registered', 'official'] }
-    }).select('reserve_phone member_status store_id real_name').lean();
+    }).select('reserve_phone wechat_phone member_status store_id real_name').lean();
 
     const existingMap = {};
     existing.forEach(u => {
-      existingMap[u.reserve_phone] = u;  // 保存完整 user 对象供追加套餐使用
+      const key = u.reserve_phone || u.wechat_phone;
+      if (!key) return;
+      const prev = existingMap[key];
+      // 同手机号存在多条记录（历史双账号数据）时，正式/待审核账号优先于待认领预建档
+      if (!prev || (prev.member_status === 'pending_claim' && u.member_status !== 'pending_claim')) {
+        existingMap[key] = u;  // 保存完整 user 对象供追加套餐使用
+      }
     });
 
     // 查询所有待追加会员的已有套餐，用于重复校验
@@ -1098,26 +1210,38 @@ async function importPreMembers(rows, operatorId) {
           if (!row._package_type) continue;
           const startDateObj = new Date(row.start_date);
           const endDateObj = new Date(row.end_date);
+          // 激活方式：待激活时按起止日期跨度推算时长，激活时从激活日重新计算起止
+          const usePendingMode = row._activate_mode === 'pending';
+          const now = new Date();
           const packageData = {
             user_id: userId,
             store_id: storeId,
             extra_store_ids: row._extra_store_ids || [],
             package_type: row._package_type,
-            start_date: startDateObj,
-            end_date: endDateObj,
-            is_activated: true, // 老会员套餐导入即生效
-            status: 'active',
-            activated_at: new Date(),
+            is_activated: !usePendingMode,
+            status: !usePendingMode ? 'active' : 'pending',
+            activated_at: !usePendingMode ? now : null,
+            auto_activate_at: usePendingMode ? new Date(now.getTime() + 60 * 24 * 60 * 60 * 1000) : null,
             created_by: operatorId,
             remark: row.remark || '',
             dance_style_limit: row._dance_style_limit || []
           };
 
-          // 批量导入的老会员套餐也根据起止日期计算 duration_value/duration_unit 供前端展示
+          // 根据起止日期计算 duration_value/duration_unit：
+          //   已激活：作为展示信息；待激活：作为卡面时长，激活时从激活日重新计算起止
           const duration = calcDurationFromDates(startDateObj, endDateObj);
           if (duration.value > 0) {
             packageData.duration_value = duration.value;
             packageData.duration_unit = duration.unit;
+          }
+
+          if (usePendingMode) {
+            // 待激活：不写起止日期，激活时由 package.service 计算
+            packageData.start_date = null;
+            packageData.end_date = null;
+          } else {
+            packageData.start_date = startDateObj;
+            packageData.end_date = endDateObj;
           }
 
           if (row._package_type === 'count_card') {
@@ -1183,6 +1307,7 @@ module.exports = {
   deletePreMember,
   batchDeletePreMembers,
   claimByPhone,
+  mergePendingClaimByPhone,
   importPreMembers,
   createPackageForUser
 };

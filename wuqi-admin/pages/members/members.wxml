@@ -75,13 +75,13 @@
                 <view class="cross-store-tag" wx:if="{{item.cross_store_access}}">
                   <text>跨门店</text>
                 </view>
-                <!-- 门店标签 -->
-                <view class="store-tag" wx:for="{{item.store_labels}}" wx:key="id" wx:for-item="store">
+                <!-- 门店标签：福永店蓝色系，其他门店棕色系 -->
+                <view class="store-tag {{store.isFuyong ? 'store-tag-fuyong' : ''}}" wx:for="{{item.store_labels}}" wx:key="id" wx:for-item="store">
                   <text class="store-tag-text">{{store.name}}</text>
                 </view>
-                <!-- 状态标签 -->
-                <view class="member-status {{item.status === 'active' ? 'status-active' : item.status === 'unactivated' ? 'status-warning' : item.status === 'pending' ? 'status-warning' : item.status === 'disabled' ? 'status-danger' : item.status === 'suspended' ? 'status-danger' : 'status-default'}}">
-                  <text>{{item.status === 'active' ? '已激活' : item.status === 'unactivated' ? '待激活' : item.status === 'pending' ? '待审核' : item.status === 'disabled' ? '已停卡' : item.status === 'suspended' ? '已停卡' : item.status === 'no-package' ? '未录套餐' : (item.status === 'expired' ? '已过期' : (item.status === 'exhausted' ? '已用完' : '未激活'))}}</text>
+                <!-- 状态标签：仅显示会员级状态（待审核/未录套餐/已停卡）；套餐级状态（已激活/待激活/已过期/已用完）改为在下方套餐行内逐个标注 -->
+                <view class="member-status {{item.status === 'pending' ? 'status-warning' : item.status === 'disabled' ? 'status-danger' : 'status-default'}}" wx:if="{{item.status === 'pending' || item.status === 'no-package' || item.status === 'disabled'}}">
+                  <text>{{item.status === 'pending' ? '待审核' : item.status === 'no-package' ? '未录套餐' : '已停卡'}}</text>
                 </view>
               </view>
             </view>
@@ -96,10 +96,16 @@
             <text class="review-date" wx:if="{{!item.has_package && item.reviewed_at}}">{{item.reviewed_at}}</text>
           </view>
         </view>
-        <view class="member-card-bottom" wx:if="{{item.package_info}}">
-          <text class="meta-text">{{item.package_info}}</text>
-          <view class="dance-style-tag" wx:if="{{item.package_dance_style_text}}">
-            <text class="dance-style-tag-text">舞种限制：{{item.package_dance_style_text}}</text>
+        <!-- 套餐区：一个套餐一行，行尾标注该套餐的激活状态 -->
+        <view class="member-card-bottom" wx:if="{{item.package_rows && item.package_rows.length > 0}}">
+          <view class="package-row {{pkgIdx < item.package_rows.length - 1 ? 'package-row-divider' : ''}}" wx:for="{{item.package_rows}}" wx:key="key" wx:for-item="pkg" wx:for-index="pkgIdx">
+            <view class="package-row-info">
+              <text class="meta-text">{{pkg.info}}</text>
+              <text class="package-row-dance" wx:if="{{pkg.dance_style_text}}">舞种限制：{{pkg.dance_style_text}}</text>
+            </view>
+            <view class="member-status package-row-status {{pkg.status_cls}}">
+              <text>{{pkg.status_text}}</text>
+            </view>
           </view>
         </view>
         <view class="member-actions">

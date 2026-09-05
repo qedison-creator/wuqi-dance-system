@@ -15,6 +15,7 @@ const _normalizeStoreId = (id) => {
 const _createEmptyPackage = () => ({
   _id: '',                  // 套餐ID：编辑时保留用于原地更新，新建时为空
   package_type: '',        // 'count_card' / 'time_card' / ''
+  activate_mode: 'active', // 套餐级激活方式（仅老会员显示切换）：'active' 直接生效 / 'pending' 预约激活
   start_date: '',
   end_date: '',
   total_credits: '',
@@ -203,8 +204,7 @@ Page({
           reserve_phone: maskPhone(reservePhoneRaw),    // 脱敏手机号（默认展示）
           avatar_url: fixImageUrl(item.avatar_url),
           created_at_text: item.created_at ? this._formatDate(item.created_at) : '',
-          package_text: this._formatPackageText(item.packages),
-          package_dance_style_text: this._formatDanceStyleText(item.packages)
+          package_rows: this._buildPackageRows(item.packages)
         };
       });
       // 分页处理：第一页替换，后续页追加
@@ -329,35 +329,82 @@ Page({
     return `${y}-${m}-${day}`;
   },
 
-  _formatPackageText(packages) {
-    if (!packages || packages.length === 0) return '';
-    const pkg = packages[0];
-    const typeText = pkg.package_type === 'count_card' ? '次卡' : '时间卡';
-    const startText = pkg.start_date ? this._formatDate(pkg.start_date) : '';
-    const endText = pkg.end_date ? this._formatDate(pkg.end_date) : '';
-    let detail = '';
-    if (pkg.package_type === 'count_card') {
-      detail = `${pkg.total_credits}次`;
-    } else {
-      if (pkg.weekly_limit) detail = `每周${pkg.weekly_limit}次`;
-      else if (pkg.daily_limit) detail = `每天${pkg.daily_limit}次`;
-      else if (pkg.monthly_limit) detail = `每月${pkg.monthly_limit}次`;
-      else detail = '不限';
-    }
-    return `${typeText} · ${detail} · ${startText}~${endText}`;
-  },
-
-  // 构建舞种限制文本：与显示的套餐（packages[0]）对应，空数组或未 populate 时返回空字符串
-  _formatDanceStyleText(packages) {
-    if (!packages || packages.length === 0) return '';
-    const pkg = packages[0];
-    const dsl = pkg.dance_style_limit || [];
-    if (!Array.isArray(dsl) || dsl.length === 0) return '';
-    // populate 后是 [{_id, name}]，未 populate 时是 ObjectId 数组（无法显示名称，跳过）
-    return dsl
-      .map(ds => (typeof ds === 'object' ? (ds.name || '') : ''))
-      .filter(Boolean)
-      .join('、');
+  /**
+   * 构建套餐行数据：一个套餐一行，每行携带自己的状态标签（已激活/待激活）
+   * 与会员管理页卡片格式一致
+   */
+  _buildPackageRows(packages) {
+    if (!packages || packages.length === 0) return [];
+    // 展示排序：使用中 > 待激活 > 其他
+    const statusOrder = { active: 0, pending: 1 };
+    const getPkgOrder = (p) => (statusOrder[p.status] !== undefined ? statusOrder[p.status] : 9);
+    return packages
+      .slice()
+      .sort((a, b) => getPkgOrder(a) - getPkgOrder(b))
+      .map((pkg, idx) => {
+        const typeLabel = pkg.package_type === 'time_card' ? '时间卡' : '次卡';
+        const startDate = pkg.start_date ? this._formatDate(pkg.start_date) : '';
+        const endDate = pkg.end_date ? this._formatDate(pkg.end_date) : '';
+        const dateRange = (startDate || endDate) ? `${startDate}至${endDate}` : '';
+        const duration = pkg.duration_value || 0;
+        const unit = pkg.duration_unit === 'month' ? '个月' : '天';
+        let info = '';
+        if (pkg.package_type === 'count_card') {
+          const total = pkg.total_credits || 0;
+          const remaining = pkg.remaining_credits !== undefined && pkg.remaining_credits !== null ? pkg.remaining_credits : total;
+          info = `${typeLabel} · ${remaining}/${total}次`;
+          if (pkg.status === 'pending') {
+            // 待激活：显示卡面时长（XX个月/XX天），激活时才起算有效期
+            if (duration) info += ` · ${duration}${unit}`;
+          } else if (dateRange) {
+            info += ' · ' + dateRange;
+          }
+        } else {
+          let limitStr = '不限次数';
+          if (pkg.daily_limit) {
+            limitStr = `每天${pkg.daily_limit}次`;
+          } else if (pkg.weekly_limit) {
+            limitStr = `每周${pkg.weekly_limit}次`;
+          } else if (pkg.monthly_limit) {
+            limitStr = `每月${pkg.monthly_limit}次`;
+          }
+          info = `${typeLabel} · ${limitStr}`;
+          if (pkg.status === 'pending') {
+            if (duration) info += ` · ${duration}${unit}`;
+          } else if (dateRange) {
+            info += ' · ' + dateRange;
+          }
+        }
+        // 舞种限制（该套餐独有）：populate 后是 [{_id, name}]，未 populate 时跳过
+        const dsl = pkg.dance_style_limit || [];
+        let danceStyleText = '';
+        if (Array.isArray(dsl) && dsl.length > 0) {
+          danceStyleText = dsl
+            .map(ds => (typeof ds === 'object' ? (ds.name || '') : ''))
+            .filter(Boolean)
+            .join('、');
+        }
+        // 套餐状态标签
+        let statusText = '';
+        let statusCls = '';
+        if (pkg.status === 'active') {
+          statusText = '已激活';
+          statusCls = 'pkg-status-active';
+        } else if (pkg.status === 'pending') {
+          statusText = '待激活';
+          statusCls = 'pkg-status-pending';
+        } else {
+          statusText = '未激活';
+          statusCls = 'pkg-status-default';
+        }
+        return {
+          key: pkg._id || String(idx),
+          info,
+          dance_style_text: danceStyleText,
+          status_text: statusText,
+          status_cls: statusCls
+        };
+      });
   },
 
   // 门店筛选
@@ -455,6 +502,7 @@ Page({
         return {
           _id: pkg._id ? String(pkg._id) : '',   // 保留套餐ID，编辑提交时用于后端原地更新
           package_type: pkg.package_type || '',
+          activate_mode: pkg.status === 'pending' ? 'pending' : 'active',  // 按套餐实际状态回显激活方式
           start_date: pkg.start_date ? this._formatDate(pkg.start_date) : '',
           end_date: pkg.end_date ? this._formatDate(pkg.end_date) : '',
           total_credits: pkg.total_credits ? String(pkg.total_credits) : '',
@@ -520,6 +568,17 @@ Page({
     const index = e.currentTarget.dataset.index;
     const type = e.currentTarget.dataset.type;
     this.setData({ [`form.packages[${index}].package_type`]: type });
+  },
+
+  // 套餐级激活方式切换（仅老会员显示）：
+  //   active 直接生效：填起止日期，录入即生效
+  //   pending 预约激活：填时长，认领后首次预约激活或2个月自动激活
+  onActivateModeChange(e) {
+    const index = e.currentTarget.dataset.index;
+    const mode = e.currentTarget.dataset.mode;
+    const current = this.data.form.packages[index];
+    if (!current || current.activate_mode === mode) return;
+    this.setData({ [`form.packages[${index}].activate_mode`]: mode });
   },
 
   onMemberIdentityChange(e) {
@@ -778,14 +837,16 @@ Page({
       const pkg = form.packages[i];
       if (!pkg.package_type) continue;
       const prefix = form.packages.length > 1 ? `套餐${i + 1}：` : '';
-      if (form.member_identity === 'new') {
-        // 新会员：校验时长
+      // 是否待激活模式：新会员恒待激活；老会员按套餐级激活方式
+      const isPendingPkg = form.member_identity === 'new' || pkg.activate_mode === 'pending';
+      if (isPendingPkg) {
+        // 待激活（新会员 / 老会员预约激活）：校验时长
         if (!pkg.duration_value || Number(pkg.duration_value) <= 0) {
           const tip = pkg.package_type === 'count_card' ? `${prefix}请输入服务有效期` : `${prefix}请输入有效时长`;
           return failValidation(tip);
         }
       } else {
-        // 老会员：校验起止日期
+        // 直接生效：校验起止日期
         if (!pkg.start_date || !pkg.end_date) return failValidation(`${prefix}请选择有效期`);
       }
       if (pkg.package_type === 'count_card' && (!pkg.total_credits || Number(pkg.total_credits) <= 0)) {
@@ -820,14 +881,20 @@ Page({
       if (editingId && pkg._id) {
         packageData._id = pkg._id;
       }
-      if (form.member_identity === 'new') {
-        // 新会员：传时长，后端激活时计算起止日期
+      // 是否待激活模式：新会员恒待激活；老会员按套餐级激活方式
+      const isPendingPkg = form.member_identity === 'new' || pkg.activate_mode === 'pending';
+      if (isPendingPkg) {
+        // 待激活（新会员 / 老会员预约激活）：传时长，后端激活时计算起止日期
         packageData.duration_value = Number(pkg.duration_value);
         packageData.duration_unit = pkg.duration_unit;
       } else {
-        // 老会员：传起止日期
+        // 直接生效：传起止日期
         packageData.start_date = pkg.start_date;
         packageData.end_date = pkg.end_date;
+      }
+      // 老会员显式传激活方式（后端据此决定 active/pending 及双向切换）；新会员后端恒按待激活处理，无需传
+      if (form.member_identity === 'old') {
+        packageData.activate_mode = pkg.activate_mode === 'pending' ? 'pending' : 'active';
       }
       if (pkg.package_type === 'count_card') {
         packageData.total_credits = Number(pkg.total_credits);

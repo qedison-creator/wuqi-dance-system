@@ -14,6 +14,14 @@ router.get('/', optionalAuth, async (req, res, next) => {
   try {
     const stores = await Store.find({ status: 'active' }).sort({ created_at: -1 });
 
+    // 展示排序：福永店在前、固戍店在后，其余门店按创建时间倒序排在已知门店之后
+    const STORE_DISPLAY_ORDER = ['福永', '固戍'];
+    const displayOrder = (name) => {
+      const idx = STORE_DISPLAY_ORDER.findIndex(k => name && name.includes(k));
+      return idx === -1 ? STORE_DISPLAY_ORDER.length : idx;
+    };
+    stores.sort((a, b) => displayOrder(a.name) - displayOrder(b.name));
+
     // 门店隔离：管理端请求（带认证）且为单门店角色时，仅返回所属门店
     if (req.user) {
       const allowedStoreIds = getAllowedStoreIds(req.user);

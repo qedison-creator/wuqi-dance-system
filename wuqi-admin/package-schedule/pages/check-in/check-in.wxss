@@ -52,6 +52,38 @@
   font-weight: 500;
 }
 
+.schedule-item-top {
+  display: inline-flex;
+  align-items: center;
+  gap: 8rpx;
+}
+
+.schedule-day-tag {
+  font-size: 18rpx;
+  color: #948284;
+  background: #F6F3F0;
+  border-radius: 6rpx;
+  padding: 2rpx 8rpx;
+  flex-shrink: 0;
+}
+
+.schedule-status-tag {
+  font-size: 18rpx;
+  border-radius: 6rpx;
+  padding: 2rpx 8rpx;
+  flex-shrink: 0;
+}
+
+.schedule-status-tag.tag-ended {
+  color: #B8AF9E;
+  background: rgba(184, 175, 158, 0.12);
+}
+
+.schedule-status-tag.tag-in-progress {
+  color: #52C41A;
+  background: rgba(82, 196, 26, 0.1);
+}
+
 .schedule-item.active .schedule-time {
   color: #D4786E;
 }

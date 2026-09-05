@@ -2190,6 +2190,20 @@ exports.checkIn = async (scheduleId, userId, operatorId = null, isOnsite = false
     await schedule.save();
   }
 
+  // 课后补签场景：教练课时记录在课程结束时已生成快照，补签新增签到不会自动计入
+  // 若记录已存在则删除重建，确保签到人数与实际一致（薪酬统计基于Attendance表，不受影响）
+  try {
+    const CoachAttendance = require('../models/CoachAttendance');
+    const coachAttendanceService = require('./coachAttendance.service');
+    const existingCoachAtt = await CoachAttendance.findOne({ schedule_id: scheduleId });
+    if (existingCoachAtt) {
+      await CoachAttendance.deleteMany({ schedule_id: scheduleId });
+      await coachAttendanceService.recordCoachAttendance(scheduleId);
+    }
+  } catch (coachAttErr) {
+    console.error('[checkIn] 同步教练课时记录失败:', coachAttErr.message);
+  }
+
   // 实时推送：通知会员端签到成功（精确事件，避免轮询误判）
   try {
     const coachName = schedule.coach_id && schedule.coach_id.name ? schedule.coach_id.name : '';
@@ -2545,6 +2559,20 @@ exports.onsiteCheckIn = async (scheduleId, userId, operatorId = null, userPackag
     });
   } catch (attErr) {
     console.error('[onsiteCheckIn] 创建attendance失败:', attErr.message);
+  }
+
+  // 课后补签场景：教练课时记录在课程结束时已生成快照，补签新增签到不会自动计入
+  // 若记录已存在则删除重建，确保签到人数与实际一致（薪酬统计基于Attendance表，不受影响）
+  try {
+    const CoachAttendance = require('../models/CoachAttendance');
+    const coachAttendanceService = require('./coachAttendance.service');
+    const existingCoachAtt = await CoachAttendance.findOne({ schedule_id: scheduleId });
+    if (existingCoachAtt) {
+      await CoachAttendance.deleteMany({ schedule_id: scheduleId });
+      await coachAttendanceService.recordCoachAttendance(scheduleId);
+    }
+  } catch (coachAttErr) {
+    console.error('[onsiteCheckIn] 同步教练课时记录失败:', coachAttErr.message);
   }
 
   // 实时推送：通知会员端签到成功（精确事件，避免轮询误判）
