@@ -63,9 +63,7 @@
   <view class="alert" wx:if="{{scheduleEndAlert.visible}}" bindtap="onViewSchedule">
     <view class="alert-left">
       <text class="alert-dot"></text>
-      <text class="alert-msg">
-        还剩<text class="alert-bold">{{scheduleEndAlert.daysLeft}}</text>天排课即将到期<text wx:if="{{currentStoreName}}"> {{currentStoreName}}</text>
-      </text>
+      <text class="alert-msg">还剩<text class="alert-bold">{{scheduleEndAlert.daysLeft}}</text>天排课即将到期<text wx:if="{{currentStoreName}}"> {{currentStoreName}}</text></text>
     </view>
     <text class="alert-go">查看 ›</text>
   </view>

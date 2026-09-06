@@ -389,12 +389,15 @@
   font-size: 26rpx;
   color: #C4663E;
   font-weight: 500;
+  /* 统一行高：消除26rpx文字与30rpx加粗天数混排时的行盒偏沉，保证flex居中后与圆点/查看按钮对齐 */
+  line-height: 40rpx;
 }
 
 .alert-bold {
   font-weight: 800;
   font-size: 30rpx;
   margin: 0 4rpx;
+  line-height: 40rpx;
 }
 
 .alert-go {

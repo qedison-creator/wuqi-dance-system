@@ -218,30 +218,29 @@ router.get('/dance-styles', async (req, res, next) => {
   }
 });
 
-// GET /api/v1/home/coaches - 获取首页教练列表
+// GET /api/v1/home/coaches - 获取首页教练列表（会员端首页"舞栖教练"+教练列表页共用）
 router.get('/coaches', async (req, res, next) => {
   try {
     const { store_id, limit = 10 } = req.query;
-    let filter = { status: 'active', is_deleted: { $ne: true } };
+    const filter = { status: 'active', is_deleted: { $ne: true } };
 
-    let coaches = [];
-    
+    // 门店过滤（基于 store_ids 多门店执教模型）：
+    // 该门店独占教练 + 多门店执教教练（store_ids 为空或不存在 = 全门店共用，存量教练）
+    // 不回退查全部，避免单门店教练泄漏到其他门店的首页/列表
     if (store_id) {
-      filter.store_id = store_id;
-      coaches = await Coach.find(filter)
-        .populate('dance_styles', 'name')
-        .sort({ sort_order: 1, created_at: -1 })
-        .limit(Number(limit));
+      const sid = String(store_id);
+      filter.$or = [
+        { store_ids: { $in: [sid] } },
+        { store_ids: { $size: 0 } },
+        { store_ids: { $exists: false } },
+      ];
     }
-    
-    if (coaches.length === 0) {
-      filter = { status: 'active', is_deleted: { $ne: true } };
-      coaches = await Coach.find(filter)
-        .populate('dance_styles', 'name')
-        .sort({ sort_order: 1, created_at: -1 })
-        .limit(Number(limit));
-    }
-    
+
+    const coaches = await Coach.find(filter)
+      .populate('dance_styles', 'name')
+      .sort({ sort_order: 1, created_at: -1 })
+      .limit(Number(limit));
+
     res.json(success(coaches));
   } catch (err) {
     next(err);

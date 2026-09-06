@@ -29,7 +29,7 @@
           <view class="schedule-status {{item.status}}">
           <text>{{item.statusText}}</text>
         </view>
-          <text class="card-progress-text" wx:if="{{item.status !== 'cancelled' && item.status !== 'offline'}}">{{(item.status === 'completed' ? item.checkedInCount : item.bookedCount) || 0}}/{{item.capacity || 15}} {{item.status === 'completed' ? '已签到' : '已预约'}}</text>
+          <text class="card-progress-text" wx:if="{{item.status !== 'cancelled' && item.status !== 'offline'}}">{{(item.status === 'completed' ? item.checkedInCount : item.bookedCount) || 0}}/{{item.max_bookings || 20}} {{item.status === 'completed' ? '已签到' : '已预约'}}</text>
         </view>
       </view>
       <view class="card-stats" wx:if="{{item.status !== 'cancelled' && item.status !== 'offline'}}">
@@ -132,9 +132,9 @@
 
       <view class="card-progress">
         <view class="progress-track">
-          <view class="progress-fill {{item.status === 'full' ? 'fill-warning' : 'fill-accent'}}" style="width: {{(((item.status === 'completed' ? item.checkedInCount : item.bookedCount) || 0) / (item.capacity || 15)) * 100}}%"></view>
+          <view class="progress-fill {{item.status === 'full' ? 'fill-warning' : 'fill-accent'}}" style="width: {{(((item.status === 'completed' ? item.checkedInCount : item.bookedCount) || 0) / (item.max_bookings || 20)) * 100}}%"></view>
         </view>
-        <text class="progress-label">{{(item.status === 'completed' ? item.checkedInCount : item.bookedCount) || 0}}/{{item.capacity || 15}} {{item.status === 'completed' ? '已签到' : '已预约'}}</text>
+        <text class="progress-label">{{(item.status === 'completed' ? item.checkedInCount : item.bookedCount) || 0}}/{{item.max_bookings || 20}} {{item.status === 'completed' ? '已签到' : '已预约'}}</text>
       </view>
 
       <view class="card-stats">

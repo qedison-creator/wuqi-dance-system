@@ -56,11 +56,11 @@
         <view class="member-info">
           <text class="member-name">{{item.real_name || item.nick_name || '未设置昵称'}}</text>
           <text class="member-phone">{{item.phone || ''}}</text>
-          <text class="cross-store-hint" wx:if="{{item.cross_store_access}}">跨门店会员</text>
+          <text class="cross-store-hint" wx:if="{{item.is_cross_store_member}}">跨门店会员</text>
         </view>
         <view class="member-exemption">
           <text class="exemption-label">剩余豁免:</text>
-          <view class="exemption-control" wx:if="{{!item.cross_store_access}}">
+          <view class="exemption-control" wx:if="{{!item.is_cross_store_member}}">
             <view class="control-btn minus" bindtap="changeExemption" data-id="{{item._id}}" data-delta="-1">-</view>
             <text class="exemption-count">{{item.exemption_count || 0}}</text>
             <view class="control-btn plus" bindtap="changeExemption" data-id="{{item._id}}" data-delta="1">+</view>

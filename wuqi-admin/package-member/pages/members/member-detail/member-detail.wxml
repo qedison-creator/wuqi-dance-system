@@ -475,6 +475,20 @@
         </view>
       </view>
 
+      <view class="form-group">
+        <text class="form-label">激活方式 *</text>
+        <view class="package-type-selector">
+          <view class="type-option {{addPackageForm.activate_mode !== 'active' ? 'active' : ''}}" data-mode="pending" bindtap="onAddPackageActivateModeChange">
+            <text>预约激活</text>
+          </view>
+          <view class="type-option {{addPackageForm.activate_mode === 'active' ? 'active' : ''}}" data-mode="active" bindtap="onAddPackageActivateModeChange">
+            <text>直接生效</text>
+          </view>
+        </view>
+        <text class="activate-mode-hint" wx:if="{{addPackageForm.activate_mode !== 'active'}}">录入后待激活，会员首次预约时激活或2个月后自动激活</text>
+        <text class="activate-mode-hint" wx:else>录入后立即可预约/签到使用，适用于赠课、补偿课时</text>
+      </view>
+
       <view class="form-group" wx:if="{{addPackageForm.package_type === 'count_card'}}">
         <text class="form-label">次数 *</text>
         <input class="input-field" type="number" placeholder="请输入次数" value="{{addPackageForm.total_credits}}" data-field="total_credits" bindinput="onAddPackageInput" />

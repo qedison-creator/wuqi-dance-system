@@ -176,7 +176,12 @@ Page({
           ...(storeId ? { store_id: storeId } : {})
         }
       });
-      const list = res.data?.list || [];
+      const list = (res.data?.list || []).map(m => {
+        // 跨门店会员 = 归属门店非当前门店（靠跨店套餐出现在本店搜索结果中）
+        // 归属本店的会员即使套餐有跨店授权，仍可在归属门店修改豁免次数
+        const memberStoreId = m.store_id && m.store_id._id ? String(m.store_id._id) : '';
+        return { ...m, is_cross_store_member: !!(storeId && memberStoreId && memberStoreId !== String(storeId)) };
+      });
       this.setData({
         memberList: list,
         hasSearched: true

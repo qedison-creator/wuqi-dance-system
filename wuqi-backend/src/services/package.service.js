@@ -352,7 +352,7 @@ exports._recordPackageChange = async (userPackage, changes, operatorId, remark =
 };
 
 exports.createPackage = async (data, operatorId) => {
-  const { user_id, package_id, store_id, extra_store_ids, package_type, total_credits, duration_value, duration_unit, daily_limit, weekly_limit, monthly_limit, dance_style_limit, remark } = data;
+  const { user_id, package_id, store_id, extra_store_ids, package_type, total_credits, duration_value, duration_unit, daily_limit, weekly_limit, monthly_limit, dance_style_limit, remark, activate_mode } = data;
 
   if (!user_id) throw new Error('用户ID不能为空');
   if (!package_type) throw new Error('套餐类型不能为空');
@@ -406,6 +406,23 @@ exports.createPackage = async (data, operatorId) => {
     ? `${duration_value}${duration_unit === 'month' ? '个月' : '天'}`
     : `${total_credits}课时`;
   const existingNote = existingActive ? `（当前有使用中的套餐，新套餐待激活）` : '（首个套餐，待激活）';
+
+  if (activate_mode === 'active') {
+    // 直接生效：录入后立即激活（赠课/补偿课时场景），起止日期从录入日按时长起算
+    await logService.createLog({
+      operator_id: operatorId,
+      action: 'create',
+      module: 'package',
+      target_id: userPackage._id,
+      detail: `为用户(${user_id})录入${package_type === 'count_card' ? '次卡' : '时间卡'}: ${durationText}（直接生效）`,
+    });
+    const activated = await exports.activatePackageById(userPackage._id, user_id, {
+      activation_type: 'manual_force',
+      activated_by: operatorId,
+    });
+    return activated;
+  }
+
   await logService.createLog({
     operator_id: operatorId,
     action: 'create',

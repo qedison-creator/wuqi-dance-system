@@ -92,6 +92,29 @@ async function checkPhoneUnique(reservePhone, excludeUserId = null) {
 }
 
 /**
+ * 获取归属门店的默认豁免次数（与新注册会员同口径）
+ * 优先级：门店级 default_exemption_count → 全局配置 default_exemption_count → 默认2
+ * @param {Object} storeDoc - 已查询的门店文档（需含 default_exemption_count 字段）
+ * @returns {Promise<number>}
+ */
+async function getStoreDefaultExemptionCount(storeDoc) {
+  try {
+    if (storeDoc && storeDoc.default_exemption_count !== null && storeDoc.default_exemption_count !== undefined) {
+      return storeDoc.default_exemption_count;
+    }
+    const Config = require('../models/Config');
+    const configDoc = await Config.findOne({ key: 'default_exemption_count' });
+    if (configDoc && configDoc.value) {
+      const parsed = parseInt(configDoc.value);
+      if (!isNaN(parsed)) return parsed;
+    }
+  } catch (err) {
+    console.error('[预建档] 读取默认豁免次数配置失败，使用默认值2:', err.message);
+  }
+  return 2;
+}
+
+/**
  * 获取预建档列表（仅查询 member_status='pending_claim'）
  */
 async function getPreMemberList(query = {}) {
@@ -198,7 +221,9 @@ async function getPreMemberStats(storeId = null) {
   }
   const [pendingCount, claimedCount] = await Promise.all([
     User.countDocuments({ ...baseFilter, member_status: 'pending_claim' }),
-    User.countDocuments({ ...baseFilter, member_status: 'official' })
+    // 已认领口径与列表一致：official 且 claimed_at 存在（认领/合并流程写入），
+    // 避免把自主注册后审核通过的普通会员也计入
+    User.countDocuments({ ...baseFilter, member_status: 'official', claimed_at: { $exists: true, $ne: null } })
   ]);
   return {
     pending_count: pendingCount,
@@ -226,8 +251,8 @@ async function createPreMember(data, operatorId) {
     throw new Error('所属门店不能为空');
   }
 
-  // 校验门店存在
-  const store = await Store.findById(store_id).select('_id name');
+  // 校验门店存在（同时取默认豁免次数：门店级 → 全局配置 → 模型默认2）
+  const store = await Store.findById(store_id).select('_id name default_exemption_count');
   if (!store) {
     throw new Error('门店不存在');
   }
@@ -249,6 +274,9 @@ async function createPreMember(data, operatorId) {
   // 生成会员编号，规则与自主注册会员一致
   const member_code = await memberService.generateMemberCode(store_id);
 
+  // 归属门店的默认豁免次数（与新注册会员同口径：门店级 → 全局配置 → 默认2）
+  const exemptionCount = await getStoreDefaultExemptionCount(store);
+
   // 创建预建档记录
   const user = await User.create({
     user_type: 'member',
@@ -259,6 +287,7 @@ async function createPreMember(data, operatorId) {
     gender: gender,
     reserve_phone: reserve_phone,
     store_id: store_id,
+    exemption_count: exemptionCount,
     info_completed: true,
     remark: remark || '',
     created_by: operatorId
@@ -502,9 +531,14 @@ async function updatePreMember(id, data, operatorId) {
     user.gender = gender;
   }
   if (store_id !== undefined) {
-    const store = await Store.findById(store_id).select('_id');
+    const store = await Store.findById(store_id).select('_id default_exemption_count');
     if (!store) throw new Error('门店不存在');
+    const storeChanged = String(user.store_id) !== String(store_id);
     user.store_id = store_id;
+    // 待认领阶段切换归属门店：豁免次数跟随新门店默认值重算（认领后成为正式会员，不再自动变更）
+    if (storeChanged) {
+      user.exemption_count = await getStoreDefaultExemptionCount(store);
+    }
   }
   if (remark !== undefined) user.remark = remark;
 
@@ -684,6 +718,8 @@ async function claimByPhone(wechatPhone, openid) {
     { returnDocument: 'after' }
   );
 
+  // 豁免次数已在创建预建档时按归属门店写入（见 createPreMember / 批量导入），认领时不再改动
+
   if (result) {
     notifyPreMemberChange('claim', {
       user_id: result._id,
@@ -704,8 +740,9 @@ async function claimByPhone(wechatPhone, openid) {
  * 处理：
  *   1. 待认领预建档的套餐（UserPackage）全部转移到当前登录账号
  *   2. 回填当前账号缺失的预留手机号/归属门店/真实姓名（仅在为空时填充，不覆盖已有数据）
- *   3. 删除已合并的僵尸预建档记录
- *   4. WebSocket 通知管理端刷新
+ *   3. 写入 claimed_at 认领标记（合并等同于认领完成，使其在预建档管理页"已认领"列表可见）
+ *   4. 删除已合并的僵尸预建档记录
+ *   5. WebSocket 通知管理端刷新
  *
  * @param {string} phone - 手机号（预留/微信授权）
  * @param {string} targetUserId - 当前登录的正式账号ID
@@ -714,7 +751,7 @@ async function claimByPhone(wechatPhone, openid) {
 async function mergePendingClaimByPhone(phone, targetUserId) {
   if (!phone || !targetUserId) return null;
 
-  const currentUser = await User.findById(targetUserId).select('reserve_phone store_id real_name');
+  const currentUser = await User.findById(targetUserId).select('reserve_phone store_id real_name claimed_at');
   if (!currentUser) return null;
 
   // 查找同手机号的待认领预建档（排除当前账号自身）
@@ -739,6 +776,8 @@ async function mergePendingClaimByPhone(phone, targetUserId) {
     if (!currentUser.reserve_phone && pending.reserve_phone) currentUser.reserve_phone = pending.reserve_phone;
     if (!currentUser.store_id && pending.store_id) currentUser.store_id = pending.store_id;
     if (!currentUser.real_name && pending.real_name) currentUser.real_name = pending.real_name;
+    // 合并等同于认领完成：写入认领标记，使其在预建档管理页"已认领"列表可查询
+    if (!currentUser.claimed_at) currentUser.claimed_at = new Date();
     // 3. 删除僵尸预建档记录
     await User.deleteOne({ _id: pending._id });
     merged.push({
@@ -828,11 +867,13 @@ async function importPreMembers(rows, operatorId) {
     validRows: []
   };
 
-  // 预加载门店列表（用于门店名称匹配）
-  const stores = await Store.find({ status: 'active' }).select('_id name').lean();
+  // 预加载门店列表（用于门店名称匹配 + 默认豁免次数）
+  const stores = await Store.find({ status: 'active' }).select('_id name default_exemption_count').lean();
   const storeMap = {};
+  const storeDocMap = {};  // name -> 门店文档（含 default_exemption_count）
   stores.forEach(s => {
     storeMap[s.name] = s._id;
+    storeDocMap[s.name] = s;
   });
 
   // 预加载舞种列表（用于舞种名称匹配）
@@ -1185,8 +1226,11 @@ async function importPreMembers(rows, operatorId) {
           appendedUsers.push({ _id: userId, store_id: storeId });
         } else {
           // 新建会员
-          storeId = storeMap[firstRow._store_name_matched || firstRow.store_name];
+          const matchedStoreName = firstRow._store_name_matched || firstRow.store_name;
+          storeId = storeMap[matchedStoreName];
           const member_code = await memberService.generateMemberCode(storeId);
+          // 归属门店的默认豁免次数（与新注册会员同口径：门店级 → 全局配置 → 默认2）
+          const exemptionCount = await getStoreDefaultExemptionCount(storeDocMap[matchedStoreName]);
           const userData = {
             user_type: 'member',
             member_status: 'pending_claim',
@@ -1196,6 +1240,7 @@ async function importPreMembers(rows, operatorId) {
             gender: firstRow._gender_num,
             reserve_phone: firstRow.reserve_phone,
             store_id: storeId,
+            exemption_count: exemptionCount,
             info_completed: true,
             remark: firstRow.remark || '',
             created_by: operatorId

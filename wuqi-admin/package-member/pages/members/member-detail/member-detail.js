@@ -938,6 +938,7 @@ Page({
 
     const defaultForm = {
       package_type: 'count_card',
+      activate_mode: 'pending',
       store_id: '',
       store_name: '',
       total_credits: '',
@@ -1059,6 +1060,11 @@ Page({
     this.setData({ 'addPackageForm.package_type': e.currentTarget.dataset.type });
   },
 
+  // 激活方式切换：预约激活（默认，会员首次预约时激活）/ 直接生效（录入即可用，赠课/补偿课时）
+  onAddPackageActivateModeChange(e) {
+    this.setData({ 'addPackageForm.activate_mode': e.currentTarget.dataset.mode });
+  },
+
   onAddPackageLimitTypeChange(e) {
     this.setData({
       'addPackageForm.limit_type': e.currentTarget.dataset.type,
@@ -1128,6 +1134,7 @@ Page({
         user_id: memberId,
         store_id: addPackageForm.store_id || (member.store_id && (member.store_id._id || member.store_id)) || null,
         package_type: addPackageForm.package_type,
+        activate_mode: addPackageForm.activate_mode === 'active' ? 'active' : 'pending',
         duration_value: parseInt(addPackageForm.duration_value),
         duration_unit: addPackageForm.duration_unit,
         extra_store_ids: addPackageForm.extra_store_ids || [],
