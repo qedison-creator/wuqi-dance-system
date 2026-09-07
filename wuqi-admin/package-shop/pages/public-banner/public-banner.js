@@ -9,6 +9,26 @@ function upgradeImageUrl(url) {
   return url;
 }
 
+// 轮播切换方式定义（key 与后端 BANNER_MODES 一致）
+const BANNER_MODE_LIST = [
+  { key: 'smooth', name: '平滑滑动（默认）' },
+  { key: 'fade', name: '淡入淡出' },
+  { key: 'slideFade', name: '滑动淡入' },
+  { key: 'zoomIn', name: '放大显现' },
+  { key: 'zoomOut', name: '缩小显现' },
+  { key: 'flipH', name: '横向翻转' },
+  { key: 'flipV', name: '纵向翻转' },
+  { key: 'rotateZoom', name: '旋转放大' },
+  { key: 'rotateIn', name: '旋转进入' },
+  { key: 'slideUp', name: '上滑显现' },
+  { key: 'slideDown', name: '下滑显现' },
+  { key: 'blurIn', name: '清晰聚焦' },
+  { key: 'breath', name: '呼吸缩放' },
+  { key: 'curtain', name: '窗帘展开' },
+  { key: 'door', name: '开门显现' }
+];
+const INTERVAL_OPTIONS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]; // 秒
+
 Page({
   data: {
     banners: [],
@@ -18,6 +38,14 @@ Page({
     deleting: false, // 防抖标志位
     isSuperAdmin: false,
     can_operate: false, // 是否可操作（仅超管/审核员可编辑/删除/启禁用）
+    // 轮播展示设置（仅超管可修改，其他角色置灰）
+    configExpanded: false,  // 设置区折叠状态：默认收起
+    displayConfig: { interval: 2, mode: 'smooth' },
+    intervalOptions: INTERVAL_OPTIONS,
+    intervalIndex: 1, // 2秒
+    modeOptions: BANNER_MODE_LIST,
+    modeIndex: 0,
+    savingConfig: false,
     // 全平台轮播图：store_id 固定为空字符串（多门店展示）
     formData: {
       title: '',
@@ -41,6 +69,80 @@ Page({
       can_operate: canOperate
     });
     this.loadBanners();
+    this.loadDisplayConfig();
+  },
+
+  // 加载轮播展示配置（轮换间隔 + 切换方式）
+  async loadDisplayConfig() {
+    try {
+      const res = await request({ url: '/banners/display-config', method: 'GET' });
+      const cfg = res.data || {};
+      const interval = parseInt(cfg.interval, 10) >= 1 ? parseInt(cfg.interval, 10) : 2;
+      const mode = cfg.mode || 'smooth';
+      const intervalIndex = Math.max(0, INTERVAL_OPTIONS.indexOf(interval));
+      const modeIndex = Math.max(0, BANNER_MODE_LIST.findIndex(m => m.key === mode));
+      this.setData({
+        displayConfig: { interval, mode },
+        intervalIndex,
+        modeIndex
+      });
+    } catch (err) {
+      console.error('加载轮播展示设置失败', err);
+    }
+  },
+
+  // 非超管点击置灰项提示
+  onConfigDisabled() {
+    wx.showToast({ title: '仅超级管理员可修改轮播展示设置', icon: 'none' });
+  },
+
+  // 展开/收起轮播展示设置区
+  onToggleConfigExpand() {
+    this.setData({ configExpanded: !this.data.configExpanded });
+  },
+
+  onIntervalChange(e) {
+    if (!this.data.isSuperAdmin) return;
+    const idx = Number(e.detail.value);
+    this.setData({
+      intervalIndex: idx,
+      'displayConfig.interval': INTERVAL_OPTIONS[idx]
+    });
+  },
+
+  onModeChange(e) {
+    if (!this.data.isSuperAdmin) return;
+    const idx = Number(e.detail.value);
+    this.setData({
+      modeIndex: idx,
+      'displayConfig.mode': BANNER_MODE_LIST[idx].key
+    });
+  },
+
+  // 保存轮播展示配置（仅超管）
+  async onSaveDisplayConfig() {
+    if (!this.data.isSuperAdmin) {
+      wx.showToast({ title: '仅超级管理员可修改', icon: 'none' });
+      return;
+    }
+    if (this.data.savingConfig) return;
+    const { interval, mode } = this.data.displayConfig;
+    this.setData({ savingConfig: true });
+    try {
+      await request({
+        url: '/banners/display-config',
+        method: 'PUT',
+        data: { interval, mode }
+      });
+      wx.showToast({ title: '保存成功', icon: 'success' });
+      // 保存成功后收起设置区
+      this.setData({ configExpanded: false });
+    } catch (err) {
+      console.error('保存轮播展示设置失败', err);
+      wx.showToast({ title: err.message || '保存失败', icon: 'none' });
+    } finally {
+      this.setData({ savingConfig: false });
+    }
   },
 
   async loadBanners() {

@@ -346,8 +346,8 @@ exports.getMemberCheckinProfile = async (userId) => {
 
   if (!user) throw new Error('会员不存在');
 
-  const today = new Date();
-  const todayStr = today.toISOString().split('T')[0];
+  // 北京时间日期（toISOString 为 UTC，8 点前会错位到前一天）
+  const todayStr = dayjs().tz(BEIJING_TZ).format('YYYY-MM-DD');
 
   const userPackages = await UserPackage.find({
     user_id: userId,

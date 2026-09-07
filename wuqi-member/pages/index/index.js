@@ -45,6 +45,8 @@ Page({
     contentPaddingTop: 400,
     greeting: { text: '晨间好', emoji: '🌤', sub: '今天也要元气满满' },
     bannerCurrent: 0,
+    bannerIntervalMs: 2000,  // 轮播轮换间隔（毫秒，可由管理端配置）
+    bannerMode: 'smooth',     // 轮播切换方式（smooth=原生平滑滑动）
     storeList: [],
     currentStore: null,
     banners: [],
@@ -294,7 +296,14 @@ Page({
       // 注意：服务器返回的 URL 可能是 http 或完整 https 地址，这里统一规范化为 /uploads/xxx 格式
       // 当图片加载失败时，binderror 会触发 fallback 到本地默认图
 
-      const banners = (Array.isArray(bannerRes.data) ? bannerRes.data : (bannerRes.data && bannerRes.data.data) || [])
+      // 轮播图：兼容新旧响应结构（旧：数组；新：{ list, config }），config 为轮换间隔+切换方式
+      const bannerPayload = bannerRes.data;
+      const rawBanners = Array.isArray(bannerPayload) ? bannerPayload
+        : ((bannerPayload && bannerPayload.list) || (bannerPayload && bannerPayload.data) || []);
+      const bannerConfig = (bannerPayload && bannerPayload.config) || {};
+      const bannerIntervalMs = (parseInt(bannerConfig.interval, 10) >= 1 ? parseInt(bannerConfig.interval, 10) : 2) * 1000;
+      const bannerMode = bannerConfig.mode || 'smooth';
+      const banners = rawBanners
         .map(b => ({ ...b, image_url: normalizeImageUrl(b.image_url, SERVER_BASE) }));
 
       // 处理热门教练
@@ -340,7 +349,7 @@ Page({
         });
 
       // 更新 _lastStoreId 为当前门店，确保后续 onShow 能正确判断门店是否变化
-      this.setData({ banners, hotCoaches: coaches, recentCourses, loading: false, _lastStoreId: currentStoreId }, () => {
+      this.setData({ banners, bannerIntervalMs, bannerMode, hotCoaches: coaches, recentCourses, loading: false, _lastStoreId: currentStoreId }, () => {
         // 核心数据渲染完成后，异步加载画廊（如 onReady 尚未触发，由 onReady 负责调度）
         if (this._onReadyFired) {
           this.loadGalleryImages();

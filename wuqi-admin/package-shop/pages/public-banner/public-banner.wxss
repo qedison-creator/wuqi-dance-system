@@ -59,6 +59,147 @@
   font-weight: 700;
 }
 
+/* ===== 轮播展示设置卡 ===== */
+.display-config-card {
+  background: #FFFFFF;
+  border-radius: 20rpx;
+  padding: 24rpx 28rpx;
+  margin-bottom: 24rpx;
+  box-shadow: 0 4rpx 16rpx rgba(60, 42, 24, 0.06);
+}
+
+.config-card-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 44rpx;
+}
+
+.config-card-title:active {
+  opacity: 0.7;
+}
+
+.config-title-left {
+  display: flex;
+  align-items: baseline;
+  gap: 12rpx;
+}
+
+.config-title-left text {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.config-card-sub {
+  font-size: 22rpx;
+  color: var(--text-tertiary);
+  font-weight: 400;
+}
+
+.config-title-right {
+  display: flex;
+  align-items: center;
+  gap: 10rpx;
+}
+
+/* 收起时的当前设置摘要 */
+.config-summary {
+  font-size: 24rpx;
+  color: var(--color-primary);
+}
+
+/* 展开指示箭头：收起朝下，展开旋转180° */
+.config-expand-arrow {
+  width: 26rpx;
+  height: 26rpx;
+  opacity: 0.35;
+  transform: rotate(90deg);
+  transition: transform 0.25s ease;
+}
+
+.config-expand-arrow.expanded {
+  transform: rotate(-90deg);
+}
+
+.config-row-wrap {
+  animation: configExpandIn 0.25s ease both;
+}
+
+@keyframes configExpandIn {
+  from { opacity: 0; transform: translateY(-12rpx); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.config-row-wrap picker {
+  display: block;
+}
+
+.config-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20rpx 0;
+  border-bottom: 1rpx solid #F5F0EA;
+}
+
+.config-label {
+  font-size: 28rpx;
+  color: var(--text-primary);
+}
+
+.config-value {
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+}
+
+.config-value text {
+  font-size: 28rpx;
+  color: var(--color-primary);
+  font-weight: 500;
+}
+
+.config-arrow {
+  width: 24rpx;
+  height: 24rpx;
+  opacity: 0.35;
+  transform: rotate(90deg);
+}
+
+/* 非超管置灰 */
+.config-disabled .config-row {
+  opacity: 0.55;
+}
+
+.config-disabled .config-value text {
+  color: var(--text-tertiary);
+}
+
+.config-save-btn {
+  margin-top: 20rpx;
+  background: var(--color-primary);
+  border-radius: 44rpx;
+  padding: 18rpx 0;
+  text-align: center;
+  box-shadow: 0 8rpx 24rpx rgba(197, 116, 75, 0.3);
+}
+
+.config-save-btn text {
+  font-size: 28rpx;
+  color: var(--text-inverse);
+  font-weight: 600;
+}
+
+.config-save-btn:active {
+  opacity: 0.85;
+}
+
+.config-save-disabled {
+  background: #D9D2C8;
+  box-shadow: none;
+}
+
 /* 添加按钮置灰（非超管/审核员） */
 .add-btn-disabled {
   opacity: 0.4;

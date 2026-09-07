@@ -556,6 +556,25 @@
   color: #B8AFA4;
 }
 
+/* 手机号明文/脱敏切换的小眼睛 */
+.phone-eye-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44rpx;
+  height: 44rpx;
+  flex-shrink: 0;
+}
+
+.phone-eye-btn:active {
+  opacity: 0.6;
+}
+
+.phone-eye-icon {
+  width: 32rpx;
+  height: 32rpx;
+}
+
 /* 套餐区标题 */
 .section-title {
   font-size: 26rpx;
@@ -685,6 +704,25 @@
   color: #948284;
   display: block;
   margin-top: 2rpx;
+}
+
+/* 已签到预约项：仅展示状态，不可勾选 */
+.booking-check-item.attended {
+  background: #F6F7F4;
+}
+
+.check-box.attended-box {
+  background: #5B8C5A;
+  border-color: #5B8C5A;
+}
+
+.attended-tag {
+  flex-shrink: 0;
+  font-size: 20rpx;
+  color: #5B8C5A;
+  background: rgba(91,140,90,0.12);
+  padding: 4rpx 14rpx;
+  border-radius: 20rpx;
 }
 
 /* 弹窗按钮 */

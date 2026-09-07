@@ -58,9 +58,12 @@
   <!-- ===== 真实内容 ===== -->
   <view wx:else>
     <view class="banner-section" wx:if="{{banners.length > 0}}">
-      <swiper class="banner-swiper" indicator-dots="{{false}}" autoplay circular interval="5000" easing-function="easeInOutCubic" duration="600" bindchange="onBannerChange">
+      <!-- 轮换间隔与切换方式由管理端配置：smooth 为原生平滑滑动；其余方式切换瞬时完成、由内容动画过渡 -->
+      <swiper class="banner-swiper" indicator-dots="{{false}}" autoplay circular interval="{{bannerIntervalMs}}" easing-function="easeInOutCubic" duration="{{bannerMode === 'smooth' ? 600 : 0}}" bindchange="onBannerChange">
         <swiper-item wx:for="{{banners}}" wx:key="_id">
-          <image class="banner-img" src="{{imageErrors['banner_'+item._id] ? '/images/default-course.svg' : item.image_url}}" binderror="onImgError" data-type="banner" data-id="{{item._id}}" mode="aspectFill" lazy-load decoding="async" />
+          <view class="banner-anim {{bannerCurrent === index ? 'banner-active anim-' + bannerMode : ''}}">
+            <image class="banner-img" src="{{imageErrors['banner_'+item._id] ? '/images/default-course.svg' : item.image_url}}" binderror="onImgError" data-type="banner" data-id="{{item._id}}" mode="aspectFill" lazy-load decoding="async" />
+          </view>
         </swiper-item>
       </swiper>
       <view class="banner-gradient"></view>

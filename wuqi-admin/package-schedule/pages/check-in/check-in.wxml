@@ -9,7 +9,7 @@
             wx:for="{{schedules}}" wx:key="_id"
             data-schedule="{{item}}" bindtap="onScheduleSelect">
         <view class="schedule-item-top">
-          <text class="schedule-time">{{item.timeStr}}</text>
+          <text class="schedule-time">{{item.weekday}} {{item.timeStr}}</text>
           <text class="schedule-day-tag" wx:if="{{item.isYesterday}}">昨天</text>
           <text class="schedule-status-tag {{item.status === 'in_progress' ? 'tag-in-progress' : 'tag-ended'}}"
                 wx:if="{{item.status === 'completed' || item.status === 'in_progress'}}">{{item.status === 'in_progress' ? '进行中' : '已结束'}}</text>
@@ -80,10 +80,6 @@
             <text class="detail-label">编号</text>
             <text class="detail-value">{{item.memberCode || '-'}}</text>
           </view>
-          <view class="detail-row">
-            <text class="detail-label">手机</text>
-            <text class="detail-value">{{item.userPhone || '-'}}</text>
-          </view>
           <view class="detail-row" wx:if="{{item.checkInTime}}">
             <text class="detail-label">签到时间</text>
             <text class="detail-value">{{item.checkInTime}}</text>
@@ -137,15 +133,24 @@
             <view class="profile-member-phones">
               <view class="phone-row" wx:if="{{profileData.member.phone}}">
                 <text class="phone-label">登记手机</text>
-                <text class="phone-value">{{profileData.member.phone}}</text>
+                <text class="phone-value">{{(showFullPhone && !isReviewer) ? profileData.member.phone : profileData.member.phone_masked}}</text>
+                <view class="phone-eye-btn" wx:if="{{!isReviewer}}" catchtap="onTogglePhone">
+                  <image class="phone-eye-icon" src="{{showFullPhone ? '/images/icons/eye-close.svg' : '/images/icons/eye-open.svg'}}" mode="aspectFit" decoding="async" />
+                </view>
               </view>
               <view class="phone-row" wx:if="{{profileData.member.wechat_phone}}">
                 <text class="phone-label">微信手机</text>
-                <text class="phone-value">{{profileData.member.wechat_phone}}</text>
+                <text class="phone-value">{{(showFullPhone && !isReviewer) ? profileData.member.wechat_phone : profileData.member.wechat_phone_masked}}</text>
+                <view class="phone-eye-btn" wx:if="{{!isReviewer}}" catchtap="onTogglePhone">
+                  <image class="phone-eye-icon" src="{{showFullPhone ? '/images/icons/eye-close.svg' : '/images/icons/eye-open.svg'}}" mode="aspectFit" decoding="async" />
+                </view>
               </view>
               <view class="phone-row" wx:if="{{profileData.member.reserve_phone}}">
                 <text class="phone-label">备用手机</text>
-                <text class="phone-value">{{profileData.member.reserve_phone}}</text>
+                <text class="phone-value">{{(showFullPhone && !isReviewer) ? profileData.member.reserve_phone : profileData.member.reserve_phone_masked}}</text>
+                <view class="phone-eye-btn" wx:if="{{!isReviewer}}" catchtap="onTogglePhone">
+                  <image class="phone-eye-icon" src="{{showFullPhone ? '/images/icons/eye-close.svg' : '/images/icons/eye-open.svg'}}" mode="aspectFit" decoding="async" />
+                </view>
               </view>
               <text class="phone-empty" wx:if="{{!profileData.member.phone && !profileData.member.wechat_phone && !profileData.member.reserve_phone}}">暂无手机号</text>
             </view>
@@ -186,16 +191,19 @@
 
       <view class="profile-section" wx:if="{{!isOnsiteMode && profileData.today_bookings && profileData.today_bookings.length > 0}}">
         <text class="section-title">当天预约课程（勾选需签到的）</text>
-        <view class="booking-check-item {{item.checked ? 'checked' : ''}}"
+        <view class="booking-check-item {{item.checked ? 'checked' : ''}} {{item.checked_in ? 'attended' : ''}}"
               wx:for="{{profileData.today_bookings}}" wx:key="booking_id"
               data-id="{{item.booking_id}}" bindtap="onToggleBookingCheck">
-          <view class="check-box {{item.checked ? 'checked' : ''}}">
+          <view class="check-box {{item.checked ? 'checked' : ''}} {{item.checked_in ? 'attended-box' : ''}}">
             <text wx:if="{{item.checked}}">√</text>
           </view>
           <view class="booking-check-info">
             <text class="booking-check-time">{{item.start_time}} - {{item.end_time}}</text>
             <text class="booking-check-course">{{item.course_name || '课程'}}</text>
             <text class="booking-check-coach">{{item.coach_name || ''}} | {{item.dance_style_name || ''}}</text>
+          </view>
+          <view class="attended-tag" wx:if="{{item.checked_in}}">
+            <text>已签到</text>
           </view>
         </view>
       </view>

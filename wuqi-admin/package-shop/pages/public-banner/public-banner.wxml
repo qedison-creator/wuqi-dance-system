@@ -11,6 +11,43 @@
     </view>
   </view>
 
+  <!-- 轮播展示设置（点击标题行向下展开，保存成功后自动收起；仅超级管理员可修改） -->
+  <view class="display-config-card">
+    <view class="config-card-title" bindtap="onToggleConfigExpand">
+      <view class="config-title-left">
+        <text>轮播展示设置</text>
+        <text class="config-card-sub" wx:if="{{!isSuperAdmin}}">仅超级管理员可修改</text>
+      </view>
+      <view class="config-title-right">
+        <text class="config-summary" wx:if="{{!configExpanded}}">{{displayConfig.interval}}秒 · {{modeOptions[modeIndex].name}}</text>
+        <image class="config-expand-arrow {{configExpanded ? 'expanded' : ''}}" src="/images/icons/chevron-right.svg" mode="aspectFit" decoding="async" />
+      </view>
+    </view>
+    <view class="config-row-wrap {{isSuperAdmin ? '' : 'config-disabled'}}" wx:if="{{configExpanded}}">
+      <picker mode="selector" range="{{intervalOptions}}" value="{{intervalIndex}}" bindchange="onIntervalChange" disabled="{{!isSuperAdmin}}">
+        <view class="config-row">
+          <text class="config-label">轮换间隔</text>
+          <view class="config-value">
+            <text>{{displayConfig.interval}} 秒</text>
+            <image class="config-arrow" src="/images/icons/chevron-right.svg" mode="aspectFit" decoding="async" />
+          </view>
+        </view>
+      </picker>
+      <picker mode="selector" range="{{modeOptions}}" range-key="name" value="{{modeIndex}}" bindchange="onModeChange" disabled="{{!isSuperAdmin}}">
+        <view class="config-row">
+          <text class="config-label">切换方式</text>
+          <view class="config-value">
+            <text>{{modeOptions[modeIndex].name}}</text>
+            <image class="config-arrow" src="/images/icons/chevron-right.svg" mode="aspectFit" decoding="async" />
+          </view>
+        </view>
+      </picker>
+      <view class="config-save-btn {{isSuperAdmin ? '' : 'config-save-disabled'}}" bindtap="{{isSuperAdmin ? 'onSaveDisplayConfig' : 'onConfigDisabled'}}">
+        <text>{{savingConfig ? '保存中...' : '保存设置'}}</text>
+      </view>
+    </view>
+  </view>
+
   <!-- 轮播图列表 -->
   <view class="banner-list" wx:if="{{banners.length > 0}}">
     <view class="banner-item" wx:for="{{banners}}" wx:key="_id">

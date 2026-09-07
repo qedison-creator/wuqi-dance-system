@@ -241,7 +241,11 @@ Page({
         if (pkg.is_activated && pkg.end_date) {
           const now = getBeijingDate();
           const end = getBeijingDate(pkg.end_date);
-          const diff = Math.ceil((end - now) / (1000 * 60 * 60 * 24));
+          // 纯自然日差（与会员端个人中心口径一致）：取两端北京日期部分计算，
+          // 避免 end_date 的 23:59:59.999 时刻（最后一天全天有效）导致向上取整多算一天
+          const nowDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+          const endDay = new Date(end.getFullYear(), end.getMonth(), end.getDate());
+          const diff = Math.round((endDay - nowDay) / (1000 * 60 * 60 * 24));
           pkg.remaining_days = diff;
           // 动态修正状态：已激活但有效期已过的，标记为已过期
 

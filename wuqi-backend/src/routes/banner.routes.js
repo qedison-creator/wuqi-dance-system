@@ -6,9 +6,65 @@ const checkPermission = require('../middleware/permission');
 const { checkModulePermission } = require('../middleware/permission');
 const storeFilter = require('../middleware/storeFilter');
 const Banner = require('../models/Banner');
+const Config = require('../models/Config');
 const { success, paginate } = require('../utils/response');
 const contentSecurityService = require('../services/content-security.service');
 const { getAllowedStoreIds } = require('../utils/storeOwnership');
+
+// ===== 轮播展示配置（轮换间隔 + 切换方式）=====
+// 合法切换方式：smooth 为原生平滑滑动（目前在用），其余为内容动画切换
+const BANNER_MODES = [
+  'smooth', 'fade', 'slideFade', 'zoomIn', 'zoomOut', 'flipH', 'flipV',
+  'rotateZoom', 'rotateIn', 'slideUp', 'slideDown', 'blurIn', 'breath', 'curtain', 'door'
+];
+const DEFAULT_BANNER_CONFIG = { interval: 2, mode: 'smooth' }; // interval 单位：秒
+
+// 读取轮播展示配置（带兜底，供管理端与会员端首页共用）
+async function getBannerDisplayConfig() {
+  const doc = await Config.findOne({ key: 'banner_display_config' });
+  const cfg = { ...DEFAULT_BANNER_CONFIG };
+  if (doc && doc.value && typeof doc.value === 'object') {
+    const interval = parseInt(doc.value.interval, 10);
+    if (!isNaN(interval) && interval >= 1 && interval <= 10) cfg.interval = interval;
+    if (BANNER_MODES.includes(doc.value.mode)) cfg.mode = doc.value.mode;
+  }
+  return cfg;
+}
+
+// GET /api/v1/banners/display-config - 读取轮播展示配置（管理端，需登录）
+router.get('/display-config', auth, async (req, res, next) => {
+  try {
+    const config = await getBannerDisplayConfig();
+    res.json(success(config));
+  } catch (err) {
+    next(err);
+  }
+});
+
+// PUT /api/v1/banners/display-config - 保存轮播展示配置（仅超级管理员）
+router.put('/display-config', auth, async (req, res, next) => {
+  try {
+    if (req.user.role !== 'super_admin') {
+      return res.status(403).json({ code: 403, message: '仅超级管理员可修改轮播展示设置', data: null });
+    }
+    const { interval, mode } = req.body || {};
+    const parsedInterval = parseInt(interval, 10);
+    if (isNaN(parsedInterval) || parsedInterval < 1 || parsedInterval > 10) {
+      return res.status(400).json({ code: 400, message: '轮换间隔需为 1-10 秒', data: null });
+    }
+    if (!BANNER_MODES.includes(mode)) {
+      return res.status(400).json({ code: 400, message: '切换方式不合法', data: null });
+    }
+    await Config.findOneAndUpdate(
+      { key: 'banner_display_config' },
+      { $set: { value: { interval: parsedInterval, mode }, description: '轮播图展示配置（interval 秒、mode 切换方式）', category: 'banner' } },
+      { upsert: true, new: true }
+    );
+    res.json(success({ interval: parsedInterval, mode }, '保存成功'));
+  } catch (err) {
+    next(err);
+  }
+});
 
 // 把图片URL升级为 HTTPS（修复存量 HTTP 图片在小程序端无法显示的问题）
 function upgradeImageUrl(url, req) {
@@ -180,3 +236,4 @@ router.delete('/:id', auth, checkModulePermission('banner'), storeFilter(), asyn
 });
 
 module.exports = router;
+module.exports.getBannerDisplayConfig = getBannerDisplayConfig;

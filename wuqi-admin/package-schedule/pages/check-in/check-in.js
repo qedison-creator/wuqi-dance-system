@@ -19,12 +19,20 @@ Page({
     isOnsiteMode: false,
     showOnsiteConfirm: false,
     expandedIndex: -1,
+    showFullPhone: false,   // 完整档案手机号是否明文显示（审核员仅脱敏）
+    isReviewer: false,       // 审核员角色：仅显示脱敏手机号
   },
 
   preventTouchMove() {},
 
   onLoad() {
-    this.setData({ todayStr: formatDate(new Date(), 'YYYY-MM-DD') });
+    const app = getApp();
+    const userInfo = app.globalData.userInfo;
+    this.setData({
+      todayStr: formatDate(new Date(), 'YYYY-MM-DD'),
+      isReviewer: !!(userInfo && userInfo.role === 'reviewer'),
+      showFullPhone: false
+    });
     this.loadTodaySchedules();
   },
 
@@ -67,6 +75,7 @@ Page({
         .map(s => ({
           ...s,
           isYesterday: s.date === yesterday,
+          weekday: this.getWeekDay(s.date),
           timeStr: `${s.start_time || ''} - ${s.end_time || ''}`,
           className: s.course_name || '未命名课程',
           coachName: s.coach_id ? s.coach_id.name : '',
@@ -135,7 +144,9 @@ Page({
           checkInClass: r.checked_in
             ? (r.attendance && r.attendance.source === 'onsite' ? 'onsite' : 'checked')
             : (r.status === 'cancelled' ? 'cancelled' : 'pending'),
-          checkInTime: r.attendance ? r.attendance.check_in_time : null,
+          checkInTime: r.attendance && r.attendance.check_in_time
+            ? formatDate(r.attendance.check_in_time, 'YYYY-MM-DD HH:mm')
+            : null,
         };
       });
       const checkedInCount = records.filter(r => r.checked_in).length;
@@ -351,10 +362,10 @@ Page({
 
     let checkedBookingIds = [];
     if (profileData.today_bookings) {
-      profileData.today_bookings = profileData.today_bookings.filter(b => !b.checked_in);
+      // 保留已签到预约用于展示（显示"已签到"状态，不可勾选），仅未签到项可勾选签到
       if (!isOnsiteMode && currentScheduleId) {
         const match = profileData.today_bookings.find(
-          b => b.schedule_id === currentScheduleId
+          b => b.schedule_id === currentScheduleId && !b.checked_in
         );
         if (match) {
           checkedBookingIds = [match.booking_id];
@@ -387,6 +398,18 @@ Page({
       const displayName = profileData.member.real_name || profileData.member.nick_name || '';
       profileData.member.display_name = displayName;
       profileData.member.nick_initial = displayName ? displayName[0] : '?';
+      // 手机号脱敏：默认展示脱敏号，非审核员可通过小眼睛切换明文
+      const maskPhone = (p) => {
+        if (p && String(p).length === 11) {
+          return String(p).replace(/(\d{3})\d{4}(\d{4})/, '$1****$2');
+        }
+        return p || '';
+      };
+      ['phone', 'wechat_phone', 'reserve_phone'].forEach(k => {
+        if (profileData.member[k]) {
+          profileData.member[k + '_masked'] = maskPhone(profileData.member[k]);
+        }
+      });
       // 规范化头像 URL：相对路径拼接 serverBase
       if (profileData.member.avatar_url) {
         const url = profileData.member.avatar_url;
@@ -403,11 +426,21 @@ Page({
       checkedBookingIds,
       isOnsiteMode,
       showOnsiteConfirm: false,
+      showFullPhone: false,
     });
+  },
+
+  // 完整档案手机号明文/脱敏切换（审核员仅脱敏）
+  onTogglePhone() {
+    if (this.data.isReviewer) return;
+    this.setData({ showFullPhone: !this.data.showFullPhone });
   },
 
   onToggleBookingCheck(e) {
     const bookingId = e.currentTarget.dataset.id;
+    // 已签到项仅展示状态，不可勾选
+    const target = (this.data.profileData.today_bookings || []).find(b => b.booking_id === bookingId);
+    if (target && target.checked_in) return;
     let checkedBookingIds = [...this.data.checkedBookingIds];
     const index = checkedBookingIds.indexOf(bookingId);
     if (index >= 0) {
@@ -527,6 +560,14 @@ Page({
     const h = String(d.getHours()).padStart(2, '0');
     const m = String(d.getMinutes()).padStart(2, '0');
     return `${h}:${m}`;
+  },
+
+  // 课程日期对应的星期文案（按北京时区解析）
+  getWeekDay(dateStr) {
+    if (!dateStr) return '';
+    const d = new Date(dateStr + 'T00:00:00+08:00');
+    if (isNaN(d.getTime())) return '';
+    return ['周日', '周一', '周二', '周三', '周四', '周五', '周六'][d.getDay()];
   },
 
   getPackageTypeName(type) {

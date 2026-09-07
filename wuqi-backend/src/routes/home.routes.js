@@ -189,7 +189,7 @@ router.get('/banners', async (req, res, next) => {
     const banners = await Banner.find({ status: 'active' })
       .sort({ sort_order: 1 })
       .limit(10);
-    
+
     // 处理图片 URL，确保返回完整路径
     const protocol = req.protocol;
     const host = req.get('host');
@@ -200,8 +200,11 @@ router.get('/banners', async (req, res, next) => {
       }
       return bannerObj;
     });
-    
-    res.json(success(processedBanners));
+
+    // 轮播展示配置（轮换间隔 + 切换方式，带默认兜底）
+    const bannerConfig = await require('./banner.routes').getBannerDisplayConfig();
+
+    res.json(success({ list: processedBanners, config: bannerConfig }));
   } catch (err) {
     next(err);
   }
