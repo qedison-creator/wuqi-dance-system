@@ -1,0 +1,11 @@
+{
+  "navigationBarTitleText": "此间画面",
+  "navigationBarBackgroundColor": "#FAF8F6",
+  "navigationBarTextStyle": "black",
+  "backgroundColor": "#FAF8F6",
+  "enablePullDownRefresh": true,
+  "backgroundTextStyle": "dark",
+  "usingComponents": {
+    "empty-state": "/components/empty-state/empty-state"
+  }
+}

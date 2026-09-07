@@ -260,10 +260,11 @@ router.get('/packages', async (req, res, next) => {
 });
 
 // GET /api/v1/home/images - 获取首页图片列表（公共画册 + 指定门店画册）
+// 支持 after 参数：增量同步模式，仅返回 updated_at > after 的记录 + total
 router.get('/images', async (req, res, next) => {
   try {
-    const { limit, store_id } = req.query;
-    const images = await imageService.getHomeImages(limit, store_id || null);
+    const { limit, store_id, after } = req.query;
+    const images = await imageService.getHomeImages(limit, store_id || null, after || null);
     res.json(success(images));
   } catch (err) {
     next(err);

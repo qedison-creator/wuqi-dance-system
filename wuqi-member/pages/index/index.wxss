@@ -910,6 +910,33 @@ page {
   letter-spacing: 2rpx;
 }
 
+.gs-more-row {
+  margin-top: 10rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16rpx;
+}
+
+.gs-more-row .gs-subtitle {
+  margin-top: 0;
+}
+
+.gs-more {
+  display: flex;
+  align-items: center;
+  gap: 4rpx;
+  font-size: 22rpx;
+  color: #948284;
+  letter-spacing: 1rpx;
+}
+
+.gs-more-arrow {
+  font-size: 26rpx;
+  line-height: 1;
+  margin-top: -2rpx;
+}
+
 .gs-scroll {
   white-space: nowrap;
   /* 显式加宽 + 负 margin：把 scroll-view 裁剪边界向外扩，避免内部滚动容器裁掉相框四周阴影 */

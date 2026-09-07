@@ -22,7 +22,8 @@ const userSchema = new mongoose.Schema({
   username: { type: String, unique: true, sparse: true },
   password: { type: String },
   status: { type: String, enum: ['active', 'disabled'], required: true, default: 'active' },
-  exemption_count: { type: Number, default: 2 },
+  // 豁免次数：仅由门店默认豁免次数初始化（未选门店时为0，无全局默认）
+  exemption_count: { type: Number, default: 0 },
   member_code: { type: String, unique: true, sparse: true },
   info_completed: { type: Boolean, default: false },
   phone_audit_status: { type: String, enum: ['none', 'pending', 'approved', 'rejected'], default: 'none' },

@@ -763,7 +763,7 @@ exports.cancelBooking = async (userId, bookingId) => {
     }
 
     const user = await User.findById(userId);
-    const effectiveExemptionCount = user.exemption_count !== undefined ? user.exemption_count : 2;
+    const effectiveExemptionCount = user.exemption_count !== undefined ? user.exemption_count : 0;
     if (effectiveExemptionCount > 0) {
       // 有豁免次数 - 豁免取消，退课时
       booking.status = 'cancelled';

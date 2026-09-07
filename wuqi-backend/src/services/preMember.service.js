@@ -93,7 +93,7 @@ async function checkPhoneUnique(reservePhone, excludeUserId = null) {
 
 /**
  * 获取归属门店的默认豁免次数（与新注册会员同口径）
- * 优先级：门店级 default_exemption_count → 全局配置 default_exemption_count → 默认2
+ * 门店默认豁免次数是唯一来源：未配置时为 0
  * @param {Object} storeDoc - 已查询的门店文档（需含 default_exemption_count 字段）
  * @returns {Promise<number>}
  */
@@ -102,16 +102,10 @@ async function getStoreDefaultExemptionCount(storeDoc) {
     if (storeDoc && storeDoc.default_exemption_count !== null && storeDoc.default_exemption_count !== undefined) {
       return storeDoc.default_exemption_count;
     }
-    const Config = require('../models/Config');
-    const configDoc = await Config.findOne({ key: 'default_exemption_count' });
-    if (configDoc && configDoc.value) {
-      const parsed = parseInt(configDoc.value);
-      if (!isNaN(parsed)) return parsed;
-    }
   } catch (err) {
-    console.error('[预建档] 读取默认豁免次数配置失败，使用默认值2:', err.message);
+    console.error('[预建档] 读取门店默认豁免次数配置失败，使用0:', err.message);
   }
-  return 2;
+  return 0;
 }
 
 /**

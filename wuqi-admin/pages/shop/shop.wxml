@@ -1,13 +1,4 @@
 <view class="shop-page">
-  <!-- 门店选择器 -->
-  <view class="store-switcher-bar" wx:if="{{showStoreSwitcher}}" bindtap="onStoreSwitcherTap">
-    <view class="store-switcher-inner">
-      <image class="store-switcher-icon" src="/images/icons/shop-store.svg" mode="aspectFit" decoding="async"></image>
-      <text class="store-switcher-name">{{selectedStoreName}}</text>
-      <image class="store-switcher-arrow" src="/images/icons/chevron-right.svg" mode="aspectFit" decoding="async"></image>
-    </view>
-  </view>
-
   <!-- 公共功能（始终可用，不绑定门店） -->
   <view class="menu-section">
     <view class="menu-section-title">公共功能</view>
@@ -74,8 +65,18 @@
     </view>
   </view>
 
-  <!-- 门店功能（选择具体门店后可用，默认已选中第一个门店） -->
+  <!-- 门店功能（受门店选择器控制，仅作用于所选门店） -->
   <view class="store-section-wrap {{!hasStoreSelected ? 'store-section-disabled' : ''}}">
+    <!-- 门店选择器（仅作用于下方门店功能，公共功能不受影响） -->
+    <view class="store-switcher-bar" wx:if="{{showStoreSwitcher}}" bindtap="onStoreSwitcherTap">
+      <view class="store-switcher-inner">
+        <image class="store-switcher-icon" src="/images/icons/shop-store.svg" mode="aspectFit" decoding="async"></image>
+        <text class="store-switcher-name">{{selectedStoreName}}</text>
+        <image class="store-switcher-arrow" src="/images/icons/chevron-right.svg" mode="aspectFit" decoding="async"></image>
+      </view>
+      <view class="store-switcher-scope">以下功能仅作用于所选门店</view>
+    </view>
+
     <view class="store-section-mask" wx:if="{{!hasStoreSelected}}">
       <text class="store-section-tip">请选择门店后使用</text>
     </view>

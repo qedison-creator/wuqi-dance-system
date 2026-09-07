@@ -1,16 +1,16 @@
 <view class="exemption-page">
-  <!-- 全局默认设置 -->
+  <!-- 门店默认设置 -->
   <view class="section card">
     <view class="section-title">
       <text class="title-icon"></text>
-      <text class="title-text">{{currentStore ? '门店默认设置' : '全局默认设置'}}</text>
+      <text class="title-text">门店默认设置</text>
     </view>
     <view class="section-desc">
       <text wx:if="{{currentStore}}">{{currentStore.name}} 新注册会员的默认豁免次数</text>
-      <text wx:else>所有门店新注册会员的默认豁免次数（未单独设置的门店将继承此值）</text>
+      <text wx:else>默认豁免次数按门店设置，请先在上方选择门店</text>
     </view>
-    <view wx:if="{{currentStore && isExemptionInherited}}" class="inherit-tag">
-      <text>当前继承全局设置，修改后将覆盖为门店独立配置</text>
+    <view wx:if="{{currentStore && !exemptionSet}}" class="inherit-tag">
+      <text>该门店尚未设置默认豁免次数，保存后生效</text>
     </view>
     <view class="config-item">
       <view class="config-label-row">

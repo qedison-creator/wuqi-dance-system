@@ -105,10 +105,10 @@ exports.wxLogin = async (code, storeId, clientType = 'member', profileData = {})
   // ===== 预建档匹配结束 =====
 
   if (!user) {
-    // 读取默认豁免次数：优先使用门店级配置，其次全局配置，最后默认2次
-    let defaultExemptionCount = 2;
+    // 读取默认豁免次数：仅使用门店级配置（门店默认豁免次数是唯一来源）
+    // 未选门店时不赋予豁免次数（0次），待注册选择门店后按门店默认值初始化
+    let defaultExemptionCount = 0;
     try {
-      // 先查门店级配置
       if (storeId) {
         const Store = require('../models/Store');
         const store = await Store.findById(storeId).select('default_exemption_count');
@@ -116,16 +116,8 @@ exports.wxLogin = async (code, storeId, clientType = 'member', profileData = {})
           defaultExemptionCount = store.default_exemption_count;
         }
       }
-      // 门店未单独配置时回退全局配置
-      if (defaultExemptionCount === 2) {
-        const Config = require('../models/Config');
-        const configDoc = await Config.findOne({ key: 'default_exemption_count' });
-        if (configDoc && configDoc.value) {
-          defaultExemptionCount = parseInt(configDoc.value) || 2;
-        }
-      }
     } catch (configErr) {
-      console.error('[微信登录] 读取豁免次数配置失败，使用默认值2:', configErr.message);
+      console.error('[微信登录] 读取门店豁免次数配置失败，默认0次:', configErr.message);
     }
 
     const userData = {

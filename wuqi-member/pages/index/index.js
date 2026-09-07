@@ -648,6 +648,20 @@ Page({
     }
   },
 
+  // 点击画廊图片：进入此间画面画廊页
+  onGalleryTap() {
+    wx.navigateTo({
+      url: '/package-sub/pages/gallery/gallery'
+    });
+  },
+
+  // 点击画廊标题区：进入此间画面画廊页
+  onGalleryMore() {
+    wx.navigateTo({
+      url: '/package-sub/pages/gallery/gallery'
+    });
+  },
+
   onNavTap() {
     const store = this.data.currentStore;
     if (!store) {

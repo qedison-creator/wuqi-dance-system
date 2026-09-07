@@ -3,10 +3,10 @@ const app = getApp();
 
 Page({
   data: {
-    defaultExemption: 3,
-    savedExemption: 3,   // 上次保存的值，用于判断是否已修改
+    defaultExemption: 0,
+    savedExemption: 0,   // 上次保存的值，用于判断是否已修改
     saveStatus: '',      // '' | 'saved' | 'modified' | 'saving'
-    isExemptionInherited: false, // 当前门店是否继承全局配置
+    exemptionSet: false, // 当前门店是否已设置默认豁免次数
     searchKeyword: '',
     memberList: [],
     hasSearched: false,
@@ -70,32 +70,38 @@ Page({
     this.setData({ currentStore, currentStoreName });
   },
 
-  // 加载默认豁免次数（全局或门店级）
+  // 加载门店默认豁免次数（门店级配置是唯一来源，未选门店不加载）
   async loadDefaultExemption() {
     const storeId = app.globalData.shopStoreId || '';
+    // 未选门店（超管"全部门店"视图）：无门店上下文，不加载默认设置
+    if (!storeId) {
+      this.setData({ defaultExemption: 0, savedExemption: 0, saveStatus: 'saved', exemptionSet: false });
+      return;
+    }
     try {
       const res = await request({
         url: '/config/default_exemption_count',
         method: 'GET',
-        data: storeId ? { store_id: storeId } : {}
+        data: { store_id: storeId }
       });
       const config = res.data;
-      if (config && config.value !== undefined) {
-        const val = parseInt(config.value) || 3;
+      if (config) {
+        const isSet = config.is_set === true;
+        const val = isSet ? (parseInt(config.value) || 0) : 0;
         this.setData({
           defaultExemption: val,
           savedExemption: val,
           saveStatus: 'saved',
-          isExemptionInherited: config.is_inherited === true
+          exemptionSet: isSet
         });
       }
     } catch (err) {
-      console.log('使用默认豁免次数:', 3);
+      console.error('加载门店默认豁免次数失败', err);
       this.setData({
-        defaultExemption: 3,
-        savedExemption: 3,
+        defaultExemption: 0,
+        savedExemption: 0,
         saveStatus: 'saved',
-        isExemptionInherited: false
+        exemptionSet: false
       });
     }
   },
@@ -111,9 +117,15 @@ Page({
     });
   },
 
-  // 保存默认豁免次数
+  // 保存门店默认豁免次数
   async saveDefaultExemption() {
     if (this.data.saveStatus === 'saving') return;
+
+    const storeId = app.globalData.shopStoreId || '';
+    if (!storeId) {
+      wx.showToast({ title: '请先选择门店', icon: 'none' });
+      return;
+    }
 
     const count = parseInt(this.data.defaultExemption);
     if (isNaN(count) || count < 0) {
@@ -124,24 +136,22 @@ Page({
     this.setData({ saveStatus: 'saving' });
 
     try {
-      const storeId = app.globalData.shopStoreId || '';
       await request({
         url: '/config/default_exemption_count',
         method: 'PUT',
         data: {
           config_value: count.toString(),
-          description: '新注册会员默认豁免次数',
-          ...(storeId ? { store_id: storeId } : {})
+          store_id: storeId
         }
       });
       this.setData({
         savedExemption: count,
         saveStatus: 'saved',
-        isExemptionInherited: false
+        exemptionSet: true
       });
       wx.showToast({ title: '保存成功', icon: 'success' });
     } catch (err) {
-      console.error('保存默认豁免次数失败', err);
+      console.error('保存门店默认豁免次数失败', err);
       this.setData({ saveStatus: 'modified' });
       wx.showToast({ title: '保存失败', icon: 'none' });
     }

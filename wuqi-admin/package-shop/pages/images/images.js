@@ -30,6 +30,7 @@ Page({
     formStoreId: '',             // 弹窗中选中的画册归属：固定当前门店画册
     showGalleryPicker: false,    // 画册选择面板
     galleryOptions: [],          // 画册可选项（仅当前门店画册）
+    noStoreSelected: false,      // 超管未选门店：门店画册需先选门店
   },
 
   onShow() {
@@ -62,9 +63,14 @@ Page({
   },
 
   async loadData() {
-    this.setData({ loading: true });
+    const shopStoreId = app.globalData.shopStoreId || '';
+    // 超管未选门店：门店画册必须先选门店（避免显示全部图片造成归属混乱）
+    if (!shopStoreId) {
+      this.setData({ loading: false, list: [], noStoreSelected: true });
+      return;
+    }
+    this.setData({ loading: true, noStoreSelected: false });
     try {
-      const shopStoreId = app.globalData.shopStoreId || '';
       const params = { pageSize: 100 };
       if (this.data.filterCoachId) params.coach_id = this.data.filterCoachId;
       if (this.data.filterShowHome !== '') params.show_on_home = this.data.filterShowHome;
@@ -141,8 +147,12 @@ Page({
 
   // 显示上传弹窗
   onShowAdd() {
-    // 默认画册归属：固定当前门店画册
+    // 门店画册上传必须先选门店（未选门店时上传会误归属为公共画册）
     const shopStoreId = app.globalData.shopStoreId || '';
+    if (!shopStoreId) {
+      wx.showToast({ title: '请先在上方选择门店后再上传门店画册', icon: 'none' });
+      return;
+    }
     this.setData({
       showModal: true,
       editingId: null,
@@ -335,7 +345,7 @@ Page({
         }
         wx.showLoading({ title: '上传中...' });
         const baseUrl = (app.globalData && app.globalData.baseUrl) || config.baseUrl;
-        const token = wx.getStorageSync('token');
+        const token = wx.getStorageSync('admin_token') || app.globalData.token || '';
         await new Promise((resolve, reject) => {
           wx.uploadFile({
             url: `${baseUrl}/images`,

@@ -179,17 +179,23 @@
       </view>
 
       <view class="gallery-section" wx:if="{{images.length > 0}}">
-        <view class="gs-header">
+        <view class="gs-header" bindtap="onGalleryMore">
           <view class="gs-title-line">
             <view class="gs-accent"></view>
             <text class="gs-title">此间画面</text>
             <view class="gs-accent"></view>
           </view>
-          <text class="gs-subtitle">舞栖瞬间 · 光影留存</text>
+          <view class="gs-more-row">
+            <text class="gs-subtitle">舞栖瞬间 · 光影留存</text>
+            <view class="gs-more">
+              <text>查看全部</text>
+              <text class="gs-more-arrow">›</text>
+            </view>
+          </view>
         </view>
         <scroll-view class="gs-scroll" scroll-x enhanced show-scrollbar="{{false}}">
           <view class="gs-scroll-inner">
-          <view class="gs-frame {{item.orientation === 'portrait' ? 'gs-portrait' : 'gs-landscape'}}" wx:for="{{images}}" wx:key="_id">
+          <view class="gs-frame {{item.orientation === 'portrait' ? 'gs-portrait' : 'gs-landscape'}}" wx:for="{{images}}" wx:key="_id" bindtap="onGalleryTap">
             <view class="gs-frame-inner">
               <image class="gs-img" src="{{imageErrors['gallery_'+item._id] ? '/images/default-course.svg' : (item.thumbnail_url || item.image_url)}}" mode="aspectFill" lazy-load="{{true}}" decoding="async" binderror="onImageError" data-id="{{item._id}}" />
             </view>

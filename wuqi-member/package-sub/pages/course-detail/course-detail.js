@@ -300,26 +300,9 @@ Page({
       return true;
     });
     if (hasValid) {
-      // 时间卡周期限制检查：只有时间卡套餐且周期次数用完时阻止预约
-      const timeCardUsage = pkgData.timeCardUsage;
-      if (timeCardUsage) {
-        const hasOtherValidPackage = packages.some(pkg => {
-          if (pkg.package_type === 'time_card') return false;
-          if (pkg.status === 'pending') return true;
-          if (pkg.status !== 'active' || pkg.is_suspended) return false;
-          if (pkg.is_activated && pkg.end_date && new Date() > new Date(pkg.end_date)) return false;
-          if (pkg.package_type === 'count_card' && (pkg.remaining_credits || 0) === 0) return false;
-          return true;
-        });
-        if (!hasOtherValidPackage) {
-          const dailyExhausted = timeCardUsage.daily_remaining === 0 && timeCardUsage.daily_limit > 0;
-          const weeklyExhausted = timeCardUsage.weekly_remaining === 0 && timeCardUsage.weekly_limit > 0;
-          const monthlyExhausted = timeCardUsage.monthly_remaining === 0 && timeCardUsage.monthly_limit > 0;
-          if (dailyExhausted) return '今日次数已用完，请明天再约';
-          if (weeklyExhausted) return '本周次数已用完，请下周再约';
-          if (monthlyExhausted) return '本月次数已用完，请下月再约';
-        }
-      }
+      // 时间卡周期限额（日/周/月）不在此处全局拦截：
+      // 周期额度按"课程所在周期"计算（如本周用完仍可约下周的课），
+      // 由后端 checkTimeCardLimit 按课程日期精确校验并返回明细提示
       return '';
     }
     const hasExpired = packages.some(pkg => {

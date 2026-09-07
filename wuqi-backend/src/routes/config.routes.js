@@ -9,15 +9,6 @@ const Config = require('../models/Config');
 const Store = require('../models/Store');
 const TemplateFieldMapping = require('../models/TemplateFieldMapping');
 
-// 获取全局默认豁免次数（Config 表中的 default_exemption_count）
-const getGlobalExemptionCount = async () => {
-  const config = await Config.findOne({ key: 'default_exemption_count' });
-  if (config && config.value !== undefined && config.value !== null) {
-    return parseInt(config.value) || 3;
-  }
-  return 3;
-};
-
 // 获取全局预约开放窗口天数（Config 表中的 booking_window_days）
 const getGlobalBookingWindowDays = async () => {
   const config = await Config.findOne({ key: 'booking_window_days' });
@@ -42,7 +33,6 @@ const DEFAULT_CONFIGS = [
   { key: 'default_booking_deadline', value: '180', description: '默认预约截止时间(分钟)' },
   { key: 'default_cancel_deadline', value: '120', description: '默认取消截止时间(分钟)' },
   { key: 'default_credits_cost', value: '1', description: '默认消耗次数' },
-  { key: 'default_exemption_count', value: '3', description: '新注册会员默认豁免次数' },
   { key: 'timeout_cancel_window', value: '10', description: '超时取消窗口(分钟)' },
   { key: 'default_schedule_duration', value: '75', description: '默认排课时长(分钟)' },
   { key: 'booking_cancel_deadline', value: '120', description: '预约取消截止时间（分钟）' },
@@ -484,51 +474,31 @@ router.get('/public/booking-window', async (req, res, next) => {
 });
 
 // GET /api/v1/config/default_exemption_count - 获取默认豁免次数（店务管理功能，店长可访问）
-// 支持 store_id 查询参数：传入时返回门店级配置（门店未单独配置则返回全局默认值+is_inherited=true）
+// 支持 store_id 查询参数：返回门店级配置（门店默认豁免次数是唯一来源，无全局配置）
 // 注意：必须在 /:key 通用路由之前定义，否则会被 /:key 捕获
 router.get('/default_exemption_count', auth, checkModulePermission('exemption'), storeFilter(), async (req, res, next) => {
   try {
     const { store_id } = req.query;
 
-    // 无 store_id：返回全局配置
+    // 无 store_id：门店默认设置必须指定门店
     if (!store_id) {
-      const config = await Config.findOne({ key: 'default_exemption_count' });
-      if (!config) {
-        const defaultConfig = DEFAULT_CONFIGS.find(c => c.key === 'default_exemption_count');
-        if (defaultConfig) {
-          return res.json(success({ key: defaultConfig.key, value: defaultConfig.value, description: defaultConfig.description, scope: 'global' }));
-        }
-        return res.status(404).json({ code: 404, message: '配置不存在', data: null });
-      }
-      return res.json(success({ ...config.toObject(), scope: 'global' }));
+      return res.status(400).json({ code: 400, message: '请先选择门店', data: null });
     }
 
-    // 有 store_id：返回门店级配置（门店未单独配置时回退全局默认）
+    // 有 store_id：返回门店级配置（未配置时 value 为 null）
     const store = await Store.findById(store_id).select('name default_exemption_count');
     if (!store) {
       return res.status(404).json({ code: 404, message: '门店不存在', data: null });
     }
-    const globalValue = await getGlobalExemptionCount();
-    if (store.default_exemption_count !== null && store.default_exemption_count !== undefined) {
-      return res.json(success({
-        key: 'default_exemption_count',
-        value: String(store.default_exemption_count),
-        description: `${store.name} 默认豁免次数`,
-        scope: 'store',
-        store_id,
-        store_name: store.name,
-        is_inherited: false
-      }));
-    }
-    // 门店未单独配置，返回全局默认值并标记为继承
+    const isSet = store.default_exemption_count !== null && store.default_exemption_count !== undefined;
     return res.json(success({
       key: 'default_exemption_count',
-      value: String(globalValue),
-      description: '新注册会员默认豁免次数（继承全局设置）',
+      value: isSet ? String(store.default_exemption_count) : null,
+      description: `${store.name} 默认豁免次数`,
       scope: 'store',
       store_id,
       store_name: store.name,
-      is_inherited: true
+      is_set: isSet
     }));
   } catch (err) {
     next(err);
@@ -536,25 +506,14 @@ router.get('/default_exemption_count', auth, checkModulePermission('exemption'),
 });
 
 // PUT /api/v1/config/default_exemption_count - 更新默认豁免次数（店务管理功能，店长可访问）
-// 支持 body.store_id：传入时更新门店级配置（storeFilter 会校验门店归属），否则更新全局配置
+// 仅支持门店级配置（body.store_id 必传，storeFilter 会校验门店归属）
 router.put('/default_exemption_count', auth, checkModulePermission('exemption'), storeFilter(), async (req, res, next) => {
   try {
     const { config_value, store_id } = req.body;
 
-    // 无 store_id：更新全局配置
+    // 无 store_id：门店默认设置必须指定门店
     if (!store_id) {
-      let config = await Config.findOne({ key: 'default_exemption_count' });
-      if (config) {
-        config.value = String(config_value);
-        await config.save();
-      } else {
-        config = await Config.create({
-          key: 'default_exemption_count',
-          value: String(config_value),
-          description: '新注册会员默认豁免次数'
-        });
-      }
-      return res.json(success({ ...config.toObject(), scope: 'global' }, '配置更新成功'));
+      return res.status(400).json({ code: 400, message: '请先选择门店', data: null });
     }
 
     // 有 store_id：更新门店级配置（storeFilter 已校验门店归属权限）
@@ -571,7 +530,7 @@ router.put('/default_exemption_count', auth, checkModulePermission('exemption'),
       scope: 'store',
       store_id,
       store_name: store.name,
-      is_inherited: false
+      is_set: true
     }, '门店配置更新成功'));
   } catch (err) {
     next(err);

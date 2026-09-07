@@ -124,8 +124,8 @@
 
 /* ===== 门店选择器 ===== */
 .store-switcher-bar {
-  margin: 16rpx 0 4rpx;
-  padding: 0 8rpx;
+  margin: 16rpx 8rpx 8rpx;
+  padding: 0;
 }
 
 .store-switcher-inner {
@@ -169,6 +169,15 @@
   transform: rotate(90deg);
 }
 
+/* 选择器作用范围说明（仅作用于下方门店功能） */
+.store-switcher-scope {
+  margin-top: 8rpx;
+  padding: 0 8rpx;
+  font-size: 22rpx;
+  color: #B7A99A;
+  letter-spacing: 1rpx;
+}
+
 /* ===== 箭头 ===== */
 .menu-arrow {
   width: 24rpx;
@@ -198,7 +207,7 @@
   display: flex;
   align-items: flex-start;
   justify-content: center;
-  padding-top: 60rpx;
+  padding-top: 220rpx;
   z-index: 2;
   pointer-events: none;
 }

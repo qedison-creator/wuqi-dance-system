@@ -1,0 +1,81 @@
+<view class="page">
+
+  <!-- 标题区：与首页此间画面标题风格一致 -->
+  <view class="gallery-header">
+    <view class="title-row">
+      <view class="title-line"></view>
+      <text class="title-text">此间画面</text>
+      <view class="title-line"></view>
+    </view>
+    <text class="title-sub">舞栖瞬间 · 光影留存</text>
+  </view>
+
+  <!-- 加载态 -->
+  <view wx:if="{{loading && !fromCache}}" class="loading-wrap">
+    <view class="loading-spinner"></view>
+    <text class="loading-text">正在加载画面...</text>
+  </view>
+
+  <!-- 加载失败 -->
+  <view wx:elif="{{loadError && colA.length === 0}}" class="error-wrap">
+    <empty-state text="画面加载失败" hint="请检查网络后重试"></empty-state>
+    <view class="retry-btn" bindtap="onRetry">
+      <text>重新加载</text>
+    </view>
+  </view>
+
+  <!-- 空状态 -->
+  <view wx:elif="{{!loading && colA.length === 0}}" class="empty-wrap">
+    <empty-state text="暂无画面" hint="敬请期待"></empty-state>
+  </view>
+
+  <!-- 瀑布流：拍立得相框 -->
+  <view wx:else class="masonry">
+    <view class="masonry-col">
+      <view
+        wx:for="{{colA}}"
+        wx:key="_id"
+        class="polaroid"
+        data-url="{{item.image_url}}"
+        data-id="{{item._id}}"
+        bindtap="onImageTap"
+      >
+        <image
+          class="polaroid-img"
+          src="{{item.thumbnail_url || item.image_url}}"
+          mode="widthFix"
+          lazy-load="{{true}}"
+          binderror="onImgError"
+          data-id="{{item._id}}"
+        />
+      </view>
+    </view>
+    <view class="masonry-col">
+      <view
+        wx:for="{{colB}}"
+        wx:key="_id"
+        class="polaroid"
+        data-url="{{item.image_url}}"
+        data-id="{{item._id}}"
+        bindtap="onImageTap"
+      >
+        <image
+          class="polaroid-img"
+          src="{{item.thumbnail_url || item.image_url}}"
+          mode="widthFix"
+          lazy-load="{{true}}"
+          binderror="onImgError"
+          data-id="{{item._id}}"
+        />
+      </view>
+    </view>
+  </view>
+
+  <!-- 底部落款 -->
+  <view wx:if="{{colA.length > 0}}" class="gallery-footer">
+    <view class="footer-line"></view>
+    <text class="footer-text">成人零基础・舞蹈健身服务</text>
+    <view class="footer-line"></view>
+  </view>
+
+</view>

@@ -96,14 +96,13 @@ Page({
       // 即使系统配置请求失败，也要初始化 heroConfigs
 
       this.setData({
-        configs: [
-          { config_key: 'default_booking_deadline', config_value: '180', description: '默认预约截止时间(分钟)' },
-          { config_key: 'default_cancel_deadline', config_value: '120', description: '默认取消截止时间(分钟)' },
-          { config_key: 'default_credits_cost', config_value: '1', description: '默认消耗次数' },
-          { config_key: 'default_exemption_count', config_value: '3', description: '新注册会员默认豁免次数' },
-          { config_key: 'timeout_cancel_window', config_value: '10', description: '超时取消窗口(分钟)' },
-          { config_key: 'default_schedule_duration', config_value: '75', description: '默认排课时长(分钟)' }
-        ],
+          configs: [
+            { config_key: 'default_booking_deadline', config_value: '180', description: '默认预约截止时间(分钟)' },
+            { config_key: 'default_cancel_deadline', config_value: '120', description: '默认取消截止时间(分钟)' },
+            { config_key: 'default_credits_cost', config_value: '1', description: '默认消耗次数' },
+            { config_key: 'timeout_cancel_window', config_value: '10', description: '超时取消窗口(分钟)' },
+            { config_key: 'default_schedule_duration', config_value: '75', description: '默认排课时长(分钟)' }
+          ],
         heroConfigs: HERO_THEMES.map(t => ({ ...t, config_key: `hero_bg_${t.key}`, config_value: serverConfig.serverBase + '/uploads/hero/hero-' + t.key + '.jpg', uploading: false })),
         loading: false
       });
@@ -173,7 +172,7 @@ Page({
     heroConfigs[index].uploading = true;
     this.setData({ heroConfigs });
     
-    const token = wx.getStorageSync('token');
+    const token = wx.getStorageSync('admin_token') || app.globalData.token || '';
     const baseUrl = app.globalData.baseUrl;
     
     wx.uploadFile({

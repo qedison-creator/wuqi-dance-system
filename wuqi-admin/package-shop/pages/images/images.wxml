@@ -9,8 +9,14 @@
     </view>
   </view>
 
+  <!-- 超管未选门店：提示先选门店 -->
+  <view class="no-store-tip" wx:if="{{noStoreSelected}}">
+    <text class="nst-text">门店画册按门店管理，请先在上方选择门店</text>
+    <text class="nst-hint">公共图片请在「公共画册」页上传维护</text>
+  </view>
+
   <!-- 筛选栏 -->
-  <view class="filter-bar">
+  <view class="filter-bar" wx:if="{{!noStoreSelected}}">
     <scroll-view class="fb-scroll" scroll-x>
       <view class="fb-chip {{filterCoachId === '' ? 'active' : ''}}" bindtap="onFilterCoach" data-id="">全部教练</view>
       <view class="fb-chip {{filterCoachId === item._id ? 'active' : ''}}" wx:for="{{coachList}}" wx:key="_id" bindtap="onFilterCoach" data-id="{{item._id}}">{{item.name}}</view>
@@ -70,7 +76,7 @@
     </view>
   </view>
 
-  <view class="empty" wx:else>
+  <view class="empty" wx:elif="{{!noStoreSelected}}">
     <text class="empty-text">暂无图片</text>
     <text class="empty-hint">点击 "上传图片" 添加作品</text>
   </view>

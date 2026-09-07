@@ -18,7 +18,8 @@
         "pages/privacy/privacy",
         "pages/agreement/agreement",
         "pages/about/about",
-        "pages/subscribe-settings/subscribe-settings"
+        "pages/subscribe-settings/subscribe-settings",
+        "pages/gallery/gallery"
       ]
     }
   ],

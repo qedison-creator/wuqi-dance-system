@@ -116,8 +116,10 @@ exports.getList = async (query = {}, storeFilter = {}) => {
  * 获取首页图片（会员端）
  * @param {number} limit - 返回数量
  * @param {string} storeId - 当前门店ID（返回公共画册 + 该门店画册）
+ * @param {string} [after] - 增量同步：仅返回 updated_at 大于此时间戳的记录（ISO字符串）
+ *   传入时同时返回 total（当前符合条件的总条数，供客户端检测删除做全量重建）
  */
-exports.getHomeImages = async (limit = 10, storeId = null) => {
+exports.getHomeImages = async (limit = 10, storeId = null, after = null) => {
   const filter = { show_on_home: true };
   if (storeId) {
     // 返回公共画册 + 指定门店画册
@@ -129,13 +131,27 @@ exports.getHomeImages = async (limit = 10, storeId = null) => {
     // 未指定门店：仅返回公共画册
     filter.store_id = null;
   }
+
+  // 增量模式：附带 total，客户端据此判断是否有删除需要全量重建
+  if (after) {
+    const afterDate = new Date(after);
+    if (!isNaN(afterDate.getTime())) {
+      const total = await Image.countDocuments(filter);
+      const changed = await Image.find({ ...filter, updated_at: { $gt: afterDate } })
+        .populate('coach_ids', 'name avatar_url')
+        .sort({ sort_order: -1, created_at: -1 })
+        .lean();
+      return { incremental: true, total, changed, server_time: new Date().toISOString() };
+    }
+  }
+
   let query = Image.find(filter)
     .populate('coach_ids', 'name avatar_url')
     .sort({ sort_order: -1, created_at: -1 });
   if (limit && Number(limit) > 0) {
     query = query.limit(Number(limit));
   }
-  return query.exec();
+  return query.lean().exec();
 };
 
 /**

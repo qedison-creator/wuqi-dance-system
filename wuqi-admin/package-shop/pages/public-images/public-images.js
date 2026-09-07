@@ -285,7 +285,7 @@ Page({
         }
         wx.showLoading({ title: '上传中...' });
         const baseUrl = (app.globalData && app.globalData.baseUrl) || config.baseUrl;
-        const token = wx.getStorageSync('token');
+        const token = wx.getStorageSync('admin_token') || app.globalData.token || '';
         await new Promise((resolve, reject) => {
           wx.uploadFile({
             url: `${baseUrl}/images`,

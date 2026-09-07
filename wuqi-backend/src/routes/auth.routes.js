@@ -89,7 +89,25 @@ router.put('/profile', auth, checkPermission(['member']), async (req, res, next)
       if (hasPackage && user.member_status === 'official') {
         return res.status(403).json({ code: 403, message: '已录入套餐的会员不能修改门店，请联系管理员', data: null });
       }
+      // 首次设置门店时，按门店默认豁免次数初始化（未被管理员调整过时）
+      // 场景：微信登录创建用户时尚未选门店（豁免次数为全局默认值），注册提交时才选择所属门店
+      const isFirstStoreSet = !user.store_id;
       user.store_id = store_id;
+      if (isFirstStoreSet) {
+        try {
+          const ExemptionLog = require('../models/ExemptionLog');
+          const adjustedLog = await ExemptionLog.findOne({ user_id: user._id });
+          if (!adjustedLog) {
+            const Store = require('../models/Store');
+            const store = await Store.findById(store_id).select('default_exemption_count');
+            if (store && store.default_exemption_count !== null && store.default_exemption_count !== undefined) {
+              user.exemption_count = store.default_exemption_count;
+            }
+          }
+        } catch (e) {
+          console.error('[注册] 按门店初始化豁免次数失败，保留原值:', e.message);
+        }
+      }
     }
 
     // 自主注册会员：判断必填信息是否齐全，齐全则标记 info_completed
