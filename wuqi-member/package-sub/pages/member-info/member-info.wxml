@@ -82,3 +82,4 @@
     <view class="form-tip">姓名、手机号需管理端审核后生效</view>
   </view>
 </view>
+<update-modal />

@@ -202,6 +202,10 @@
                 <text class="booking-user-phone-item" wx:if="{{item.userWechatPhone}}">微信:{{item.userWechatPhone}}</text>
                 <text class="booking-user-phone-item" wx:if="{{item.userReservePhone}}">预留:{{item.userReservePhone}}</text>
               </view>
+              <view class="booking-time-row" wx:if="{{item.bookingTime}}">
+                <text class="booking-time-item">预约于 {{item.bookingTime}}</text>
+                <text class="booking-time-item" wx:if="{{item.checkInTime}}">签到于 {{item.checkInTime}}</text>
+              </view>
             </view>
           </view>
           <view class="booking-actions-row">
@@ -244,6 +248,10 @@
                 <text class="booking-user-phone-item" wx:if="{{item.userWechatPhone}}">微信:{{item.userWechatPhone}}</text>
                 <text class="booking-user-phone-item" wx:if="{{item.userReservePhone}}">预留:{{item.userReservePhone}}</text>
               </view>
+              <view class="booking-time-row" wx:if="{{item.bookingTime || item.checkInTime}}">
+                <text class="booking-time-item" wx:if="{{item.bookingTime}}">预约于 {{item.bookingTime}}</text>
+                <text class="booking-time-item" wx:if="{{item.checkInTime}}">签到于 {{item.checkInTime}}</text>
+              </view>
             </view>
           </view>
           <view class="booking-actions">
@@ -282,3 +290,4 @@
     </view>
   </view>
 </view>
+<update-modal />

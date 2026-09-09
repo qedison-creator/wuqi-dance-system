@@ -3,3 +3,4 @@
     <image src="/images/logo.png" mode="aspectFit" class="logo-img"></image>
   </view>
 </view>
+<update-modal />

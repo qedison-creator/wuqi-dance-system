@@ -1,0 +1,19 @@
+<view class="update-mask" wx:if="{{visible}}" bindtap="noop">
+  <view class="update-content" catchtap="noop">
+    <view class="update-header">
+      <text class="update-title">发现新版本</text>
+      <text class="update-close" bindtap="dismiss">×</text>
+    </view>
+    <view class="update-body">
+      <view class="update-icon-badge">
+        <text class="update-icon-text">↑</text>
+      </view>
+      <text class="update-desc">新版本已准备就绪，重启小程序后即可运行最新版本，享受最新的功能与优化。</text>
+    </view>
+    <view class="update-actions">
+      <view class="update-btn {{updating ? 'updating' : ''}}" bindtap="onConfirm">
+        <text>{{updating ? '正在重启…' : '立即重启'}}</text>
+      </view>
+    </view>
+  </view>
+</view>

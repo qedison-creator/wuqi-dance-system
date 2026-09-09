@@ -248,3 +248,4 @@
   text="课程不存在" 
   hint="请返回首页查看其他课程">
 </empty-state>
+<update-modal />

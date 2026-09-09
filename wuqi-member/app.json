@@ -54,6 +54,9 @@
   "sitemapLocation": "sitemap.json",
   "style": "v2",
   "lazyCodeLoading": "requiredComponents",
+  "usingComponents": {
+    "update-modal": "/components/update-modal/update-modal"
+  },
   "requiredPrivateInfos": ["getFuzzyLocation"],
   "permission": {
     "scope.userFuzzyLocation": {

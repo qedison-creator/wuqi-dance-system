@@ -17,6 +17,10 @@ App({
     scene: null,
     fromServiceAccount: false,
     isOnline: true,
+    // 版本更新状态：新版本下载完成后置为 true，update-modal 组件据此弹窗提醒
+    updateReady: false,
+    // 用户关闭更新提醒后置为 true，本次运行期不再弹窗（下次冷启动微信自动应用新版本）
+    updateDismissed: false,
     // 登录状态令牌：每次登录成功/退出登录时自增，供各页面 onShow 检测用户身份是否变化以决定是否强制刷新数据
     loginStateToken: 0
   },
@@ -24,6 +28,7 @@ App({
     this.silenceUnsupportedApi();
     this.registerPrivacyHandler();
     this.registerNetworkListener();
+    this.setupUpdateManager();
     this._updateEntryScene(options);
     const { fetchTemplates } = require('./utils/subscribe-message');
     // 订阅消息模板延迟加载，避免与 getUserInfo/getStoreList 并发导致 ERR_CONNECTION_RESET
@@ -130,6 +135,50 @@ App({
         }
       }
     });
+  },
+
+  // 版本更新管理：新版本下载完成后通过 update-modal 组件提醒用户重启
+  // 点击"立即重启"调用 applyUpdate()，微信自动清理旧版本代码包缓存并应用新版本重启
+  setupUpdateManager() {
+    if (!wx.canIUse('getUpdateManager')) return;
+    const updateManager = wx.getUpdateManager();
+    updateManager.onCheckForUpdate((res) => {
+      console.log('[Update] 检查更新:', res.hasUpdate ? '发现新版本，下载中' : '已是最新版本');
+    });
+    updateManager.onUpdateReady(() => {
+      console.log('[Update] 新版本已下载完成，等待用户确认重启');
+      this.globalData.updateReady = true;
+      // 通知所有已挂载的更新弹窗组件
+      (this._updateModals || []).forEach((comp) => {
+        if (comp && typeof comp.showModal === 'function') {
+          comp.showModal();
+        }
+      });
+    });
+    updateManager.onUpdateFailed(() => {
+      console.error('[Update] 新版本下载失败');
+      wx.showModal({
+        title: '更新提示',
+        content: '新版本下载失败，请删除当前小程序后重新搜索打开',
+        showCancel: false
+      });
+    });
+  },
+
+  // 注册更新弹窗组件（组件 attached 时调用，注册时若更新已就绪则立即弹窗）
+  registerUpdateModal(comp) {
+    if (!this._updateModals) this._updateModals = [];
+    if (this._updateModals.indexOf(comp) === -1) this._updateModals.push(comp);
+    if (this.globalData.updateReady && !this.globalData.updateDismissed) {
+      comp.showModal();
+    }
+  },
+
+  // 注销更新弹窗组件（组件 detached 时调用）
+  unregisterUpdateModal(comp) {
+    if (!this._updateModals) return;
+    const idx = this._updateModals.indexOf(comp);
+    if (idx > -1) this._updateModals.splice(idx, 1);
   },
 
   registerPrivacyHandler() {

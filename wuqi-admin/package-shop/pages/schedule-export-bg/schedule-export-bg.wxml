@@ -39,3 +39,4 @@
     <text class="empty-hint">点击上方区域上传第一张背景图</text>
   </view>
 </view>
+<update-modal />

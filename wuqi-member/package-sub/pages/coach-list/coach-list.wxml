@@ -36,3 +36,4 @@
 
   <login-modal visible="{{showLoginModal}}" bind:close="onLoginModalClose" bind:success="onLoginSuccess"></login-modal>
 </view>
+<update-modal />

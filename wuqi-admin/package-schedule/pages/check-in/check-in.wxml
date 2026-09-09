@@ -264,3 +264,4 @@
     <text class="scan-text">扫码签到</text>
   </view>
 </view>
+<update-modal />

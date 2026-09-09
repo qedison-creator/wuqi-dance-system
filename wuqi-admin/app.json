@@ -47,6 +47,9 @@
   "sitemapLocation": "sitemap.json",
   "style": "v2",
   "lazyCodeLoading": "requiredComponents",
+  "usingComponents": {
+    "update-modal": "/components/update-modal/update-modal"
+  },
   "resizable": false,
   "subPackages": [
     {
@@ -78,6 +81,7 @@
         "pages/shop/store-maintenance/store-maintenance",
         "pages/shop/booking-window/booking-window",
         "pages/package-logs/package-logs",
+        "pages/package-status/package-status",
         "pages/images/images",
         "pages/banner/banner",
         "pages/coaches/coaches",

@@ -52,3 +52,4 @@
     <text class="empty-text">暂无操作日志</text>
   </view>
 </view>
+<update-modal />

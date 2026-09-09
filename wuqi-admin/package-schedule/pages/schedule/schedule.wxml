@@ -761,3 +761,4 @@
   <!-- 下线排课弹窗 -->
   <!-- 下线排课使用 wx.showModal，无需自定义弹窗 -->
 </view>
+<update-modal />

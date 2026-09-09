@@ -55,3 +55,4 @@
     <button class="btn-primary" bindtap="onChangePassword">修改密码</button>
   </view>
 </view>
+<update-modal />

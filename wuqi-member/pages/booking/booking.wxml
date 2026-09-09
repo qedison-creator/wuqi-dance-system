@@ -232,3 +232,4 @@
 
 <!-- 微信授权登录弹窗 -->
 <login-modal visible="{{showLoginModal}}" bind:close="onLoginModalClose" bind:success="onLoginSuccess"></login-modal>
+<update-modal />

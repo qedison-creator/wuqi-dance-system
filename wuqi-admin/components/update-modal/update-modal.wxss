@@ -1,0 +1,119 @@
+/* 版本更新提醒弹窗（管理端棕色风格，遵循管理端弹窗设计规范：
+   棕色半透明遮罩、白色大圆角弹窗、标题+关闭按钮、主色渐变按钮） */
+.update-mask {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(44, 36, 22, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1200;
+}
+
+.update-content {
+  width: 88%;
+  background-color: #FFFFFF;
+  border-radius: 32rpx;
+  padding: 30rpx;
+  box-shadow: 0 4rpx 16rpx rgba(44, 36, 22, 0.06), 0 16rpx 48rpx rgba(44, 36, 22, 0.12);
+  display: flex;
+  flex-direction: column;
+}
+
+.update-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24rpx;
+}
+
+.update-title {
+  font-size: 32rpx;
+  color: #2C2416;
+  font-weight: bold;
+}
+
+.update-close {
+  width: 56rpx;
+  height: 56rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28rpx;
+  color: #B8AF9E;
+  border-radius: 50%;
+  background: #F0ECE6;
+  transition: all 120ms ease-out;
+}
+
+.update-close:active {
+  background: #E8E2D8;
+  transform: scale(0.9);
+}
+
+.update-body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 12rpx 0 8rpx;
+}
+
+.update-icon-badge {
+  width: 96rpx;
+  height: 96rpx;
+  border-radius: 50%;
+  background: #FDF7F2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 20rpx;
+}
+
+.update-icon-text {
+  font-size: 48rpx;
+  font-weight: 700;
+  color: #C5744B;
+  line-height: 1;
+}
+
+.update-desc {
+  font-size: 28rpx;
+  color: #8B7E6A;
+  line-height: 1.65;
+  text-align: center;
+  margin-bottom: 32rpx;
+}
+
+.update-actions {
+  display: flex;
+}
+
+.update-btn {
+  flex: 1;
+  height: 88rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #B0653E, #C5744B);
+  border-radius: 16rpx;
+  box-shadow: 0 4rpx 12rpx rgba(197, 116, 75, 0.18), 0 8rpx 28rpx rgba(44, 36, 22, 0.08);
+  transition: all 120ms ease-out;
+}
+
+.update-btn text {
+  font-size: 28rpx;
+  color: #FFFFFF;
+  font-weight: bold;
+}
+
+.update-btn:active {
+  background: linear-gradient(135deg, #C5744B, #B0653E);
+  transform: scale(0.98);
+}
+
+.update-btn.updating {
+  opacity: 0.7;
+}
