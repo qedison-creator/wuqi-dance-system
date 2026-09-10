@@ -45,13 +45,18 @@ exports.getAnnouncements = async (query, reqUser) => {
   }
 
   // 显式 store_id 查询参数（前端筛选时使用）：在允许范围内进一步过滤
+  // 查询语义：该门店公告 + 全平台公告（store_id 为空，所有门店可见）
+  // 会员端首页公告栏按当前门店查询时，需同时展示全平台公告
   if (store_id) {
     // 单门店角色不能查询非所属门店
     if (allowedStoreIds !== null && !allowedStoreIds.includes(String(store_id))) {
       return { list: [], total: 0, page: Number(page), pageSize: Number(pageSize) };
     }
     delete filter.$or;
-    filter.store_id = store_id;
+    filter.$or = [
+      { store_id: null },
+      { store_id: store_id }
+    ];
   }
   if (status) filter.status = status;
 
