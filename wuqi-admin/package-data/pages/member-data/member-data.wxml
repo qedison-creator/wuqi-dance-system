@@ -37,7 +37,7 @@
 
     <view class="card" wx:if="{{trendChart}}">
       <view class="sec-title">每日消耗趋势<text class="sec-tip" wx:if="{{trendChart.monthLabel}}">{{trendChart.monthLabel}}</text></view>
-      <dc-chart chart-id="trendChart" type="column" categories="{{trendChart.categories}}" series="{{trendChart.series}}" y-axis-title="课时" x-axis-title="日期" height="360"></dc-chart>
+      <dc-chart wx:if="{{!alertPanelType}}" chart-id="trendChart" type="column" categories="{{trendChart.categories}}" series="{{trendChart.series}}" y-axis-title="课时" x-axis-title="日期" height="360"></dc-chart>
       <text class="insight">💬 {{trend.insight}}</text>
     </view>
 
@@ -89,7 +89,7 @@
     <!-- 热门课程 -->
     <view class="card">
       <view class="sec-title">热门课程 TOP5<text class="sec-tip">按消耗课时</text></view>
-      <dc-chart wx:if="{{courseChart}}" chart-id="courseChart" type="bar" categories="{{courseChart.categories}}" series="{{courseChart.series}}" x-axis-title="课时" height="300"></dc-chart>
+      <dc-chart wx:if="{{courseChart && !alertPanelType}}" chart-id="courseChart" type="bar" categories="{{courseChart.categories}}" series="{{courseChart.series}}" x-axis-title="课时" height="300"></dc-chart>
       <view class="mini-row" wx:for="{{hotCourses}}" wx:key="name">
         <text class="mini-name">{{item.name}}</text>
         <text class="mini-val">{{item.sessions}} 人次上过</text>
@@ -100,7 +100,7 @@
     <!-- 热门教练 -->
     <view class="card">
       <view class="sec-title">热门教练 TOP5<text class="sec-tip">按多少会员来上他的课</text></view>
-      <dc-chart wx:if="{{coachChart}}" chart-id="coachChart" type="bar" categories="{{coachChart.categories}}" series="{{coachChart.series}}" x-axis-title="人次" height="300"></dc-chart>
+      <dc-chart wx:if="{{coachChart && !alertPanelType}}" chart-id="coachChart" type="bar" categories="{{coachChart.categories}}" series="{{coachChart.series}}" x-axis-title="人次" height="300"></dc-chart>
       <view class="mini-row" wx:for="{{hotCoaches}}" wx:key="coach_id">
         <text class="mini-name">{{item.name}}</text>
         <text class="mini-val">{{item.sessions}} 节 · {{item.visits}} 人次</text>
