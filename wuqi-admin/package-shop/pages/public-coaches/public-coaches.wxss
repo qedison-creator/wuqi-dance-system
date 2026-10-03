@@ -18,6 +18,14 @@
   font-weight: bold;
 }
 
+.page-header-desc {
+  display: block;
+  margin-top: 12rpx;
+  font-size: 24rpx;
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
 .section-header {
   display: flex;
   align-items: center;

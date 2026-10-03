@@ -1,0 +1,163 @@
+/* 公告弹窗：样式与首页现有公告弹窗（am- 系列）同源
+ * 暖黑遮罩 + 白卡 + 珊瑚红徽章 + 卡片外下方白色圆环关闭按钮
+ */
+.mask {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(42, 33, 34, 0.6);
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  animation: mask-fade-in 0.25s ease;
+}
+
+@keyframes mask-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.card {
+  width: 600rpx;
+  background: #FFFFFF;
+  border-radius: 28rpx;
+  padding: 48rpx 40rpx 40rpx;
+  box-shadow: 0 12rpx 60rpx rgba(42, 33, 34, 0.15);
+  animation: card-pop-in 350ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes card-pop-in {
+  from {
+    opacity: 0;
+    transform: scale(0.92) translateY(30rpx);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.top-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  height: 44rpx;
+  padding: 0 24rpx;
+  border-radius: 22rpx;
+  color: #FFFFFF;
+  font-size: 22rpx;
+  font-weight: 600;
+  letter-spacing: 2rpx;
+}
+
+.badge.normal {
+  background: linear-gradient(135deg, #D4786E, #E8985E);
+}
+
+.badge.important {
+  background: linear-gradient(135deg, #D4786E, #C05D53);
+}
+
+.date {
+  font-size: 22rpx;
+  color: #948284;
+}
+
+.title {
+  margin-top: 28rpx;
+  font-size: 32rpx;
+  font-weight: 700;
+  color: #2A2122;
+  line-height: 1.5;
+}
+
+.line {
+  width: 48rpx;
+  height: 4rpx;
+  border-radius: 2rpx;
+  background: #D4786E;
+  margin-top: 20rpx;
+}
+
+.content {
+  margin-top: 24rpx;
+  max-height: 380rpx;
+  font-size: 26rpx;
+  color: #6B5D5E;
+  line-height: 1.8;
+  text-align: justify;
+}
+
+.close-wrap {
+  margin-top: 40rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.close-ring {
+  width: 72rpx;
+  height: 72rpx;
+  border-radius: 50%;
+  border: 3rpx solid rgba(255, 255, 255, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.2s ease, border-color 0.2s ease;
+}
+
+.close-ring .num {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: #FFFFFF;
+}
+
+.close-ring .x {
+  position: relative;
+  width: 28rpx;
+  height: 28rpx;
+}
+
+.close-ring .x::before,
+.close-ring .x::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 28rpx;
+  height: 3rpx;
+  border-radius: 2rpx;
+  background: #FFFFFF;
+}
+
+.close-ring .x::before {
+  transform: translate(-50%, -50%) rotate(45deg);
+}
+
+.close-ring .x::after {
+  transform: translate(-50%, -50%) rotate(-45deg);
+}
+
+.close-ring.locked {
+  opacity: 0.55;
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+.close-ring.unlocked {
+  opacity: 1;
+}
+
+.close-label {
+  margin-top: 14rpx;
+  font-size: 22rpx;
+  color: rgba(255, 255, 255, 0.7);
+}

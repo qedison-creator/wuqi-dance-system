@@ -1,0 +1,18 @@
+<view class="mask" wx:if="{{visible && announce}}" catchtouchmove="onPreventMove">
+  <view class="card">
+    <view class="top-row">
+      <view class="badge {{announce.popup_type === 'important' ? 'important' : 'normal'}}">{{announce.popup_type === 'important' ? '重要通知' : '公告'}}</view>
+      <text class="date">{{announce.createdAtDisplay}}</text>
+    </view>
+    <view class="title">{{announce.title}}</view>
+    <view class="line"></view>
+    <scroll-view class="content" scroll-y="{{true}}">{{announce.content}}</scroll-view>
+  </view>
+  <view class="close-wrap">
+    <view class="close-ring {{locked ? 'locked' : 'unlocked'}}" bindtap="onClose">
+      <text wx:if="{{locked}}" class="num">{{countdown}}</text>
+      <view wx:else class="x"></view>
+    </view>
+    <text class="close-label">{{locked ? '需阅读 ' + countdown + ' 秒后可关闭' : '关闭'}}</text>
+  </view>
+</view>

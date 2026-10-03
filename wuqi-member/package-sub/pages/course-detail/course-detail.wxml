@@ -50,7 +50,7 @@
           <view class="ic-icon people"></view>
           <text class="ic-label">已预约</text>
         </view>
-        <view class="ic-value-highlight" wx:if="{{canViewCapacity}}">{{course.bookedCount || 0}} / {{course.maxCount || 20}}<text class="ic-val-unit">人</text></view>
+        <view class="ic-value-highlight" wx:if="{{canViewCapacity && course.bookedCount !== null}}">{{course.bookedCount || 0}} / {{course.maxCount || 20}}<text class="ic-val-unit">人</text></view>
         <view class="ic-value-highlight" wx:else>? / ?<text class="ic-val-unit">人</text></view>
       </view>
       <view class="ic-row" wx:if="{{course.minBookings}}">
@@ -159,6 +159,14 @@
       </view>
       <!-- 舞种限制：套餐限制了允许预约的舞种 -->
       <view class="bb-primary disabled-clickable" wx:elif="{{courseStyleMatched === false}}" bindtap="onBookTap">
+        <text>不可预约</text>
+      </view>
+      <!-- 可用星期限制：课程日期不在套餐允许的星期内 -->
+      <view class="bb-primary disabled-clickable" wx:elif="{{weekdayMatched === false}}" bindtap="onBookTap">
+        <text>不可预约</text>
+      </view>
+      <!-- 可用时段限制：开课时间不在套餐允许的时段内 -->
+      <view class="bb-primary disabled-clickable" wx:elif="{{timeMatched === false}}" bindtap="onBookTap">
         <text>不可预约</text>
       </view>
       <!-- 可预约 -->

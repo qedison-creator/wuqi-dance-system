@@ -142,6 +142,7 @@ Page({
           userAvatar: fixImageUrl(item.user_id?.avatar_url),
           bookingTime: item.created_at ? formatDateTime(item.created_at) : '',
           creditsDeducted: item.credits_deducted || 0,
+          deductDays: item.deduct_days || null,
           remark: item.remark || '',
           checkInTime: item.check_in_time ? formatDateTime(item.check_in_time) : '',
           checkedIn: item.checked_in || status === 'checked_in' || status === 'completed',
@@ -285,6 +286,7 @@ Page({
           checkInMethodText: this.getCheckInMethodText(method),
           source: item.source,
           creditsCost: att ? att.credits_cost : (item.credits_deducted || 0),
+          deductDays: item.deduct_days || null,
           status: item.status,
           checkedIn: item.checked_in
         };

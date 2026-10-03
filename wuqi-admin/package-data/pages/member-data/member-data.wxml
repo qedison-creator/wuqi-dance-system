@@ -1,0 +1,203 @@
+<view class="dc-page">
+  <!-- Tab 切换 -->
+  <view class="tabs">
+    <view class="tab {{activeTab === 'overview' ? 'active' : ''}}" data-tab="overview" bindtap="onTabChange">经营总览</view>
+    <view class="tab {{activeTab === 'rank' ? 'active' : ''}}" data-tab="rank" bindtap="onTabChange">排行与热度</view>
+    <view class="tab {{activeTab === 'bill' ? 'active' : ''}}" data-tab="bill" bindtap="onTabChange">课时账单</view>
+  </view>
+
+  <!-- 时间切换（吸顶） -->
+  <view class="period-bar">
+    <scroll-view scroll-x class="period-scroll">
+      <view class="period-chip {{period === 'today' ? 'active' : ''}}" data-period="today" bindtap="onPeriodTap">今日</view>
+      <view class="period-chip {{period === 'week' ? 'active' : ''}}" data-period="week" bindtap="onPeriodTap">本周</view>
+      <view class="period-chip {{period === 'month' ? 'active' : ''}}" data-period="month" bindtap="onPeriodTap">本月</view>
+      <view class="period-chip {{period === 'lastWeek' ? 'active' : ''}}" data-period="lastWeek" bindtap="onPeriodTap">上周</view>
+      <view class="period-chip {{period === 'lastMonth' ? 'active' : ''}}" data-period="lastMonth" bindtap="onPeriodTap">上月</view>
+      <view class="period-chip {{period === 'custom' ? 'active' : ''}}" data-period="custom" bindtap="onPeriodTap">自定义</view>
+    </scroll-view>
+    <view class="custom-box" wx:if="{{customVisible}}">
+      <picker mode="date" value="{{customStart}}" bindchange="onCustomStart"><view class="date-pick">{{customStart || '开始日期'}}</view></picker>
+      <text class="date-sep">至</text>
+      <picker mode="date" value="{{customEnd}}" bindchange="onCustomEnd"><view class="date-pick">{{customEnd || '结束日期'}}</view></picker>
+      <view class="date-apply" bindtap="onCustomApply">确定</view>
+    </view>
+  </view>
+
+  <!-- ===== Tab1 经营总览 ===== -->
+  <block wx:if="{{activeTab === 'overview'}}">
+    <view class="card hero" wx:if="{{overview}}">
+      <view class="ov-num-wrap"><text class="ov-num">{{overview.consumed_credits}}</text><text class="ov-unit">课时</text></view>
+      <text class="ov-sub">{{overview.sessions}} 节课 · {{overview.members}} 位会员来上课</text>
+      <view class="ov-foot">
+        <text class="tag {{overview.cancel_rate <= 15 ? 'good' : 'warn'}}" wx:if="{{overview.cancel_rate !== null}}">取消率 {{overview.cancel_rate}}%</text>
+        <text class="tag {{overview.diff_pct >= 0 ? 'diff-up' : 'diff-down'}}" wx:if="{{overview.diff_pct !== null}}">较上期 {{overview.diff_pct >= 0 ? '+' : ''}}{{overview.diff_pct}}%</text>
+      </view>
+    </view>
+
+    <view class="card" wx:if="{{trendChart}}">
+      <view class="sec-title">每日消耗趋势<text class="sec-tip" wx:if="{{trendChart.monthLabel}}">{{trendChart.monthLabel}}</text></view>
+      <dc-chart chart-id="trendChart" type="column" categories="{{trendChart.categories}}" series="{{trendChart.series}}" y-axis-title="课时" x-axis-title="日期" height="360"></dc-chart>
+      <text class="insight">💬 {{trend.insight}}</text>
+    </view>
+
+    <view class="card" wx:if="{{reminders}}">
+      <view class="sec-title">需要联系<text class="sec-tip">点开看名单</text></view>
+      <view class="grid3">
+        <view class="grid3-item {{item.key === 'dormant' ? 'danger' : (item.key === 'expiring' ? 'warn' : 'info')}}"
+              wx:for="{{alertMeta}}" wx:key="key" wx:for-item="item"
+              data-key="{{item.key}}" bindtap="onAlertGroupTap">
+          <text class="grid3-icon">{{item.icon}}</text>
+          <text class="grid3-num">{{item.pending}}</text>
+          <text class="grid3-label">{{item.label}}</text>
+        </view>
+      </view>
+    </view>
+  </block>
+
+  <!-- ===== Tab2 排行与热度 ===== -->
+  <block wx:if="{{activeTab === 'rank'}}">
+    <!-- 会员排行（最前） -->
+    <view class="card">
+      <view class="sec-title">会员排行 TOP10</view>
+      <view class="subseg">
+        <view class="subseg-item {{rankTab === 'consume' ? 'active' : ''}}" data-r="consume" bindtap="onRankTabChange">上课消耗最多</view>
+        <view class="subseg-item {{rankTab === 'cancel' ? 'active' : ''}}" data-r="cancel" bindtap="onRankTabChange">取消次数最多</view>
+      </view>
+      <block wx:if="{{rankTab === 'consume'}}">
+        <view class="rank-row" wx:for="{{consumeRank}}" wx:key="member_id">
+          <view class="rank-medal {{item.rank <= 3 ? 'm' + item.rank : ''}}">{{item.rank}}</view>
+          <view class="rank-main" data-go="{{item.go}}" bindtap="onGoMember">
+            <text class="rank-name">{{item.name}}</text><text class="rank-code">({{item.code}})</text>
+          </view>
+          <text class="rank-val">{{item.credits}} 课时 · {{item.sessions}} 节</text>
+        </view>
+        <view class="empty" wx:if="{{consumeRank.length === 0}}">暂无数据</view>
+      </block>
+      <block wx:else>
+        <view class="rank-row" wx:for="{{cancelRank}}" wx:key="member_id">
+          <view class="rank-medal {{item.rank <= 3 ? 'm' + item.rank : ''}}">{{item.rank}}</view>
+          <view class="rank-main" data-go="{{item.go}}" bindtap="onGoMember">
+            <text class="rank-name">{{item.name}}</text><text class="rank-code">({{item.code}})</text>
+          </view>
+          <text class="rank-val cancel-val">{{item.cancel_count}} 次</text>
+        </view>
+        <view class="empty" wx:if="{{cancelRank.length === 0}}">暂无数据，好事 🎉</view>
+      </block>
+    </view>
+
+    <!-- 热门课程 -->
+    <view class="card">
+      <view class="sec-title">热门课程 TOP5<text class="sec-tip">按消耗课时</text></view>
+      <dc-chart wx:if="{{courseChart}}" chart-id="courseChart" type="bar" categories="{{courseChart.categories}}" series="{{courseChart.series}}" x-axis-title="课时" height="300"></dc-chart>
+      <view class="mini-row" wx:for="{{hotCourses}}" wx:key="name">
+        <text class="mini-name">{{item.name}}</text>
+        <text class="mini-val">{{item.sessions}} 人次上过</text>
+      </view>
+      <view class="empty" wx:if="{{hotCourses.length === 0}}">该时间段还没有上课记录</view>
+    </view>
+
+    <!-- 热门教练 -->
+    <view class="card">
+      <view class="sec-title">热门教练 TOP5<text class="sec-tip">按多少会员来上他的课</text></view>
+      <dc-chart wx:if="{{coachChart}}" chart-id="coachChart" type="bar" categories="{{coachChart.categories}}" series="{{coachChart.series}}" x-axis-title="人次" height="300"></dc-chart>
+      <view class="mini-row" wx:for="{{hotCoaches}}" wx:key="coach_id">
+        <text class="mini-name">{{item.name}}</text>
+        <text class="mini-val">{{item.sessions}} 节 · {{item.visits}} 人次</text>
+      </view>
+      <view class="empty" wx:if="{{hotCoaches.length === 0}}">该时间段还没有教练带课</view>
+    </view>
+  </block>
+
+  <!-- ===== Tab3 课时账单 ===== -->
+  <block wx:if="{{activeTab === 'bill'}}">
+    <view class="card">
+      <view class="sec-title">
+        课时账单
+        <text class="sec-tip" wx:if="{{billTotals}}">共 {{billTotals.credits}} 课时 / {{billTotals.sessions}} 节</text>
+      </view>
+      <view class="subseg">
+        <view class="subseg-item {{billView === 'member' ? 'active' : ''}}" data-view="member" bindtap="onBillViewChange">按会员</view>
+        <view class="subseg-item {{billView === 'date' ? 'active' : ''}}" data-view="date" bindtap="onBillViewChange">按日期</view>
+      </view>
+      <view class="search-row">
+        <input class="search-input" placeholder="姓名 / 编号 / 手机号" value="{{billSearch}}" bindinput="onBillSearchInput" bindconfirm="onBillSearch" confirm-type="search" />
+        <view class="search-btn" bindtap="onBillSearch"><text class="eb">搜索</text></view>
+      </view>
+
+      <!-- 按会员 -->
+      <view class="bill-view" wx:if="{{billView === 'member'}}">
+        <view class="mem-row" wx:for="{{billMembers}}" wx:key="member_id">
+          <view class="mem-head" data-idx="{{index}}" bindtap="onBillMemberTap">
+            <view class="mem-ava">{{item.name[0]}}</view>
+            <view class="mem-info">
+              <view class="mem-name"><text class="lnk" data-go="/package-member/pages/members/member-detail/member-detail?id={{item.member_id}}" catchtap="onGoMember">{{item.name}}</text><text class="code">{{item.code}}</text></view>
+              <view class="mem-meta">最近上课 {{item.last_date}}</view>
+            </view>
+            <view class="mem-val"><view class="c">{{item.credits}} 课时</view><view class="s">{{item.sessions}} 节</view></view>
+            <text class="mem-arrow {{item.expanded ? 'open' : ''}}">›</text>
+          </view>
+          <view class="mem-bill" wx:if="{{item.expanded}}">
+            <view class="bill-row2" wx:for="{{item.bills}}" wx:for-item="b" wx:key="id">
+              <view class="b2-top">
+                <text class="b2-date">{{b.date}} {{b.weekday}}</text>
+                <text class="b2-time">{{b.time}}</text>
+                <text class="bill-val">-{{b.credits}} 课时</text>
+              </view>
+              <view class="b2-mid">{{b.course_name}}<text class="co"> · {{b.dance_name || '未分类'}} · {{b.coach_name}}</text></view>
+              <view class="b2-meta"><span><text class="b2-ico">◷</text> 预约于 {{b.booked_at}}</span><text>{{b.check_in_label || '已签到'}}</text></view>
+            </view>
+            <view class="bill-subtotal">小计 {{item.credits}} 课时 / {{item.sessions}} 节</view>
+          </view>
+        </view>
+        <view class="empty" wx:if="{{billMembers.length === 0}}">该时间段还没有会员消耗课时</view>
+      </view>
+
+      <!-- 按日期 -->
+      <view class="bill-view" wx:if="{{billView === 'date'}}">
+        <view class="day-group" wx:for="{{billByDate}}" wx:key="date" wx:for-item="g">
+          <view class="day-head">
+            <text class="day-date">{{g.date}} {{g.weekday}}</text>
+            <text class="day-sum">消耗 {{g.credits}} 课时</text>
+          </view>
+          <view class="day-item" wx:for="{{g.items}}" wx:key="id">
+            <view class="di-time">{{item.time}}</view>
+            <view class="di-main">
+              <text class="di-course">{{item.course_name}}</text>
+              <text class="di-sub">{{item.coach_name}} · {{item.member_name}}</text>
+            </view>
+            <text class="di-delta">-{{item.credits}} 课时</text>
+          </view>
+        </view>
+        <view class="empty" wx:if="{{billByDate.length === 0}}">该时间段还没有记录</view>
+      </view>
+    </view>
+  </block>
+
+  <!-- 审核员提示 -->
+  <view class="card reviewer-tip" wx:if="{{role === 'reviewer' && activeTab !== 'overview'}}">
+    <text>审核员账号仅可查看汇总数据，排行与账单请联系管理员。</text>
+  </view>
+
+  <!-- 提醒名单弹层 -->
+  <view class="mask" wx:if="{{alertPanelType}}" bindtap="closeAlertPanel">
+    <view class="sheet" catchtap="noop">
+      <view class="sheet-title">{{alertPanelLabel}}</view>
+      <view class="sheet-sub">演示提示：可标记已联系，误点可在"已联系"恢复</view>
+      <view class="alert-sub">
+        <view class="alert-sub-item {{!alertViewDone ? 'active' : ''}}" data-done="0" bindtap="onAlertViewToggle">未处理</view>
+        <view class="alert-sub-item {{alertViewDone ? 'active' : ''}}" data-done="1" bindtap="onAlertViewToggle">已联系</view>
+      </view>
+      <view class="alert-item" wx:for="{{alertList}}" wx:key="member_id">
+        <view class="alert-main">
+          <text class="alert-name lnk" data-go="/package-member/pages/members/member-detail/member-detail?id={{item.member_id}}" catchtap="onGoMember">{{item.user_name}}</text>
+          <text class="alert-tip">{{item.tip}} · {{item.package_name}}</text>
+          <text class="alert-trace" wx:if="{{item.followup_info}}">已联系：{{item.followup_info.operator_name}}</text>
+        </view>
+        <view class="btn-done" wx:if="{{!item.followup_done}}" data-memberid="{{item.member_id}}" data-alerttype="{{item.alert_type}}" data-periodkey="{{item.period_key}}" catchtap="onMarkDone">已联系</view>
+        <view class="btn-undo" wx:else data-memberid="{{item.member_id}}" data-alerttype="{{item.alert_type}}" data-periodkey="{{item.period_key}}" catchtap="onUndoDone">恢复提醒</view>
+      </view>
+      <view class="empty" wx:if="{{alertList.length === 0}}">{{alertViewDone ? '还没有标记过已联系' : '这一类暂时没有要联系的人 🎉'}}</view>
+    </view>
+  </view>
+</view>

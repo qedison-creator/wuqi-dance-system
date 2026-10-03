@@ -1,3 +1,4 @@
+<page-meta page-style="{{showModal ? 'overflow: hidden;' : ''}}"/>
 <view class="page">
   <view class="top-bar">
     <text class="top-title">{{selectedStoreName ? selectedStoreName + ' 公告' : '门店公告'}}</text>
@@ -17,6 +18,7 @@
           <view class="item-title">{{item.title}}</view>
           <view class="item-meta">
             <text class="item-store {{item.is_global ? 'global' : ''}}">{{item.store_label}}</text>
+            <text class="item-popup-tag" wx:if="{{item.popup_label}}">{{item.popup_label}}</text>
           </view>
           <view class="item-content" wx:if="{{item.content}}">{{item.content}}</view>
           <view class="item-actions">
@@ -64,6 +66,16 @@
             <view class="picker-arrow"></view>
           </view>
         </picker>
+      </view>
+      <view class="form-item">
+        <text class="form-label">弹窗显示</text>
+        <picker mode="selector" range="{{popupTypeOptions}}" range-key="label" value="{{formPopupIndex}}" bindchange="onFormPopupChange">
+          <view class="form-picker">
+            <text class="form-picker-text">{{popupTypeOptions[formPopupIndex].label}}</text>
+            <view class="picker-arrow"></view>
+          </view>
+        </picker>
+        <text class="form-tip">{{popupTypeOptions[formPopupIndex].hint}}</text>
       </view>
       <view class="form-item">
         <text class="form-label">状态</text>

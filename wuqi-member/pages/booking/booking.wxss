@@ -389,6 +389,12 @@ page {
   color: #FFFFFF;
 }
 
+/* 禁止豁免取消标识 */
+.course-tag.exempt-lock-tag {
+  background: rgba(232, 152, 94, 0.12);
+  color: #E8985E;
+}
+
 .course-room {
   display: flex;
   align-items: center;

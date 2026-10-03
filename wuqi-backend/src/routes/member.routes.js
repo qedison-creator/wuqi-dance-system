@@ -71,6 +71,16 @@ router.get('/stats/overview', auth, checkPermission(['super_admin', 'store_manag
   }
 });
 
+// GET /api/v1/members/filter-counts - 筛选标签计数（会员页角标）
+router.get('/filter-counts', auth, checkPermission(['super_admin', 'store_manager', 'staff']), storeFilter(), async (req, res, next) => {
+  try {
+    const result = await memberService.getMemberFilterCounts(req.query);
+    res.json(success(result));
+  } catch (err) {
+    next(err);
+  }
+});
+
 // GET /api/v1/members/export - 导出会员列表
 router.get('/export', auth, checkPermission(['super_admin', 'store_manager', 'staff']), storeFilter(), async (req, res, next) => {
   try {

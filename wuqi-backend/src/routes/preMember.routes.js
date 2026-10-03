@@ -239,6 +239,8 @@ function cleanImportRow(row, storeMap) {
     period_count: cleanNumber(pre(row.period_count)),
     extra_store_names: pre(row.extra_store_names),
     dance_style_names: pre(row.dance_style_names),
+    weekday_names: pre(row.weekday_names),
+    time_limit_text: pre(row.time_limit_text),
     remark: pre(row.remark)
   };
 }
@@ -288,20 +290,20 @@ router.get('/template', auth, checkPermission(['super_admin', 'store_manager', '
   try {
     const xlsx = require('xlsx');
     const templateData = [
-      ['序号', '门店名称', '会员姓名', '预留手机号', '性别', '套餐类型', '激活方式', '有效期开始日期', '有效期结束日期', '次卡总次数', '时间卡周期限制方式', '时间卡限制次数', '附加门店（用逗号分隔）', '舞种限制（用逗号分隔，留空=不限）', '备注'],
-      [1, '舞栖舞蹈社（固戍店）', '张三', '13800138000', '女', '次卡', '已激活', '2026-01-01', '2027-01-01', '41', '', '', '', '', '示例数据'],
-      [2, '舞栖舞蹈社（福永店）', '李四', '13900139000', '男', '时间卡', '已激活', '2026-01-01', '2027-01-01', '', '每周限制', '2', '舞栖舞蹈社（固戍店）', '', '跨店示例'],
-      [3, '舞栖舞蹈社（固戍店）', '王五', '13700137000', '女', '时间卡', '已激活', '2026-01-01', '2027-01-01', '', '每月限制', '8', '', '爵士舞', '时间卡每月限制+舞种限制示例'],
-      [4, '舞栖舞蹈社（固戍店）', '赵六', '13700137001', '女', '时间卡', '已激活', '2026-01-01', '2027-01-01', '', '不限', '', '', '', '时间卡不限示例'],
-      [5, '舞栖舞蹈社（固戍店）', '孙七', '13600136000', '男', '', '', '', '', '', '', '', '', '', '未录套餐示例'],
-      [6, '舞栖舞蹈社（固戍店）', '周八', '13500135000', '女', '次卡', '待激活', '2026-01-01', '2026-04-01', '30', '', '', '', '', '待激活示例：新购套餐待会员首次预约激活或2个月自动激活']
+      ['序号', '门店名称', '会员姓名', '预留手机号', '性别', '套餐类型', '激活方式', '有效期开始日期', '有效期结束日期', '次卡总次数', '时间卡周期限制方式', '时间卡限制次数', '附加门店（用逗号分隔）', '舞种限制（用逗号分隔，留空=不限）', '可用星期（用逗号分隔，如：周一,周三；留空=整周）', '可用时段（如：20:30前 / 18:00后 / 18:00后,22:30前；留空=不限）', '备注'],
+      [1, '舞栖舞蹈社（固戍店）', '张三', '13800138000', '女', '次卡', '已激活', '2026-01-01', '2027-01-01', '41', '', '', '', '', '', '', '示例数据'],
+      [2, '舞栖舞蹈社（福永店）', '李四', '13900139000', '男', '时间卡', '已激活', '2026-01-01', '2027-01-01', '', '每周限制', '2', '舞栖舞蹈社（固戍店）', '', '', '', '跨店示例'],
+      [3, '舞栖舞蹈社（固戍店）', '王五', '13700137000', '女', '时间卡', '已激活', '2026-01-01', '2027-01-01', '', '每月限制', '8', '', '爵士舞', '', '', '时间卡每月限制+舞种限制示例'],
+      [4, '舞栖舞蹈社（固戍店）', '赵六', '13700137001', '女', '时间卡', '已激活', '2026-01-01', '2027-01-01', '', '不限', '', '', '', '周一,周三,周五', '20:30前', '可用星期+可用时段示例'],
+      [5, '舞栖舞蹈社（固戍店）', '孙七', '13600136000', '男', '', '', '', '', '', '', '', '', '', '', '', '未录套餐示例'],
+      [6, '舞栖舞蹈社（固戍店）', '周八', '13500135000', '女', '次卡', '待激活', '2026-01-01', '2026-04-01', '30', '', '', '', '', '', '18:00后,22:30前', '待激活+双边界时段示例']
     ];
 
     const ws = xlsx.utils.aoa_to_sheet(templateData);
     // 设置列宽
     ws['!cols'] = [
       { wch: 6 }, { wch: 22 }, { wch: 12 }, { wch: 14 }, { wch: 6 },
-      { wch: 10 }, { wch: 10 }, { wch: 14 }, { wch: 14 }, { wch: 10 }, { wch: 16 }, { wch: 12 }, { wch: 28 }, { wch: 24 }, { wch: 20 }
+      { wch: 10 }, { wch: 10 }, { wch: 14 }, { wch: 14 }, { wch: 10 }, { wch: 16 }, { wch: 12 }, { wch: 28 }, { wch: 24 }, { wch: 30 }, { wch: 34 }, { wch: 20 }
     ];
 
     const wb = xlsx.utils.book_new();
@@ -430,41 +432,55 @@ router.post('/import', auth, checkPermission(['super_admin', 'store_manager', 's
     }
 
     // 表头映射（按列顺序）
-    //   新模板（15列）：套餐类型后新增「激活方式」列（已激活/待激活，留空默认已激活）
-    //   旧模板（14列）：无激活方式列，兼容导入，全部按已激活处理
-    const newHeaders = ['序号', '门店名称', '会员姓名', '预留手机号', '性别', '套餐类型', '激活方式', '有效期开始日期', '有效期结束日期', '次卡总次数', '时间卡周期限制方式', '时间卡限制次数', '附加门店（用逗号分隔）', '舞种限制（用逗号分隔，留空=不限）', '备注'];
-    const oldHeaders = ['序号', '门店名称', '会员姓名', '预留手机号', '性别', '套餐类型', '有效期开始日期', '有效期结束日期', '次卡总次数', '时间卡周期限制方式', '时间卡限制次数', '附加门店（用逗号分隔）', '舞种限制（用逗号分隔，留空=不限）', '备注'];
+    //   最新模板（17列）：舞种限制后新增「可用星期」「可用时段」两列（留空=不限）
+    //   16列模板：有「激活方式」「可用星期」列，无「可用时段」列，兼容导入（时段不限）
+    //   15列模板：有「激活方式」列，无「可用星期」「可用时段」列，兼容导入（整周、时段不限）
+    //   旧模板（14列）：无激活方式、无可用星期、无可用时段列，兼容导入（默认已激活、不限）
+    const v17Headers = ['序号', '门店名称', '会员姓名', '预留手机号', '性别', '套餐类型', '激活方式', '有效期开始日期', '有效期结束日期', '次卡总次数', '时间卡周期限制方式', '时间卡限制次数', '附加门店（用逗号分隔）', '舞种限制（用逗号分隔，留空=不限）', '可用星期（用逗号分隔，如：周一,周三；留空=整周）', '可用时段（如：20:30前 / 18:00后 / 18:00后,22:30前；留空=不限）', '备注'];
+    const v16Headers = ['序号', '门店名称', '会员姓名', '预留手机号', '性别', '套餐类型', '激活方式', '有效期开始日期', '有效期结束日期', '次卡总次数', '时间卡周期限制方式', '时间卡限制次数', '附加门店（用逗号分隔）', '舞种限制（用逗号分隔，留空=不限）', '可用星期（用逗号分隔，如：周一,周三；留空=整周）', '备注'];
+    const v15Headers = ['序号', '门店名称', '会员姓名', '预留手机号', '性别', '套餐类型', '激活方式', '有效期开始日期', '有效期结束日期', '次卡总次数', '时间卡周期限制方式', '时间卡限制次数', '附加门店（用逗号分隔）', '舞种限制（用逗号分隔，留空=不限）', '备注'];
+    const v14Headers = ['序号', '门店名称', '会员姓名', '预留手机号', '性别', '套餐类型', '有效期开始日期', '有效期结束日期', '次卡总次数', '时间卡周期限制方式', '时间卡限制次数', '附加门店（用逗号分隔）', '舞种限制（用逗号分隔，留空=不限）', '备注'];
     const headers = rawRows[0].map(h => String(h).trim());
 
-    // 表头校验：支持新（15列）/旧（14列）两种模板，列名必须完全一致
+    // 表头校验：支持 17/16/15/14 列四种模板，列名必须完全一致
     const checkHeaders = (expected) => {
       if (headers.length !== expected.length) return false;
       return expected.every((h, i) => headers[i] === h);
     };
     let expectedHeaders;
-    if (checkHeaders(newHeaders)) {
-      expectedHeaders = newHeaders;
-    } else if (checkHeaders(oldHeaders)) {
-      expectedHeaders = oldHeaders;
+    if (checkHeaders(v17Headers)) {
+      expectedHeaders = v17Headers;
+    } else if (checkHeaders(v16Headers)) {
+      expectedHeaders = v16Headers;
+    } else if (checkHeaders(v15Headers)) {
+      expectedHeaders = v15Headers;
+    } else if (checkHeaders(v14Headers)) {
+      expectedHeaders = v14Headers;
     } else {
-      // 两个模板都不匹配：给出更精确的提示
-      if (headers.length === oldHeaders.length) {
-        for (let i = 0; i < oldHeaders.length; i++) {
-          if (headers[i] !== oldHeaders[i]) {
+      // 四个模板都不匹配：按列数给出精确提示（17列=最新模板，16/15/14列=旧版）
+      const candidate = headers.length === v17Headers.length ? v17Headers
+        : (headers.length === v16Headers.length ? v16Headers
+          : (headers.length === v15Headers.length ? v15Headers
+            : (headers.length === v14Headers.length ? v14Headers : null)));
+      if (candidate) {
+        for (let i = 0; i < candidate.length; i++) {
+          if (headers[i] !== candidate[i]) {
             return res.status(400).json({
               code: 400,
-              message: `表头第 ${i + 1} 列不匹配：期望「${oldHeaders[i]}」，实际「${headers[i]}」。请使用下载的标准模板填写数据。`
+              message: `表头第 ${i + 1} 列不匹配：期望「${candidate[i]}」，实际「${headers[i]}」。请使用下载的标准模板填写数据。`
             });
           }
         }
       }
       return res.status(400).json({
         code: 400,
-        message: `表头列数不匹配：期望 ${newHeaders.length} 列，实际 ${headers.length} 列。请使用下载的标准模板填写数据。`
+        message: `表头列数不匹配：期望 ${v17Headers.length} 列，实际 ${headers.length} 列。请使用下载的标准模板填写数据。`
       });
     }
-    // 新模板标志：套餐类型后是否有「激活方式」列
-    const hasActivateModeCol = expectedHeaders === newHeaders;
+    // 列版本标志：是否有「激活方式」列（套餐类型后）、「可用星期」列（舞种限制后）、「可用时段」列（可用星期后）
+    const hasActivateModeCol = expectedHeaders === v17Headers || expectedHeaders === v16Headers || expectedHeaders === v15Headers;
+    const hasWeekdayCol = expectedHeaders === v17Headers || expectedHeaders === v16Headers;
+    const hasTimeCol = expectedHeaders === v17Headers;
 
     const rows = [];
     for (let i = 1; i < rawRows.length; i++) {
@@ -472,8 +488,9 @@ router.post('/import', auth, checkPermission(['super_admin', 'store_manager', 's
       // 跳过空行
       if (rawRow.every(cell => cell === '' || cell === null || cell === undefined)) continue;
 
-      // 列索引：有激活方式列时，激活方式之后的列整体后移一位
+      // 列索引：有激活方式列时后移一位；有可用星期列时再后移一位；有可用时段列时备注再后移一位
       const offset = hasActivateModeCol ? 1 : 0;
+      const weekdayOffset = hasWeekdayCol ? 1 : 0;
       rows.push({
         _rowNum: i + 1,
         store_name: String(rawRow[1] || '').trim(),
@@ -489,7 +506,9 @@ router.post('/import', auth, checkPermission(['super_admin', 'store_manager', 's
         period_count: String(rawRow[10 + offset] || '').trim(), // 时间卡限制次数
         extra_store_names: String(rawRow[11 + offset] || '').trim(), // 附加门店（用逗号分隔）
         dance_style_names: String(rawRow[12 + offset] || '').trim(), // 舞种限制（用逗号分隔，留空=不限）
-        remark: String(rawRow[13 + offset] || '').trim()
+        weekday_names: hasWeekdayCol ? String(rawRow[13 + offset] || '').trim() : '', // 可用星期（用逗号分隔，留空=整周）
+        time_limit_text: hasTimeCol ? String(rawRow[13 + offset + weekdayOffset] || '').trim() : '', // 可用时段（如 20:30前 / 18:00后,22:30前，留空=不限）
+        remark: String(rawRow[13 + offset + weekdayOffset + (hasTimeCol ? 1 : 0)] || '').trim()
       });
     }
 

@@ -16,7 +16,8 @@ const checkScheduleOwnership = checkRecordOwnership(Schedule, {
 });
 
 // GET /api/v1/schedules - 获取排课列表(会员可匿名浏览)
-router.get('/', storeFilter(), async (req, res, next) => {
+// optionalAuth：解析身份用于预约信息权限隔离（无覆盖查看者不下发预约人数/头像/取消原因）
+router.get('/', optionalAuth, storeFilter(), async (req, res, next) => {
   try {
     const result = await scheduleService.getScheduleList(req.query, req);
     res.json(success(paginate(result.list, result.total, result.page, result.pageSize)));
@@ -201,6 +202,20 @@ router.put('/:id/online', auth, checkPermission(['super_admin', 'store_manager']
   try {
     const schedule = await scheduleService.onlineSchedule(req.params.id, req.user.id);
     res.json(success(schedule, '上线排课成功'));
+  } catch (err) {
+    next(err);
+  }
+});
+
+// PUT /api/v1/schedules/:id/exempt-lock - 设置单节课「禁止豁免取消」开关
+router.put('/:id/exempt-lock', auth, checkPermission(['super_admin', 'store_manager']), storeFilter(), checkScheduleOwnership, async (req, res, next) => {
+  try {
+    const { locked } = req.body;
+    if (typeof locked !== 'boolean') {
+      return res.status(400).json({ code: 400, message: '缺少参数 locked(boolean)', data: null });
+    }
+    const schedule = await scheduleService.setExemptCancelLock(req.params.id, locked, req.user.id);
+    res.json(success(schedule, locked ? '已禁止该课程使用豁免取消' : '已恢复该课程豁免取消'));
   } catch (err) {
     next(err);
   }

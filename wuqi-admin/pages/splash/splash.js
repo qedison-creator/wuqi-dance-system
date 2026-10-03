@@ -22,7 +22,8 @@ Page({
       ? request({ url: '/auth/me', method: 'GET' }).then(() => true).catch(() => false)
       : Promise.resolve(false);
 
-    Promise.all([initPromise, verifyToken]).then(([, hasValidToken]) => {
+    Promise.all([initPromise, verifyToken]).then((results) => {
+      const hasValidToken = results[1];
       // 保留极短的 logo 淡入动画（500ms），让用户感知到品牌过渡
       this.setData({ ready: true });
       setTimeout(() => {

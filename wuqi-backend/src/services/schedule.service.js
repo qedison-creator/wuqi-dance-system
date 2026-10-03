@@ -9,7 +9,9 @@ const Waitlist = require('../models/Waitlist');
 const PendingTask = require('../models/PendingTask');
 const logService = require('./log.service');
 const attendanceService = require('./attendance.service');
+const { buildDeductionInfo, restoreTimeCardShrink } = require('./booking.service');
 const coachAttendanceService = require('./coachAttendance.service');
+const packageService = require('./package.service');
 const { SCHEDULE_STATUS, CANCEL_REASON, CANCEL_TYPE, CANCELLED_STATUSES, TERMINAL_STATUSES } = require('../constants/scheduleStatus.constants');
 const dayjs = require('dayjs');
 const utc = require('dayjs/plugin/utc');
@@ -21,6 +23,31 @@ const BEIJING_TZ = 'Asia/Shanghai';
 function timeToMinutes(timeStr) {
   const [h, m] = timeStr.split(':').map(Number);
   return h * 60 + m;
+}
+
+/**
+ * 场次预约信息权限隔离：判断查看者是否可看指定门店的预约信息（预约人数/头像/取消原因）。
+ * viewableStoreIds 为 null 表示管理类角色不限制；否则要求门店在有效套餐覆盖集合内。
+ * storeId 可能是 ObjectId 或 populate 后的 { _id, name, address }。
+ */
+function canViewBookingInfo(viewableStoreIds, storeId) {
+  if (viewableStoreIds === null) return true;
+  if (!storeId) return false;
+  const sid = storeId._id ? String(storeId._id) : String(storeId);
+  return viewableStoreIds.has(sid);
+}
+
+/**
+ * 对无覆盖查看者脱敏：删除预约人数/头像/历史人次及所有取消原因
+ * （统一剥离，避免"已取消但无原因"反向泄露人数不足取消）。
+ * 脱敏后 current_bookings 字段缺失，前端据此兜底显示"已约?/?"。
+ */
+function maskScheduleBookingInfo(schedule) {
+  delete schedule.current_bookings;
+  delete schedule.total_bookings;
+  schedule.booked_users = [];
+  delete schedule.cancel_reason;
+  delete schedule.cancel_type;
 }
 
 /**
@@ -153,6 +180,8 @@ async function checkAndCancelIfInsufficient(scheduleId) {
             await pkg.save();
           }
         }
+        // 按天口径：把缩掉的有效期加回
+        await restoreTimeCardShrink(booking);
 
         // 推送微信通知
         try {
@@ -343,6 +372,8 @@ async function finalizeSchedule(scheduleId) {
             await pkg.save();
           }
         }
+        // 按天口径：把缩掉的有效期加回
+        await restoreTimeCardShrink(booking);
 
         // 推送微信通知
         try {
@@ -543,6 +574,9 @@ exports.getScheduleList = async (query, req = null) => {
     const host = req ? `${req.protocol}://${req.get('host')}` : '';
     const now = dayjs().tz(BEIJING_TZ);
 
+    // 预约信息查看权限：管理角色 null（不限制），游客空集合，会员为有效套餐覆盖门店集合
+    const viewableStoreIds = await packageService.getBookingViewableStoreIds(req ? req.user : null);
+
     for (const schedule of list) {
       const sid = String(schedule._id);
       schedule.booked_users = bookingsBySchedule[sid] || [];
@@ -595,6 +629,11 @@ exports.getScheduleList = async (query, req = null) => {
       // 注入截止预约/截止取消文案（前端展示用）
       schedule.booking_deadline_text = formatDeadlineText(schedule.booking_deadline || 120, true);
       schedule.cancel_deadline_text = formatDeadlineText(schedule.cancel_deadline || 60, true);
+
+      // 无覆盖查看者（游客/有效套餐不含该门店的会员）脱敏预约信息与取消原因
+      if (!canViewBookingInfo(viewableStoreIds, schedule.store_id)) {
+        maskScheduleBookingInfo(schedule);
+      }
     }
   }
 
@@ -659,8 +698,24 @@ exports.getScheduleById = async (id, req = null) => {
   scheduleObj.booking_deadline_text = formatDeadlineText(scheduleObj.booking_deadline || 120, true);
   scheduleObj.cancel_deadline_text = formatDeadlineText(scheduleObj.cancel_deadline || 60, true);
 
-  // 历史总预约人数（含已取消/已完成，反映这节课曾经的真实预约人数）
-  scheduleObj.total_bookings = await Booking.countDocuments({ schedule_id: id });
+  // 预约信息查看权限：有覆盖才下发预约统计（口径与列表一致：booked+completed 去重用户数），
+  // 无覆盖则删除取消原因字段且不下发任何预约统计
+  const viewableStoreIds = await packageService.getBookingViewableStoreIds(req ? req.user : null);
+  if (canViewBookingInfo(viewableStoreIds, scheduleObj.store_id)) {
+    const activeBookings = await Booking.find({ schedule_id: id, status: { $in: ['booked', 'completed'] } }).select('user_id').lean();
+    const activeUserSet = new Set();
+    activeBookings.forEach(b => {
+      if (b.user_id) activeUserSet.add(String(b.user_id));
+    });
+    scheduleObj.current_bookings = activeUserSet.size;
+    // 历史总预约人数（含已取消/已完成，反映这节课曾经的真实预约人数）
+    scheduleObj.total_bookings = await Booking.countDocuments({ schedule_id: id });
+  } else {
+    // Schema 默认字段 current_bookings 存在于 toObject 结果中，脱敏时必须显式删除
+    delete scheduleObj.current_bookings;
+    delete scheduleObj.cancel_reason;
+    delete scheduleObj.cancel_type;
+  }
 
   return scheduleObj;
 };
@@ -895,8 +950,8 @@ exports.updateSchedule = async (id, data, operatorId) => {
       }
     }
 
-    // 仅允许修改教室、备注、封面、人数设置和截止时间，清除其他字段避免误触发冲突检查
-    const allowedFields = ['classroom', 'remark', 'note', 'cover', 'max_bookings', 'min_bookings', 'booking_deadline', 'cancel_deadline'];
+    // 仅允许修改教室、备注、封面、人数设置、截止时间和豁免取消开关，清除其他字段避免误触发冲突检查
+    const allowedFields = ['classroom', 'remark', 'note', 'cover', 'max_bookings', 'min_bookings', 'booking_deadline', 'cancel_deadline', 'exempt_cancel_locked'];
     const filteredData = {};
     for (const key of allowedFields) {
       if (data[key] !== undefined) {
@@ -1097,6 +1152,8 @@ exports.cancelSchedule = async (id, operatorId, reason = '', cancelType = 'admin
         if (pkg.status === 'exhausted') pkg.status = 'active';
         await pkg.save();
       }
+      // 按天口径：把缩掉的有效期加回
+      await restoreTimeCardShrink(booking);
       // 通知发送不依赖套餐是否存在
       try {
         const wechatMessageService = require('./wechat-message.service');
@@ -1129,6 +1186,36 @@ exports.cancelSchedule = async (id, operatorId, reason = '', cancelType = 'admin
 
   // 清理该课程的所有 PendingTask
   await PendingTask.deleteMany({ schedule_id: id });
+
+  return schedule.toObject();
+};
+
+// 设置单节课「禁止豁免取消」开关（管理员临时控制，逐节生效）
+// - 仅未开课的课可设置；已开始/已结束的课程豁免通道自然锁定，无需设置
+exports.setExemptCancelLock = async (id, locked, operatorId) => {
+  const schedule = await Schedule.findById(id);
+  if (!schedule) throw new Error('排课不存在');
+
+  const now = dayjs().tz(BEIJING_TZ);
+  const classStart = dayjs.tz(schedule.date + ' ' + schedule.start_time, BEIJING_TZ);
+  if (!now.isBefore(classStart)) {
+    throw new Error('课程已开始，无需设置');
+  }
+  if ([SCHEDULE_STATUS.CANCELLED, SCHEDULE_STATUS.COMPLETED, SCHEDULE_STATUS.DELETED].includes(schedule.status)) {
+    throw new Error('当前状态不可设置');
+  }
+
+  schedule.exempt_cancel_locked = !!locked;
+  await schedule.save();
+
+  // 记录操作日志
+  await logService.createLog({
+    operator_id: operatorId,
+    action: locked ? 'exempt_lock' : 'exempt_unlock',
+    module: 'schedule',
+    target_id: id,
+    detail: `${locked ? '禁止' : '恢复'}豁免取消: ${schedule.course_name || ''} ${schedule.date} ${schedule.start_time}`,
+  });
 
   return schedule.toObject();
 };
@@ -1343,6 +1430,8 @@ exports.batchDeleteSchedules = async (data, operatorId) => {
             userPackage.remaining_credits += schedule.credits_cost || 1;
             await userPackage.save();
           }
+          // 按天口径：把缩掉的有效期加回
+          await restoreTimeCardShrink(booking);
           booking.status = 'cancelled';
           booking.cancel_reason = '排课被批量删除';
           await booking.save();
@@ -1447,7 +1536,11 @@ exports.getScheduleBookings = async (scheduleId) => {
     .populate('user_id', 'real_name nick_name avatar_url phone wechat_phone reserve_phone')
     .sort({ created_at: 1 });
 
-  return bookings;
+  return bookings.map(b => {
+    const obj = b.toObject();
+    Object.assign(obj, buildDeductionInfo(b));
+    return obj;
+  });
 };
 
 // 标记上课(签到)
@@ -1466,6 +1559,7 @@ exports.markAttendance = async (scheduleId, userIds, operatorId) => {
         status: 'completed',
         checked_in: true,
         check_in_time: new Date(),
+        check_in_method: 'scan',
         checked_in_by: operatorId,
       },
       { returnDocument: 'after' }
@@ -1500,6 +1594,11 @@ exports.markAttendance = async (scheduleId, userIds, operatorId) => {
         }
       }
     }
+
+    // 数据中心：广播新消课事件（看板实时刷新）
+    try {
+      require('./datacenter.service').notifyDataChanged('consume', schedule.store_id, { date: schedule.date });
+    } catch (e) { /* 通知失败不影响签到 */ }
   }
   return updates;
 };

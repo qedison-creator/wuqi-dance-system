@@ -61,12 +61,12 @@ const DEFAULT_ROLE_PERMISSIONS = {
   store_manager: {
     name: '店长',
     desc: '门店全权管理',
-    permissions: ['dashboard', 'schedule', 'booking', 'checkin', 'member', 'member_review', 'pre_member', 'coach', 'salary', 'package_log', 'waitlist', 'holiday', 'banner', 'image', 'announcement', 'store', 'exemption', 'account', 'config', 'log'],
+    permissions: ['dashboard', 'schedule', 'booking', 'checkin', 'member', 'member_review', 'pre_member', 'coach', 'salary', 'package_log', 'waitlist', 'holiday', 'banner', 'image', 'announcement', 'store', 'exemption', 'account', 'config', 'log', 'datacenter'],
   },
   staff: {
     name: '员工',
     desc: '日常运营',
-    permissions: ['dashboard', 'schedule', 'booking', 'checkin', 'member', 'member_review', 'pre_member', 'waitlist'],
+    permissions: ['dashboard', 'schedule', 'booking', 'checkin', 'member', 'member_review', 'pre_member', 'waitlist', 'datacenter'],
   },
   reviewer: {
     name: '审核员',

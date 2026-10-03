@@ -306,6 +306,66 @@ page {
   color: #E8985E;
   background: rgba(232, 152, 94, 0.10);
   flex-shrink: 0;
+  display: flex;
+  align-items: center;
+}
+
+/* 胶囊内的规则说明入口图标 */
+.hero-exemption-q {
+  margin-left: 8rpx;
+  width: 26rpx;
+  height: 26rpx;
+  line-height: 26rpx;
+  text-align: center;
+  border-radius: 50%;
+  border: 1rpx solid rgba(232, 152, 94, 0.6);
+  font-size: 20rpx;
+}
+
+/* 豁免取消规则说明气泡 */
+.exemption-tip-mask {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 998;
+  background: rgba(0, 0, 0, 0.25);
+}
+
+.exemption-tip-bubble {
+  position: fixed;
+  width: 580rpx;
+  background: #FFFFFF;
+  border-radius: 20rpx;
+  padding: 28rpx 30rpx;
+  box-shadow: 0 8rpx 32rpx rgba(0, 0, 0, 0.12);
+  z-index: 999;
+}
+
+.exemption-tip-arrow {
+  position: absolute;
+  top: -10rpx;
+  right: 40rpx;
+  width: 20rpx;
+  height: 20rpx;
+  background: #FFFFFF;
+  transform: rotate(45deg);
+  border-radius: 4rpx;
+}
+
+.exemption-tip-title {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: #3D2E2F;
+  margin-bottom: 16rpx;
+}
+
+.exemption-tip-item {
+  font-size: 24rpx;
+  color: #6B5D5E;
+  line-height: 1.7;
+  margin-bottom: 8rpx;
 }
 
 .pending-section {
@@ -693,9 +753,9 @@ page {
   background: rgba(197, 116, 75, 0.85);
 }
 
-/* 跨店标签 - 青碧渐变 */
+/* 跨店标签 - 玫粉渐变 */
 .pkg-tag-cross-store {
-  background: linear-gradient(135deg, #5D9B9B, #3D7B7B);
+  background: linear-gradient(135deg, #E39BB1, #C96E8D);
 }
 
 /* 时间卡标签 - 薰衣草紫渐变 */
@@ -822,6 +882,27 @@ page {
 .pkg-new-dual-col .pkg-new-main-label {
   margin-top: 4rpx;
   font-size: 22rpx;
+}
+
+/* 时间卡周期剩余次数颜色（青绿色，与次卡剩余次数一致） */
+.pkg-new-credits-value {
+  color: #5D9B9B !important;
+}
+
+.pkg-new-credits-unit {
+  color: #5D9B9B !important;
+}
+
+/* 时间卡双列大数字行高（防止大数字被裁切） */
+.pkg-card-new.time_card .pkg-new-dual-wrap .pkg-new-main-value {
+  line-height: 1.1;
+}
+
+/* 时间卡不限次 ∞ 符号（略小于数字保持视觉平衡） */
+.pkg-new-inf-value {
+  font-size: 80rpx;
+  line-height: 1;
+  color: #5D9B9B !important;
 }
 
 /* 状态圆点 */
@@ -2101,4 +2182,37 @@ page {
 
 .guest-empty {
   color: #C4B5B7;
+}
+
+/* 可用星期/可用时段限制行：默认横排（星期 + 单个时段并排）；双时段时竖排（星期在上，时段单独一行在下） */
+.pkg-new-weekday-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  width: 100%;
+  margin-top: 12rpx;
+}
+
+.pkg-new-weekday-row.pkg-new-time-both {
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+/* 可用星期 tag - 浅雾蓝渐变（与门店棕橙/次卡青碧/时间卡紫区分） */
+.pkg-tag-weekday {
+  background: linear-gradient(135deg, #A3C2E8, #7297CC);
+}
+
+/* 可用时段 tag - 暖橙渐变（与可用星期雾蓝区分）；双开时换行显示 */
+.pkg-tag-time {
+  background: linear-gradient(135deg, #F2B18B, #DF8B5A);
+  margin-left: 14rpx;
+}
+
+.pkg-new-time-both .pkg-tag-weekday {
+  margin-bottom: 12rpx;
+}
+
+.pkg-new-time-both .pkg-tag-time {
+  margin-left: 0;
 }

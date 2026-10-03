@@ -22,53 +22,86 @@
       </view>
     </view>
 
-    <view class="logs-list" wx:if="{{activationList.length > 0}}">
-      <view class="log-item card" wx:for="{{activationList}}" wx:key="_id" wx:if="{{index < visibleCount}}">
-        <!-- 会员头部 -->
-        <view class="log-header">
-          <view class="log-title-wrap">
-            <text class="log-title">{{item.user_name}}</text>
-            <text class="deleted-tag" wx:if="{{item.user_deleted}}">已删除</text>
-            <text class="record-count-badge">{{item.record_count}}条</text>
+    <view class="logs-list" wx:if="{{activationGroups.length > 0}}">
+      <view class="year-group" wx:for="{{activationGroups}}" wx:key="year" wx:for-item="yg">
+        <view class="year-header">
+          <text class="year-label">{{yg.yearLabel}}</text>
+          <view class="header-badges">
+            <text class="year-member-count" wx:if="{{yg.memberCount > 0}}">{{yg.memberCount}}位</text>
+            <text class="year-count">{{yg.totalCount}}条</text>
           </view>
         </view>
-        <!-- 记录列表 -->
-        <view class="log-body">
-          <view class="sub-record" wx:for="{{item.records}}" wx:for-item="record" wx:key="_id">
-            <view class="sub-record-divider" wx:if="{{index > 0}}"></view>
-            <view class="sub-record-header">
-              <text class="log-type">{{record.typeLabel}}</text>
+        <view class="month-list">
+          <view class="month-group" wx:for="{{yg.months}}" wx:key="monthKey" wx:for-item="mg">
+            <view class="month-header" bindtap="onToggleMonthGroup" data-tab="activation" data-month="{{mg.monthKey}}">
+              <view class="month-header-left">
+                <text class="month-toggle {{mg.expanded ? 'expanded' : ''}}">▶</text>
+                <text class="month-label {{mg.isCurrent ? 'month-label-current' : ''}}">{{mg.monthLabel}}</text>
+                <text class="month-tag-current" wx:if="{{mg.isCurrent}}">本月</text>
+              </view>
+              <view class="header-badges">
+                <text class="month-member-count" wx:if="{{mg.memberCount > 0}}">{{mg.memberCount}}位</text>
+                <text class="month-count">{{mg.count}}条</text>
+              </view>
             </view>
-            <view class="log-row">
-              <text class="log-label">套餐名称</text>
-              <text class="log-value">{{record.package_name || '-'}}</text>
-            </view>
-            <view class="log-row">
-              <text class="log-label">激活时间</text>
-              <text class="log-value">{{record.activated_at_display || '-'}}</text>
-            </view>
-            <view class="log-row">
-              <text class="log-label">生效日期</text>
-              <text class="log-value">{{record.effective_date_display || '-'}}</text>
-            </view>
-            <view class="log-row">
-              <text class="log-label">到期日期</text>
-              <text class="log-value">{{record.expire_date_display || '-'}}</text>
-            </view>
-            <view class="log-row" wx:if="{{record.operator_name}}">
-              <text class="log-label">操作人</text>
-              <text class="log-value">{{record.operator_name}}</text>
-            </view>
-            <view class="log-row" wx:if="{{record.remark}}">
-              <text class="log-label">备注</text>
-              <text class="log-value">{{record.remark}}</text>
+            <view class="month-content" wx:if="{{mg.expanded}}">
+              <view class="log-item card" wx:for="{{mg.cards}}" wx:key="_id" wx:for-item="item">
+                <!-- 会员头部 -->
+                <view class="log-header">
+                  <view class="log-title-wrap">
+                    <text class="log-title">{{item.user_name}}</text>
+                    <text class="deleted-tag" wx:if="{{item.user_deleted}}">已删除</text>
+                    <text class="record-count-badge">{{item.monthRecordCount}}条</text>
+                  </view>
+                </view>
+                <!-- 记录列表 -->
+                <view class="log-body">
+                  <view class="sub-record" wx:for="{{item.records}}" wx:for-item="record" wx:key="_id">
+                    <view class="sub-record-divider" wx:if="{{index > 0}}"></view>
+                    <view class="sub-record-header">
+                      <text class="log-type">{{record.typeLabel}}</text>
+                    </view>
+                    <view class="log-row">
+                      <text class="log-label">套餐名称</text>
+                      <text class="log-value">{{record.package_name || '-'}}</text>
+                    </view>
+                    <view class="log-row">
+                      <text class="log-label">激活时间</text>
+                      <text class="log-value">{{record.activated_at_display || '-'}}</text>
+                    </view>
+                    <view class="log-row">
+                      <text class="log-label">生效日期</text>
+                      <text class="log-value">{{record.effective_date_display || '-'}}</text>
+                    </view>
+                    <view class="log-row">
+                      <text class="log-label">到期日期</text>
+                      <text class="log-value">{{record.expire_date_display || '-'}}</text>
+                    </view>
+                    <view class="log-row" wx:if="{{record.operator_name}}">
+                      <text class="log-label">操作人</text>
+                      <text class="log-value">{{record.operator_name}}</text>
+                    </view>
+                    <view class="log-row" wx:if="{{record.remark}}">
+                      <text class="log-label">备注</text>
+                      <text class="log-value">{{record.remark}}</text>
+                    </view>
+                  </view>
+                </view>
+              </view>
+              <!-- 该月加载中 -->
+              <view class="month-loading" wx:if="{{mg.monthLoading}}">加载中...</view>
+              <!-- 该月独立的查看更多 -->
+              <view class="expand-toggle month-more" wx:if="{{!mg.monthLoading && mg.hasMore}}" bindtap="onLoadMonthMore" data-tab="activation" data-month="{{mg.monthKey}}">
+                <text>查看更多 ({{mg.remainCount}}位)</text>
+                <view class="toggle-arrow down"></view>
+              </view>
             </view>
           </view>
         </view>
       </view>
     </view>
 
-    <empty-state wx:if="{{!loading && activationList.length === 0}}" icon="" text="暂无激活记录"></empty-state>
+    <empty-state wx:if="{{!loading && activationGroups.length === 0}}" icon="" text="暂无激活记录"></empty-state>
   </view>
 
   <!-- ========== 套餐变更 TAB ========== -->
@@ -82,102 +115,135 @@
       </view>
     </view>
 
-    <view class="logs-list" wx:if="{{extensionList.length > 0}}">
-      <view class="log-item card" wx:for="{{extensionList}}" wx:key="_id" wx:if="{{index < visibleCount}}">
-        <!-- 会员头部 -->
-        <view class="log-header">
-          <view class="log-title-wrap">
-            <text class="log-title">{{item.user_name}}</text>
-            <text class="deleted-tag" wx:if="{{item.user_deleted}}">已删除</text>
-            <text class="record-count-badge">{{item.record_count}}条</text>
+    <view class="logs-list" wx:if="{{extensionGroups.length > 0}}">
+      <view class="year-group" wx:for="{{extensionGroups}}" wx:key="year" wx:for-item="yg">
+        <view class="year-header">
+          <text class="year-label">{{yg.yearLabel}}</text>
+          <view class="header-badges">
+            <text class="year-member-count" wx:if="{{yg.memberCount > 0}}">{{yg.memberCount}}位</text>
+            <text class="year-count">{{yg.totalCount}}条</text>
           </view>
         </view>
-        <!-- 记录列表 -->
-        <view class="log-body">
-          <view class="sub-record" wx:for="{{item.records}}" wx:for-item="record" wx:key="_id">
-            <view class="sub-record-divider" wx:if="{{index > 0}}"></view>
-            <view class="sub-record-header">
-              <text class="log-type {{record.record_type === 'change' ? 'log-type-change' : ''}}">{{record.record_type === 'change' ? '套餐变更' : (record.typeLabel || '套餐延长')}}</text>
+        <view class="month-list">
+          <view class="month-group" wx:for="{{yg.months}}" wx:key="monthKey" wx:for-item="mg">
+            <view class="month-header" bindtap="onToggleMonthGroup" data-tab="extension" data-month="{{mg.monthKey}}">
+              <view class="month-header-left">
+                <text class="month-toggle {{mg.expanded ? 'expanded' : ''}}">▶</text>
+                <text class="month-label {{mg.isCurrent ? 'month-label-current' : ''}}">{{mg.monthLabel}}</text>
+                <text class="month-tag-current" wx:if="{{mg.isCurrent}}">本月</text>
+              </view>
+              <view class="header-badges">
+                <text class="month-member-count" wx:if="{{mg.memberCount > 0}}">{{mg.memberCount}}位</text>
+                <text class="month-count">{{mg.count}}条</text>
+              </view>
             </view>
-            <!-- 套餐延长记录 -->
-            <block wx:if="{{record.record_type !== 'change'}}">
-              <view class="log-row">
-                <text class="log-label">套餐名称</text>
-                <text class="log-value">{{record.package_name || '-'}}</text>
-              </view>
-              <view class="log-row">
-                <text class="log-label">套餐类型</text>
-                <text class="log-value">{{record.packageTypeLabel || '-'}}</text>
-              </view>
-              <view class="log-row">
-                <text class="log-label">延长时间</text>
-                <text class="log-value">{{record.created_at_display || '-'}}</text>
-              </view>
-              <view class="log-row">
-                <text class="log-label">延长时长</text>
-                <text class="log-value highlight">{{record.extend_value_text}}</text>
-              </view>
-              <view class="log-row">
-                <text class="log-label">原到期日</text>
-                <text class="log-value">{{record.original_expire_display || '-'}}</text>
-              </view>
-              <view class="log-row">
-                <text class="log-label">新到期日</text>
-                <text class="log-value">{{record.new_expire_display || '-'}}</text>
-              </view>
-              <view class="log-row" wx:if="{{record.holiday_name}}">
-                <text class="log-label">关联放假</text>
-                <text class="log-value">{{record.holiday_name}}</text>
-              </view>
-              <view class="log-row" wx:if="{{record.operator_name}}">
-                <text class="log-label">操作人</text>
-                <text class="log-value">{{record.operator_name}}</text>
-              </view>
-              <view class="log-row" wx:if="{{record.remark}}">
-                <text class="log-label">备注</text>
-                <text class="log-value">{{record.remark}}</text>
-              </view>
-            </block>
-            <!-- 套餐字段变更记录 -->
-            <block wx:else>
-              <view class="log-row">
-                <text class="log-label">套餐名称</text>
-                <text class="log-value">{{record.package_name || '-'}}</text>
-              </view>
-              <view class="log-row">
-                <text class="log-label">变更时间</text>
-                <text class="log-value">{{record.created_at_display || '-'}}</text>
-              </view>
-              <view class="log-row">
-                <text class="log-label">套餐类型</text>
-                <text class="log-value">{{record.packageTypeLabel || '-'}}</text>
-              </view>
-              <!-- 变更明细列表 -->
-              <view class="change-detail" wx:for="{{record.changes}}" wx:for-item="change" wx:key="field">
-                <view class="change-row">
-                  <text class="change-label">{{change.field_label}}</text>
-                  <view class="change-values">
-                    <text class="change-old">{{change.old_value || '无'}}</text>
-                    <text class="change-arrow">→</text>
-                    <text class="change-new">{{change.new_value || '无'}}</text>
+            <view class="month-content" wx:if="{{mg.expanded}}">
+              <view class="log-item card" wx:for="{{mg.cards}}" wx:key="_id" wx:for-item="item">
+                <!-- 会员头部 -->
+                <view class="log-header">
+                  <view class="log-title-wrap">
+                    <text class="log-title">{{item.user_name}}</text>
+                    <text class="deleted-tag" wx:if="{{item.user_deleted}}">已删除</text>
+                    <text class="record-count-badge">{{item.monthRecordCount}}条</text>
+                  </view>
+                </view>
+                <!-- 记录列表 -->
+                <view class="log-body">
+                  <view class="sub-record" wx:for="{{item.records}}" wx:for-item="record" wx:key="_id">
+                    <view class="sub-record-divider" wx:if="{{index > 0}}"></view>
+                    <view class="sub-record-header">
+                      <text class="log-type {{record.record_type === 'change' ? 'log-type-change' : ''}}">{{record.record_type === 'change' ? '套餐变更' : (record.typeLabel || '套餐延长')}}</text>
+                    </view>
+                    <!-- 套餐延长记录 -->
+                    <block wx:if="{{record.record_type !== 'change'}}">
+                      <view class="log-row">
+                        <text class="log-label">套餐名称</text>
+                        <text class="log-value">{{record.package_name || '-'}}</text>
+                      </view>
+                      <view class="log-row">
+                        <text class="log-label">套餐类型</text>
+                        <text class="log-value">{{record.packageTypeLabel || '-'}}</text>
+                      </view>
+                      <view class="log-row">
+                        <text class="log-label">延长时间</text>
+                        <text class="log-value">{{record.created_at_display || '-'}}</text>
+                      </view>
+                      <view class="log-row">
+                        <text class="log-label">延长时长</text>
+                        <text class="log-value highlight">{{record.extend_value_text}}</text>
+                      </view>
+                      <view class="log-row">
+                        <text class="log-label">原到期日</text>
+                        <text class="log-value">{{record.original_expire_display || '-'}}</text>
+                      </view>
+                      <view class="log-row">
+                        <text class="log-label">新到期日</text>
+                        <text class="log-value">{{record.new_expire_display || '-'}}</text>
+                      </view>
+                      <view class="log-row" wx:if="{{record.holiday_name}}">
+                        <text class="log-label">关联放假</text>
+                        <text class="log-value">{{record.holiday_name}}</text>
+                      </view>
+                      <view class="log-row" wx:if="{{record.operator_name}}">
+                        <text class="log-label">操作人</text>
+                        <text class="log-value">{{record.operator_name}}</text>
+                      </view>
+                      <view class="log-row" wx:if="{{record.remark}}">
+                        <text class="log-label">备注</text>
+                        <text class="log-value">{{record.remark}}</text>
+                      </view>
+                    </block>
+                    <!-- 套餐字段变更记录 -->
+                    <block wx:else>
+                      <view class="log-row">
+                        <text class="log-label">套餐名称</text>
+                        <text class="log-value">{{record.package_name || '-'}}</text>
+                      </view>
+                      <view class="log-row">
+                        <text class="log-label">变更时间</text>
+                        <text class="log-value">{{record.created_at_display || '-'}}</text>
+                      </view>
+                      <view class="log-row">
+                        <text class="log-label">套餐类型</text>
+                        <text class="log-value">{{record.packageTypeLabel || '-'}}</text>
+                      </view>
+                      <!-- 变更明细列表 -->
+                      <view class="change-detail" wx:for="{{record.changes}}" wx:for-item="change" wx:key="field">
+                        <view class="change-row">
+                          <text class="change-label">{{change.field_label}}</text>
+                          <view class="change-values">
+                            <text class="change-old">{{change.old_value || '无'}}</text>
+                            <text class="change-arrow">→</text>
+                            <text class="change-new">{{change.new_value || '无'}}</text>
+                          </view>
+                        </view>
+                      </view>
+                      <view class="log-row" wx:if="{{record.operator_name}}">
+                        <text class="log-label">操作人</text>
+                        <text class="log-value">{{record.operator_name}}</text>
+                      </view>
+                      <view class="log-row" wx:if="{{record.remark}}">
+                        <text class="log-label">备注</text>
+                        <text class="log-value">{{record.remark}}</text>
+                      </view>
+                    </block>
                   </view>
                 </view>
               </view>
-              <view class="log-row" wx:if="{{record.operator_name}}">
-                <text class="log-label">操作人</text>
-                <text class="log-value">{{record.operator_name}}</text>
+              <!-- 该月加载中 -->
+              <view class="month-loading" wx:if="{{mg.monthLoading}}">加载中...</view>
+              <!-- 该月独立的查看更多 -->
+              <view class="expand-toggle month-more" wx:if="{{!mg.monthLoading && mg.hasMore}}" bindtap="onLoadMonthMore" data-tab="extension" data-month="{{mg.monthKey}}">
+                <text>查看更多 ({{mg.remainCount}}位)</text>
+                <view class="toggle-arrow down"></view>
               </view>
-              <view class="log-row" wx:if="{{record.remark}}">
-                <text class="log-label">备注</text>
-                <text class="log-value">{{record.remark}}</text>
-              </view>
-            </block>
+            </view>
           </view>
         </view>
       </view>
     </view>
 
-    <empty-state wx:if="{{!loading && extensionList.length === 0}}" icon="" text="暂无变更记录"></empty-state>
+    <empty-state wx:if="{{!loading && extensionGroups.length === 0}}" icon="" text="暂无变更记录"></empty-state>
   </view>
 
   <!-- ========== 套餐录入 TAB ========== -->
@@ -191,73 +257,90 @@
       </view>
     </view>
 
-    <view class="logs-list" wx:if="{{entryList.length > 0}}">
-      <view class="log-item card" wx:for="{{entryList}}" wx:key="_id" wx:if="{{index < visibleCount}}">
-        <!-- 会员头部 -->
-        <view class="log-header">
-          <view class="log-title-wrap">
-            <text class="log-title">{{item.user_name}}</text>
-            <text class="deleted-tag" wx:if="{{item.user_deleted}}">已删除</text>
-            <text class="record-count-badge">{{item.record_count}}条</text>
+    <view class="logs-list" wx:if="{{entryGroups.length > 0}}">
+      <view class="year-group" wx:for="{{entryGroups}}" wx:key="year" wx:for-item="yg">
+        <view class="year-header">
+          <text class="year-label">{{yg.yearLabel}}</text>
+          <view class="header-badges">
+            <text class="year-member-count" wx:if="{{yg.memberCount > 0}}">{{yg.memberCount}}位</text>
+            <text class="year-count">{{yg.totalCount}}条</text>
           </view>
         </view>
-        <!-- 记录列表 -->
-        <view class="log-body">
-          <view class="sub-record" wx:for="{{item.records}}" wx:for-item="record" wx:key="_id">
-            <view class="sub-record-divider" wx:if="{{index > 0}}"></view>
-            <view class="sub-record-header">
-              <text class="log-type">套餐录入</text>
+        <view class="month-list">
+          <view class="month-group" wx:for="{{yg.months}}" wx:key="monthKey" wx:for-item="mg">
+            <view class="month-header" bindtap="onToggleMonthGroup" data-tab="entry" data-month="{{mg.monthKey}}">
+              <view class="month-header-left">
+                <text class="month-toggle {{mg.expanded ? 'expanded' : ''}}">▶</text>
+                <text class="month-label {{mg.isCurrent ? 'month-label-current' : ''}}">{{mg.monthLabel}}</text>
+                <text class="month-tag-current" wx:if="{{mg.isCurrent}}">本月</text>
+              </view>
+              <view class="header-badges">
+                <text class="month-member-count" wx:if="{{mg.memberCount > 0}}">{{mg.memberCount}}位</text>
+                <text class="month-count">{{mg.count}}条</text>
+              </view>
             </view>
-            <view class="log-row">
-              <text class="log-label">套餐名称</text>
-              <text class="log-value">{{record.package_name || '-'}}</text>
-            </view>
-            <view class="log-row">
-              <text class="log-label">录入时间</text>
-              <text class="log-value">{{record.created_at_display || '-'}}</text>
-            </view>
-            <view class="log-row">
-              <text class="log-label">套餐类型</text>
-              <text class="log-value">{{record.packageTypeLabel}}</text>
-            </view>
-            <view class="log-row" wx:if="{{record.creditsText}}">
-              <text class="log-label">课时/时长</text>
-              <text class="log-value">{{record.creditsText}}</text>
-            </view>
-            <view class="log-row" wx:if="{{record.operator_name}}">
-              <text class="log-label">操作人</text>
-              <text class="log-value">{{record.operator_name}}</text>
-            </view>
-            <view class="log-row" wx:if="{{record.remark}}">
-              <text class="log-label">备注</text>
-              <text class="log-value">{{record.remark}}</text>
+            <view class="month-content" wx:if="{{mg.expanded}}">
+              <view class="log-item card" wx:for="{{mg.cards}}" wx:key="_id" wx:for-item="item">
+                <!-- 会员头部 -->
+                <view class="log-header">
+                  <view class="log-title-wrap">
+                    <text class="log-title">{{item.user_name}}</text>
+                    <text class="deleted-tag" wx:if="{{item.user_deleted}}">已删除</text>
+                    <text class="record-count-badge">{{item.monthRecordCount}}条</text>
+                  </view>
+                </view>
+                <!-- 记录列表 -->
+                <view class="log-body">
+                  <view class="sub-record" wx:for="{{item.records}}" wx:for-item="record" wx:key="_id">
+                    <view class="sub-record-divider" wx:if="{{index > 0}}"></view>
+                    <view class="sub-record-header">
+                      <text class="log-type">套餐录入</text>
+                    </view>
+                    <view class="log-row">
+                      <text class="log-label">套餐名称</text>
+                      <text class="log-value">{{record.package_name || '-'}}</text>
+                    </view>
+                    <view class="log-row">
+                      <text class="log-label">录入时间</text>
+                      <text class="log-value">{{record.created_at_display || '-'}}</text>
+                    </view>
+                    <view class="log-row">
+                      <text class="log-label">套餐类型</text>
+                      <text class="log-value">{{record.packageTypeLabel}}</text>
+                    </view>
+                    <view class="log-row" wx:if="{{record.creditsText}}">
+                      <text class="log-label">课时/时长</text>
+                      <text class="log-value">{{record.creditsText}}</text>
+                    </view>
+                    <view class="log-row" wx:if="{{record.operator_name}}">
+                      <text class="log-label">操作人</text>
+                      <text class="log-value">{{record.operator_name}}</text>
+                    </view>
+                    <view class="log-row" wx:if="{{record.remark}}">
+                      <text class="log-label">备注</text>
+                      <text class="log-value">{{record.remark}}</text>
+                    </view>
+                  </view>
+                </view>
+              </view>
+              <!-- 该月加载中 -->
+              <view class="month-loading" wx:if="{{mg.monthLoading}}">加载中...</view>
+              <!-- 该月独立的查看更多 -->
+              <view class="expand-toggle month-more" wx:if="{{!mg.monthLoading && mg.hasMore}}" bindtap="onLoadMonthMore" data-tab="entry" data-month="{{mg.monthKey}}">
+                <text>查看更多 ({{mg.remainCount}}位)</text>
+                <view class="toggle-arrow down"></view>
+              </view>
             </view>
           </view>
         </view>
       </view>
     </view>
 
-    <empty-state wx:if="{{!loading && entryList.length === 0}}" icon="" text="暂无录入记录"></empty-state>
-  </view>
-
-  <!-- 查看更多按钮（跟随内容流动） -->
-  <view class="expand-toggle" wx:if="{{!loading && hasMore}}" bindtap="onLoadMore">
-    <text>查看更多 ({{currentTotal - visibleCount}}位)</text>
-    <view class="toggle-arrow down"></view>
-  </view>
-
-  <!-- 没有更多数据提示 -->
-  <view class="no-more" wx:if="{{!hasMore && !loading && currentTotal > 0}}">
-    <text class="no-more-text">没有更多数据了</text>
+    <empty-state wx:if="{{!loading && entryGroups.length === 0}}" icon="" text="暂无录入记录"></empty-state>
   </view>
 
   <!-- 初始加载提示 -->
-  <view class="loading" wx:if="{{loading && page === 1}}">
-    <text class="load-more">加载中...</text>
-  </view>
-
-  <!-- 加载中提示 -->
-  <view class="loading-more" wx:if="{{loading && page > 1}}">
+  <view class="loading" wx:if="{{loading}}">
     <text class="load-more">加载中...</text>
   </view>
 

@@ -1,0 +1,1 @@
+<canvas type="2d" id="{{chartId}}" class="dc-chart-canvas" style="height: {{height}}rpx;"></canvas>

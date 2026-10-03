@@ -231,6 +231,7 @@
 .logs-list {
   display: flex;
   flex-direction: column;
+  gap: 24rpx;
 }
 
 .log-item {
@@ -328,6 +329,10 @@
 
 /* 子记录头部（记录类型标签） */
 .sub-record-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12rpx;
   margin-bottom: 12rpx;
 }
 
@@ -403,6 +408,8 @@
   border-top: 12rpx solid var(--color-primary, #D4786E);
   border-bottom: none;
 }
+
+
 
 /* 返回顶部按钮 */
 .back-to-top {
@@ -540,4 +547,179 @@
   font-size: 24rpx;
   color: #3066DC;
   font-weight: 600;
+}
+
+/* ========== 年 → 月 分组（对齐预约记录月份行） ========== */
+.year-group {
+  background: #FFFFFF;
+  border-radius: 24rpx;
+  box-shadow: 0 2rpx 12rpx rgba(44,36,22,0.04);
+  overflow: hidden;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.year-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 24rpx 24rpx 12rpx;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.year-label {
+  font-size: 34rpx;
+  color: #2C2416;
+  font-weight: 700;
+  flex: 1;
+  min-width: 0;
+}
+
+/* 年/月行右侧统计胶囊容器（会员数 + 条数并排） */
+.header-badges {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+/* 年份行会员数胶囊（与条数胶囊样式一致） */
+.year-member-count {
+  font-size: 20rpx;
+  color: var(--color-primary, #D4786E);
+  background: var(--color-primary-bg, rgba(212,120,110,0.1));
+  border-radius: 20rpx;
+  padding: 2rpx 12rpx;
+  margin-right: 8rpx;
+  font-weight: 500;
+}
+
+/* 年份行统计角标（胶囊样式，与会员卡片角标一致） */
+.year-count {
+  font-size: 20rpx;
+  color: var(--color-primary, #D4786E);
+  background: var(--color-primary-bg, rgba(212,120,110,0.1));
+  border-radius: 20rpx;
+  padding: 2rpx 12rpx;
+  font-weight: 500;
+  flex-shrink: 0;
+}
+
+.month-list {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.month-group {
+  width: 100%;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.month-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20rpx 24rpx;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.month-header:active {
+  background: rgba(212,120,110,0.05);
+}
+
+.month-header-left {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.month-toggle {
+  font-size: 24rpx;
+  color: #B8AFA4;
+  margin-right: 12rpx;
+  transition: transform 200ms ease;
+}
+
+.month-toggle.expanded {
+  transform: rotate(90deg);
+}
+
+.month-label {
+  font-size: 30rpx;
+  color: #2C2416;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.month-label-current {
+  color: #D4786E;
+  font-weight: 700;
+}
+
+.month-tag-current {
+  flex-shrink: 0;
+  font-size: 20rpx;
+  color: #D4786E;
+  background: rgba(212,120,110,0.12);
+  border-radius: 8rpx;
+  padding: 2rpx 10rpx;
+  margin-left: 10rpx;
+  font-weight: 600;
+}
+
+/* 月份行会员数胶囊（与条数胶囊样式一致） */
+.month-member-count {
+  font-size: 20rpx;
+  color: var(--color-primary, #D4786E);
+  background: var(--color-primary-bg, rgba(212,120,110,0.1));
+  border-radius: 20rpx;
+  padding: 2rpx 12rpx;
+  margin-right: 8rpx;
+  font-weight: 500;
+}
+
+/* 月份行统计角标（胶囊样式，与会员卡片角标一致） */
+.month-count {
+  font-size: 20rpx;
+  color: var(--color-primary, #D4786E);
+  background: var(--color-primary-bg, rgba(212,120,110,0.1));
+  border-radius: 20rpx;
+  padding: 2rpx 12rpx;
+  font-weight: 500;
+  flex-shrink: 0;
+}
+
+.month-content {
+  padding: 0 16rpx 16rpx;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* 该月数据加载中提示 */
+.month-loading {
+  padding: 16rpx 0 4rpx;
+  font-size: 24rpx;
+  color: #948284;
+  text-align: center;
+}
+
+.month-content .log-item {
+  margin-bottom: 16rpx;
+}
+
+.month-content .log-item:last-child {
+  margin-bottom: 0;
+}
+
+/* 月份内容内的“查看更多”按钮间距 */
+.month-content .expand-toggle {
+  margin: 16rpx 0 4rpx;
 }

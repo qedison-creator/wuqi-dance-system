@@ -1,12 +1,20 @@
 const router = require('express').Router();
 const auth = require('../middleware/auth');
-const checkPermission = require('../middleware/permission');
 const { checkModulePermission } = require('../middleware/permission');
 const storeFilter = require('../middleware/storeFilter');
 const coachSalaryService = require('../services/coach-salary.service');
-const { success, paginate } = require('../utils/response');
+const { success, paginate, error } = require('../utils/response');
 
 // 教练薪酬配置相关路由
+
+// 审核员全量禁止访问薪酬数据（商业秘密隔离）
+// 注意：auth 在此先行执行（各路由内的 auth 重复校验无害），确保拦截时 req.user 已就绪
+router.use(auth, (req, res, next) => {
+  if (req.user && req.user.role === 'reviewer') {
+    return res.status(403).json(error(403, '审核员无权访问薪酬数据'));
+  }
+  next();
+});
 
 // GET /api/v1/coach-salaries - 获取薪酬配置列表
 router.get('/', auth, checkModulePermission('salary'), storeFilter(), async (req, res, next) => {
@@ -38,7 +46,7 @@ router.post('/', auth, checkModulePermission('salary'), storeFilter(), async (re
   }
 });
 
-// PUT /api/v1/coach-salaries/:id - 更新薪酬配置
+// PUT /api/v1/coach-salaries/:id - 修改某一期单价（原地生效，该期已入账薪酬与账单按新单价重算）
 router.put('/:id', auth, checkModulePermission('salary'), storeFilter(), async (req, res, next) => {
   try {
     const salary = await coachSalaryService.updateCoachSalary(req.params.id, req.body, req.user.id, req.user);
@@ -48,7 +56,7 @@ router.put('/:id', auth, checkModulePermission('salary'), storeFilter(), async (
   }
 });
 
-// DELETE /api/v1/coach-salaries/:id - 删除薪酬配置（归属校验在 service 层：店长只能删所属门店配置，全局配置仅超管可删）
+// DELETE /api/v1/coach-salaries/:id - 删除某一期单价（该期无入账课程时允许，前一版自动衔接）
 router.delete('/:id', auth, checkModulePermission('salary'), storeFilter(), async (req, res, next) => {
   try {
     const result = await coachSalaryService.deleteCoachSalary(req.params.id, req.user.id, req.user);
@@ -69,12 +77,42 @@ router.post('/batch-delete', auth, checkModulePermission('salary'), storeFilter(
   }
 });
 
-// 教练薪酬统计相关路由
+// 教练课时统计 / 薪酬统计相关路由
 
-// GET /api/v1/coach-salaries/stats/monthly - 获取薪酬按月聚合（旧，基于CoachSalaryStat）
-router.get('/stats/monthly', auth, checkModulePermission('salary'), storeFilter(), async (req, res, next) => {
+// GET /api/v1/coach-salaries/stats/class-hours - 课时统计（按年，按月/教练/门店分组）
+router.get('/stats/class-hours', auth, checkModulePermission('salary'), storeFilter(), async (req, res, next) => {
   try {
-    const result = await coachSalaryService.getSalaryMonthlyStats(req.query, req.user);
+    const result = await coachSalaryService.getClassHoursStats(req.query, req.user);
+    res.json(success(result));
+  } catch (err) {
+    next(err);
+  }
+});
+
+// GET /api/v1/coach-salaries/stats/class-hours/detail - 课时统计逐课明细（展开教练卡片时懒加载）
+router.get('/stats/class-hours/detail', auth, checkModulePermission('salary'), storeFilter(), async (req, res, next) => {
+  try {
+    const result = await coachSalaryService.getClassHoursDetail(req.query, req.user);
+    res.json(success(result));
+  } catch (err) {
+    next(err);
+  }
+});
+
+// GET /api/v1/coach-salaries/stats/monthly-salary - 月度薪酬明细（上课事实 × 按上课日期解析的费率）
+router.get('/stats/monthly-salary', auth, checkModulePermission('salary'), storeFilter(), async (req, res, next) => {
+  try {
+    const result = await coachSalaryService.getMonthlySalaryBreakdown(req.query, req.user);
+    res.json(success(result));
+  } catch (err) {
+    next(err);
+  }
+});
+
+// GET /api/v1/coach-salaries/stats/rate-gaps - 课时单价空档检测（有课但该时期未配置单价）
+router.get('/stats/rate-gaps', auth, checkModulePermission('salary'), storeFilter(), async (req, res, next) => {
+  try {
+    const result = await coachSalaryService.getRateGaps(req.query, req.user);
     res.json(success(result));
   } catch (err) {
     next(err);
@@ -101,94 +139,32 @@ router.get('/stats/bills/:id', auth, checkModulePermission('salary'), storeFilte
   }
 });
 
-// DELETE /api/v1/coach-salaries/stats/bills/:id - 删除账单
+// DELETE /api/v1/coach-salaries/stats/bills/:id - 删除账单（作废名下全部课薪台账）
 router.delete('/stats/bills/:id', auth, checkModulePermission('salary'), storeFilter(), async (req, res, next) => {
   try {
     await coachSalaryService.deleteBill(req.params.id, req.user);
-    res.json(success(null, '账单已删除'));
+    res.json(success(null, '账单已删除，对应课时已恢复为未入账状态'));
   } catch (err) {
     next(err);
   }
 });
 
-// GET /api/v1/coach-salaries/stats/monthly-salary - 获取月度薪酬明细（基于实际上课数据 × 薪酬配置）
-router.get('/stats/monthly-salary', auth, checkModulePermission('salary'), storeFilter(), async (req, res, next) => {
-  try {
-    const result = await coachSalaryService.getMonthlySalaryBreakdown(req.query, req.user);
-    res.json(success(result));
-  } catch (err) {
-    next(err);
-  }
-});
-
-// GET /api/v1/coach-salaries/stats/class-hours - 获取课时统计（按月份分组）
-router.get('/stats/class-hours', auth, checkModulePermission('salary'), storeFilter(), async (req, res, next) => {
-  try {
-    const result = await coachSalaryService.getClassHoursStats(req.query, req.user);
-    res.json(success(result));
-  } catch (err) {
-    next(err);
-  }
-});
-
-// GET /api/v1/coach-salaries/stats/list - 获取薪酬统计列表
-router.get('/stats/list', auth, checkModulePermission('salary'), storeFilter(), async (req, res, next) => {
-  try {
-    const result = await coachSalaryService.getCoachSalaryStats(req.query, req.user);
-    res.json(success(paginate(result.list, result.total, result.page, result.pageSize)));
-  } catch (err) {
-    next(err);
-  }
-});
-
-// GET /api/v1/coach-salaries/stats/summary - 获取薪酬汇总
-router.get('/stats/summary', auth, checkModulePermission('salary'), storeFilter(), async (req, res, next) => {
-  try {
-    const summary = await coachSalaryService.getSalarySummary(req.query, req.user);
-    res.json(success(summary));
-  } catch (err) {
-    next(err);
-  }
-});
-
-// POST /api/v1/coach-salaries/stats/generate - 生成薪酬统计（支持单个排课和批量生成账单）
+// POST /api/v1/coach-salaries/stats/generate - 生成薪酬账单（预览/正式，逐课写台账）
 router.post('/stats/generate', auth, checkModulePermission('salary'), storeFilter(), async (req, res, next) => {
   try {
-    const { schedule_id, start_date, end_date, preview } = req.body;
-    
-    if (start_date && end_date) {
-      const coachIds = req.body.coach_ids || null;
-      const storeId = req.body.store_id || null;
-      const result = await coachSalaryService.generateSalaryBill(start_date, end_date, preview || false, req.user.id, coachIds, req.user, storeId);
-      res.json(success(result, preview ? '生成预览成功' : '生成账单成功'));
-    } else if (schedule_id) {
-      const stat = await coachSalaryService.createSalaryStat(schedule_id, req.user.id);
-      res.json(success(stat, '生成薪酬统计成功'));
-    } else {
-      return res.status(400).json({ code: 400, message: '缺少必要参数', data: null });
+    const { start_date, end_date, preview } = req.body;
+
+    if (!start_date || !end_date) {
+      return res.status(400).json({ code: 400, message: '缺少必要参数（start_date/end_date）', data: null });
     }
-  } catch (err) {
-    next(err);
-  }
-});
+    if (start_date > end_date) {
+      return res.status(400).json({ code: 400, message: '开始日期不能大于结束日期', data: null });
+    }
 
-// PUT /api/v1/coach-salaries/stats/:id/settle - 结算薪酬
-router.put('/stats/:id/settle', auth, checkModulePermission('salary'), storeFilter(), async (req, res, next) => {
-  try {
-    const { remark } = req.body;
-    const stat = await coachSalaryService.settleSalary(req.params.id, req.user.id, remark);
-    res.json(success(stat, '结算薪酬成功'));
-  } catch (err) {
-    next(err);
-  }
-});
-
-// PUT /api/v1/coach-salaries/stats/:id/cancel - 取消薪酬统计
-router.put('/stats/:id/cancel', auth, checkModulePermission('salary'), storeFilter(), async (req, res, next) => {
-  try {
-    const { reason } = req.body;
-    const stat = await coachSalaryService.cancelSalaryStat(req.params.id, req.user.id, reason);
-    res.json(success(stat, '取消薪酬统计成功'));
+    const coachIds = req.body.coach_ids || null;
+    const storeId = req.body.store_id || null;
+    const result = await coachSalaryService.generateSalaryBill(start_date, end_date, preview || false, req.user.id, coachIds, req.user, storeId);
+    res.json(success(result, preview ? '生成预览成功' : '生成账单成功'));
   } catch (err) {
     next(err);
   }

@@ -6,6 +6,8 @@ const PackageExtension = require('../models/PackageExtension');
 const PackageChange = require('../models/PackageChange');
 const Booking = require('../models/Booking');
 const User = require('../models/User');
+const Store = require('../models/Store');
+const DanceStyle = require('../models/DanceStyle');
 const logService = require('./log.service');
 const { sendToUser } = require('./websocket.service');
 const dayjs = require('dayjs');
@@ -17,6 +19,157 @@ dayjs.extend(timezone);
 dayjs.extend(isoWeek);
 
 const BEIJING_TZ = 'Asia/Shanghai';
+
+// 规范化可用星期限制：仅保留 0-6（0=周日…6=周六），去重升序；空/非法 → []（整周可用）
+function normalizeWeekdayLimit(value) {
+  if (!Array.isArray(value)) return [];
+  const valid = [...new Set(value.map(Number).filter(n => Number.isInteger(n) && n >= 0 && n <= 6))];
+  return valid.sort((a, b) => a - b);
+}
+
+exports.normalizeWeekdayLimit = normalizeWeekdayLimit;
+
+const TIME_HHMM_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
+
+// 规范化可用时段（双边界独立开关）：
+//   返回 { usable_before, usable_after }，均为 'HH:mm' 或 ''（不限）
+//   同开且 before >= after 为空窗口 → 抛错（调用方决定提示语）
+function normalizeTimeLimit(before, after) {
+  const clean = (v) => (typeof v === 'string' && TIME_HHMM_RE.test(v.trim())) ? v.trim() : '';
+  const b = clean(before);
+  const a = clean(after);
+  if (b && a && b >= a) {
+    throw new Error(`可用时段设置无效：时段前（${b}）需早于时段后（${a}）`);
+  }
+  return { usable_before: b, usable_after: a };
+}
+
+exports.normalizeTimeLimit = normalizeTimeLimit;
+
+// ========== 套餐变更明细值展示格式化 ==========
+// PackageChange.changes 写入时保存的是原始字符串值（ObjectId/英文时间串/null/数字星期），
+// 查询展示时统一转为可读文案，存量历史数据同样生效。
+const WEEKDAY_CN = ['日', '一', '二', '三', '四', '五', '六'];
+const CHANGE_STATUS_TEXT = {
+  inactive: '未激活',
+  active: '使用中',
+  paused: '已暂停',
+  expired: '已过期',
+  depleted: '已用完',
+  exhausted: '已用完'
+};
+const CHANGE_PACKAGE_TYPE_TEXT = { count_card: '次卡', time_card: '时间卡' };
+const CHANGE_DURATION_UNIT_TEXT = { day: '天', month: '个月', year: '年' };
+// 这些字段为空表示"不限制"，而非"无"
+const EMPTY_AS_UNLIMITED_FIELDS = ['daily_limit', 'weekly_limit', 'monthly_limit', 'weekday_limit', 'dance_style_limit'];
+
+// 格式化单条变更明细的 old_value / new_value
+// nameMap：extra_store_ids / dance_style_limit 用的 ID→名称映射
+function formatChangeValue(field, raw, nameMap) {
+  let val = raw === undefined || raw === null ? '' : String(raw).trim();
+  if (val === 'null' || val === 'undefined') val = '';
+  if (val === '' || val === '无') {
+    return EMPTY_AS_UNLIMITED_FIELDS.indexOf(field) !== -1 ? '不限' : '无';
+  }
+  switch (field) {
+    case 'start_date':
+    case 'end_date': {
+      const d = new Date(val);
+      if (isNaN(d.getTime())) return val;
+      return dayjs(d).tz(BEIJING_TZ).format('YYYY-MM-DD');
+    }
+    case 'status':
+      return CHANGE_STATUS_TEXT[val] || val;
+    case 'package_type':
+      return CHANGE_PACKAGE_TYPE_TEXT[val] || val;
+    case 'duration_unit':
+      return CHANGE_DURATION_UNIT_TEXT[val] || val;
+    case 'weekday_limit':
+      return val.split(',')
+        .map(s => (WEEKDAY_CN[Number(s)] !== undefined ? WEEKDAY_CN[Number(s)] : s))
+        .filter(Boolean)
+        .join('、');
+    case 'extra_store_ids':
+    case 'dance_style_limit': {
+      const fallback = field === 'extra_store_ids' ? '已删除门店' : '已删除舞种';
+      return val.split(',')
+        .map(id => (nameMap && nameMap[String(id).trim()]) || fallback)
+        .join('、');
+    }
+    default:
+      return val;
+  }
+}
+
+// ========== 年/月分组统计（全量口径） ==========
+// 无有效时间的记录归入此key（与前端保持一致）
+const UNKNOWN_MONTH_KEY = '__unknown__';
+
+// 按北京时间聚合某集合的"月份 → { 记录数, 去重会员ID集合 }"
+// 该统计基于筛选条件对全部记录聚合，不受会员分页影响
+async function aggregateMonthStats(Model, filter, dateField) {
+  const agg = await Model.aggregate([
+    { $match: filter },
+    {
+      $group: {
+        _id: {
+          month: { $dateToString: { format: '%Y-%m', date: `$${dateField}`, timezone: BEIJING_TZ } },
+          user: { $toString: '$user_id' }
+        },
+        count: { $sum: 1 }
+      }
+    }
+  ]);
+  const map = {};
+  agg.forEach(row => {
+    const key = (row._id && row._id.month) || UNKNOWN_MONTH_KEY;
+    if (!map[key]) map[key] = { count: 0, users: new Set() };
+    map[key].count += row.count || 0;
+    if (row._id && row._id.user) map[key].users.add(row._id.user);
+  });
+  return map;
+}
+
+// 合并多个月份统计map（同一月份记录数累加，会员集合取并集去重）
+function mergeMonthStats() {
+  const merged = {};
+  for (let i = 0; i < arguments.length; i++) {
+    const map = arguments[i] || {};
+    Object.keys(map).forEach(k => {
+      if (!merged[k]) merged[k] = { count: 0, users: new Set() };
+      merged[k].count += map[k].count || 0;
+      map[k].users.forEach(u => merged[k].users.add(u));
+    });
+  }
+  return merged;
+}
+
+// 将月份统计序列化为可传输结构：
+// - monthCounts: { 'YYYY-MM': { count: 记录数, memberCount: 去重会员数 } }
+// - yearMemberCounts: { 'YYYY': 去重会员数 }（按年去重，避免各月简单相加重复计数）
+function serializeMonthStats(stats) {
+  const monthCounts = {};
+  const yearUsers = {};
+  Object.keys(stats || {}).forEach(monthKey => {
+    const { count, users } = stats[monthKey];
+    monthCounts[monthKey] = { count, memberCount: users.size };
+    const year = monthKey === UNKNOWN_MONTH_KEY ? UNKNOWN_MONTH_KEY : monthKey.slice(0, 4);
+    if (!yearUsers[year]) yearUsers[year] = new Set();
+    users.forEach(u => yearUsers[year].add(u));
+  });
+  const yearMemberCounts = {};
+  Object.keys(yearUsers).forEach(y => {
+    yearMemberCounts[y] = yearUsers[y].size;
+  });
+  return { monthCounts, yearMemberCounts };
+}
+
+// 解析 month 参数（YYYY-MM，北京时间）为该月起止时间；无效返回 null
+function getMonthRange(month) {
+  if (!month || typeof month !== 'string' || !/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) return null;
+  const start = dayjs.tz(`${month}-01T00:00:00`, BEIJING_TZ);
+  return { start: start.toDate(), end: start.add(1, 'month').toDate() };
+}
 
 /**
  * 统一计算套餐起止时间：
@@ -165,15 +318,59 @@ exports.getMyPackage = async (userId) => {
     return stat;
   }));
 
+  // 转为普通对象，并为每个 active 时间卡挂载 timeCardUsage（Mongoose doc 上挂属性不会随 JSON 序列化输出）
+  // 修复：原先只为 current（第一个 active 套餐）计算，会员同时持有次卡+时间卡且次卡在前时，
+  // 时间卡卡片/详情拿不到周期限制数据
+  const packagesData = packages.map(p => p.toObject());
+  await Promise.all(packagesData.map(async (obj) => {
+    if (obj.status === 'active' && !obj.is_suspended && obj.package_type === 'time_card') {
+      if (timeCardUsage && activePackage && String(obj._id) === String(activePackage._id)) {
+        obj.timeCardUsage = timeCardUsage;
+      } else {
+        obj.timeCardUsage = await calcTimeCardUsage(obj);
+      }
+    }
+  }));
+
   return {
     current: activePackage || null,
     pending: pendingPackages,
     suspended: suspendedPackages.length > 0 ? suspendedPackages : null,
     hasSuspended: suspendedPackages.length > 0,
-    history: packages,
+    history: packagesData,
     timeCardUsage,
     activeStats,
   };
+};
+
+/**
+ * 获取用户可查看"预约人数/预约情况"的门店 ID 集合（场次预约信息权限隔离）。
+ * 有效套餐口径与会员端 _updateCanViewCapacity 一致：
+ * - pending（待激活）视为有效
+ * - active 且未暂停、未过期视为有效（已激活且 end_date 已过的不算）
+ * 覆盖门店 = 有效套餐的 store_id + extra_store_ids（跨店）。
+ * 返回值：管理类角色 → null（不限制）；游客 → 空 Set；会员 → 门店 ID 字符串 Set。
+ */
+exports.getBookingViewableStoreIds = async (user) => {
+  if (!user) return new Set();
+  const adminRoles = ['super_admin', 'store_manager', 'staff', 'reviewer'];
+  if (adminRoles.includes(user.role)) return null;
+  const now = new Date();
+  const packages = await UserPackage.find({
+    user_id: user.id,
+    status: { $in: ['pending', 'active'] },
+  }).select('status store_id extra_store_ids is_activated end_date is_suspended').lean();
+  const storeIds = new Set();
+  packages.forEach(pkg => {
+    if (pkg.status === 'active' && (pkg.is_suspended || (pkg.is_activated && pkg.end_date && now > new Date(pkg.end_date)))) {
+      return;
+    }
+    if (pkg.store_id) storeIds.add(String(pkg.store_id._id || pkg.store_id));
+    (pkg.extra_store_ids || []).forEach(sid => {
+      if (sid) storeIds.add(String(sid._id || sid));
+    });
+  });
+  return storeIds;
 };
 
 async function calcTimeCardUsage(userPackage) {
@@ -352,7 +549,7 @@ exports._recordPackageChange = async (userPackage, changes, operatorId, remark =
 };
 
 exports.createPackage = async (data, operatorId) => {
-  const { user_id, package_id, store_id, extra_store_ids, package_type, total_credits, duration_value, duration_unit, daily_limit, weekly_limit, monthly_limit, dance_style_limit, remark, activate_mode } = data;
+  const { user_id, package_id, store_id, extra_store_ids, package_type, total_credits, duration_value, duration_unit, daily_limit, weekly_limit, monthly_limit, dance_style_limit, weekday_limit, usable_before, usable_after, remark, activate_mode } = data;
 
   if (!user_id) throw new Error('用户ID不能为空');
   if (!package_type) throw new Error('套餐类型不能为空');
@@ -391,6 +588,8 @@ exports.createPackage = async (data, operatorId) => {
     weekly_limit: weekly_limit || null,
     monthly_limit: monthly_limit || null,
     dance_style_limit: Array.isArray(dance_style_limit) ? dance_style_limit : [],
+    weekday_limit: normalizeWeekdayLimit(weekday_limit),
+    ...normalizeTimeLimit(usable_before, usable_after),
     is_activated: false,
     activated_at: null,
     auto_activate_at: autoActivateAt,
@@ -648,8 +847,20 @@ exports.updatePackage = async (id, data, operatorId = null) => {
   //   - 实际消耗次数 = 旧 total_credits - 旧 remaining_credits，新 remaining_credits = 新 total_credits - 已消耗次数
   const isActivated = userPackage.is_activated;
   const allowedFields = isActivated
-    ? ['total_credits', 'remaining_credits', 'start_date', 'end_date', 'daily_limit', 'weekly_limit', 'monthly_limit', 'dance_style_limit', 'status', 'remark', 'extra_store_ids']
-    : ['package_type', 'total_credits', 'remaining_credits', 'duration_value', 'duration_unit', 'daily_limit', 'weekly_limit', 'monthly_limit', 'dance_style_limit', 'status', 'remark', 'extra_store_ids'];
+    ? ['total_credits', 'remaining_credits', 'start_date', 'end_date', 'daily_limit', 'weekly_limit', 'monthly_limit', 'dance_style_limit', 'weekday_limit', 'usable_before', 'usable_after', 'status', 'remark', 'extra_store_ids']
+    : ['package_type', 'total_credits', 'remaining_credits', 'duration_value', 'duration_unit', 'daily_limit', 'weekly_limit', 'monthly_limit', 'dance_style_limit', 'weekday_limit', 'usable_before', 'usable_after', 'status', 'remark', 'extra_store_ids'];
+
+  // 可用时段规范化（双边界；同开且 after>=before 抛错）
+  if (data.usable_before !== undefined || data.usable_after !== undefined) {
+    const normalized = normalizeTimeLimit(data.usable_before, data.usable_after);
+    data.usable_before = normalized.usable_before;
+    data.usable_after = normalized.usable_after;
+  }
+
+  // 可用星期限制规范化（空/非法 → []，即整周可用）
+  if (data.weekday_limit !== undefined) {
+    data.weekday_limit = normalizeWeekdayLimit(data.weekday_limit);
+  }
 
   // 记录 duration_value/duration_unit 是否实际发生变化（用于判断是否需要重算有效期）
   const durationValueChanged = data.duration_value !== undefined && Number(data.duration_value) !== Number(userPackage.duration_value);
@@ -699,6 +910,8 @@ exports.updatePackage = async (id, data, operatorId = null) => {
     monthly_limit: '每月限制',
     start_date: '开始日期',
     end_date: '到期日期',
+    usable_before: '可用时段（前）',
+    usable_after: '可用时段（后）',
     status: '状态',
     remark: '备注'
   };
@@ -708,14 +921,14 @@ exports.updatePackage = async (id, data, operatorId = null) => {
       const oldValue = userPackage[key];
       const newValue = data[key];
       // 跳过未实际变化的字段
-      if (key === 'dance_style_limit' || key === 'extra_store_ids') {
+      if (key === 'dance_style_limit' || key === 'extra_store_ids' || key === 'weekday_limit') {
         // 数组类字段单独处理：仅当长度或内容变化时记录
         const oldArr = Array.isArray(oldValue) ? oldValue.map(String).sort().join(',') : '';
         const newArr = Array.isArray(newValue) ? newValue.map(String).sort().join(',') : '';
         if (oldArr === newArr) continue;
         changes.push({
           field: key,
-          field_label: key === 'dance_style_limit' ? '舞种限制' : '附加门店',
+          field_label: key === 'dance_style_limit' ? '舞种限制' : (key === 'weekday_limit' ? '可用星期' : '附加门店'),
           old_value: oldArr || '无',
           new_value: newArr || '无'
         });
@@ -932,7 +1145,7 @@ exports.deletePackage = async (id) => {
 };
 
 exports.getActivationRecords = async (query) => {
-  const { page = 1, pageSize = 20, store_id, keyword } = query;
+  const { page = 1, pageSize = 20, store_id, keyword, month } = query;
 
   const activationCount = await PackageActivation.countDocuments();
   const activatedPkgCount = await UserPackage.countDocuments({
@@ -975,6 +1188,13 @@ exports.getActivationRecords = async (query) => {
     ];
   }
 
+  // 年/月分组统计：全量口径（不带月份过滤，供前端渲染全部月份行及数字）
+  const activationMonthStats = await aggregateMonthStats(PackageActivation, filter, 'activated_at');
+  const { monthCounts, yearMemberCounts } = serializeMonthStats(activationMonthStats);
+  // month 参数（YYYY-MM，北京时间）：按月筛选该月发生的记录
+  const monthRange = getMonthRange(month);
+  if (monthRange) filter.activated_at = { $gte: monthRange.start, $lt: monthRange.end };
+
   // 按会员分组：先聚合获取去重 user_id 列表（按最新激活时间倒序），再分页
   const skip = (Number(page) - 1) * Number(pageSize);
   const limit = Number(pageSize);
@@ -997,6 +1217,8 @@ exports.getActivationRecords = async (query) => {
   // 拉取这些 user_id 的全部激活记录（不再分页，分页已在 user 维度完成）
   const fetchFilter = { user_id: { $in: userIds } };
   if (store_id) fetchFilter.store_id = mongoose.isValidObjectId(store_id) ? new mongoose.Types.ObjectId(store_id) : store_id;
+  // month 筛选时仅返回该月发生的记录（前端按月展开查看）
+  if (monthRange) fetchFilter.activated_at = { $gte: monthRange.start, $lt: monthRange.end };
 
   const list = await PackageActivation.find(fetchFilter)
     .populate('user_id', 'nick_name real_name phone')
@@ -1083,11 +1305,11 @@ exports.getActivationRecords = async (query) => {
   // 按 user_id 分组
   const groupList = groupRecordsByUser(records);
 
-  return { list: groupList, total, page: Number(page), pageSize: Number(pageSize) };
+  return { list: groupList, total, monthCounts, yearMemberCounts, page: Number(page), pageSize: Number(pageSize) };
 };
 
 exports.getExtensionRecords = async (query) => {
-  const { page = 1, pageSize = 20, store_id, keyword } = query;
+  const { page = 1, pageSize = 20, store_id, keyword, month } = query;
 
   // 为支持 keyword 会员搜索：先按 keyword 在 User 表中查到匹配的 user_id 列表
   let matchedUserIds = null;
@@ -1128,6 +1350,20 @@ exports.getExtensionRecords = async (query) => {
     ];
   }
 
+  // 年/月分组统计：全量口径（不带月份过滤，延长记录 + 字段变更记录）
+  const [extMonthStats, pcMonthStats] = await Promise.all([
+    aggregateMonthStats(PackageExtension, extFilter, 'created_at'),
+    aggregateMonthStats(PackageChange, pcFilter, 'created_at')
+  ]);
+  const { monthCounts, yearMemberCounts } = serializeMonthStats(mergeMonthStats(extMonthStats, pcMonthStats));
+  // month 参数（YYYY-MM，北京时间）：按月筛选该月发生的记录
+  const monthRange = getMonthRange(month);
+  if (monthRange) {
+    const createdRange = { $gte: monthRange.start, $lt: monthRange.end };
+    extFilter.created_at = createdRange;
+    pcFilter.created_at = createdRange;
+  }
+
   // 回填历史记录中缺失的快照数据（幂等）
   try {
     await exports.repairExtensionSnapshots();
@@ -1164,6 +1400,7 @@ exports.getExtensionRecords = async (query) => {
     .map(([id, latest]) => ({ _id: id, latest_at: latest }))
     .sort((a, b) => new Date(b.latest_at) - new Date(a.latest_at));
   const total = sortedUsers.length;
+
   const pagedUsers = sortedUsers.slice(skip, skip + limit);
   const userIds = pagedUsers.map(u => u._id);
 
@@ -1172,6 +1409,12 @@ exports.getExtensionRecords = async (query) => {
   if (store_id) extFetchFilter.store_id = mongoose.isValidObjectId(store_id) ? new mongoose.Types.ObjectId(store_id) : store_id;
   const pcFetchFilter = { user_id: { $in: userIds } };
   if (store_id) pcFetchFilter.store_id = mongoose.isValidObjectId(store_id) ? new mongoose.Types.ObjectId(store_id) : store_id;
+  // month 筛选时仅返回该月发生的记录（前端按月展开查看）
+  if (monthRange) {
+    const createdRange = { $gte: monthRange.start, $lt: monthRange.end };
+    extFetchFilter.created_at = createdRange;
+    pcFetchFilter.created_at = createdRange;
+  }
 
   const [extList, pcList] = await Promise.all([
     PackageExtension.find(extFetchFilter)
@@ -1247,6 +1490,37 @@ exports.getExtensionRecords = async (query) => {
     };
   });
 
+  // 收集变更明细中出现的门店/舞种 ID，批量查询名称，用于展示"附加门店""舞种限制"
+  const changeStoreIdSet = new Set();
+  const changeStyleIdSet = new Set();
+  pcList.forEach(pc => {
+    (pc.changes || []).forEach(ch => {
+      const field = ch.field;
+      if (field !== 'extra_store_ids' && field !== 'dance_style_limit') return;
+      [ch.old_value, ch.new_value].forEach(v => {
+        if (!v) return;
+        String(v).split(',').forEach(id => {
+          const sid = id.trim();
+          if (!sid || sid === '无' || sid === 'null' || !mongoose.isValidObjectId(sid)) return;
+          if (field === 'extra_store_ids') changeStoreIdSet.add(sid);
+          else changeStyleIdSet.add(sid);
+        });
+      });
+    });
+  });
+  const [changeStores, changeStyles] = await Promise.all([
+    changeStoreIdSet.size
+      ? Store.find({ _id: { $in: Array.from(changeStoreIdSet) } }).select('name').lean()
+      : [],
+    changeStyleIdSet.size
+      ? DanceStyle.find({ _id: { $in: Array.from(changeStyleIdSet) } }).select('name').lean()
+      : []
+  ]);
+  const changeStoreNameMap = {};
+  changeStores.forEach(s => { changeStoreNameMap[String(s._id)] = s.name || ''; });
+  const changeStyleNameMap = {};
+  changeStyles.forEach(s => { changeStyleNameMap[String(s._id)] = s.name || ''; });
+
   // 转换字段变更记录
   const pcRecords = pcList.map(pc => {
     const user = pc.user_id;
@@ -1285,7 +1559,20 @@ exports.getExtensionRecords = async (query) => {
       created_at: pc.created_at,
       operator_name: operator.real_name || operator.nick_name || operator.username || pc.operator_name || '',
       remark: pc.remark || '',
-      changes: pc.changes || [],
+      changes: (pc.changes || []).map(ch => ({
+        field: ch.field,
+        field_label: ch.field_label,
+        old_value: formatChangeValue(
+          ch.field,
+          ch.old_value,
+          ch.field === 'extra_store_ids' ? changeStoreNameMap : changeStyleNameMap
+        ),
+        new_value: formatChangeValue(
+          ch.field,
+          ch.new_value,
+          ch.field === 'extra_store_ids' ? changeStoreNameMap : changeStyleNameMap
+        ),
+      })),
     };
   });
 
@@ -1299,7 +1586,7 @@ exports.getExtensionRecords = async (query) => {
   // 按 user_id 分组（分页已在 user 维度完成，这里无需再切片）
   const groupList = groupRecordsByUser(merged);
 
-  return { list: groupList, total, page: Number(page), pageSize: Number(pageSize) };
+  return { list: groupList, total, monthCounts, yearMemberCounts, page: Number(page), pageSize: Number(pageSize) };
 };
 
 exports.extendPackage = async (packageId, extendDays, operatorId, operatorName, options = {}) => {
@@ -1336,6 +1623,7 @@ exports.extendPackage = async (packageId, extendDays, operatorId, operatorName, 
     original_expire_at: originalEnd,
     new_expire_at: newEnd,
     holiday_id: options.holiday_id || null,
+    revoked_extension_id: options.revoked_extension_id || null,
     operated_by: operatorId,
     reason: options.reason || '',
     remark: options.remark || '',
@@ -1365,7 +1653,7 @@ exports.extendPackage = async (packageId, extendDays, operatorId, operatorName, 
   return userPackage;
 };
 
-exports.revokePackageExtension = async (extensionId, operatorId, operatorName, reason) => {
+exports.revokePackageExtension = async (extensionId, operatorId, operatorName, reason, options = {}) => {
   const ext = await PackageExtension.findById(extensionId);
   if (!ext) throw new Error('延长记录不存在');
   if (ext.operation_type !== 'extend') throw new Error('只能撤销延长操作');
@@ -1390,6 +1678,7 @@ exports.revokePackageExtension = async (extensionId, operatorId, operatorName, r
     extend_days: ext.extend_days,
     original_expire_at: currentEnd,
     new_expire_at: newEnd,
+    holiday_id: options.holiday_id || null,
     revoked_extension_id: ext._id,
     operated_by: operatorId,
     reason: reason || '撤销延长',
@@ -1867,7 +2156,7 @@ exports.repairUserPackageMemberSnapshots = async () => {
 // 两种记录合并按 created_at 倒序统一分页
 // 支持 keyword 参数搜索会员（姓名/手机号）
 exports.getEntryRecords = async (query) => {
-  const { page = 1, pageSize = 20, store_id, keyword } = query;
+  const { page = 1, pageSize = 20, store_id, keyword, month } = query;
 
   // 清理历史遗留的虚假记录（幂等，无虚假记录时快速返回）
   try {
@@ -1914,6 +2203,13 @@ exports.getEntryRecords = async (query) => {
     ];
   }
 
+  // 年/月分组统计：全量口径（不带月份过滤，供前端渲染全部月份行及数字）
+  const entryMonthStats = await aggregateMonthStats(UserPackage, upFilter, 'created_at');
+  const { monthCounts, yearMemberCounts } = serializeMonthStats(entryMonthStats);
+  // month 参数（YYYY-MM，北京时间）：按月筛选该月发生的记录
+  const monthRange = getMonthRange(month);
+  if (monthRange) upFilter.created_at = { $gte: monthRange.start, $lt: monthRange.end };
+
   const limit = Number(pageSize);
   const skip = (Number(page) - 1) * limit;
 
@@ -1934,6 +2230,7 @@ exports.getEntryRecords = async (query) => {
   const total = (totalAgg[0] && totalAgg[0].total) || 0;
 
   // 拉取这些 user_id 的全部录入记录
+  // fetchFilter 展开 upFilter，month 筛选时自动带上 created_at 范围（仅返回该月发生的记录）
   const fetchFilter = { ...upFilter, user_id: { $in: userIds } };
   // 清除 upFilter 中的 $or（keyword 搜索已在聚合时完成），保留 store_id 和 remark 过滤
   delete fetchFilter.$or;
@@ -2042,5 +2339,5 @@ exports.getEntryRecords = async (query) => {
   // 按 user_id 分组
   const groupList = groupRecordsByUser(records);
 
-  return { list: groupList, total, page: Number(page), pageSize: Number(pageSize) };
+  return { list: groupList, total, monthCounts, yearMemberCounts, page: Number(page), pageSize: Number(pageSize) };
 };

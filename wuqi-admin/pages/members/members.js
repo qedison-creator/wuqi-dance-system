@@ -68,6 +68,7 @@ Page({
     pendingCount: 0,
     infoChangeCount: 0,
     pendingClaimCount: 0,
+    filterCounts: {},
     filterLabel: '使用中',
     // 门店选择弹窗
     showStorePicker: false,
@@ -578,6 +579,10 @@ Page({
       this.setData(updateData, () => {
         if (mergedList.length >= 5) this._calcBackToTopThreshold();
       });
+      // 列表重置到第一页时同步刷新筛选标签计数（角标）
+      if (isFirstPage) {
+        this.loadFilterCounts();
+      }
     } catch (err) {
       console.error('加载会员列表失败', err);
     } finally {
@@ -591,6 +596,21 @@ Page({
   },
 
   onReachBottom() {},
+
+  // ========== 筛选标签计数（角标） ==========
+  async loadFilterCounts() {
+    try {
+      const res = await request({
+        url: '/members/filter-counts',
+        method: 'GET',
+        data: { store_id: this.data.currentStoreId }
+      });
+      const counts = (res.data && res.data.counts) || {};
+      this.setData({ filterCounts: counts });
+    } catch (err) {
+      console.error('加载筛选标签计数失败', err);
+    }
+  },
 
   /**
    * 构建会员列表项数据（供 loadMembers 和 _refreshSingleMember 复用）

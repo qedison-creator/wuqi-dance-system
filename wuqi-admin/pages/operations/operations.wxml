@@ -209,19 +209,22 @@
             </view>
           </view>
           <view class="booking-actions-row">
-            <!-- 管理员/课程取消：课时已退还，不可操作 -->
+            <!-- 管理员/课程取消：课时已退还/有效期已恢复，不可操作 -->
             <block wx:if="{{item.isCourseCancel}}">
-              <text class="booking-refunded">已退还{{item.creditsRefunded}}次</text>
+              <text class="booking-refunded" wx:if="{{item.deductDays}}">有效期已恢复</text>
+              <text class="booking-refunded" wx:else>已退还{{item.creditsRefunded}}次</text>
               <text class="course-cancelled-tag">{{item.cancelReasonText || '课程已取消'}}</text>
             </block>
-            <!-- 已签到/已完成：显示扣次+已签到标签 -->
+            <!-- 已签到/已完成：显示扣次/缩期+已签到标签 -->
             <block wx:elif="{{item.checkedIn}}">
-              <text class="booking-credits">扣{{item.creditsDeducted}}次</text>
+              <text class="booking-credits" wx:if="{{item.deductDays}}">缩短有效期{{item.deductDays}}天</text>
+              <text class="booking-credits" wx:else>扣{{item.creditsDeducted}}次</text>
               <text class="checked-in-tag">已签到</text>
             </block>
             <!-- 正常可操作的预约（待上课） -->
             <block wx:else>
-              <text class="booking-credits">扣{{item.creditsDeducted}}次</text>
+              <text class="booking-credits" wx:if="{{item.deductDays}}">缩短有效期{{item.deductDays}}天</text>
+              <text class="booking-credits" wx:else>扣{{item.creditsDeducted}}次</text>
               <view class="booking-btn btn-checkin" data-id="{{item._id}}" bindtap="onCheckIn">
                 <text>签到</text>
               </view>
@@ -255,7 +258,8 @@
             </view>
           </view>
           <view class="booking-actions">
-            <text class="booking-credits">扣{{item.creditsDeducted}}次</text>
+            <text class="booking-credits" wx:if="{{item.deductDays}}">缩短有效期{{item.deductDays}}天</text>
+            <text class="booking-credits" wx:else>扣{{item.creditsDeducted}}次</text>
             <text class="checked-in-method-tag">{{item.checkInMethodText}}</text>
           </view>
         </view>

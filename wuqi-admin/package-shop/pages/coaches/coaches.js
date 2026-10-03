@@ -44,6 +44,10 @@ Page({
     },
     deleting: false, // 防抖标志位
     isSingleStore: false,
+    isReviewer: false,
+    currentStoreId: '', // 当前统一门店选择（店务全局 shopStoreId）
+    reordering: false, // 排序请求防抖
+    emptyText: '暂无教练',
   },
 
   // 补全图片 URL
@@ -83,7 +87,8 @@ Page({
     const isSingleStore = app.isSingleStoreRole ? app.isSingleStoreRole() : false;
     this.setData({
       isSuperAdmin: userInfo && userInfo.role === 'super_admin',
-      isSingleStore
+      isSingleStore,
+      isReviewer: userInfo && userInfo.role === 'reviewer'
     });
     // 同步全局统一门店选择的门店名称（供页面展示区域使用）
     this.setData({ currentStoreName: app.getShopStoreName() });
@@ -92,39 +97,65 @@ Page({
 
   async loadCoaches() {
     try {
-      const res = await request({
-        url: '/coaches/admin',
-        method: 'GET'
-      });
-      // 后端返回 paginate 格式: { list: [...], total, page, pageSize }
-
-      let list = res.data && Array.isArray(res.data.list) ? res.data.list : (Array.isArray(res.data) ? res.data : []);
-
       const shopStoreId = app.globalData.shopStoreId || '';
 
-      // 仅展示当前选中门店的门店教练：store_ids 有值且包含当前选中门店
-      if (shopStoreId) {
-        list = list.filter(coach =>
-          coach.store_ids && coach.store_ids.length > 0 &&
-          coach.store_ids.some(sid => String(sid) === String(shopStoreId))
-        );
-      } else {
-        // 未选门店时门店教练列表为空
-        list = [];
+      // 未选门店时列表为空（与店务其他门店功能一致，入口处已拦截，此处兜底）
+      if (!shopStoreId) {
+        this.setData({
+          coaches: [],
+          currentStoreId: '',
+          emptyText: '请先在店务管理中选择门店'
+        });
+        return;
       }
 
-      // 补全图片路径
+      // 传 store_id 让后端附带按门店解析的展示配置（store_config：有效排序/任教状态）
+      const res = await request({
+        url: '/coaches/admin',
+        method: 'GET',
+        data: { store_id: shopStoreId, pageSize: 200 }
+      });
+      // 后端返回 paginate 格式: { list: [...], total, page, pageSize }
+      let list = res.data && Array.isArray(res.data.list) ? res.data.list : (Array.isArray(res.data) ? res.data : []);
 
-      const processedList = list.map(coach => ({
-        ...coach,
-        avatar_url: this.fixImageUrl(coach.avatar_url),
-        // 多门店执教教练：store_ids 为空或不存在 = 多门店执教（存量教练默认多门店执教）
-        // store_ids 有值且非空 = 单门店/指定门店执教
-        isMultiStoreCoach: !coach.store_ids || coach.store_ids.length === 0,
-        // 是否可操作：多门店执教教练仅超管可操作（编辑/删除/切换上架）
-        canOperate: !((!coach.store_ids || coach.store_ids.length === 0) && !(app.globalData.userInfo && app.globalData.userInfo.role === 'super_admin'))
-      }));
-      this.setData({ coaches: processedList });
+      // 合并列表 = 本门店教练（store_ids 含本店）+ 多门店执教教练（store_ids 为空，资源库共享）
+      list = list.filter(coach => {
+        const sids = Array.isArray(coach.store_ids) ? coach.store_ids : [];
+        return sids.length === 0 || sids.some(sid => String(sid) === String(shopStoreId));
+      });
+
+      // 按本店有效排序（store_config.sort_order，未配置回退全局 sort_order），同序按创建时间
+      list.sort((a, b) => {
+        const ao = a.store_config ? (a.store_config.sort_order || 0) : (a.sort_order || 0);
+        const bo = b.store_config ? (b.store_config.sort_order || 0) : (b.sort_order || 0);
+        if (ao !== bo) return ao - bo;
+        return new Date(b.created_at || 0) - new Date(a.created_at || 0);
+      });
+
+      // 未任教教练沉底展示（会员端已隐藏，仅管理端可见可恢复）
+      const teaching = list.filter(c => !c.store_config || c.store_config.is_teaching !== false);
+      const notTeaching = list.filter(c => c.store_config && c.store_config.is_teaching === false);
+      const ordered = teaching.concat(notTeaching);
+
+      const processedList = ordered.map((coach, idx) => {
+        const isTeaching = !coach.store_config || coach.store_config.is_teaching !== false;
+        const teachingPos = isTeaching ? teaching.indexOf(coach) : -1;
+        return {
+          ...coach,
+          avatar_url: this.fixImageUrl(coach.avatar_url),
+          // 多门店执教教练：store_ids 为空或不存在 = 多门店执教（资源库共享教练）
+          isMultiStoreCoach: !coach.store_ids || coach.store_ids.length === 0,
+          // 资料操作（编辑/删除/启停）：多门店执教教练仅超管可操作
+          canOperate: !((!coach.store_ids || coach.store_ids.length === 0) && !(app.globalData.userInfo && app.globalData.userInfo.role === 'super_admin')),
+          // 本店任教状态（关闭后会员端不再展示该教练）
+          isTeaching,
+          // 本店排序位置（任教中教练显示第 n 位，即会员端顺序）
+          displayOrder: isTeaching ? teachingPos + 1 : 0,
+          canMoveUp: isTeaching && teachingPos > 0,
+          canMoveDown: isTeaching && teachingPos < teaching.length - 1
+        };
+      });
+      this.setData({ coaches: processedList, currentStoreId: shopStoreId, emptyText: '暂无教练' });
     } catch (err) {
       console.error('加载教练列表失败', err);
       wx.showToast({ title: '加载教练列表失败', icon: 'none' });
@@ -354,6 +385,110 @@ Page({
       this.loadCoaches();
     } catch (err) {
       console.error('切换教练状态失败', err);
+    }
+  },
+
+  // ==================== 本店展示配置（排序/任教，含多门店执教教练） ====================
+
+  // 上移/下移：仅在任教教练序列内交换，成功后把完整顺序提交后端
+  async onMoveCoach(e) {
+    if (this.data.isReviewer) {
+      wx.showToast({ title: '当前为审核账号，仅可查看', icon: 'none' });
+      return;
+    }
+    if (this.data.reordering) return;
+    const { index, direction } = e.currentTarget.dataset;
+    const list = this.data.coaches.slice();
+    const i = Number(index);
+    const item = list[i];
+    if (!item || !item.isTeaching) return;
+
+    // 任教教练在列表中的位置序列（未任教教练沉底，不参与排序）
+    const teachingPositions = [];
+    list.forEach((c, idx) => { if (c.isTeaching) teachingPositions.push(idx); });
+    const pos = teachingPositions.indexOf(i);
+    if (pos === -1) return;
+    const targetPos = direction === 'up' ? pos - 1 : pos + 1;
+    if (targetPos < 0 || targetPos >= teachingPositions.length) return;
+
+    const j = teachingPositions[targetPos];
+    const tmp = list[i];
+    list[i] = list[j];
+    list[j] = tmp;
+
+    // 重新计算任教序列的展示位置
+    const reordered = this.recalculateDisplayOrder(list);
+    this.setData({ coaches: reordered, reordering: true });
+    try {
+      await request({
+        url: '/coaches/store-configs/reorder',
+        method: 'PUT',
+        data: {
+          store_id: this.data.currentStoreId,
+          coach_ids: reordered.filter(c => c.isTeaching).map(c => c._id)
+        }
+      });
+    } catch (err) {
+      console.error('更新教练排序失败', err);
+      wx.showToast({ title: err.message || '排序保存失败', icon: 'none' });
+      this.loadCoaches();
+    } finally {
+      this.setData({ reordering: false });
+    }
+  },
+
+  // 根据任教状态重新计算 displayOrder / canMoveUp / canMoveDown（任教序列内）
+  recalculateDisplayOrder(list) {
+    let teachingIdx = 0;
+    const teachingCount = list.filter(c => c.isTeaching).length;
+    return list.map((c, idx) => {
+      if (!c.isTeaching) {
+        return { ...c, displayOrder: 0, canMoveUp: false, canMoveDown: false };
+      }
+      const item = {
+        ...c,
+        displayOrder: teachingIdx + 1,
+        canMoveUp: teachingIdx > 0,
+        canMoveDown: teachingIdx < teachingCount - 1
+      };
+      teachingIdx += 1;
+      return item;
+    });
+  },
+
+  // 本店任教开关：关闭后该教练在本门店会员端（首页/教练列表）隐藏
+  async onToggleTeaching(e) {
+    if (this.data.isReviewer) {
+      wx.showToast({ title: '当前为审核账号，仅可查看', icon: 'none' });
+      return;
+    }
+    const { id, index } = e.currentTarget.dataset;
+    const coach = this.data.coaches[index];
+    if (!coach) return;
+    const newValue = !coach.isTeaching;
+    try {
+      await request({
+        url: `/coaches/${id}/store-config`,
+        method: 'PUT',
+        data: { store_id: this.data.currentStoreId, is_teaching: newValue }
+      });
+      // 恢复任教时排到任教序列末尾，避免插队打乱现有顺序
+      if (newValue) {
+        const teachingIds = this.data.coaches
+          .filter(c => c.isTeaching && String(c._id) !== String(id))
+          .map(c => c._id);
+        teachingIds.push(id);
+        await request({
+          url: '/coaches/store-configs/reorder',
+          method: 'PUT',
+          data: { store_id: this.data.currentStoreId, coach_ids: teachingIds }
+        });
+      }
+      this.loadCoaches();
+    } catch (err) {
+      console.error('切换任教状态失败', err);
+      wx.showToast({ title: err.message || '操作失败', icon: 'none' });
+      this.loadCoaches();
     }
   },
 

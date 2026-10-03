@@ -35,8 +35,9 @@
           <text>{{memberStatusText}}</text>
         </view>
         <text class="status-sub" wx:if="{{currentPackageType}}">当前套餐：{{currentPackageType}}</text>
-        <view class="hero-exemption" wx:if="{{userInfo.exemption_count > 0}}">
+        <view class="hero-exemption" wx:if="{{userInfo.exemption_count > 0}}" bindtap="onToggleExemptionTip">
           <text>豁免取消剩余{{userInfo.exemption_count}}次</text>
+          <text class="hero-exemption-q">?</text>
         </view>
       </view>
     </view>
@@ -146,6 +147,15 @@
                 <text class="pkg-tag-text">{{item._typeLabel}}</text>
               </view>
             </view>
+            <!-- 可用星期/可用时段：独立整行展示，门店/类型标签下方 -->
+            <view class="pkg-new-weekday-row {{item._timeLimitBoth ? 'pkg-new-time-both' : ''}}" wx:if="{{item._weekdayLimitText || item._timeLimitText}}">
+              <view class="pkg-tag pkg-tag-weekday" wx:if="{{item._weekdayLimitText}}">
+                <text class="pkg-tag-text">{{item._weekdayLimitText}}可用</text>
+              </view>
+              <view class="pkg-tag pkg-tag-time" wx:if="{{item._timeLimitText}}">
+                <text class="pkg-tag-text">{{item._timeLimitText}}可用</text>
+              </view>
+            </view>
             <view class="pkg-new-main">
               <view class="pkg-new-main-left">
                 <!-- 次卡：双列大数字 -->
@@ -165,12 +175,35 @@
                     <text class="pkg-new-main-label">剩余天数</text>
                   </view>
                 </view>
-                <!-- 时间卡：单列大数字 -->
+                <!-- 时间卡：双列大数字（剩余天数 + 周期剩余次数） -->
+                <view class="pkg-new-main-value-wrap pkg-new-dual-wrap" wx:elif="{{item.package_type === 'time_card' && item._hasPeriodLimit}}">
+                  <view class="pkg-new-dual-col">
+                    <view class="pkg-new-dual-value-wrap">
+                      <text class="pkg-new-main-value pkg-new-days-value">{{item.remaining_days || 0}}</text>
+                      <text class="pkg-new-main-unit pkg-new-days-unit">天</text>
+                    </view>
+                    <text class="pkg-new-main-label">剩余天数</text>
+                  </view>
+                  <view class="pkg-new-dual-col" wx:if="{{item._weekRemaining === -1}}">
+                    <view class="pkg-new-dual-value-wrap">
+                      <text class="pkg-new-main-value pkg-new-inf-value">∞</text>
+                    </view>
+                    <text class="pkg-new-main-label">不限次</text>
+                  </view>
+                  <view class="pkg-new-dual-col" wx:else>
+                    <view class="pkg-new-dual-value-wrap">
+                      <text class="pkg-new-main-value pkg-new-credits-value">{{item._weekRemaining}}</text>
+                      <text class="pkg-new-main-unit pkg-new-credits-unit">次</text>
+                    </view>
+                    <text class="pkg-new-main-label">{{item._periodLabel}}剩余</text>
+                  </view>
+                </view>
+                <!-- 时间卡（无周期数据）：单列大数字 -->
                 <view class="pkg-new-main-value-wrap" wx:elif="{{item.package_type === 'time_card'}}">
                   <text class="pkg-new-main-value">{{item.remaining_days || 0}}</text>
                   <text class="pkg-new-main-unit">天</text>
                 </view>
-                <text class="pkg-new-main-label" wx:if="{{item.package_type === 'time_card'}}">剩余天数</text>
+                <text class="pkg-new-main-label" wx:if="{{item.package_type === 'time_card' && !item._hasPeriodLimit}}">剩余天数</text>
                 <view class="pkg-new-status-dot-wrap {{item.status}} {{item.is_suspended ? 'suspended' : ''}}">
                   <view class="pkg-new-status-dot"></view>
                   <text class="pkg-new-status-label">{{item._statusText}}</text>
@@ -185,14 +218,9 @@
                   <text class="pkg-new-info-capsule-label">{{item._totalLabel}}</text>
                   <text class="pkg-new-info-capsule-value">{{item._totalValue}}</text>
                 </view>
-                <block wx:if="{{item.package_type === 'time_card' && item._weekRemaining === -1}}">
-                  <view class="pkg-new-info-capsule">
-                    <text class="pkg-new-info-capsule-label">不限次数</text>
-                  </view>
-                </block>
-                <view class="pkg-new-info-capsule" wx:elif="{{item.package_type === 'time_card' && item._weekRemaining >= 0}}">
-                  <text class="pkg-new-info-capsule-label">{{item._periodLabel}}剩余</text>
-                  <text class="pkg-new-info-capsule-value">{{item._weekRemaining}} 次</text>
+                <view class="pkg-new-info-capsule" wx:if="{{item.package_type === 'time_card' && item._hasPeriodLimit}}">
+                  <text class="pkg-new-info-capsule-label">周期限制</text>
+                  <text class="pkg-new-info-capsule-value">{{item._periodLimitText}}</text>
                 </view>
                 <view class="pkg-new-info-capsule pkg-new-info-capsule-dance" wx:if="{{item._danceStyleLimitText}}">
                   <text class="pkg-new-info-capsule-label">仅限舞种</text>
@@ -229,6 +257,15 @@
               </view>
               <view class="pkg-tag pkg-tag-type-{{item.package_type}}" wx:if="{{item._typeLabel}}">
                 <text class="pkg-tag-text">{{item._typeLabel}}</text>
+              </view>
+            </view>
+            <!-- 可用星期/可用时段：独立整行展示，门店/类型标签下方 -->
+            <view class="pkg-new-weekday-row {{item._timeLimitBoth ? 'pkg-new-time-both' : ''}}" wx:if="{{item._weekdayLimitText || item._timeLimitText}}">
+              <view class="pkg-tag pkg-tag-weekday" wx:if="{{item._weekdayLimitText}}">
+                <text class="pkg-tag-text">{{item._weekdayLimitText}}可用</text>
+              </view>
+              <view class="pkg-tag pkg-tag-time" wx:if="{{item._timeLimitText}}">
+                <text class="pkg-tag-text">{{item._timeLimitText}}可用</text>
               </view>
             </view>
             <view class="pkg-new-main">
@@ -294,6 +331,15 @@
                     <view class="pkg-tag pkg-tag-type-{{item.package_type}}" wx:if="{{item._typeLabel}}">
                       <text class="pkg-tag-text">{{item._typeLabel}}</text>
                     </view>
+                  </view>
+                </view>
+                <!-- 可用星期：独立整行展示，门店/类型标签下方 -->
+                <view class="pkg-new-weekday-row {{item._timeLimitBoth ? 'pkg-new-time-both' : ''}}" wx:if="{{item._weekdayLimitText || item._timeLimitText}}">
+                  <view class="pkg-tag pkg-tag-weekday" wx:if="{{item._weekdayLimitText}}">
+                    <text class="pkg-tag-text">{{item._weekdayLimitText}}可用</text>
+                  </view>
+                  <view class="pkg-tag pkg-tag-time" wx:if="{{item._timeLimitText}}">
+                    <text class="pkg-tag-text">{{item._timeLimitText}}可用</text>
                   </view>
                 </view>
                 <view class="pkg-new-main">
@@ -619,13 +665,17 @@
         <text class="pkg-sheet-label">套餐次数</text>
         <text class="pkg-sheet-value">共 {{detailPackage.total_credits || 0}} 次，剩余 {{detailPackage.remaining_credits || 0}} 次</text>
       </view>
-      <view class="pkg-sheet-section" wx:if="{{detailPackage.package_type === 'time_card' && detailPackage._periodLabel && detailPackage._periodLabel !== '不限次数'}}">
-        <text class="pkg-sheet-label">{{detailPackage._periodLabel}}预约</text>
-        <text class="pkg-sheet-value">已约 {{detailPackage._weekUsed}}/{{detailPackage._weekLimit}} 次</text>
+      <view class="pkg-sheet-section" wx:if="{{detailPackage.package_type === 'time_card' && detailPackage.status === 'active' && detailPackage._periodLabel && detailPackage._periodLabel !== '不限次数'}}">
+        <text class="pkg-sheet-label">周期限制</text>
+        <text class="pkg-sheet-value">{{detailPackage._periodLimitText}}（{{detailPackage._periodLabel}}已约 {{detailPackage._weekUsed}} 次）</text>
       </view>
-      <view class="pkg-sheet-section" wx:if="{{detailPackage.package_type === 'time_card' && detailPackage._periodLabel === '不限次数'}}">
-        <text class="pkg-sheet-label">使用限制</text>
-        <text class="pkg-sheet-value">不限次数</text>
+      <view class="pkg-sheet-section" wx:if="{{detailPackage.package_type === 'time_card' && detailPackage.status === 'active' && detailPackage._periodLabel === '不限次数'}}">
+        <text class="pkg-sheet-label">周期限制</text>
+        <text class="pkg-sheet-value">不限次</text>
+      </view>
+      <view class="pkg-sheet-section" wx:if="{{detailPackage.package_type === 'time_card' && detailPackage.status === 'pending' && detailPackage._pendingRestrictionValue}}">
+        <text class="pkg-sheet-label">周期限制</text>
+        <text class="pkg-sheet-value">{{detailPackage._pendingRestrictionValue}}</text>
       </view>
       <view class="pkg-sheet-section">
         <text class="pkg-sheet-label">服务有效期</text>
@@ -645,6 +695,14 @@
       <view class="pkg-sheet-section" wx:if="{{detailPackage._danceStyleLimitText}}">
         <text class="pkg-sheet-label">舞种限制</text>
         <text class="pkg-sheet-value pkg-sheet-value-dance">仅限：{{detailPackage._danceStyleLimitText}}</text>
+      </view>
+      <view class="pkg-sheet-section" wx:if="{{detailPackage._weekdayLimitText}}">
+        <text class="pkg-sheet-label">可用星期</text>
+        <text class="pkg-sheet-value pkg-sheet-value-dance">仅可在 {{detailPackage._weekdayLimitText}} 预约课程，其余日期不可用</text>
+      </view>
+      <view class="pkg-sheet-section" wx:if="{{detailPackage._timeLimitText}}">
+        <text class="pkg-sheet-label">可用时段</text>
+        <text class="pkg-sheet-value pkg-sheet-value-dance">仅可预约 {{detailPackage._timeLimitText}} 开课的课程，其余时段不可用</text>
       </view>
     </scroll-view>
   </view>
@@ -792,5 +850,16 @@
       <text>取消</text>
     </view>
   </view>
+</view>
+
+<!-- 豁免取消规则说明气泡（锚定个人卡片中的豁免次数胶囊） -->
+<view class="exemption-tip-mask" wx:if="{{showExemptionTip}}" catchtap="onHideExemptionTip"></view>
+<view class="exemption-tip-bubble" wx:if="{{showExemptionTip}}" style="top: {{exemptionTipTop}}px; right: {{exemptionTipRight}}px;">
+  <view class="exemption-tip-arrow"></view>
+  <view class="exemption-tip-title">豁免取消规则说明</view>
+  <view class="exemption-tip-item">1. 超过课程取消截止时间后取消预约，将消耗 1 次豁免机会，课时退还</view>
+  <view class="exemption-tip-item">2. 开课前取消截止时间之前取消，不消耗豁免次数；开课后不可取消</view>
+  <view class="exemption-tip-item">3. 同一节课只能用一次豁免取消；用过之后再补约这节课，超时将无法取消</view>
+  <view class="exemption-tip-item">4. 以下情况无法使用豁免取消：① 课程有效人数未超过最低成班人数，取消会影响开班；② 管理员将该节课设置为不可豁免取消</view>
 </view>
 <update-modal />

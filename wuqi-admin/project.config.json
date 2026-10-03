@@ -1,51 +1,56 @@
 {
-    "description": "舞栖舞蹈社预约管理系统",
-    "packOptions": {
-        "ignore": [],
-        "include": []
+  "description": "舞栖舞蹈社预约管理系统",
+  "packOptions": {
+    "ignore": [],
+    "include": []
+  },
+  "__usePrivacyCheck__": true,
+  "setting": {
+    "bundle": false,
+    "userConfirmedBundleSwitch": false,
+    "urlCheck": false,
+    "scopeDataCheck": false,
+    "coverView": true,
+    "es6": true,
+    "postcss": true,
+    "compileHotReLoad": false,
+    "lazyloadPlaceholderEnable": false,
+    "preloadBackgroundData": false,
+    "minified": true,
+    "autoAudits": false,
+    "newFeature": false,
+    "uglifyFileName": true,
+    "uploadWithSourceMap": true,
+    "enhance": true,
+    "showShadowRootInWxmlPanel": true,
+    "packNpmManually": true,
+    "packNpmRelationList": [
+      {
+        "packageJsonPath": "./package.json",
+        "miniprogramNpmDistDir": "./"
+      }
+    ],
+    "minifyWXSS": true,
+    "showES6CompileOption": false,
+    "minifyWXML": true,
+    "babelSetting": {
+      "ignore": [],
+      "disablePlugins": [],
+      "outputPath": ""
     },
-    "__usePrivacyCheck__": true,
-    "setting": {
-        "bundle": false,
-        "userConfirmedBundleSwitch": false,
-        "urlCheck": false,
-        "scopeDataCheck": false,
-        "coverView": true,
-        "es6": true,
-        "postcss": true,
-        "compileHotReLoad": false,
-        "lazyloadPlaceholderEnable": false,
-        "preloadBackgroundData": false,
-        "minified": true,
-        "autoAudits": false,
-        "newFeature": false,
-        "uglifyFileName": true,
-        "uploadWithSourceMap": true,
-        "enhance": true,
-        "showShadowRootInWxmlPanel": true,
-        "packNpmManually": false,
-        "packNpmRelationList": [],
-        "minifyWXSS": true,
-        "showES6CompileOption": false,
-        "minifyWXML": true,
-        "babelSetting": {
-            "ignore": [],
-            "disablePlugins": [],
-            "outputPath": ""
-        },
-        "compileWorklet": false,
-        "localPlugins": false,
-        "disableUseStrict": false,
-        "useCompilerPlugins": false,
-        "condition": false,
-        "swc": false,
-        "disableSWC": true
-    },
-    "compileType": "miniprogram",
-    "libVersion": "3.8.12",
-    "appid": "wx3f52761ae85bd5e7",
-    "projectname": "wuqi-admin",
-    "condition": {},
-    "simulatorPluginLibVersion": {},
-    "editorSetting": {}
+    "compileWorklet": false,
+    "localPlugins": false,
+    "disableUseStrict": false,
+    "useCompilerPlugins": false,
+    "condition": false,
+    "swc": true,
+    "disableSWC": false
+  },
+  "compileType": "miniprogram",
+  "libVersion": "3.8.12",
+  "appid": "wx3f52761ae85bd5e7",
+  "projectname": "wuqi-admin",
+  "condition": {},
+  "simulatorPluginLibVersion": {},
+  "editorSetting": {}
 }

@@ -7,9 +7,12 @@
       <text>+ 新增教练</text>
     </view>
   </view>
+  <view class="store-hint" wx:if="{{currentStoreName}}">
+    <text>当前门店：{{currentStoreName}}｜列表顺序即会员端「舞栖教练」显示顺序</text>
+  </view>
 
   <view class="coach-list" wx:if="{{coaches.length > 0}}">
-    <view class="coach-item card" wx:for="{{coaches}}" wx:key="_id">
+    <view class="coach-item card {{item.isTeaching ? '' : 'coach-item-not-teaching'}}" wx:for="{{coaches}}" wx:key="_id">
       <view class="coach-main">
         <image class="coach-avatar" src="{{item.avatar_url || '/images/default-avatar.svg'}}" mode="aspectFill" decoding="async"></image>
         <view class="coach-body">
@@ -18,16 +21,18 @@
               <view class="coach-name-row">
                 <text class="coach-name">{{item.name}}</text>
                 <text class="coach-gender">{{item.gender === 1 ? '男' : (item.gender === 2 ? '女' : '未知')}}</text>
-                <text class="coach-sort">排序: {{item.sort_order || 0}}</text>
+                <text class="coach-sort" wx:if="{{item.isTeaching}}">第 {{item.displayOrder}} 位</text>
               </view>
               <view class="coach-tags-row">
-                <text class="coach-home-tag {{item.show_on_home !== false ? 'tag-home-show' : 'tag-home-hide'}}">{{item.show_on_home !== false ? '首页展示' : '不展示'}}</text>
-                <!-- 多门店执教标签：仅多门店执教教练显示，与首页展示标签同一行 -->
+                <text class="coach-home-tag {{item.show_on_home !== false ? 'tag-home-show' : 'tag-home-hide'}}">{{item.show_on_home !== false ? '全平台展示' : '全平台不展示'}}</text>
+                <!-- 未在本店任教：会员端已隐藏，沉底展示便于恢复 -->
+                <text class="coach-not-teaching-tag" wx:if="{{!item.isTeaching}}">未在本店任教·会员端隐藏</text>
+                <!-- 多门店执教标签：资源库共享教练，与首页展示标签同一行 -->
                 <text class="coach-multi-store-tag" wx:if="{{item.isMultiStoreCoach}}">多门店执教</text>
               </view>
             </view>
             <view class="coach-actions">
-              <!-- 多门店执教教练对非超管禁用操作按钮（置灰且不可点击） -->
+              <!-- 多门店执教教练对非超管禁用资料操作按钮（置灰且不可点击）；排序/任教开关对所有门店管理者开放 -->
               <view class="action-btn-small {{item.canOperate ? '' : 'action-btn-disabled'}}" data-index="{{index}}" bindtap="{{item.canOperate ? 'onEditCoach' : 'onDisabledCoachAction'}}">
                 <text>编辑</text>
               </view>
@@ -38,13 +43,24 @@
             </view>
           </view>
           <text class="coach-dance">擅长: {{item.dance_style_names || '未设置'}}</text>
+          <!-- 本店展示配置行：任教开关 + 上下移排序 -->
+          <view class="coach-store-row">
+            <view class="teach-control">
+              <text class="teach-label">本店任教</text>
+              <switch checked="{{item.isTeaching}}" data-id="{{item._id}}" data-index="{{index}}" bindchange="onToggleTeaching" color="#FFCC00" disabled="{{isReviewer}}"></switch>
+            </view>
+            <view class="move-controls" wx:if="{{item.isTeaching}}">
+              <view class="move-btn {{item.canMoveUp ? '' : 'move-btn-disabled'}}" data-index="{{index}}" data-direction="up" bindtap="onMoveCoach">↑</view>
+              <view class="move-btn {{item.canMoveDown ? '' : 'move-btn-disabled'}}" data-index="{{index}}" data-direction="down" bindtap="onMoveCoach">↓</view>
+            </view>
+          </view>
         </view>
       </view>
     </view>
   </view>
   <view class="empty-state" wx:else>
-    <text class="empty-text">暂无教练</text>
-    <view class="add-btn" bindtap="onAddCoach"><text>+ 新增教练</text></view>
+    <text class="empty-text">{{emptyText || '暂无教练'}}</text>
+    <view class="add-btn" wx:if="{{currentStoreId}}" bindtap="onAddCoach"><text>+ 新增教练</text></view>
   </view>
 
   <!-- 新增/编辑教练弹窗（含相册管理） -->
@@ -84,10 +100,12 @@
         <view class="form-group">
           <text class="form-label">排序（数字越小越靠前）</text>
           <input class="input-field" type="number" placeholder="0" value="{{coachForm.sort_order}}" data-field="sort_order" bindinput="onCoachInput" />
+          <text class="form-hint">未在本门店单独调整顺序时，作为该教练的默认显示顺序</text>
         </view>
         <view class="form-group">
-          <text class="form-label">在首页展示</text>
+          <text class="form-label">在全平台展示</text>
           <switch checked="{{coachForm.show_on_home}}" data-field="show_on_home" bindchange="onCoachSwitchChange" color="#FFCC00"></switch>
+          <text class="form-hint">关闭后所有门店的会员端均不展示该教练；单门店的展示/顺序请在「门店教练」页调整</text>
         </view>
       </scroll-view>
       <view class="modal-buttons">

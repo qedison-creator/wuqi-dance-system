@@ -13,6 +13,18 @@ dayjs.extend(utc);
 dayjs.extend(timezone);
 const BEIJING_TZ = 'Asia/Shanghai';
 
+// 会员关键词搜索条件（getMemberList 与 no_package 聚合共用同一字段清单）
+function buildMemberKeywordOr(keyword) {
+  return [
+    { nick_name: { $regex: keyword, $options: 'i' } },
+    { real_name: { $regex: keyword, $options: 'i' } },
+    { phone: { $regex: keyword, $options: 'i' } },
+    { wechat_phone: { $regex: keyword, $options: 'i' } },
+    { reserve_phone: { $regex: keyword, $options: 'i' } },
+    { member_code: { $regex: keyword, $options: 'i' } },
+  ];
+}
+
 // 获取会员列表(支持status/keyword/store_id/package_active/package_suspended/package_expired/package_pending/package_exhausted筛选)
 exports.getMemberList = async (query) => {
   const { status, keyword, store_id, member_status, package_active, package_suspended, package_expired, package_pending, package_exhausted, no_package, no_store, cross_store, page = 1, pageSize = 20 } = query;
@@ -28,14 +40,7 @@ exports.getMemberList = async (query) => {
   // 门店过滤（cross_store/store_id 分支）会把已存在的 filter.$or（关键词条件）
   // 正确合并进 $and；若顺序颠倒，keyword 的 $or 会覆盖门店过滤的 $or，导致跨店搜索泄漏
   if (keyword) {
-    filter.$or = [
-      { nick_name: { $regex: keyword, $options: 'i' } },
-      { real_name: { $regex: keyword, $options: 'i' } },
-      { phone: { $regex: keyword, $options: 'i' } },
-      { wechat_phone: { $regex: keyword, $options: 'i' } },
-      { reserve_phone: { $regex: keyword, $options: 'i' } },
-      { member_code: { $regex: keyword, $options: 'i' } },
-    ];
+    filter.$or = buildMemberKeywordOr(keyword);
   }
 
   if (no_store === 'true' || no_store === true) {
@@ -181,8 +186,19 @@ exports.getMemberList = async (query) => {
     // 未录套餐：正式会员且没有任何套餐记录
     filter.member_status = 'official';
     // 使用聚合查询：查找没有套餐的会员
+    // $match 直接从查询参数重建，不搬运 filter 内部结构——
+    // 无关键词时 filter.$or 存的是门店分支条件（含字符串型 store_id，永远匹配不上 ObjectId），
+    // 混入聚合会把本类别清空；且跨店会员必有套餐，本类别门店范围用纯 store_id 等值即可
+    const noPkgMatch = { user_type: 'member', member_status: 'official' };
+    if (status) noPkgMatch.status = status;
+    if (keyword) noPkgMatch.$or = buildMemberKeywordOr(keyword);
+    if (storeObjectId) {
+      noPkgMatch.store_id = storeObjectId;
+    } else if (no_store === 'true' || no_store === true) {
+      noPkgMatch.store_id = { $in: [null, undefined] };
+    }
     const pipeline = [
-      { $match: storeObjectId ? { ...filter, store_id: storeObjectId } : filter },
+      { $match: noPkgMatch },
       { $lookup: { from: 'userpackages', localField: '_id', foreignField: 'user_id', as: 'pkg_count' } },
       { $match: { pkg_count: { $size: 0 } } },
       { $project: { pkg_count: 0 } }
@@ -488,6 +504,94 @@ exports.getMemberStats = async (storeId) => {
   const active = await User.countDocuments({ ...filter, status: 'active' });
 
   return { total, official, registered, active };
+};
+
+// 会员页筛选标签计数（管理端角标）
+// ⚠️ 各类别口径与 getMemberList 的同名筛选分支逐一对应（成员范围、排除集合、门店条件均一致），
+//    冒烟脚本 smoke-admin-stats.js 会断言每个类别的计数与列表 total 一致，改动任一侧务必同步。
+// 差异说明：本函数不接收 keyword（角标反映未搜索时的类别规模）。
+exports.getMemberFilterCounts = async (query) => {
+  const { store_id } = query;
+  const storeObjectId = store_id && mongoose.isValidObjectId(store_id) ? new mongoose.Types.ObjectId(store_id) : null;
+  const memberBase = { user_type: 'member', member_status: 'official' };
+
+  // 门店范围（对应 getMemberList 的 store_id 分支）：本店会员 + 有命中本店 active 套餐的跨店会员
+  let storeCondition = {};
+  if (store_id) {
+    const crossStoreUserIds = await UserPackage.distinct('user_id', {
+      status: 'active',
+      $or: [{ store_id: storeObjectId }, { extra_store_ids: storeObjectId }],
+    });
+    storeCondition = crossStoreUserIds.length > 0
+      ? { $or: [{ store_id }, { _id: { $in: crossStoreUserIds } }] }
+      : { store_id };
+  }
+
+  const now = new Date();
+  const [activePkgUsers, anyActiveUsers, activeValidDateUsers, suspendedUsers, expiredUsers, pendingUsers, exhaustedUsers, crossStorePkgUsers] = await Promise.all([
+    // 使用中：active 且未停卡
+    UserPackage.find({ status: 'active', is_suspended: { $ne: true } }).distinct('user_id'),
+    // 全部 active（pending/exhausted 分支的排除集合）
+    UserPackage.find({ status: 'active' }).distinct('user_id'),
+    // active 且有效期未过（expired 分支的排除集合，对应 getMemberList 的日期条件）
+    UserPackage.find({ status: 'active', $or: [{ end_date: { $gte: now } }, { end_date: null }] }).distinct('user_id'),
+    // 已停卡：active 且 is_suspended
+    UserPackage.find({ status: 'active', is_suspended: true }).distinct('user_id'),
+    // 已过期：expired 或有效期已过
+    UserPackage.find({ $or: [{ status: 'expired' }, { end_date: { $lt: now } }] }).distinct('user_id'),
+    // 待激活：pending
+    UserPackage.find({ status: 'pending' }).distinct('user_id'),
+    // 已用完：exhausted 的次卡
+    UserPackage.find({ status: 'exhausted', package_type: 'count_card' }).distinct('user_id'),
+    // 跨门店：有命中本店（或任意店跨店授权）的 active 套餐
+    store_id
+      ? UserPackage.distinct('user_id', { status: 'active', $or: [{ store_id: storeObjectId }, { extra_store_ids: storeObjectId }] })
+      : UserPackage.distinct('user_id', { status: 'active', extra_store_ids: { $exists: true, $type: 'array', $ne: [] } }),
+  ]);
+
+  const anyActiveSet = new Set(anyActiveUsers.map(String));
+  const activeValidSet = new Set(activeValidDateUsers.map(String));
+  const withoutActive = (ids, excludeSet) => ids.map(String).filter(id => !excludeSet.has(id));
+
+  // 未录套餐：正式会员且没有任何套餐记录（对应 getMemberList 的 no_package 分支：
+  // 该分支的门店范围是纯 store_id 等值，不含跨店会员）
+  const noPackageCount = await (async () => {
+    const baseMatch = storeObjectId ? { ...memberBase, store_id: storeObjectId } : memberBase;
+    const rows = await User.aggregate([
+      { $match: baseMatch },
+      { $lookup: { from: 'userpackages', localField: '_id', foreignField: 'user_id', as: 'pkg_count' } },
+      { $match: { pkg_count: { $size: 0 } } },
+      { $project: { pkg_count: 0 } },
+      { $count: 'n' },
+    ]);
+    return rows.length > 0 ? rows[0].n : 0;
+  })();
+
+  const [allCount, activeCount, crossStoreCount, unactivatedCount, suspendedCount, expiredCount, exhaustedCount] = await Promise.all([
+    User.countDocuments({ ...memberBase, ...storeCondition }),
+    User.countDocuments({ ...memberBase, ...storeCondition, _id: { $in: activePkgUsers } }),
+    // 跨门店：指定门店时要求会员归属门店 ≠ 当前门店；全部门店时无此条件
+    store_id
+      ? User.countDocuments({ ...memberBase, _id: { $in: crossStorePkgUsers }, store_id: { $ne: storeObjectId } })
+      : User.countDocuments({ ...memberBase, _id: { $in: crossStorePkgUsers } }),
+    User.countDocuments({ ...memberBase, ...storeCondition, _id: { $in: withoutActive(pendingUsers, anyActiveSet) } }),
+    User.countDocuments({ ...memberBase, ...storeCondition, _id: { $in: suspendedUsers } }),
+    User.countDocuments({ ...memberBase, ...storeCondition, _id: { $in: withoutActive(expiredUsers, activeValidSet) } }),
+    User.countDocuments({ ...memberBase, ...storeCondition, _id: { $in: withoutActive(exhaustedUsers, anyActiveSet) } }),
+  ]);
+
+  return {
+    counts: {
+      all: allCount,
+      no_package: noPackageCount,
+      active: activeCount,
+      cross_store: crossStoreCount,
+      unactivated: unactivatedCount,
+      suspended: suspendedCount,
+      expired: expiredCount,
+      exhausted: exhaustedCount,
+    },
+  };
 };
 
 // 停卡：暂停预约，冻结服务有效期和剩余时长（批量停当前会员所有活跃套餐）

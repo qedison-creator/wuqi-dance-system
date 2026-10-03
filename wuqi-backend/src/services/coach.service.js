@@ -95,9 +95,162 @@ function assertCanManageCoach(coach, reqUser, action = '操作') {
   }
 }
 
+/**
+ * 解析教练在某门店的展示配置（门店配置覆盖，缺省回退全局值）
+ * 无门店配置元素时：sort_order 回退全局 sort_order，is_teaching 默认 true
+ *
+ * @param {Object} coach - 教练记录（mongoose 文档或 plain object 均可）
+ * @param {string} storeId - 门店ID
+ * @returns {{store_id, sort_order, is_teaching, configured}}
+ */
+function resolveStoreConfig(coach, storeId) {
+  const fallback = {
+    store_id: storeId ? String(storeId) : null,
+    sort_order: typeof coach.sort_order === 'number' ? coach.sort_order : 0,
+    is_teaching: true,
+    configured: false,
+  };
+  const configs = coach.store_configs;
+  if (!storeId || !Array.isArray(configs)) return fallback;
+
+  const cfg = configs.find(c => c && String(c.store_id) === String(storeId));
+  if (!cfg) return fallback;
+
+  return {
+    store_id: String(storeId),
+    sort_order: typeof cfg.sort_order === 'number' ? cfg.sort_order : fallback.sort_order,
+    is_teaching: cfg.is_teaching !== false,
+    configured: true,
+  };
+}
+
+/**
+ * 校验用户是否有权管理某门店的教练展示配置
+ * 口径与 getAllowedStoreIds 一致：超管不限；店长 ∈ store_ids；员工 === store_id
+ * （审核员的写请求已在 auth 中间件被拦截，不会进入此处）
+ */
+function assertCanManageStoreConfig(reqUser, storeId) {
+  if (!storeId) throw new Error('缺少门店参数');
+  const allowedStoreIds = getAllowedStoreIds(reqUser);
+  if (allowedStoreIds === null) return;
+  if (!allowedStoreIds.includes(String(storeId))) {
+    throw new Error('无权管理该门店的教练展示配置');
+  }
+}
+
+/**
+ * 校验教练是否属于某门店可配置范围：
+ * store_ids 为空（多门店执教/资源库教练，所有门店可配置）或包含该门店
+ */
+function assertCoachInStoreScope(coach, storeId) {
+  const storeIds = Array.isArray(coach.store_ids) ? coach.store_ids : [];
+  if (storeIds.length > 0 && !storeIds.some(id => String(id) === String(storeId))) {
+    throw new Error('该教练未在该门店执教，无法配置');
+  }
+}
+
+/**
+ * 两步原子写入教练的门店展示配置元素：
+ * 先按 store_id 定位已有元素做局部 $set，未命中再 $push 新元素（含并发兜底）
+ */
+async function atomicUpsertStoreConfig(coachId, storeId, updates, userId) {
+  const setDoc = {
+    'store_configs.$.updated_at': new Date(),
+    'store_configs.$.updated_by': userId,
+  };
+  for (const [key, value] of Object.entries(updates)) {
+    setDoc[`store_configs.$.${key}`] = value;
+  }
+
+  let updated = await Coach.findOneAndUpdate(
+    { _id: coachId, 'store_configs.store_id': storeId },
+    { $set: setDoc },
+    { new: true }
+  );
+  if (!updated) {
+    const newConfig = Object.assign(
+      { store_id: storeId, sort_order: 0, is_teaching: true, updated_at: new Date(), updated_by: userId },
+      updates
+    );
+    updated = await Coach.findOneAndUpdate(
+      { _id: coachId, 'store_configs.store_id': { $ne: storeId } },
+      { $push: { store_configs: newConfig } },
+      { new: true }
+    );
+    // 并发下已被其他请求插入：退回定位更新
+    if (!updated) {
+      updated = await Coach.findOneAndUpdate(
+        { _id: coachId, 'store_configs.store_id': storeId },
+        { $set: setDoc },
+        { new: true }
+      );
+    }
+  }
+  return updated;
+}
+
+/**
+ * 更新教练在某门店的展示配置（排序/是否任教）
+ */
+exports.upsertStoreConfig = async (coachId, storeId, patch, reqUser) => {
+  if (!storeId) throw new Error('缺少门店参数');
+  assertCanManageStoreConfig(reqUser, storeId);
+
+  const coach = await Coach.findById(coachId);
+  if (!coach) throw new Error('教练不存在');
+  if (coach.is_deleted) throw new Error('教练已删除');
+  assertCoachInStoreScope(coach, storeId);
+
+  const updates = {};
+  if (patch.sort_order !== undefined) {
+    if (typeof patch.sort_order !== 'number' || !Number.isFinite(patch.sort_order)) {
+      throw new Error('排序值无效');
+    }
+    updates.sort_order = patch.sort_order;
+  }
+  if (patch.is_teaching !== undefined) {
+    updates.is_teaching = !!patch.is_teaching;
+  }
+  if (Object.keys(updates).length === 0) throw new Error('无有效更新字段');
+
+  const updated = await atomicUpsertStoreConfig(coachId, storeId, updates, reqUser.id);
+  return resolveStoreConfig(updated, storeId);
+};
+
+/**
+ * 按传入的完整顺序批量重写教练在某门店的排序（sort=序号，0 起）
+ */
+exports.reorderStoreConfigs = async (storeId, coachIds, reqUser) => {
+  if (!storeId) throw new Error('缺少门店参数');
+  if (!Array.isArray(coachIds) || coachIds.length === 0) throw new Error('缺少教练排序列表');
+  assertCanManageStoreConfig(reqUser, storeId);
+
+  const coaches = await Coach.find({ _id: { $in: coachIds }, is_deleted: { $ne: true } });
+  const coachMap = new Map(coaches.map(c => [String(c._id), c]));
+  for (const id of coachIds) {
+    const coach = coachMap.get(String(id));
+    if (!coach) throw new Error('排序列表中存在无效教练');
+    assertCoachInStoreScope(coach, storeId);
+  }
+
+  // 重复 id 只取首次出现；逐教练原子写入，无事务需求
+  const seen = new Set();
+  let index = 0;
+  for (const id of coachIds) {
+    const key = String(id);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    await atomicUpsertStoreConfig(key, storeId, { sort_order: index }, reqUser.id);
+    index += 1;
+  }
+  return { updated: seen.size };
+};
+
+// 供路由层（home.routes 等）复用：解析教练在某门店的有效展示配置
+exports.resolveStoreConfig = resolveStoreConfig;
+
 // 获取教练列表
-exports.getCoachList = async (query, reqUser) => {
-  const { status, keyword, include_disabled, page = 1, pageSize = 20 } = query;
+exports.getCoachList = async (query, reqUser) => {  const { status, keyword, include_disabled, page = 1, pageSize = 20 } = query;
   const filter = {};
 
   // 默认排除已软删除的教练
@@ -117,38 +270,84 @@ exports.getCoachList = async (query, reqUser) => {
     ];
   }
 
-  // 门店过滤（管理端按 req.user 角色过滤；会员端公开访问按 query.store_id 过滤）
-  if (reqUser) {
-    const storeFilter = buildCoachStoreFilter(reqUser);
-    mergeFilter(filter, storeFilter);
-  } else if (query.store_id) {
-    // 会员端按 query.store_id 过滤：该门店独占教练 + 多门店执教教练
-    const sid = String(query.store_id);
+  // 管理端指定门店：附带按门店解析的展示配置（合并列表排序/任教用）
+  let adminStoreId = null;
+  if (reqUser && query.store_id) {
+    adminStoreId = String(query.store_id);
+    assertCanManageStoreConfig(reqUser, adminStoreId);
+  }
+
+  // 会员端按门店：过滤未任教/全局不展示的教练，并按门店有效排序（内存处理，教练量有限）
+  const memberStoreId = !reqUser && query.store_id ? String(query.store_id) : null;
+  if (memberStoreId) {
+    filter.show_on_home = { $ne: false };
     mergeFilter(filter, {
       $or: [
-        { store_ids: { $in: [sid] } },
+        { store_ids: { $in: [memberStoreId] } },
         { store_ids: { $size: 0 } },
         { store_ids: { $exists: false } },
       ],
     });
+  } else if (reqUser) {
+    const storeFilter = buildCoachStoreFilter(reqUser);
+    mergeFilter(filter, storeFilter);
   }
 
-  const list = await Coach.find(filter)
-    .populate('dance_styles', 'name icon_url')
-    .sort({ sort_order: 1, created_at: -1 })
-    .skip((page - 1) * pageSize)
-    .limit(Number(pageSize));
+  const pageNum = Number(page) || 1;
+  const pageSizeNum = Number(pageSize) || 20;
+  const skip = (pageNum - 1) * pageSizeNum;
 
-  // 转换 dance_styles 数组为 dance_style_ids 和 dance_style_names
-  const transformedList = list.map(coach => {
-    const coachObj = coach.toObject();
-    coachObj.dance_style_ids = coach.dance_styles.map(ds => ds._id);
-    coachObj.dance_style_names = coach.dance_styles.map(ds => ds.name).join('、');
-    return coachObj;
-  });
+  let list;
+  let total;
+  let transformedList;
 
-  const total = await Coach.countDocuments(filter);
-  return { list: transformedList, total, page: Number(page), pageSize: Number(pageSize) };
+  if (memberStoreId) {
+    const all = await Coach.find(filter)
+      .populate('dance_styles', 'name icon_url')
+      .select('-phone')
+      .lean();
+
+    const visible = [];
+    for (const coach of all) {
+      const storeConfig = resolveStoreConfig(coach, memberStoreId);
+      if (!storeConfig.is_teaching) continue;
+      coach.store_config = storeConfig;
+      visible.push(coach);
+    }
+    visible.sort((a, b) => {
+      const diff = a.store_config.sort_order - b.store_config.sort_order;
+      if (diff !== 0) return diff;
+      return new Date(b.created_at || 0) - new Date(a.created_at || 0);
+    });
+
+    total = visible.length;
+    list = visible.slice(skip, skip + pageSizeNum);
+    transformedList = list.map(coach => {
+      coach.dance_style_ids = (coach.dance_styles || []).map(ds => ds._id);
+      coach.dance_style_names = (coach.dance_styles || []).map(ds => ds.name).join('、');
+      return coach;
+    });
+  } else {
+    list = await Coach.find(filter)
+      .populate('dance_styles', 'name icon_url')
+      .sort({ sort_order: 1, created_at: -1 })
+      .skip(skip)
+      .limit(pageSizeNum);
+
+    transformedList = list.map(coach => {
+      const coachObj = coach.toObject();
+      coachObj.dance_style_ids = coach.dance_styles.map(ds => ds._id);
+      coachObj.dance_style_names = coach.dance_styles.map(ds => ds.name).join('、');
+      if (adminStoreId) {
+        coachObj.store_config = resolveStoreConfig(coachObj, adminStoreId);
+      }
+      return coachObj;
+    });
+
+    total = await Coach.countDocuments(filter);
+  }
+
+  return { list: transformedList, total, page: pageNum, pageSize: pageSizeNum };
 };
 
 // 获取教练详情

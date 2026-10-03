@@ -63,6 +63,25 @@ function bjDate(dateStr) {
   return dayjs.tz(dateStr, BEIJING_TZ);
 }
 
+// 豁免取消拦截判定（展示与执行共用同一口径）：
+//   adminLocked：管理员对该节课开启了「禁止豁免取消」
+//   belowMin：有效保底人数（booked 总数 - 5分钟快速取消窗口内的补约数）≤ 最低成班人数
+//   窗口内的补约可无成本快速取消，属于不稳定名额，不能为保底人数背书
+async function getExemptGuardState(schedule, now) {
+  const bookedCount = await Booking.countDocuments({ schedule_id: schedule._id, status: 'booked' });
+  const quickWindowStart = new Date(now.toDate().getTime() - TIME_RULES.QUICK_CANCEL_MINUTES * 60000);
+  const unstableCount = await Booking.countDocuments({
+    schedule_id: schedule._id,
+    status: 'booked',
+    is_late_booking: true,
+    created_at: { $gt: quickWindowStart },
+  });
+  return {
+    adminLocked: schedule.exempt_cancel_locked === true,
+    belowMin: (bookedCount - unstableCount) <= (schedule.min_bookings || 5),
+  };
+}
+
 // 计算预约的取消相关字段（供前端展示取消按钮状态/倒计时）
 // 返回：can_cancel, cancel_phase, booking_deadline, exempt_deadline, exemption_count
 // 补约额外返回：is_late_booking, can_quick_cancel, quick_cancel_deadline
@@ -70,11 +89,13 @@ function bjDate(dateStr) {
 //   正常：cancel_deadline 前 → normal；cancel_deadline 后至开课前 → exempt（需有豁免次数）；已开课 → locked
 //   补约：5 分钟内 → quick（不扣豁免）；5 分钟后至开课前 → exempt；已开课 → locked
 //   同一节课已使用过一次豁免取消后再补约，不能再豁免取消（5分钟后锁定）
+//   豁免通道被拦截（管理员禁用 / 有效保底人数不足）→ exempt_blocked，附 exempt_block_reason
 async function computeCancelFields(booking, user) {
   const schedule = booking.schedule_id;
   const lockedResult = {
     can_cancel: false, cancel_phase: 'locked', booking_deadline: null, exempt_deadline: null,
     exemption_count: 0, is_late_booking: false, can_quick_cancel: false, quick_cancel_deadline: null,
+    exempt_block_reason: null,
   };
   if (!schedule || booking.status !== 'booked') return lockedResult;
 
@@ -139,6 +160,26 @@ async function computeCancelFields(booking, user) {
     phase = 'locked';
   }
 
+  // 豁免通道拦截（管理员禁用 / 有效保底人数不足）：仅当豁免取消本可执行时才判定，
+  // 无豁免次数的会员维持原 exempt+不可取消 提示
+  let exemptBlockReason = null;
+  if (phase === 'exempt' && canCancel) {
+    try {
+      const guard = await getExemptGuardState(schedule, now);
+      if (guard.adminLocked) {
+        exemptBlockReason = 'admin_locked';
+      } else if (guard.belowMin) {
+        exemptBlockReason = 'min_bookings';
+      }
+      if (exemptBlockReason) {
+        canCancel = false;
+        phase = 'exempt_blocked';
+      }
+    } catch (e) {
+      // 判定异常时不拦截，由 cancelBooking 执行时兜底
+    }
+  }
+
   return {
     can_cancel: canCancel,
     cancel_phase: phase,
@@ -148,6 +189,7 @@ async function computeCancelFields(booking, user) {
     is_late_booking: isLateBooking,
     can_quick_cancel: canQuickCancel,
     quick_cancel_deadline: canQuickCancel ? quickCancelDeadline.toISOString() : null,
+    exempt_block_reason: exemptBlockReason,
   };
 }
 
@@ -170,6 +212,15 @@ function buildBookingSnapshot(schedule) {
     max_bookings: schedule.max_bookings || 0,
   };
 }
+
+// 按天口径展示字段：shrink_days 非空 = 不限次卡/每日1节卡预约（扣N课时的课缩短了N天有效期）
+// 各列表接口统一附带 deduct_days，前端据此把"扣N课时/次"渲染为"缩短有效期N天"
+// 1课时课/次卡/周期限制卡预约无 shrink_days，deduct_days 为 null，维持课时口径
+function buildDeductionInfo(booking) {
+  const shrinkDays = booking && booking.shrink_days ? booking.shrink_days : null;
+  return { deduct_days: shrinkDays };
+}
+exports.buildDeductionInfo = buildDeductionInfo;
 
 // 构建 Attendance 课程快照字段
 function buildAttendanceSnapshot(schedule) {
@@ -200,15 +251,191 @@ function packageMatchesDanceStyle(userPackage, scheduleDanceStyleId) {
   });
 }
 
-async function checkTimeCardLimit(userPackage, scheduleDate, creditsCost) {
+// 可用星期名称（0=周日…6=周六，与 Date.getDay / weekday_limit 口径一致）
+const WEEKDAY_NAMES = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+
+/**
+ * 可用星期校验：套餐设置了 weekday_limit 时，课程日期的星期必须落在限制范围内
+ * 空/缺省 = 整周可用（存量套餐默认不限）
+ * @param {Object} userPackage - 用户套餐
+ * @param {String} scheduleDate - 课程日期（YYYY-MM-DD）
+ * @returns {boolean} true=允许使用
+ */
+function packageMatchesWeekday(userPackage, scheduleDate) {
+  const limit = userPackage.weekday_limit;
+  if (!Array.isArray(limit) || limit.length === 0) return true;
+  if (!scheduleDate) return true;
+  const day = bjDate(String(scheduleDate)).day();
+  return limit.includes(day);
+}
+
+// 课程日期的星期名称（用于拦截提示文案）
+function weekdayNameOf(scheduleDate) {
+  const day = bjDate(String(scheduleDate || '')).day();
+  return WEEKDAY_NAMES[day] || '';
+}
+
+// 多套餐允许星期的并集文案（"周一、周三、周五"）；无限制套餐返回空串
+function weekdayUnionText(packages) {
+  const set = new Set();
+  packages.forEach(p => {
+    (Array.isArray(p.weekday_limit) ? p.weekday_limit : []).forEach(d => set.add(Number(d)));
+  });
+  return [...set].sort((a, b) => a - b).map(d => WEEKDAY_NAMES[d] || String(d)).join('、');
+}
+
+// —— 可用时段（双边界独立开关）——
+// 单套餐窗口文案：「20:30前」/「18:00后」/「19:00前、20:30后」；不限返回空串
+function timeWindowDesc(pkg) {
+  const b = pkg.usable_before || '';
+  const a = pkg.usable_after || '';
+  if (b && a) return `${b}前、${a}后`;
+  if (b) return `${b}前`;
+  if (a) return `${a}后`;
+  return '';
+}
+
+function toMinutes(hhmm) {
+  const [h, m] = String(hhmm).split(':').map(Number);
+  return (h || 0) * 60 + (m || 0);
+}
+
+/**
+ * 可用时段校验：usable_before/usable_after 双边界独立，均空 = 不限（存量套餐默认）
+ * 与课程开课时间比较，边界含等于；双开时需同时满足
+ * @param {Object} userPackage - 用户套餐
+ * @param {String} scheduleStartTime - 课程开课时间（HH:mm）
+ * @returns {boolean} true=允许使用
+ */
+function packageMatchesTimeWindow(userPackage, scheduleStartTime) {
+  const b = userPackage.usable_before || '';
+  const a = userPackage.usable_after || '';
+  if (!b && !a) return true;
+  if (!scheduleStartTime) return true;
+  const start = toMinutes(scheduleStartTime);
+  const bMin = b ? toMinutes(b) : null;
+  const aMin = a ? toMinutes(a) : null;
+  // 「before前」或「after后」可用，排除中间禁区：双开时介于 between 与 after 之间的时段禁用（边界含等于）
+  if (bMin !== null && aMin !== null) return start <= bMin || start >= aMin;
+  if (bMin !== null) return start <= bMin;
+  if (aMin !== null) return start >= aMin;
+  return true;
+}
+
+// 多套餐时段并集文案：「20:30前 或 18:00后」；存在不限套餐时返回空串
+function timeWindowUnionText(packages) {
+  const descs = [];
+  for (const p of packages) {
+    const desc = timeWindowDesc(p);
+    if (!desc) return '';
+    if (!descs.includes(desc)) descs.push(desc);
+  }
+  return descs.join(' 或 ');
+}
+
+// 按天口径（不限次卡/每日1节卡）核心规则（2026-10 重构）：
+//   不占日期、不锁卡。扣 N(N≥2) 课时的课 = 预约时直接把套餐 end_date 缩短 N 天（即时生效），
+//   取消/退课时把 N 天加回；1 课时课不缩期。
+//   每日1节卡的"每天限1节"独立于此：当日已有任何有效预约（不论课时数）即拒绝，杜绝先上1节再上1节大课的空子。
+// 有效期护栏：N 课时课要求 end_date ≥ 上课日 + N 天（缩完后截止日仍不早于上课日，
+//   保证已约课程不因缩期掉出有效期导致签到被拦）。
+
+// 按天口径缩期：预约创建后调用，end_date 原子缩短 shrinkDays 天并写入 Booking.shrink_days
+// 供取消恢复与双端展示（"缩短有效期N天"）
+async function applyTimeCardShrink(userPackageId, shrinkDays) {
+  if (!shrinkDays || shrinkDays <= 0) return null;
+  // 读-改-写：以旧值为乐观锁条件，避免并发预约互相覆盖缩期
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const pkg = await UserPackage.findById(userPackageId).select('end_date');
+    if (!pkg || !pkg.end_date) return null; // 无截止日的时间卡无从缩期
+    const oldEnd = pkg.end_date;
+    const newEnd = bjDate(oldEnd).subtract(shrinkDays, 'day').endOf('day').toDate();
+    const res = await UserPackage.updateOne(
+      { _id: userPackageId, end_date: oldEnd },
+      { $set: { end_date: newEnd } }
+    );
+    if (res.modifiedCount === 1) return newEnd;
+  }
+  throw new Error('套餐缩期失败，请重试');
+}
+
+// 按天口径恢复：取消/退还时把 shrink_days 加回 end_date（与次卡退次数同位调用）
+// 返回恢复后的新截止日；无 shrink_days 的预约（1课时课/次卡/周期卡）返回 null
+async function restoreTimeCardShrink(booking) {
+  const shrinkDays = booking && booking.shrink_days ? booking.shrink_days : 0;
+  if (!shrinkDays || !booking.user_package_id) return null;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const pkg = await UserPackage.findById(booking.user_package_id).select('end_date status');
+    if (!pkg || !pkg.end_date) return null;
+    const oldEnd = pkg.end_date;
+    const newEnd = bjDate(oldEnd).add(shrinkDays, 'day').endOf('day').toDate();
+    const now = new Date();
+    const patch = { end_date: newEnd };
+    // 已过期套餐恢复后天数回到未来 → 复活为 active（与次卡 exhausted 恢复口径一致）
+    if (pkg.status === 'expired' && newEnd > now) patch.status = 'active';
+    const res = await UserPackage.updateOne(
+      { _id: booking.user_package_id, end_date: oldEnd },
+      { $set: patch }
+    );
+    if (res.modifiedCount === 1) return newEnd;
+  }
+  return null; // 并发冲突重试耗尽，放弃恢复（缩期额度仍在，可人工核账）
+}
+exports.restoreTimeCardShrink = restoreTimeCardShrink;
+
+async function checkTimeCardLimit(userPackage, scheduleDate, creditsCost, excludeBookingId) {
   if (userPackage.package_type !== 'time_card') return { allowed: true };
 
   const dailyLimit = userPackage.daily_limit;
   const weeklyLimit = userPackage.weekly_limit;
   const monthlyLimit = userPackage.monthly_limit;
 
-  if (!dailyLimit && !weeklyLimit && !monthlyLimit) return { allowed: true };
+  // === 按天口径（缩有效期）===
+  // a) 不限次卡（无任何周期限制）：扣 N(N≥2) 课时的课 → 预约时 end_date 直接缩短 N 天；1 课时课不缩期
+  // b) 每天1节卡（仅 daily_limit=1，无周/月限制）：同上缩期；且当天已有任何预约（不论课时数）即拒绝
+  // 无占用日/锁卡概念：预约不再互相限制日期，代价全部体现在截止日提前
+  const isUnlimited = !dailyLimit && !weeklyLimit && !monthlyLimit;
+  const isDailyOne = dailyLimit === 1 && !weeklyLimit && !monthlyLimit;
+  if (isUnlimited || isDailyOne) {
+    const N = Math.max(1, creditsCost || 1);
 
+    // 每天1节卡：一天只能上一节，先上1课时再上2课时（或反过来）都被拦
+    if (isDailyOne) {
+      const sameDayQuery = {
+        user_id: userPackage.user_id,
+        user_package_id: userPackage._id,
+        booking_date: scheduleDate,
+        status: { $in: ['booked', 'completed'] },
+      };
+      // 现场签到等先创建预约再校验的场景，需排除预约自身
+      if (excludeBookingId) sameDayQuery._id = { $ne: excludeBookingId };
+      const sameDayCount = await Booking.countDocuments(sameDayQuery);
+      if (sameDayCount > 0) {
+        return {
+          allowed: false,
+          limitType: 'daily',
+          reason: `本套餐每天限约1节课，${scheduleDate}当天已有预约，无法再预约`,
+        };
+      }
+    }
+
+    // 有效期护栏：end_date ≥ 上课日 + N 天，保证缩 N 天后截止日仍不早于上课日
+    if (N >= 2 && userPackage.end_date) {
+      const endDay = bjDate(userPackage.end_date).endOf('day');
+      const requiredDay = bjDate(scheduleDate).add(N, 'day').endOf('day').subtract(1, 'millisecond');
+      if (endDay.isBefore(requiredDay)) {
+        return {
+          allowed: false,
+          limitType: 'occupied',
+          reason: `套餐剩余有效期不足（本课程将缩短${N}天有效期，套餐有效期至${endDay.format('YYYY年MM月DD日')}），无法预约`,
+        };
+      }
+    }
+
+    return { allowed: true, shrinkDays: N >= 2 ? N : 0 };
+  }
+
+  // === 课时口径（维持不变）：每天X节(X≥2) / 每周X次 / 每月X次 ===
   // 周期限制按"课时"口径统计：每周N次 = N课时额度，
   // 即可上两节扣1课时的课，或上一节扣2课时的课（而非按预约条数）
   const usedCreditsInRange = async (dateFrom, dateTo) => {
@@ -294,7 +521,7 @@ exports.createBooking = async (userId, scheduleId) => {
   try {
     console.log('[Booking] 开始创建预约, userId:', userId, 'scheduleId:', scheduleId);
     // 1. 查找排课
-    const schedule = await Schedule.findById(scheduleId).populate('store_id').populate('coach_id');
+    const schedule = await Schedule.findById(scheduleId).populate('store_id').populate('coach_id').populate('dance_style_id', 'name');
     if (!schedule) throw new Error('课程不存在');
     if (schedule.status === 'offline' || schedule.status === 'cancelled') {
       throw new Error('该课程当前不可预约');
@@ -376,9 +603,20 @@ exports.createBooking = async (userId, scheduleId) => {
       }
     }
 
+    // 可用星期限制：本店所有套餐（active+pending）均不覆盖课程日期时，提前拦截并说明可用的星期
+    const allStorePkgs = [...storeActivePackages, ...storePendingPackages];
+    if (allStorePkgs.length > 0 && !allStorePkgs.some(p => packageMatchesWeekday(p, schedule.date))) {
+      throw new Error(`您的套餐仅可在${weekdayUnionText(allStorePkgs)}使用，无法预约${weekdayNameOf(schedule.date)}的课程`);
+    }
+
+    // 可用时段限制：本店所有套餐均不覆盖课程开课时间时，提前拦截并说明可用的时段
+    if (allStorePkgs.length > 0 && !allStorePkgs.some(p => packageMatchesTimeWindow(p, schedule.start_time))) {
+      throw new Error(`您的套餐仅可预约${timeWindowUnionText(allStorePkgs)}开课的课程，无法预约该课程`);
+    }
+
     if (storeActivePackages.length === 0 && storePendingPackages.length > 0) {
-      // 按舞种限制过滤待激活套餐
-      const matchingPending = storePendingPackages.filter(p => packageMatchesDanceStyle(p, scheduleDanceStyleId));
+      // 按舞种限制 + 可用星期 + 可用时段过滤待激活套餐
+      const matchingPending = storePendingPackages.filter(p => packageMatchesDanceStyle(p, scheduleDanceStyleId) && packageMatchesWeekday(p, schedule.date) && packageMatchesTimeWindow(p, schedule.start_time));
       if (matchingPending.length > 0) {
         const pendingPkg = matchingPending[0];
         activationNotice = '您的套餐已自动激活';
@@ -399,8 +637,8 @@ exports.createBooking = async (userId, scheduleId) => {
     }
 
     let currentPackage = null;
-    const timeCard = storeActivePackages.find(p => p.package_type === 'time_card' && (!p.end_date || new Date() <= p.end_date) && packageMatchesDanceStyle(p, scheduleDanceStyleId));
-    const countCard = storeActivePackages.find(p => p.package_type === 'count_card' && p.remaining_credits > 0 && (!p.end_date || new Date() <= p.end_date) && packageMatchesDanceStyle(p, scheduleDanceStyleId));
+    const timeCard = storeActivePackages.find(p => p.package_type === 'time_card' && (!p.end_date || new Date() <= p.end_date) && packageMatchesDanceStyle(p, scheduleDanceStyleId) && packageMatchesWeekday(p, schedule.date) && packageMatchesTimeWindow(p, schedule.start_time));
+    const countCard = storeActivePackages.find(p => p.package_type === 'count_card' && p.remaining_credits > 0 && (!p.end_date || new Date() <= p.end_date) && packageMatchesDanceStyle(p, scheduleDanceStyleId) && packageMatchesWeekday(p, schedule.date) && packageMatchesTimeWindow(p, schedule.start_time));
 
     if (timeCard) {
       currentPackage = timeCard;
@@ -427,8 +665,8 @@ exports.createBooking = async (userId, scheduleId) => {
       }).sort({ created_at: 1 });
 
       if (storePendingPackages.length > 0) {
-        // 按舞种限制过滤待激活套餐
-        const matchingPending = storePendingPackages.filter(p => packageMatchesDanceStyle(p, scheduleDanceStyleId));
+        // 按舞种限制 + 可用星期 + 可用时段过滤待激活套餐
+        const matchingPending = storePendingPackages.filter(p => packageMatchesDanceStyle(p, scheduleDanceStyleId) && packageMatchesWeekday(p, schedule.date) && packageMatchesTimeWindow(p, schedule.start_time));
         if (matchingPending.length > 0) {
           activationNotice = '您的套餐已自动激活';
           currentPackage = await packageService.activatePackageById(matchingPending[0]._id, userId, {
@@ -460,17 +698,19 @@ exports.createBooking = async (userId, scheduleId) => {
       // 如果是从时间卡限额满切换过来的，给出更友好的错误信息
       if (currentPackage._fallbackFromTimeCard === true && currentPackage._limitCheck) {
         const lc = currentPackage._limitCheck;
-        const limitLabel = lc.limitType === 'weekly' ? '本周' : (lc.limitType === 'monthly' ? '本月' : '今日');
+        const limitLabel = lc.limitType === 'weekly' ? '本周' : (lc.limitType === 'monthly' ? '本月' : (lc.limitType === 'occupied' ? '上课权限' : '今日'));
         throw new Error(`时间卡${limitLabel}次数已用完，且次卡剩余次数不足，请联系管理员`);
       }
       throw new Error('剩余次数不足');
     }
 
+    // 时间卡按天口径的缩期天数（不限次卡/每天1节卡扣N(N≥2)课时的课），预约创建后立即缩短 end_date
+    let timeCardShrinkDays = 0;
     if (currentPackage.package_type === 'time_card') {
       const creditsCost = schedule.credits_cost || 1;
       const limitCheck = await checkTimeCardLimit(currentPackage, schedule.date, creditsCost);
       if (!limitCheck.allowed) {
-        // 时间卡限额已满，查找同门店可用次卡（pending 或 active），按舞种限制过滤
+        // 时间卡限额已满，查找同门店可用次卡（pending 或 active），按舞种限制 + 可用星期过滤
         const availableCountCards = (await UserPackage.find({
           user_id: userId,
           $or: [{ store_id: scheduleStoreId }, { extra_store_ids: scheduleStoreId }],
@@ -478,7 +718,7 @@ exports.createBooking = async (userId, scheduleId) => {
           status: 'active',
           is_suspended: false,
           remaining_credits: { $gt: 0 },
-        }).sort({ created_at: 1 })).filter(p => packageMatchesDanceStyle(p, scheduleDanceStyleId));
+        }).sort({ created_at: 1 })).filter(p => packageMatchesDanceStyle(p, scheduleDanceStyleId) && packageMatchesWeekday(p, schedule.date) && packageMatchesTimeWindow(p, schedule.start_time));
 
         const pendingCountCards = (await UserPackage.find({
           user_id: userId,
@@ -486,7 +726,7 @@ exports.createBooking = async (userId, scheduleId) => {
           package_type: 'count_card',
           status: 'pending',
           is_suspended: false,
-        }).sort({ created_at: 1 })).filter(p => packageMatchesDanceStyle(p, scheduleDanceStyleId));
+        }).sort({ created_at: 1 })).filter(p => packageMatchesDanceStyle(p, scheduleDanceStyleId) && packageMatchesWeekday(p, schedule.date) && packageMatchesTimeWindow(p, schedule.start_time));
 
         if (availableCountCards.length > 0) {
           // 有已激活的次卡，直接使用次卡
@@ -495,8 +735,10 @@ exports.createBooking = async (userId, scheduleId) => {
           currentPackage._limitCheck = limitCheck;
         } else if (pendingCountCards.length > 0) {
           // 有未激活的次卡，抛出特殊错误让前端弹窗确认
-          const limitLabel = limitCheck.limitType === 'weekly' ? '本周' : (limitCheck.limitType === 'monthly' ? '本月' : '今日');
-          const err = new Error(`${limitLabel}时间卡次数已用完，是否激活次卡继续预约？`);
+          const limitLabel = limitCheck.limitType === 'weekly' ? '本周' : (limitCheck.limitType === 'monthly' ? '本月' : (limitCheck.limitType === 'occupied' ? '上课权限' : '今日'));
+          const err = new Error(limitCheck.limitType === 'occupied'
+            ? `时间卡上课权限受限（${limitCheck.reason}），是否激活次卡继续预约？`
+            : `${limitLabel}时间卡次数已用完，是否激活次卡继续预约？`);
           err.code = 'TIME_CARD_LIMIT_REACHED';
           err.data = {
             limitType: limitCheck.limitType,
@@ -517,6 +759,8 @@ exports.createBooking = async (userId, scheduleId) => {
           // 没有可用次卡，抛出原错误
           throw new Error(limitCheck.reason);
         }
+      } else if (limitCheck.shrinkDays) {
+        timeCardShrinkDays = limitCheck.shrinkDays;
       }
     }
 
@@ -561,9 +805,22 @@ exports.createBooking = async (userId, scheduleId) => {
       status: 'booked',
       credits_deducted: creditsCost,
       user_package_id: currentPackage._id,
+      member_snapshot: Booking.buildMemberSnapshot(member),
       is_late_booking: isLateBooking,  // 标记是否为补约
+      ...(timeCardShrinkDays > 0 ? { shrink_days: timeCardShrinkDays } : {}),  // 按天口径缩期天数（创建后立即缩短end_date）
       ...buildBookingSnapshot(schedule),  // 课程快照
     });
+
+    // 按天口径缩期：预约成立后立即缩短 end_date（失败则摘除标记，避免取消时多恢复）
+    if (timeCardShrinkDays > 0) {
+      try {
+        await applyTimeCardShrink(currentPackage._id, timeCardShrinkDays);
+      } catch (shrinkErr) {
+        console.error('[Booking] 时间卡缩期失败，已摘除shrink_days标记:', shrinkErr.message, 'bookingId:', booking._id);
+        await Booking.updateOne({ _id: booking._id }, { $unset: { shrink_days: '' } });
+        timeCardShrinkDays = 0;
+      }
+    }
 
     // 扣除课时（仅次卡扣减，时间卡不扣减）
     if (currentPackage.package_type === 'count_card') {
@@ -717,6 +974,8 @@ exports.cancelBooking = async (userId, bookingId) => {
         if (pkg.status === 'exhausted') pkg.status = 'active';
         await pkg.save();
       }
+      // 按天口径：把缩掉的有效期加回
+      await restoreTimeCardShrink(booking);
 
       // 跳过下方正常/豁免判断，直接进入人数更新与通知流程
       return await finalizeCancel(booking, schedule, userId, now, classStart);
@@ -746,8 +1005,19 @@ exports.cancelBooking = async (userId, bookingId) => {
       if (pkg.status === 'exhausted') pkg.status = 'active';
       await pkg.save();
     }
+    // 按天口径：把缩掉的有效期加回
+    await restoreTimeCardShrink(booking);
   } else if (now.isBefore(classStart)) {
     // 正常预约在 cancel_deadline 后 或 补约5分钟后 → 豁免取消（直到开课前）
+
+    // 豁免取消拦截：管理员禁用 / 有效保底人数不足（取消会影响开班）
+    const guard = await getExemptGuardState(schedule, now);
+    if (guard.adminLocked) {
+      throw new Error('该课程已设置不可使用豁免取消');
+    }
+    if (guard.belowMin) {
+      throw new Error('当前有效预约人数仅够最低成班人数，豁免取消会影响开班，无法取消');
+    }
 
     // 同一节课已使用过豁免取消的，禁止第二次豁免取消（补约场景）
     if (booking.is_late_booking) {
@@ -781,6 +1051,8 @@ exports.cancelBooking = async (userId, bookingId) => {
         if (pkg.status === 'exhausted') pkg.status = 'active';
         await pkg.save();
       }
+      // 按天口径：把缩掉的有效期加回
+      await restoreTimeCardShrink(booking);
 
       // 扣除豁免次数
       user.exemption_count = effectiveExemptionCount - 1;
@@ -890,7 +1162,7 @@ exports.getMyBookings = async (userId, type, page, pageSize, storeId) => {
   const list = await Booking.find(filter)
     .populate({
       path: 'schedule_id',
-      select: 'course_name start_time end_time date store_id dance_style_id coach_id status booking_deadline cancel_deadline min_bookings current_bookings',
+      select: 'course_name start_time end_time date store_id dance_style_id coach_id status booking_deadline cancel_deadline min_bookings current_bookings exempt_cancel_locked',
       populate: [
         { path: 'store_id', select: 'name' },
         { path: 'dance_style_id', select: 'name' },
@@ -912,12 +1184,14 @@ exports.getMyBookings = async (userId, type, page, pageSize, storeId) => {
   }
   const resultList = await Promise.all(list.map(async b => {
     const obj = b.toObject();
+    Object.assign(obj, buildDeductionInfo(b));
     if (b.status === 'booked') {
       obj.can_cancel = false;
       obj.cancel_phase = 'locked';
       obj.booking_deadline = null;
       obj.exempt_deadline = null;
       obj.exemption_count = 0;
+      obj.exempt_block_reason = null;
       try {
         const fields = await computeCancelFields(b, userDoc);
         Object.assign(obj, fields);
@@ -991,8 +1265,14 @@ exports.getBookingList = async (query) => {
     .skip((page - 1) * pageSize)
     .limit(Number(pageSize));
 
+  const resultList = list.map(b => {
+    const obj = b.toObject();
+    Object.assign(obj, buildDeductionInfo(b));
+    return obj;
+  });
+
   const total = await Booking.countDocuments(filter);
-  return { list, total, page: Number(page), pageSize: Number(pageSize) };
+  return { list: resultList, total, page: Number(page), pageSize: Number(pageSize) };
 };
 
 // 按日期汇总预约数据（轻量级，用于"所有日期"懒加载）
@@ -1129,6 +1409,7 @@ exports.getBookingById = async (id) => {
       obj.booking_deadline = null;
       obj.exempt_deadline = null;
       obj.exemption_count = booking.user_id ? (booking.user_id.exemption_count !== undefined ? booking.user_id.exemption_count : 2) : 0;
+      obj.exempt_block_reason = null;
     }
   }
   return obj;
@@ -1159,6 +1440,8 @@ exports.adminCancelBooking = async (bookingId, reason, operatorId) => {
     if (pkg.status === 'exhausted') pkg.status = 'active';
     await pkg.save();
   }
+  // 按天口径：把缩掉的有效期加回
+  await restoreTimeCardShrink(booking);
 
   // 更新排课预约人数
   const schedule = await Schedule.findById(booking.schedule_id).populate('coach_id', 'name').populate('store_id', 'name');
@@ -1249,13 +1532,16 @@ exports.joinWaitlist = async (userId, scheduleId) => {
   }
 
   // 检查是否已在候补中
+  // 注意：Waitlist 存在 {user_id, schedule_id} 唯一索引，取消候补仅标记 status='cancelled' 不删记录，
+  // 因此查重需不限状态；再次排队时复用历史记录恢复为 waiting，避免触发唯一索引冲突
   const Waitlist = require('../models/Waitlist');
   const existing = await Waitlist.findOne({
     user_id: userId,
     schedule_id: scheduleId,
-    status: { $in: ['waiting', 'notified'] },
   });
-  if (existing) throw new Error('您已在候补名单中');
+  if (existing && ['waiting', 'notified'].includes(existing.status)) {
+    throw new Error('您已在候补名单中');
+  }
 
   // 检查是否已预约
   const booked = await Booking.findOne({
@@ -1265,11 +1551,47 @@ exports.joinWaitlist = async (userId, scheduleId) => {
   });
   if (booked) throw new Error('您已预约该课程，无需候补');
 
+  // 可用星期限制：与自助预约同口径——本店所有套餐（active+pending，未停卡）均不覆盖课程日期时，不允许排队候补
+  {
+    const scheduleStoreIdRaw = schedule.store_id ? (schedule.store_id._id || schedule.store_id) : null;
+    const scheduleStoreId = scheduleStoreIdRaw ? new mongoose.Types.ObjectId(scheduleStoreIdRaw.toString()) : null;
+    const myStorePkgs = await UserPackage.find({
+      user_id: userId,
+      $or: [{ store_id: scheduleStoreId }, { extra_store_ids: scheduleStoreId }],
+      status: { $in: ['active', 'pending'] },
+      is_suspended: { $ne: true },
+    });
+    if (myStorePkgs.length > 0 && !myStorePkgs.some(p => packageMatchesWeekday(p, schedule.date))) {
+      throw new Error(`您的套餐仅可在${weekdayUnionText(myStorePkgs)}使用，无法预约${weekdayNameOf(schedule.date)}的课程`);
+    }
+    // 可用时段限制：与自助预约同口径，全部套餐均不覆盖课程开课时间时不允许排队候补
+    if (myStorePkgs.length > 0 && !myStorePkgs.some(p => packageMatchesTimeWindow(p, schedule.start_time))) {
+      throw new Error(`您的套餐仅可预约${timeWindowUnionText(myStorePkgs)}开课的课程，无法预约该课程`);
+    }
+  }
+
   // 计算排队位置
   const count = await Waitlist.countDocuments({
     schedule_id: scheduleId,
     status: 'waiting',
   });
+
+  // 已有历史记录（取消候补/候补过期/候补转正后再次排队）：复用记录恢复排队
+  if (existing) {
+    existing.status = 'waiting';
+    existing.position = count + 1;
+    existing.notified_at = null;
+    existing.expire_at = null;
+    existing.remark = '';
+    existing.course_name = schedule.course_name || '';
+    existing.schedule_date = schedule.date || '';
+    existing.start_time = schedule.start_time || '';
+    existing.end_time = schedule.end_time || '';
+    existing.coach_name = schedule.coach_id?.name || '';
+    existing.store_name = schedule.store_id?.name || '';
+    await existing.save();
+    return existing;
+  }
 
   const waitlist = await Waitlist.create({
     user_id: userId,
@@ -1473,6 +1795,7 @@ exports.promoteWaitlist = async (waitlistId, operatorId) => {
 
   // 套餐选择：时间卡优先，限额满时 fallback 到次卡（按舞种限制过滤）
   let currentPackage = null;
+  let timeCardShrinkDays = 0;  // 时间卡按天口径缩期天数（预约后立即缩短end_date）
   const timeCard = storeActivePackages.find(p => p.package_type === 'time_card' && (!p.end_date || new Date() <= p.end_date) && packageMatchesDanceStyle(p, promoteDanceStyleId));
   const countCard = storeActivePackages.find(p => p.package_type === 'count_card' && p.remaining_credits > 0 && (!p.end_date || new Date() <= p.end_date) && packageMatchesDanceStyle(p, promoteDanceStyleId));
 
@@ -1481,10 +1804,16 @@ exports.promoteWaitlist = async (waitlistId, operatorId) => {
     const limitCheck = await checkTimeCardLimit(timeCard, schedule.date, creditsCost);
     if (limitCheck.allowed) {
       currentPackage = timeCard;
+      timeCardShrinkDays = limitCheck.shrinkDays || 0;
     } else if (countCard) {
       // 时间卡限额满，fallback 到次卡
       currentPackage = countCard;
     }
+  }
+  // 时间卡不存在或不可用时回退次卡（与 confirmWaitlistBooking 兜底一致；
+  // 原逻辑缺失该行，纯次卡会员转正会误报"没有可用套餐"）
+  if (!currentPackage) {
+    currentPackage = countCard;
   }
 
   if (!currentPackage) {
@@ -1542,6 +1871,9 @@ exports.promoteWaitlist = async (waitlistId, operatorId) => {
     }
   }
 
+  // 会员快照（课时账单溯源）
+  const promotedUser = await User.findById(userId).select('real_name nick_name member_code phone');
+
   // 创建预约记录
   const booking = await Booking.create({
     schedule_id: waitlist.schedule_id,
@@ -1554,8 +1886,21 @@ exports.promoteWaitlist = async (waitlistId, operatorId) => {
     status: 'booked',
     credits_deducted: creditsCost,
     user_package_id: currentPackage._id,
+    member_snapshot: Booking.buildMemberSnapshot(promotedUser),
+    ...(timeCardShrinkDays > 0 ? { shrink_days: timeCardShrinkDays } : {}),  // 按天口径缩期天数（创建后立即缩短end_date）
     ...buildBookingSnapshot(schedule),  // 课程快照
   });
+
+  // 按天口径缩期：预约成立后立即缩短 end_date（失败则摘除标记，避免取消时多恢复）
+  if (timeCardShrinkDays > 0) {
+    try {
+      await applyTimeCardShrink(currentPackage._id, timeCardShrinkDays);
+    } catch (shrinkErr) {
+      console.error('[Booking] 时间卡缩期失败，已摘除shrink_days标记:', shrinkErr.message, 'bookingId:', booking._id);
+      await Booking.updateOne({ _id: booking._id }, { $unset: { shrink_days: '' } });
+      timeCardShrinkDays = 0;
+    }
+  }
 
   // 扣减次卡课时
   if (currentPackage.package_type === 'count_card') {
@@ -1692,6 +2037,7 @@ exports.notifyWaitlistUsers = async (scheduleId) => {
 
       // 套餐选择：时间卡优先，限额满时 fallback 次卡（按舞种限制过滤）
       let currentPackage = null;
+      let timeCardShrinkDays = 0;  // 时间卡按天口径缩期天数（预约后立即缩短end_date）
       const timeCard = storeActivePackages.find(p => p.package_type === 'time_card' && (!p.end_date || new Date() <= p.end_date) && packageMatchesDanceStyle(p, notifyDanceStyleId));
       const countCard = storeActivePackages.find(p => p.package_type === 'count_card' && p.remaining_credits > 0 && packageMatchesDanceStyle(p, notifyDanceStyleId));
 
@@ -1700,6 +2046,7 @@ exports.notifyWaitlistUsers = async (scheduleId) => {
         const limitCheck = await checkTimeCardLimit(timeCard, schedule.date, creditsCost);
         if (limitCheck.allowed) {
           currentPackage = timeCard;
+          timeCardShrinkDays = limitCheck.shrinkDays || 0;
         } else if (countCard) {
           currentPackage = countCard;
         }
@@ -1768,8 +2115,21 @@ exports.notifyWaitlistUsers = async (scheduleId) => {
         status: 'booked',
         credits_deducted: creditsCost,
         user_package_id: currentPackage._id,
+        member_snapshot: Booking.buildMemberSnapshot(user),
+        ...(timeCardShrinkDays > 0 ? { shrink_days: timeCardShrinkDays } : {}),  // 按天口径缩期天数（创建后立即缩短end_date）
         ...buildBookingSnapshot(schedule),  // 课程快照
       });
+
+      // 按天口径缩期：预约成立后立即缩短 end_date（失败则摘除标记，避免取消时多恢复）
+      if (timeCardShrinkDays > 0) {
+        try {
+          await applyTimeCardShrink(currentPackage._id, timeCardShrinkDays);
+        } catch (shrinkErr) {
+          console.error('[Booking] 时间卡缩期失败，已摘除shrink_days标记:', shrinkErr.message, 'bookingId:', booking._id);
+          await Booking.updateOne({ _id: booking._id }, { $unset: { shrink_days: '' } });
+          timeCardShrinkDays = 0;
+        }
+      }
 
       // 扣减次卡课时
       if (currentPackage.package_type === 'count_card') {
@@ -1863,6 +2223,7 @@ exports.confirmWaitlistBooking = async (userId, waitlistId) => {
 
   // 套餐选择：时间卡优先，限额满时 fallback 次卡（按舞种限制过滤）
   let currentPackage = null;
+  let timeCardShrinkDays = 0;  // 时间卡按天口径缩期天数（预约后立即缩短end_date）
   const timeCard = storeActivePackages.find(p => p.package_type === 'time_card' && (!p.end_date || new Date() <= p.end_date) && packageMatchesDanceStyle(p, waitlistDanceStyleId));
   const countCard = storeActivePackages.find(p => p.package_type === 'count_card' && p.remaining_credits > 0 && (!p.end_date || new Date() <= p.end_date) && packageMatchesDanceStyle(p, waitlistDanceStyleId));
 
@@ -1871,6 +2232,7 @@ exports.confirmWaitlistBooking = async (userId, waitlistId) => {
     const limitCheck = await checkTimeCardLimit(timeCard, schedule.date, creditsCost);
     if (limitCheck.allowed) {
       currentPackage = timeCard;
+      timeCardShrinkDays = limitCheck.shrinkDays || 0;
     } else if (countCard) {
       // 时间卡限额满，fallback 到次卡
       currentPackage = countCard;
@@ -1937,6 +2299,9 @@ exports.confirmWaitlistBooking = async (userId, waitlistId) => {
     }
   }
 
+  // 会员快照（课时账单溯源）
+  const confirmedUser = await User.findById(userId).select('real_name nick_name member_code phone');
+
   // 创建预约
   const booking = await Booking.create({
     schedule_id: waitlist.schedule_id,
@@ -1949,8 +2314,21 @@ exports.confirmWaitlistBooking = async (userId, waitlistId) => {
     status: 'booked',
     credits_deducted: creditsCost,
     user_package_id: currentPackage._id,
+    member_snapshot: Booking.buildMemberSnapshot(confirmedUser),
+    ...(timeCardShrinkDays > 0 ? { shrink_days: timeCardShrinkDays } : {}),  // 按天口径缩期天数（创建后立即缩短end_date）
     ...buildBookingSnapshot(schedule),  // 课程快照
   });
+
+  // 按天口径缩期：预约成立后立即缩短 end_date（失败则摘除标记，避免取消时多恢复）
+  if (timeCardShrinkDays > 0) {
+    try {
+      await applyTimeCardShrink(currentPackage._id, timeCardShrinkDays);
+    } catch (shrinkErr) {
+      console.error('[Booking] 时间卡缩期失败，已摘除shrink_days标记:', shrinkErr.message, 'bookingId:', booking._id);
+      await Booking.updateOne({ _id: booking._id }, { $unset: { shrink_days: '' } });
+      timeCardShrinkDays = 0;
+    }
+  }
 
   // 扣减次卡课时
   if (currentPackage.package_type === 'count_card') {
@@ -2069,6 +2447,7 @@ exports.checkIn = async (scheduleId, userId, operatorId = null, isOnsite = false
       booking_time: schedule.start_time,
       status: 'completed',
       credits_deducted: schedule.credits_cost || 1,
+      member_snapshot: Booking.buildMemberSnapshot(await User.findById(userId).select('real_name nick_name member_code phone')),
       source: 'onsite',
       check_in_time: new Date(),
       check_in_by: operatorId,
@@ -2102,14 +2481,24 @@ exports.checkIn = async (scheduleId, userId, operatorId = null, isOnsite = false
           await booking.save();
 
           // 时间卡签到前校验周期限制（日/周/月），与 onsiteCheckIn 保持一致
+          // 注意：此处 booking 已创建，需排除自身避免误判
           if (userPackage.package_type === 'time_card') {
-            const limitCheck = await checkTimeCardLimit(userPackage, schedule.date, booking.credits_deducted);
+            const limitCheck = await checkTimeCardLimit(userPackage, schedule.date, booking.credits_deducted, booking._id);
             if (!limitCheck.allowed) {
               // 已创建的 booking 需要回滚，避免绕过限制留下已扣课时的 completed 记录
               await Booking.deleteOne({ _id: booking._id });
-              const limitLabel = limitCheck.limitType === 'weekly' ? '本周' : (limitCheck.limitType === 'monthly' ? '本月' : '今日');
+              const limitLabel = limitCheck.limitType === 'weekly' ? '本周' : (limitCheck.limitType === 'monthly' ? '本月' : (limitCheck.limitType === 'occupied' ? '上课权限' : '今日'));
               pushCheckInFailed(userId, CHECK_IN_ERROR_CODE.CREDITS_INSUFFICIENT, `${limitLabel}预约次数已达上限`, 'time card limit: ' + limitCheck.reason, true);
               throw new Error(limitCheck.reason);
+            } else if (limitCheck.shrinkDays > 0) {
+              // 按天口径：立即缩短有效期，失败则不标记（签到场景 booking 已存在，不能回滚）
+              try {
+                await applyTimeCardShrink(userPackage._id, limitCheck.shrinkDays);
+                booking.shrink_days = limitCheck.shrinkDays;
+                await booking.save();
+              } catch (shrinkErr) {
+                console.error('[checkIn] 时间卡缩期失败，不标记shrink_days:', shrinkErr.message, 'bookingId:', booking._id);
+              }
             }
           }
 
@@ -2222,6 +2611,11 @@ exports.checkIn = async (scheduleId, userId, operatorId = null, isOnsite = false
       source: isOnsite ? 'onsite' : 'booking'
     });
   } catch (e) {}
+
+  // 数据中心：广播新消课事件（看板实时刷新）
+  try {
+    require('./datacenter.service').notifyDataChanged('consume', schedule.store_id, { date: schedule.date });
+  } catch (e) { /* 通知失败不影响签到 */ }
 
   return booking;
 };
@@ -2453,13 +2847,15 @@ exports.onsiteCheckIn = async (scheduleId, userId, operatorId = null, userPackag
     }
 
     // 时间卡检查日/周/月限制
+    let timeCardShrinkDays = 0;  // 时间卡按天口径缩期天数（预约后立即缩短end_date）
     if (pkg.package_type === 'time_card') {
       const limitCheck = await checkTimeCardLimit(pkg, schedule.date, schedule.credits_cost || 1);
       if (!limitCheck.allowed) {
-        const limitLabel = limitCheck.limitType === 'weekly' ? '本周' : (limitCheck.limitType === 'monthly' ? '本月' : '今日');
+        const limitLabel = limitCheck.limitType === 'weekly' ? '本周' : (limitCheck.limitType === 'monthly' ? '本月' : (limitCheck.limitType === 'occupied' ? '上课权限' : '今日'));
         pushCheckInFailed(userId, CHECK_IN_ERROR_CODE.CREDITS_INSUFFICIENT, `${limitLabel}预约次数已达上限`, 'time card limit: ' + limitCheck.reason, true);
         throw new Error(limitCheck.reason);
       }
+      timeCardShrinkDays = limitCheck.shrinkDays || 0;
     }
 
     // 停卡会员：签到后终止停卡期限，恢复正常服务
@@ -2512,9 +2908,22 @@ exports.onsiteCheckIn = async (scheduleId, userId, operatorId = null, userPackag
       checked_in_by: operatorId,
       credits_deducted: creditsDeducted,
       user_package_id: pkg._id,
+      member_snapshot: Booking.buildMemberSnapshot(user),
+      ...(timeCardShrinkDays > 0 ? { shrink_days: timeCardShrinkDays } : {}),  // 按天口径缩期天数（创建后立即缩短end_date）
       source: 'onsite',
       ...snapshot,
     });
+
+    // 按天口径缩期：预约成立后立即缩短 end_date（失败则摘除标记，避免取消时多恢复）
+    if (timeCardShrinkDays > 0) {
+      try {
+        await applyTimeCardShrink(pkg._id, timeCardShrinkDays);
+      } catch (shrinkErr) {
+        console.error('[onsiteCheckIn] 时间卡缩期失败，已摘除shrink_days标记:', shrinkErr.message, 'bookingId:', booking._id);
+        await Booking.updateOne({ _id: booking._id }, { $unset: { shrink_days: '' } });
+        timeCardShrinkDays = 0;
+      }
+    }
 
     // 更新排课人数
     await Schedule.findByIdAndUpdate(scheduleId, { $inc: { current_bookings: 1 } });
@@ -2560,6 +2969,11 @@ exports.onsiteCheckIn = async (scheduleId, userId, operatorId = null, userPackag
   } catch (attErr) {
     console.error('[onsiteCheckIn] 创建attendance失败:', attErr.message);
   }
+
+  // 数据中心：广播新消课事件（看板实时刷新）
+  try {
+    require('./datacenter.service').notifyDataChanged('consume', schedule.store_id, { date: schedule.date });
+  } catch (e) { /* 通知失败不影响签到 */ }
 
   // 课后补签场景：教练课时记录在课程结束时已生成快照，补签新增签到不会自动计入
   // 若记录已存在则删除重建，确保签到人数与实际一致（薪酬统计基于Attendance表，不受影响）

@@ -5,7 +5,6 @@ const storeFilter = require('../middleware/storeFilter');
 const checkRecordOwnership = require('../middleware/checkRecordOwnership');
 const Booking = require('../models/Booking');
 const bookingService = require('../services/booking.service');
-const coachSalaryService = require('../services/coach-salary.service');
 const { success, paginate, error: errorResp } = require('../utils/response');
 const { assertMemberAccessibleForCheckin } = require('../utils/storeOwnership');
 

@@ -56,6 +56,14 @@
               <view class="rci-icon store"></view>
               <text class="rci-text">{{item.storeName || '门店'}}</text>
             </view>
+            <view class="rci-row" wx:if="{{item.deductDays && item.status !== 'cancelled'}}">
+              <view class="rci-icon credit"></view>
+              <text class="rci-text highlight">已缩短套餐有效期 {{item.deductDays}} 天</text>
+            </view>
+            <view class="rci-row" wx:if="{{item.deductDays && item.status === 'cancelled'}}">
+              <view class="rci-icon credit"></view>
+              <text class="rci-text">已恢复套餐有效期</text>
+            </view>
           </view>
         </view>
       </view>
@@ -107,13 +115,17 @@
             </view>
             <view class="rci-row" wx:if="{{item.isCancelledAfterCheckin}}">
               <view class="rci-icon credit"></view>
-              <text class="rci-text">课时已退还</text>
+              <text class="rci-text">{{item.deductDays ? '已恢复套餐有效期' : '课时已退还'}}</text>
             </view>
             <view class="rci-row" wx:if="{{item.isCancelledAfterCheckin && item.cancelReasonText}}">
               <view class="rci-icon time"></view>
               <text class="rci-text">取消原因 {{item.cancelReasonText}}</text>
             </view>
-            <view class="rci-row" wx:if="{{item.creditsCost > 0}}">
+            <view class="rci-row" wx:if="{{!item.isCancelledAfterCheckin && item.deductDays}}">
+              <view class="rci-icon credit"></view>
+              <text class="rci-text highlight">已缩短套餐有效期 {{item.deductDays}} 天</text>
+            </view>
+            <view class="rci-row" wx:if="{{!item.isCancelledAfterCheckin && !item.deductDays && item.creditsCost > 0}}">
               <view class="rci-icon credit"></view>
               <text class="rci-text highlight">消耗 {{item.creditsCost}} 课时</text>
             </view>

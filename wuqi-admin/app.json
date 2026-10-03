@@ -118,6 +118,12 @@
         "pages/agreement/agreement",
         "pages/profile/account-security/account-security"
       ]
+    },
+    {
+      "root": "package-data",
+      "pages": [
+        "pages/member-data/member-data"
+      ]
     }
   ]
 }

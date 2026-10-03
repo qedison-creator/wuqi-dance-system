@@ -26,6 +26,9 @@ const _createEmptyPackage = () => ({
   duration_unit: 'month',  // 'month' / 'day'
   extra_store_ids: [],     // 该套餐的附加门店 ID 数组
   dance_style_limit: [],   // 该套餐的舞种限制 ID 数组（空=不限舞种）
+  weekday_limit: [0, 1, 2, 3, 4, 5, 6],  // 可用星期（0=周日…6=周六；全选=整周可用）
+  usable_before: '',  // 可用时段（前），''=未开启；开启时预选 20:30
+  usable_after: '',   // 可用时段（后），''=未开启
   _danceStyleText: ''      // 已选舞种文本（仅前端展示用）
 });
 
@@ -72,6 +75,12 @@ Page({
     showDanceStylePicker: false,
     danceStylePickerIndex: 0,
     selectedDanceStyleId: '',   // 单选 UI 判断用（空=不限舞种）
+    // 可用星期选项（周一在前，周日=0 与后端 weekday_limit 口径一致）
+    weekdayOptions: [
+      { value: 1, label: '一' }, { value: 2, label: '二' }, { value: 3, label: '三' },
+      { value: 4, label: '四' }, { value: 5, label: '五' }, { value: 6, label: '六' },
+      { value: 0, label: '日' }
+    ],
     // 批量管理模式
     batchMode: false,        // 是否处于批量管理模式
     selectedIds: [],         // 已选中的预建档 ID 列表
@@ -401,6 +410,23 @@ Page({
           key: pkg._id || String(idx),
           info,
           dance_style_text: danceStyleText,
+          // 可用时段文本（双边界）：空=不限
+          time_text: (() => {
+            const tb = (Array.isArray(pkg.usable_before) ? '' : (pkg.usable_before || ''));
+            const ta = (Array.isArray(pkg.usable_after) ? '' : (pkg.usable_after || ''));
+            if (tb && ta) return tb + '前、' + ta + '后';
+            if (tb) return tb + '前';
+            if (ta) return ta + '后';
+            return '';
+          })(),
+          // 可用星期文本：空数组/缺省 = 整周可用（不显示）
+          weekday_text: (Array.isArray(pkg.weekday_limit) && pkg.weekday_limit.length > 0 && pkg.weekday_limit.length < 7)
+            ? (() => {
+                const names = { 0: '周日', 1: '周一', 2: '周二', 3: '周三', 4: '周四', 5: '周五', 6: '周六' };
+                const wl = pkg.weekday_limit.map(Number);
+                return [1, 2, 3, 4, 5, 6, 0].filter(d => wl.includes(d)).map(d => names[d]).join('、');
+              })()
+            : '',
           status_text: statusText,
           status_cls: statusCls
         };
@@ -513,6 +539,12 @@ Page({
           duration_unit: pkg.duration_unit || 'month',
           extra_store_ids: extraIds,
           dance_style_limit: danceStyleIds,
+          // 可用星期：空数组/缺省（历史数据）= 整周可用，回填为全选
+          weekday_limit: (Array.isArray(pkg.weekday_limit) && pkg.weekday_limit.length > 0)
+            ? pkg.weekday_limit.map(Number)
+            : [0, 1, 2, 3, 4, 5, 6],
+          usable_before: pkg.usable_before || '',
+          usable_after: pkg.usable_after || '',
           _danceStyleText: ''   // 稍后由 _refreshAllDanceStyleText 填充
         };
       });
@@ -753,6 +785,49 @@ Page({
     });
   },
 
+  // 切换某套餐的可用星期（仅改本地表单状态，点保存才提交；取消/关闭弹窗自动丢弃）
+  onTogglePkgWeekday(e) {
+    const value = Number(e.currentTarget.dataset.value);
+    const pkgIdx = Number(e.currentTarget.dataset.index);
+    const pkg = this.data.form.packages[pkgIdx];
+    if (!pkg) return;
+    const arr = [...(pkg.weekday_limit || [])];
+    const idx = arr.indexOf(value);
+    if (idx !== -1) {
+      if (arr.length <= 1) {
+        wx.showToast({ title: '至少保留一天可用', icon: 'none' });
+        return;
+      }
+      arr.splice(idx, 1);
+    } else {
+      arr.push(value);
+    }
+    this.setData({ [`form.packages[${pkgIdx}].weekday_limit`]: arr });
+  },
+
+  // 切换某套餐的可用时段开关（仅改本地表单状态，点保存才提交；开启时预选 20:30）
+  onTogglePkgTimeLimit(e) {
+    const field = e.currentTarget.dataset.field; // 'usable_before' | 'usable_after'
+    const pkgIdx = Number(e.currentTarget.dataset.index);
+    const pkg = this.data.form.packages[pkgIdx];
+    if (!pkg) return;
+    const current = pkg[field] || '';
+    this.setData({ ['form.packages[' + pkgIdx + '].' + field]: current ? '' : '20:30' });
+  },
+
+  // 某套餐可用时段时间选择
+  onPkgTimeLimitTimeChange(e) {
+    const field = e.currentTarget.dataset.field;
+    const pkgIdx = Number(e.currentTarget.dataset.index);
+    this.setData({ ['form.packages[' + pkgIdx + '].' + field]: e.detail.value });
+  },
+
+  // 表单星期 → 提交值：全选 7 天 = 整周可用（提交空数组），否则去重升序原样提交
+  _weekdayFormValue(arr) {
+    const list = Array.isArray(arr) ? arr.map(Number).filter(n => n >= 0 && n <= 6) : [];
+    return list.length === 7 ? [] : [...new Set(list)].sort((a, b) => a - b);
+  },
+
   onToggleExtraStore(e) {
     const { id, index } = e.currentTarget.dataset;
     const checked = e.detail.value;
@@ -875,8 +950,15 @@ Page({
       const packageData = {
         package_type: pkg.package_type,
         extra_store_ids: pkg.extra_store_ids || [],
-        dance_style_limit: pkg.dance_style_limit || []
+        dance_style_limit: pkg.dance_style_limit || [],
+        weekday_limit: this._weekdayFormValue(pkg.weekday_limit),
+        usable_before: pkg.usable_before || '',
+        usable_after: pkg.usable_after || ''
       };
+      if ((pkg.usable_before || '') && (pkg.usable_after || '') && pkg.usable_after <= pkg.usable_before) {
+        wx.showToast({ title: '套餐' + (form.packages.length > 1 ? (form.packages.indexOf(pkg) + 1) + '：' : '') + '可用时段无效，时段前需早于时段后', icon: 'none' });
+        return;
+      }
       // 编辑模式下带上 _id，后端按 _id 原地更新现有套餐；新建模式 _id 为空，后端创建新套餐
       if (editingId && pkg._id) {
         packageData._id = pkg._id;

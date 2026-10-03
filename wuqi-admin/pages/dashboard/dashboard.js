@@ -50,6 +50,7 @@ Page({
     stats: {
       todaySchedules: 0,
       totalMembers: 0,
+      residentMembers: 0,
       waitlistCount: 0,
       pendingReviews: 0
     },
@@ -361,6 +362,7 @@ Page({
       stats: {
         todaySchedules: statsData.today_schedules || 0,
         totalMembers: statsData.total_members || 0,
+        residentMembers: statsData.resident_members || 0,
         waitlistCount: this.data.stats.waitlistCount || 0,
         pendingReviews: data.pending_review || 0
       }
@@ -675,7 +677,12 @@ Page({
       currentStore: store,
       currentStoreName: store.name,
       showStoreModal: false,
-      loadingSkeleton: true
+      loadingSkeleton: true,
+      // 清空展开态与已加载列表，避免残留旧门店数据（近期课程/待办展开列表）
+      expandedTodo: '',
+      detailList: [],
+      scheduleList: [],
+      pendingMembers: []
     }, () => {
       this.loadAllData();
     });
@@ -824,6 +831,8 @@ Page({
 
     if (type === 'time_card') packageName = packageName || '时间卡';
     if (type === 'count_card') packageName = packageName || '次卡';
+    // 时间卡按时间计费、不限次数：不展示剩余次数（避免哨兵值如10002次误显示）
+    if (type === 'time_card') remaining = 0;
 
     return {
       _id: memberId || (Date.now() + Math.random()),
@@ -925,6 +934,8 @@ Page({
             remaining = first.remaining_credits;
           }
         }
+        // 时间卡按时间计费、不限次数：不展示剩余次数（详情包里 remaining_credits 为哨兵值如10002）
+        if (type === 'time_card') remaining = 0;
 
         const avatarChar = userName && userName.length > 0 ? userName.charAt(0) : '会';
 
@@ -1395,8 +1406,12 @@ Page({
     wx.navigateTo({ url: '/package-schedule/pages/booking-summary/booking-summary' });
   },
 
-  onGoToWaitlist() {
-    wx.navigateTo({ url: '/package-schedule/pages/waitlist/waitlist' });
+  onGoToPackageLogs() {
+    wx.navigateTo({ url: '/package-shop/pages/package-logs/package-logs?tab=entry' });
+  },
+
+  onGoToDataCenter() {
+    wx.navigateTo({ url: '/package-data/pages/member-data/member-data' });
   },
 
   onGoToCheckIn() {

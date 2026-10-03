@@ -8,12 +8,43 @@
 
 set -e
 
+# ============================================
+# ⚠️ 仅限【全新服务器首次部署】使用
+#
+# 本脚本写入的站点配置只覆盖 80 端口；现网服务器上的
+# /etc/nginx/sites-enabled/api.yuekeme.cn 已在此基础上由 certbot
+# 增加了 443/HTTPS 配置。在已部署环境运行本脚本会覆盖并破坏 HTTPS，
+# 因此脚本内置现网检测：检测到已部署即中止。
+# ============================================
+
 PROJECT_DIR="/home/ubuntu/wuqi-dance-system"
 BACKEND_DIR="$PROJECT_DIR/backend"
+SITE_NAME="api.yuekeme.cn"
+SITE_FILE="/etc/nginx/sites-available/$SITE_NAME"
 
 echo "================================================"
 echo "  配置 Nginx 反向代理"
 echo "================================================"
+
+# 现网保护：sites-enabled 下已存在非 default 的站点配置 → 环境已部署，直接中止
+EXISTING_SITES=$(ls -1 /etc/nginx/sites-enabled/ 2>/dev/null | grep -v '^default$' || true)
+if [ -n "$EXISTING_SITES" ]; then
+  echo ""
+  echo "[中止] 检测到已启用的站点配置:"
+  echo "$EXISTING_SITES" | sed 's/^/         /'
+  echo ""
+  echo "本脚本仅用于全新服务器首次部署，继续执行会覆盖现网 nginx 配置（含 443/HTTPS）。"
+  echo "如需修改现网配置，请直接编辑 /etc/nginx/sites-enabled/ 下的文件。"
+  exit 1
+fi
+
+# 现网保护：sites-available 下已存在同名站点文件 → 为已有配置，禁止覆盖
+if [ -e "$SITE_FILE" ]; then
+  echo ""
+  echo "[中止] 已存在站点配置文件: $SITE_FILE"
+  echo "为避免覆盖已有配置，本脚本不做覆盖。如需重新生成，请先手动备份并删除该文件。"
+  exit 1
+fi
 
 # 安装后端依赖
 echo ""
@@ -25,7 +56,7 @@ npm install --production
 echo ""
 echo "[2/3] 配置 Nginx..."
 
-sudo tee /etc/nginx/sites-available/wuqi-dance > /dev/null << 'NGINX_CONF'
+sudo tee "$SITE_FILE" > /dev/null << 'NGINX_CONF'
 # 会员端 API
 server {
     listen 80;
@@ -122,8 +153,17 @@ server {
 NGINX_CONF
 
 # 启用站点
-sudo ln -sf /etc/nginx/sites-available/wuqi-dance /etc/nginx/sites-enabled/
+# 仅在站点配置文件存在时才创建软链：目标缺失时 ln -sf 会生成悬空软链，
+# 导致 nginx 加载 sites-enabled/* 失败、无法 reload/重启（本段请勿逐行手动执行）
+if [ ! -f "$SITE_FILE" ]; then
+  echo "[中止] 未找到 $SITE_FILE，无法启用站点（不创建软链，避免产生悬空软链）" >&2
+  exit 1
+fi
+sudo ln -sf "$SITE_FILE" /etc/nginx/sites-enabled/
 sudo rm -f /etc/nginx/sites-enabled/default
+
+# 重载 systemd 单元定义（nginx 包升级会替换 unit 文件，避免出现 "unit file changed on disk" 告警）
+sudo systemctl daemon-reload
 
 # 测试配置
 sudo nginx -t && sudo systemctl reload nginx

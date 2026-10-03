@@ -220,6 +220,12 @@
   margin-bottom: 14rpx;
 }
 
+/* 禁止豁免取消标识 */
+.cd-course-tag.exempt-lock-tag {
+  background: rgba(232, 152, 94, 0.12);
+  color: #E8985E;
+}
+
 .cd-course-name {
   display: block;
   font-size: 30rpx;

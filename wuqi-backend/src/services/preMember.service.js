@@ -15,6 +15,7 @@ const UserPackage = require('../models/UserPackage');
 const Store = require('../models/Store');
 const DanceStyle = require('../models/DanceStyle');
 const memberService = require('./member.service');
+const { normalizeWeekdayLimit, normalizeTimeLimit } = require('./package.service');
 const { broadcastToAdmins } = require('./websocket.service');
 
 /**
@@ -322,7 +323,7 @@ async function createPreMember(data, operatorId) {
  *   'pending'：预约激活，需传 duration_value，认领后首次预约激活或60天自动激活
  */
 async function createPackageForUser(userId, storeId, packageData, operatorId, isOldMember = false) {
-  const { package_type, total_credits, start_date, end_date, duration_value, duration_unit, weekly_limit, daily_limit, monthly_limit, period_type, dance_style_limit, remark, extra_store_ids, activate_mode } = packageData;
+  const { package_type, total_credits, start_date, end_date, duration_value, duration_unit, weekly_limit, daily_limit, monthly_limit, period_type, dance_style_limit, weekday_limit, usable_before, usable_after, remark, extra_store_ids, activate_mode } = packageData;
 
   if (!package_type || !['count_card', 'time_card'].includes(package_type)) {
     throw new Error('套餐类型必须为次卡(count_card)或时间卡(time_card)');
@@ -362,7 +363,9 @@ async function createPackageForUser(userId, storeId, packageData, operatorId, is
     auto_activate_at: usePendingMode ? new Date(now.getTime() + 60 * 24 * 60 * 60 * 1000) : null,
     created_by: operatorId,
     remark: remark || '',
-    dance_style_limit: Array.isArray(dance_style_limit) ? dance_style_limit : []
+    dance_style_limit: Array.isArray(dance_style_limit) ? dance_style_limit : [],
+    weekday_limit: normalizeWeekdayLimit(weekday_limit),
+    ...normalizeTimeLimit(usable_before, usable_after)
   };
 
   if (!usePendingMode) {
@@ -409,7 +412,7 @@ async function createPackageForUser(userId, storeId, packageData, operatorId, is
  *   'pending'：预约激活，时长模式；支持从"直接生效"切换为"预约激活"（及反向切换），同步转换状态字段
  */
 async function updatePackageForUser(packageId, packageData, operatorId, isOldMember = false) {
-  const { package_type, total_credits, start_date, end_date, duration_value, duration_unit, weekly_limit, daily_limit, monthly_limit, period_type, dance_style_limit, remark, extra_store_ids, activate_mode } = packageData;
+  const { package_type, total_credits, start_date, end_date, duration_value, duration_unit, weekly_limit, daily_limit, monthly_limit, period_type, dance_style_limit, weekday_limit, usable_before, usable_after, remark, extra_store_ids, activate_mode } = packageData;
 
   if (!package_type || !['count_card', 'time_card'].includes(package_type)) {
     throw new Error('套餐类型必须为次卡(count_card)或时间卡(time_card)');
@@ -448,6 +451,9 @@ async function updatePackageForUser(packageId, packageData, operatorId, isOldMem
   existingPkg.remark = remark || '';
   existingPkg.updated_by = operatorId;
   existingPkg.dance_style_limit = Array.isArray(dance_style_limit) ? dance_style_limit : [];
+  existingPkg.weekday_limit = normalizeWeekdayLimit(weekday_limit);
+  existingPkg.usable_before = normalizeTimeLimit(usable_before, usable_after).usable_before;
+  existingPkg.usable_after = normalizeTimeLimit(usable_before, usable_after).usable_after;
 
   // 激活状态字段随模式同步（支持双向切换）：
   //   直接生效 → status='active'，写入起止日期，清 auto_activate_at
@@ -1040,6 +1046,49 @@ async function importPreMembers(rows, operatorId) {
       row._dance_style_limit = danceStyleIds;
     }
 
+    // 可用星期校验（仅在有套餐时；接受 周一~周日 / 星期一~星期日，留空=整周）
+    if (row.package_type && row.weekday_names) {
+      const names = String(row.weekday_names).split(/[,，、]/).map(s => s.trim()).filter(Boolean);
+      const weekdayMap = { '周日': 0, '周一': 1, '周二': 2, '周三': 3, '周四': 4, '周五': 5, '周六': 6 };
+      const weekdayIds = [];
+      for (const name of names) {
+        const norm = name.replace('星期', '周');
+        if (weekdayMap[norm] !== undefined) {
+          if (!weekdayIds.includes(weekdayMap[norm])) weekdayIds.push(weekdayMap[norm]);
+        } else {
+          errors.push(`可用星期"${name}"不正确，仅可填 周一~周日（逗号分隔，留空=整周）`);
+        }
+      }
+      row._weekday_limit = weekdayIds;
+    }
+
+    // 可用时段校验（仅在有套餐时；逗号分隔多项，每项为 HH:mm前 / HH:mm后，留空=不限）
+    // 双边界可同时填写（如「18:00后,22:30前」= 仅 18:00~22:30 之间开课的课可用）
+    if (row.package_type && row.time_limit_text) {
+      const items = String(row.time_limit_text).split(/[,，、]/).map(s => s.trim()).filter(Boolean);
+      const timeRe = /^((?:[01]\d|2[0-3]):[0-5]\d)(前|后)$/;
+      const bounds = { usable_before: '', usable_after: '' };
+      for (const item of items) {
+        const m = item.match(timeRe);
+        if (!m) {
+          errors.push(`可用时段"${item}"不正确，仅可填如 20:30前 / 18:00后（逗号分隔多项，留空=不限）`);
+          continue;
+        }
+        if (m[2] === '前') {
+          if (bounds.usable_before) errors.push(`可用时段"${item}"重复：「${m[1]}前」只能填一次`);
+          else bounds.usable_before = m[1];
+        } else {
+          if (bounds.usable_after) errors.push(`可用时段"${item}"重复：「${m[1]}后」只能填一次`);
+          else bounds.usable_after = m[1];
+        }
+      }
+      // 双边界同开时校验非空窗口（before 须早于 after，前之前 或 后之后 可用，中间禁用）
+      if (bounds.usable_before && bounds.usable_after && bounds.usable_after <= bounds.usable_before) {
+        errors.push(`可用时段"${row.time_limit_text}"无效：时段前（${bounds.usable_before}）需早于时段后（${bounds.usable_after}）`);
+      }
+      row._time_limit = bounds;
+    }
+
     if (errors.length > 0) {
       results.errors.push({ row: rowNum, reason: errors.join('；') });
       results.failed++;
@@ -1263,7 +1312,10 @@ async function importPreMembers(rows, operatorId) {
             auto_activate_at: usePendingMode ? new Date(now.getTime() + 60 * 24 * 60 * 60 * 1000) : null,
             created_by: operatorId,
             remark: row.remark || '',
-            dance_style_limit: row._dance_style_limit || []
+            dance_style_limit: row._dance_style_limit || [],
+            weekday_limit: normalizeWeekdayLimit(row._weekday_limit),
+            usable_before: (row._time_limit || {}).usable_before || '',
+            usable_after: (row._time_limit || {}).usable_after || ''
           };
 
           // 根据起止日期计算 duration_value/duration_unit：

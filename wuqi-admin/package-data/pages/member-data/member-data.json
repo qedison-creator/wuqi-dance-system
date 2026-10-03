@@ -1,0 +1,10 @@
+{
+  "navigationBarTitleText": "数据中心",
+  "navigationBarBackgroundColor": "#FAF8F5",
+  "navigationBarTextStyle": "black",
+  "backgroundColor": "#FAF8F5",
+  "enablePullDownRefresh": true,
+  "usingComponents": {
+    "dc-chart": "../../components/dc-chart/dc-chart"
+  }
+}

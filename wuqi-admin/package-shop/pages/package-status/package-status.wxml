@@ -1,0 +1,193 @@
+<view class="ps-page">
+  <!-- 门店选择器 -->
+  <view class="store-bar" wx:if="{{showStoreSwitcher}}" bindtap="onStoreSwitcherTap">
+    <image class="store-bar-icon" src="/images/icons/shop-store.svg" mode="aspectFit" decoding="async"></image>
+    <text class="store-bar-name">{{currentStoreName}}</text>
+    <text class="store-bar-arrow">›</text>
+  </view>
+
+  <!-- 提醒时间阈值设置（默认收起，点击标题行展开） -->
+  <view class="section-card">
+    <view class="cfg-header" bindtap="onToggleConfig">
+      <view class="cfg-title-wrap">
+        <text class="cfg-title">提醒时间阈值设置</text>
+        <text class="cfg-summary" wx:if="{{!configExpanded && configSummary}}">{{configSummary}}</text>
+      </view>
+      <text class="cfg-arrow {{configExpanded ? 'cfg-arrow-open' : ''}}">›</text>
+    </view>
+    <view class="cfg-body {{configExpanded ? 'cfg-body-open' : ''}}">
+      <view class="cfg-body-inner" wx:if="{{configForm}}">
+        <!-- ① 时间卡到期（二选一） -->
+        <view class="cfg-row">
+          <view class="cfg-row-title">
+            <text>时间卡到期提醒</text>
+            <text class="cfg-row-tip">方式二选一</text>
+          </view>
+          <view class="cfg-mode-group">
+            <view class="cfg-mode {{configForm.time_card_expire.mode === 'days' ? 'cfg-mode-active' : ''}}" data-section="time_card_expire" data-mode="days" bindtap="onModeTap">
+              <view class="cfg-radio {{configForm.time_card_expire.mode === 'days' ? 'cfg-radio-active' : ''}}"></view>
+              <text class="cfg-mode-label">到期前</text>
+              <input class="cfg-input" type="number" value="{{configForm.time_card_expire.days}}" disabled="{{!isSuperAdmin || configForm.time_card_expire.mode !== 'days'}}" data-section="time_card_expire" data-field="days" bindinput="onConfigInput" />
+              <text class="cfg-mode-label">天提醒</text>
+            </view>
+            <view class="cfg-mode {{configForm.time_card_expire.mode === 'percent' ? 'cfg-mode-active' : ''}}" data-section="time_card_expire" data-mode="percent" bindtap="onModeTap">
+              <view class="cfg-radio {{configForm.time_card_expire.mode === 'percent' ? 'cfg-radio-active' : ''}}"></view>
+              <text class="cfg-mode-label">剩余时长低于</text>
+              <input class="cfg-input" type="number" value="{{configForm.time_card_expire.percent}}" disabled="{{!isSuperAdmin || configForm.time_card_expire.mode !== 'percent'}}" data-section="time_card_expire" data-field="percent" bindinput="onConfigInput" />
+              <text class="cfg-mode-label">%提醒</text>
+            </view>
+          </view>
+        </view>
+
+        <!-- ② 次卡到期（二选一） -->
+        <view class="cfg-row">
+          <view class="cfg-row-title">
+            <text>次卡到期提醒</text>
+            <text class="cfg-row-tip">方式二选一</text>
+          </view>
+          <view class="cfg-mode-group">
+            <view class="cfg-mode {{configForm.count_card_expire.mode === 'days' ? 'cfg-mode-active' : ''}}" data-section="count_card_expire" data-mode="days" bindtap="onModeTap">
+              <view class="cfg-radio {{configForm.count_card_expire.mode === 'days' ? 'cfg-radio-active' : ''}}"></view>
+              <text class="cfg-mode-label">到期前</text>
+              <input class="cfg-input" type="number" value="{{configForm.count_card_expire.days}}" disabled="{{!isSuperAdmin || configForm.count_card_expire.mode !== 'days'}}" data-section="count_card_expire" data-field="days" bindinput="onConfigInput" />
+              <text class="cfg-mode-label">天提醒</text>
+            </view>
+            <view class="cfg-mode {{configForm.count_card_expire.mode === 'percent' ? 'cfg-mode-active' : ''}}" data-section="count_card_expire" data-mode="percent" bindtap="onModeTap">
+              <view class="cfg-radio {{configForm.count_card_expire.mode === 'percent' ? 'cfg-radio-active' : ''}}"></view>
+              <text class="cfg-mode-label">剩余时长低于</text>
+              <input class="cfg-input" type="number" value="{{configForm.count_card_expire.percent}}" disabled="{{!isSuperAdmin || configForm.count_card_expire.mode !== 'percent'}}" data-section="count_card_expire" data-field="percent" bindinput="onConfigInput" />
+              <text class="cfg-mode-label">%提醒</text>
+            </view>
+          </view>
+        </view>
+
+        <!-- ③ 次卡次数不足（二选一） -->
+        <view class="cfg-row">
+          <view class="cfg-row-title">
+            <text>次卡次数不足提醒</text>
+            <text class="cfg-row-tip">方式二选一</text>
+          </view>
+          <view class="cfg-mode-group">
+            <view class="cfg-mode {{configForm.count_card_low.mode === 'count' ? 'cfg-mode-active' : ''}}" data-section="count_card_low" data-mode="count" bindtap="onModeTap">
+              <view class="cfg-radio {{configForm.count_card_low.mode === 'count' ? 'cfg-radio-active' : ''}}"></view>
+              <text class="cfg-mode-label">剩余次数低于</text>
+              <input class="cfg-input" type="number" value="{{configForm.count_card_low.count}}" disabled="{{!isSuperAdmin || configForm.count_card_low.mode !== 'count'}}" data-section="count_card_low" data-field="count" bindinput="onConfigInput" />
+              <text class="cfg-mode-label">次提醒</text>
+            </view>
+            <view class="cfg-mode {{configForm.count_card_low.mode === 'percent' ? 'cfg-mode-active' : ''}}" data-section="count_card_low" data-mode="percent" bindtap="onModeTap">
+              <view class="cfg-radio {{configForm.count_card_low.mode === 'percent' ? 'cfg-radio-active' : ''}}"></view>
+              <text class="cfg-mode-label">次数占比低于</text>
+              <input class="cfg-input" type="number" value="{{configForm.count_card_low.percent}}" disabled="{{!isSuperAdmin || configForm.count_card_low.mode !== 'percent'}}" data-section="count_card_low" data-field="percent" bindinput="onConfigInput" />
+              <text class="cfg-mode-label">%提醒</text>
+            </view>
+          </view>
+        </view>
+
+        <!-- ④ 久未跳舞 -->
+        <view class="cfg-row">
+          <view class="cfg-row-title">
+            <text>久未跳舞提醒</text>
+            <text class="cfg-row-tip">仅统计套餐正常使用中的会员</text>
+          </view>
+          <view class="cfg-mode-group">
+            <view class="cfg-mode cfg-mode-active">
+              <view class="cfg-radio cfg-radio-active"></view>
+              <text class="cfg-mode-label">超过</text>
+              <input class="cfg-input" type="number" value="{{configForm.inactive_days.days}}" disabled="{{!isSuperAdmin}}" data-section="inactive_days" data-field="days" bindinput="onConfigInput" />
+              <text class="cfg-mode-label">天未上课提醒</text>
+            </view>
+          </view>
+        </view>
+
+        <view class="cfg-save-btn {{(savingConfig || !isSuperAdmin) ? 'cfg-save-disabled' : ''}}" bindtap="onSaveConfig">
+          <text>{{savingConfig ? '保存中...' : '保存设置'}}</text>
+        </view>
+        <view class="cfg-tip">
+          <text wx:if="{{isSuperAdmin}}">保存后立即生效，首页待办事项的提醒时机同步应用该设置</text>
+          <text wx:else>提醒阈值由超级管理员统一设置，首页待办事项同步应用</text>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 四类会员名单 -->
+  <view class="section-card">
+    <view class="loading-modal" wx:if="{{loading}}">
+      <text>加载中...</text>
+    </view>
+    <block wx:for="{{categories}}" wx:key="key" wx:for-item="cat" wx:for-index="catIndex">
+      <view class="cat-header" data-key="{{cat.key}}" bindtap="onToggleCategory">
+        <view class="cat-left">
+          <view class="cat-dot"></view>
+          <text class="cat-title">{{cat.title}}</text>
+        </view>
+        <view class="cat-right">
+          <text class="cat-badge">{{cat.list.length}}人</text>
+          <text class="cat-chevron {{cat.expanded ? 'cat-chevron-open' : ''}}">›</text>
+        </view>
+      </view>
+      <view class="cat-body {{cat.expanded ? 'cat-body-open' : ''}}">
+        <view class="cat-body-inner" wx:if="{{cat.expanded}}">
+          <view class="empty-modal" wx:if="{{cat.list.length === 0}}">
+            <text>暂无数据</text>
+          </view>
+          <view class="member-card" wx:for="{{cat.list}}" wx:key="_id" wx:for-item="member" data-member-id="{{member.member_id}}" bindtap="onMemberCardTap">
+            <view class="mc-avatar">
+              <image wx:if="{{member.avatar_url}}" class="mc-avatar-img" src="{{member.avatar_url}}" mode="aspectFill" decoding="async" />
+              <text wx:else class="mc-avatar-text">{{member.avatar_char}}</text>
+            </view>
+            <view class="mc-info">
+              <text class="mc-name">{{member.user_name}}</text>
+              <text class="mc-phone" wx:if="{{member.phone}}">{{member.phone}}</text>
+              <view class="mc-detail-row" wx:if="{{member.package_name}}">
+                <text class="mc-detail-label">套餐：</text>
+                <text class="mc-detail-value">{{member.package_name}}</text>
+              </view>
+              <view class="mc-detail-row" wx:if="{{member.store_name}}">
+                <text class="mc-detail-label">门店：</text>
+                <text class="mc-detail-value">{{member.store_name}}</text>
+              </view>
+              <!-- 久未跳舞：最后上课时间 -->
+              <view class="mc-detail-row" wx:if="{{cat.key === 'inactive_members' && member.last_attended}}">
+                <text class="mc-detail-label">最后上课：</text>
+                <text class="mc-detail-value">{{member.last_attended}}</text>
+              </view>
+              <!-- 到期日 -->
+              <view class="mc-detail-row" wx:if="{{cat.key !== 'inactive_members' && member.end_date}}">
+                <text class="mc-detail-label">到期日：</text>
+                <text class="mc-detail-value">{{member.end_date}}</text>
+              </view>
+            </view>
+            <view class="mc-status">
+              <!-- 次卡次数 -->
+              <block wx:if="{{cat.key !== 'inactive_members' && member.package_type === 'count_card' && member.remaining > 0}}">
+                <view class="mc-remaining">
+                  <text class="mc-rem-num">{{member.remaining}}</text>
+                  <text class="mc-rem-unit">次</text>
+                </view>
+                <text class="mc-total" wx:if="{{member.total > 0}}">共{{member.total}}次</text>
+              </block>
+              <block wx:if="{{cat.key !== 'inactive_members' && member.package_type === 'count_card' && member.remaining <= 0}}">
+                <text class="mc-days mc-days-empty">次数已用完</text>
+              </block>
+              <!-- 剩余天数 / 今日到期 -->
+              <block wx:if="{{cat.key !== 'inactive_members'}}">
+                <text class="mc-days" wx:if="{{member.days_left > 0}}">剩{{member.days_left}}天</text>
+                <text class="mc-days mc-days-empty" wx:if="{{member.days_left <= 0}}">今日到期</text>
+              </block>
+              <!-- 久未跳舞天数 -->
+              <block wx:if="{{cat.key === 'inactive_members'}}">
+                <view class="mc-remaining">
+                  <text class="mc-rem-num">{{member.days_since}}</text>
+                  <text class="mc-rem-unit">天</text>
+                </view>
+                <text class="mc-days">未上课</text>
+              </block>
+            </view>
+          </view>
+        </view>
+      </view>
+    </block>
+  </view>
+</view>
+<update-modal />

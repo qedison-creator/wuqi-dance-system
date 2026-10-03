@@ -103,7 +103,7 @@
   transition: all 120ms ease-out;
 }
 
-.update-btn text {
+.update-btn-text {
   font-size: 28rpx;
   color: #FFFFFF;
   font-weight: bold;

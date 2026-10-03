@@ -186,6 +186,16 @@
   background: var(--color-success-bg);
 }
 
+.item-popup-tag {
+  display: inline-block;
+  margin-left: 12rpx;
+  font-size: 22rpx;
+  color: var(--color-warning);
+  background: var(--color-warning-bg);
+  padding: 6rpx 18rpx;
+  border-radius: var(--radius-sm);
+}
+
 .item-content {
   font-size: 26rpx;
   color: var(--text-secondary);
@@ -290,8 +300,8 @@
   background: var(--bg-card);
   border-radius: var(--radius-xl);
   padding: 0;
-  width: 580rpx;
-  max-height: 80vh;
+  width: 660rpx;
+  max-height: 88vh;
   overflow-y: auto;
   animation: modalPop 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
 }

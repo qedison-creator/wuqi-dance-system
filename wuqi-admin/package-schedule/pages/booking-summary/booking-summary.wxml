@@ -130,7 +130,8 @@
                                   </view>
                                 </view>
                                 <view class="mc-checkin-info">
-                                  <text class="mc-credits">扣{{mg._checkInCredits || 0}}次</text>
+                                  <text class="mc-credits" wx:if="{{mg._checkInDeductDays}}">缩有效期{{mg._checkInDeductDays}}天</text>
+                                  <text class="mc-credits" wx:else>扣{{mg._checkInCredits || 0}}次</text>
                                   <text class="mc-method">{{mg._checkInMethodText || '已签到'}}</text>
                                 </view>
                                 <view class="mc-expand {{mg._expanded ? 'expanded' : ''}}" catchtap="onToggleMember" data-year-index="{{yearIndex}}" data-month-index="{{monthIndex}}" data-date-index="{{dateIndex}}" data-course-index="{{courseIndex}}" data-user-id="{{mg.user_id}}">
@@ -151,12 +152,16 @@
                                       <text class="tl-time">{{record.created_at_display}}</text>
                                     </view>
                                     <view class="tl-detail" wx:if="{{record.status === 'booked' || record.status === 'completed'}}">
-                                      <text class="tl-text">扣{{record.credits_deducted}}课时</text>
+                                      <text class="tl-text" wx:if="{{record.deduct_days}}">缩短套餐有效期{{record.deduct_days}}天</text>
+                                      <text class="tl-text" wx:else>扣{{record.credits_deducted}}课时</text>
                                     </view>
                                     <view class="tl-detail" wx:if="{{record.status === 'cancelled'}}">
                                       <text class="tl-text">{{record.cancel_type_text}}</text>
-                                      <text class="tl-text" wx:if="{{record.credits_refunded > 0}}"> · 返还{{record.credits_refunded}}课时</text>
-                                      <text class="tl-text tl-warn" wx:if="{{record.credits_refunded === 0 && record.cancel_type !== 'exempt'}}"> · 不退课时</text>
+                                      <text class="tl-text" wx:if="{{record.deduct_days}}"> · 有效期已恢复</text>
+                                      <block wx:else>
+                                        <text class="tl-text" wx:if="{{record.credits_refunded > 0}}"> · 返还{{record.credits_refunded}}课时</text>
+                                        <text class="tl-text tl-warn" wx:if="{{record.credits_refunded === 0 && record.cancel_type !== 'exempt'}}"> · 不退课时</text>
+                                      </block>
                                     </view>
                                   </view>
                                 </view>
@@ -209,12 +214,16 @@
                                       <text class="tl-time">{{record.created_at_display}}</text>
                                     </view>
                                     <view class="tl-detail" wx:if="{{record.status === 'booked'}}">
-                                      <text class="tl-text">预约 · 扣{{record.credits_deducted}}课时</text>
+                                      <text class="tl-text" wx:if="{{record.deduct_days}}">预约 · 缩短套餐有效期{{record.deduct_days}}天</text>
+                                      <text class="tl-text" wx:else>预约 · 扣{{record.credits_deducted}}课时</text>
                                     </view>
                                     <view class="tl-detail" wx:if="{{record.status === 'cancelled'}}">
                                       <text class="tl-text">{{record.cancel_time_display}} 取消 · {{record.cancel_type_text}}</text>
-                                      <text class="tl-text" wx:if="{{record.credits_refunded > 0}}"> · 返还{{record.credits_refunded}}课时</text>
-                                      <text class="tl-text tl-warn" wx:if="{{record.credits_refunded === 0 && record.cancel_type !== 'exempt'}}"> · 不退课时</text>
+                                      <text class="tl-text" wx:if="{{record.deduct_days}}"> · 有效期已恢复</text>
+                                      <block wx:else>
+                                        <text class="tl-text" wx:if="{{record.credits_refunded > 0}}"> · 返还{{record.credits_refunded}}课时</text>
+                                        <text class="tl-text tl-warn" wx:if="{{record.credits_refunded === 0 && record.cancel_type !== 'exempt'}}"> · 不退课时</text>
+                                      </block>
                                     </view>
                                   </view>
                                 </view>
@@ -281,12 +290,16 @@
                                       <text class="tl-time">{{record.created_at_display}}</text>
                                     </view>
                                     <view class="tl-detail" wx:if="{{record.status === 'booked'}}">
-                                      <text class="tl-text">预约 · 扣{{record.credits_deducted}}课时<text wx:if="{{index === 0}}">（当前有效）</text></text>
+                                      <text class="tl-text" wx:if="{{record.deduct_days}}">预约 · 缩短套餐有效期{{record.deduct_days}}天<text wx:if="{{index === 0}}">（当前有效）</text></text>
+                                      <text class="tl-text" wx:else>预约 · 扣{{record.credits_deducted}}课时<text wx:if="{{index === 0}}">（当前有效）</text></text>
                                     </view>
                                     <view class="tl-detail" wx:if="{{record.status === 'cancelled'}}">
                                       <text class="tl-text">{{record.cancel_time_display}} 取消 · {{record.cancel_type_text}}</text>
-                                      <text class="tl-text" wx:if="{{record.credits_refunded > 0}}"> · 返还{{record.credits_refunded}}课时</text>
-                                      <text class="tl-text tl-warn" wx:if="{{record.credits_refunded === 0 && record.cancel_type !== 'exempt'}}"> · 不退课时</text>
+                                      <text class="tl-text" wx:if="{{record.deduct_days}}"> · 有效期已恢复</text>
+                                      <block wx:else>
+                                        <text class="tl-text" wx:if="{{record.credits_refunded > 0}}"> · 返还{{record.credits_refunded}}课时</text>
+                                        <text class="tl-text tl-warn" wx:if="{{record.credits_refunded === 0 && record.cancel_type !== 'exempt'}}"> · 不退课时</text>
+                                      </block>
                                     </view>
                                   </view>
                                 </view>

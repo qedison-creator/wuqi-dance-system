@@ -223,9 +223,23 @@ Page({
   // 加载假期信息
   async loadHolidays() {
     try {
-      const res = await request({ url: '/holidays', method: 'GET' });
+      // 按当前门店过滤：放假是门店级数据，不带 store_id 会返回全部门店的放假，
+      // 导致 A 店放假被错误标记到 B 店视角的日历
+      const storeId = this.data.currentStoreId || '';
+      if (!storeId) {
+        // 门店未就绪：先清空，待 loadStores/切店回调重拉
+        this.setData({ holidays: [] });
+        return;
+      }
+      const res = await request({ url: '/holidays', method: 'GET', data: { store_id: storeId } });
       const list = res.data && Array.isArray(res.data.list) ? res.data.list : (Array.isArray(res.data) ? res.data : []);
-      this.setData({ holidays: list });
+      // 仅保留生效中的放假（已撤销/已停用不参与日历标记）
+      const activeHolidays = list.filter(h => h.status === 'active');
+      this.setData({ holidays: activeHolidays }, () => {
+        // 放假状态影响日历与课程展示，门店级放假就绪后重算
+        this.generateMonthCalendar(this.data.currentMonth);
+        this.loadSchedules();
+      });
     } catch (err) {
       console.error('加载假期失败', err);
     }
@@ -349,6 +363,8 @@ Page({
         stores: list,
         currentStoreId: storeId
       }, () => {
+        // 门店就绪后重拉放假（loadHolidays 依赖门店），避免冷启动竞态漏掉门店级放假
+        this.loadHolidays();
         if (storeId !== originalStoreId) {
           this.loadSchedules();
         }
@@ -418,6 +434,7 @@ Page({
 
   onSwitchStore(e) {
     this.setData({ currentStoreId: e.currentTarget.dataset.id }, () => {
+      this.loadHolidays();
       this.loadSchedules();
       // 重新加载月课程
 

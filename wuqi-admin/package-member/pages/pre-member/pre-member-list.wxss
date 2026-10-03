@@ -1208,3 +1208,73 @@
   font-weight: 600;
   line-height: 1;
 }
+
+/* 可用星期选择 chips（套餐编辑区） */
+.weekday-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12rpx;
+}
+
+.weekday-chip {
+  width: 72rpx;
+  height: 64rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12rpx;
+  background: #F5F2ED;
+  color: #8B7E6A;
+  font-size: 26rpx;
+  border: 1rpx solid #E8E2D8;
+  transition: all 0.15s ease;
+}
+
+.weekday-chip.active {
+  background: rgba(197, 116, 75, 0.12);
+  color: #C5744B;
+  border-color: #C5744B;
+  font-weight: 600;
+}
+
+.weekday-chip-tip {
+  display: block;
+  margin-top: 10rpx;
+  font-size: 22rpx;
+  color: #B0A79B;
+}
+
+/* 可用时段双开关（套餐编辑区） */
+.time-limit-row {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  margin-bottom: 12rpx;
+}
+
+.time-limit-switch {
+  padding: 10rpx 22rpx;
+  border-radius: 12rpx;
+  background: #F5F2ED;
+  color: #8B7E6A;
+  font-size: 24rpx;
+  border: 1rpx solid #E8E2D8;
+  transition: all 0.15s ease;
+}
+
+.time-limit-switch.active {
+  background: rgba(197, 116, 75, 0.12);
+  color: #C5744B;
+  border-color: #C5744B;
+  font-weight: 600;
+}
+
+.time-limit-picker {
+  padding: 10rpx 22rpx;
+  border-radius: 12rpx;
+  background: #FFFFFF;
+  border: 1rpx solid #C5744B;
+  color: #C5744B;
+  font-size: 24rpx;
+  font-weight: 600;
+}

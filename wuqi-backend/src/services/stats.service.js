@@ -2,12 +2,59 @@ const Booking = require('../models/Booking');
 const User = require('../models/User');
 const Schedule = require('../models/Schedule');
 const UserPackage = require('../models/UserPackage');
+const Attendance = require('../models/Attendance');
+const Config = require('../models/Config');
 const dayjs = require('dayjs');
 const utc = require('dayjs/plugin/utc');
 const timezone = require('dayjs/plugin/timezone');
 dayjs.extend(utc);
 dayjs.extend(timezone);
 const BEIJING_TZ = 'Asia/Shanghai';
+
+// ===== 会员套餐状态提醒阈值配置 =====
+// 结构：time_card_expire（时间卡到期）/ count_card_expire（次卡到期）{ mode, days, percent }
+//       count_card_low（次卡次数）{ mode, count, percent }
+//       inactive_days（久未跳舞）{ days: 超过X天未上课 }
+// 前三类提醒方式二选一（mode）：
+//   time_card_expire / count_card_expire: 'days'（到期前X天）或 'percent'（剩余时长低于X%）
+//   count_card_low: 'count'（剩余次数低于X次）或 'percent'（剩余次数占比低于X%）
+const MODE_ENUM = {
+  time_card_expire: ['days', 'percent'],
+  count_card_expire: ['days', 'percent'],
+  count_card_low: ['count', 'percent'],
+};
+const DEFAULT_PACKAGE_STATUS_CONFIG = {
+  time_card_expire: { mode: 'days', days: 15, percent: 15 },
+  count_card_expire: { mode: 'days', days: 10, percent: 15 },
+  count_card_low: { mode: 'count', count: 5, percent: 20 },
+  inactive_days: { days: 30 },
+};
+
+// 读取套餐状态提醒阈值配置（带默认兜底与字段校验）
+exports.getPackageStatusRemindConfig = async () => {
+  const cfg = JSON.parse(JSON.stringify(DEFAULT_PACKAGE_STATUS_CONFIG));
+  try {
+    const doc = await Config.findOne({ key: 'package_status_remind_config' });
+    const val = doc && doc.value;
+    if (val && typeof val === 'object') {
+      ['time_card_expire', 'count_card_expire', 'count_card_low', 'inactive_days'].forEach((k) => {
+        if (val[k] && typeof val[k] === 'object') {
+          ['days', 'percent', 'count'].forEach((f) => {
+            const n = parseInt(val[k][f], 10);
+            if (!isNaN(n) && n >= 0 && n <= 100) cfg[k][f] = n;
+          });
+          // 提醒方式二选一校验（历史数据无 mode 时使用默认值）
+          if (MODE_ENUM[k] && MODE_ENUM[k].indexOf(val[k].mode) >= 0) {
+            cfg[k].mode = val[k].mode;
+          }
+        }
+      });
+    }
+  } catch (err) {
+    console.error('[stats] 读取套餐状态提醒配置失败，使用默认值:', err.message);
+  }
+  return cfg;
+};
 
 // 数据概览
 exports.getOverview = async (storeId) => {
@@ -273,58 +320,6 @@ exports.getRevenueStats = async (query) => {
   return stats.length > 0 ? stats[0] : { total_packages: 0, total_credits: 0 };
 };
 
-// 获取教练统计
-exports.getCoachStats = async (storeId) => {
-  const Coach = require('../models/Coach');
-  const filter = { is_deleted: { $ne: true } };
-  // 注意：Coach 模型当前无 store_id 字段，阶段五会改为 store_ids 多门店执教模型
-  // 暂时不按 store_id 过滤 Coach，仅按 store_id 过滤 Schedule 和 Booking
-  if (storeId) filter.store_id = storeId;
-
-  const coaches = await Coach.find(filter).select('name avatar_url');
-
-  const result = [];
-  for (const coach of coaches) {
-    // 修复：Schedule 统计加 store_id 过滤，避免跨店统计
-    const scheduleFilter = {
-      coach_id: coach._id,
-      status: { $in: ['available', 'full'] },
-    };
-    if (storeId) scheduleFilter.store_id = storeId;
-
-    const scheduleCount = await Schedule.countDocuments(scheduleFilter);
-
-    // 修复：Booking 聚合加 store_id 过滤，避免跨店统计
-    const bookingMatch = {
-      coach_id: coach._id,
-      status: 'completed',
-    };
-    if (storeId) bookingMatch.store_id = storeId;
-
-    const bookingStats = await Booking.aggregate([
-      { $match: bookingMatch },
-      {
-        $group: {
-          _id: null,
-          total_bookings: { $sum: 1 },
-          total_credits: { $sum: '$credits_deducted' },
-        },
-      },
-    ]);
-
-    result.push({
-      coach_id: coach._id,
-      name: coach.name,
-      avatar_url: coach.avatar_url,
-      schedule_count: scheduleCount,
-      total_bookings: bookingStats.length > 0 ? bookingStats[0].total_bookings : 0,
-      total_credits: bookingStats.length > 0 ? bookingStats[0].total_credits : 0,
-    });
-  }
-
-  return result;
-};
-
 // 获取数据看板数据
 exports.getDashboardData = async (storeId) => {
   const today = dayjs().tz(BEIJING_TZ).format('YYYY-MM-DD');
@@ -375,6 +370,9 @@ exports.getDashboardData = async (storeId) => {
     .lean();
   
   const now = dayjs().tz(BEIJING_TZ);
+  // 提醒阈值从配置读取（会员套餐状态管理页设置，首页待办同步服从）
+  const remindCfg = await this.getPackageStatusRemindConfig();
+  const timeCardCfg = remindCfg.time_card_expire;
   const expiringTimeCardMembers = expiringTimeCards
     .map(pkg => {
       const endDate = dayjs(pkg.end_date);
@@ -383,21 +381,21 @@ exports.getDashboardData = async (storeId) => {
       // 剩余天数统一用 Math.ceil（与会员详情页 member-detail 的剩余天数算法一致），避免 floor/ceil 差1天
       const remainingDays = Math.ceil((endDate.valueOf() - now.valueOf()) / (1000 * 60 * 60 * 24));
       const remainingPercent = totalDays > 0 ? (remainingDays / totalDays) * 100 : 0;
-      
-      // 阈值规则
-      let threshold = 10;
-      if (totalDays >= 180) threshold = 10;
-      else if (totalDays >= 90) threshold = 20;
-      else threshold = 30;
-      
+
+      // 阈值规则（二选一，由 mode 决定）：'days'=到期前X天；'percent'=剩余时长占比低于X%
+      const isTimeCardHit = timeCardCfg.mode === 'percent'
+        ? remainingPercent < timeCardCfg.percent
+        : remainingDays <= timeCardCfg.days;
+      const isExpiring = remainingDays >= 0 && isTimeCardHit;
+
       return {
         user_id: pkg.user_id?._id,
         user_name: pkg.user_id?.real_name || pkg.user_id?.nick_name || '未知会员',
         remaining_days: remainingDays,
         end_date: pkg.end_date,
         total_days: totalDays,
-        threshold,
-        is_expiring: remainingPercent < threshold && remainingDays >= 0,
+        threshold: timeCardCfg.percent,
+        is_expiring: isExpiring,
       };
     })
     .filter(m => m.is_expiring)
@@ -423,17 +421,23 @@ exports.getDashboardData = async (storeId) => {
       // 剩余天数统一用 Math.ceil（与会员详情页 member-detail 的剩余天数算法一致），避免 floor/ceil 差1天
       const remainingDays = endDate ? Math.ceil((endDate.valueOf() - now.valueOf()) / (1000 * 60 * 60 * 24)) : 999;
       const remainingPercent = totalDays > 0 ? (remainingDays / totalDays) * 100 : 100;
-      
-      // 次卡阈值规则
-      let timeThreshold = 8;
-      if (totalDays <= 30) timeThreshold = 30;
-      else if (totalDays < 90) timeThreshold = 15;
-      else if (totalDays < 150) timeThreshold = 10;
-      else timeThreshold = 8;
-      
-      const isLowCredits = (pkg.remaining_credits || 0) <= 5;
-      const isExpiring = remainingPercent < timeThreshold && remainingDays >= 0;
-      
+
+      // 次卡阈值规则（二选一，由 mode 决定）：
+      // 到期：'days'=到期前X天；'percent'=剩余时长占比低于X%
+      // 次数：'count'=剩余次数低于X次；'percent'=剩余次数占比低于X%
+      const expireCfg = remindCfg.count_card_expire;
+      const lowCfg = remindCfg.count_card_low;
+      const creditsPercent = (pkg.total_credits || 0) > 0
+        ? ((pkg.remaining_credits || 0) / pkg.total_credits) * 100 : 0;
+
+      const isLowCredits = lowCfg.mode === 'percent'
+        ? creditsPercent < lowCfg.percent
+        : (pkg.remaining_credits || 0) <= lowCfg.count;
+      const isExpireHit = expireCfg.mode === 'percent'
+        ? remainingPercent < expireCfg.percent
+        : remainingDays <= expireCfg.days;
+      const isExpiring = remainingDays >= 0 && isExpireHit;
+
       return {
         user_id: pkg.user_id?._id,
         user_name: pkg.user_id?.real_name || pkg.user_id?.nick_name || '未知会员',
@@ -579,5 +583,131 @@ exports.getDashboardData = async (storeId) => {
     schedule_coverage: scheduleCoverage,
     package_status_distribution: packageDistribution,
     weekly_booking_trend: weeklyBookingTrend,
+  };
+};
+
+// 会员套餐状态管理页：四类会员名单（时间卡到期/次卡到期/次卡次数不足/久未到店）
+// 阈值与首页待办同源（package_status_remind_config），保证两处提醒口径一致
+exports.getPackageStatusList = async function (storeId) {
+  const cfg = await this.getPackageStatusRemindConfig();
+  const now = dayjs().tz(BEIJING_TZ);
+
+  const pkgFilter = {
+    is_activated: true,
+    status: 'active',
+    user_id: { $ne: null },
+  };
+  if (storeId) pkgFilter.store_id = storeId;
+
+  // 拉取全部激活套餐（populate 用户 + 门店名）
+  const packages = await UserPackage.find(pkgFilter)
+    .populate('user_id', 'real_name nick_name avatar_url phone wechat_phone reserve_phone')
+    .populate('store_id', 'name')
+    .lean();
+
+  const timeCardExpiring = [];
+  const countCardExpiring = [];
+  const countCardLow = [];
+
+  packages.forEach(pkg => {
+    if (!pkg.user_id) return;
+    const endDate = pkg.end_date ? dayjs(pkg.end_date) : null;
+    const startDate = pkg.start_date ? dayjs(pkg.start_date) : null;
+    const totalDays = endDate && startDate ? endDate.diff(startDate, 'day') : 0;
+    const remainingDays = endDate ? Math.ceil((endDate.valueOf() - now.valueOf()) / (1000 * 60 * 60 * 24)) : 999;
+    const remainingPercent = totalDays > 0 ? (remainingDays / totalDays) * 100 : 100;
+    const base = {
+      user_id: pkg.user_id._id,
+      user_name: pkg.user_id.real_name || pkg.user_id.nick_name || '未知会员',
+      avatar_url: pkg.user_id.avatar_url || '',
+      phone: pkg.user_id.wechat_phone || pkg.user_id.reserve_phone || pkg.user_id.phone || '',
+      package_name: pkg.name || '',
+      package_type: pkg.package_type,
+      remaining_credits: pkg.remaining_credits || 0,
+      total_credits: pkg.total_credits || 0,
+      remaining_days: remainingDays,
+      end_date: pkg.end_date,
+      store_name: (pkg.store_id && pkg.store_id.name) || '',
+    };
+
+    if (pkg.package_type === 'time_card' && endDate) {
+      // 二选一（mode）：'days'=到期前X天；'percent'=剩余时长占比低于X%
+      const isHit = cfg.time_card_expire.mode === 'percent'
+        ? remainingPercent < cfg.time_card_expire.percent
+        : remainingDays <= cfg.time_card_expire.days;
+      if (remainingDays >= 0 && isHit) timeCardExpiring.push(base);
+    } else if (pkg.package_type === 'count_card') {
+      const creditsPercent = (pkg.total_credits || 0) > 0
+        ? ((pkg.remaining_credits || 0) / pkg.total_credits) * 100 : 0;
+      // 到期二选一：'days'=到期前X天；'percent'=剩余时长占比低于X%
+      const isExpireHit = endDate && remainingDays >= 0 && (
+        cfg.count_card_expire.mode === 'percent'
+          ? remainingPercent < cfg.count_card_expire.percent
+          : remainingDays <= cfg.count_card_expire.days
+      );
+      // 次数二选一：'count'=剩余次数低于X次；'percent'=剩余次数占比低于X%
+      const isLowHit = cfg.count_card_low.mode === 'percent'
+        ? creditsPercent < cfg.count_card_low.percent
+        : (pkg.remaining_credits || 0) <= cfg.count_card_low.count;
+      if (isExpireHit) countCardExpiring.push(base);
+      if (isLowHit) countCardLow.push({ ...base, credits_percent: Math.round(creditsPercent) });
+    }
+  });
+
+  const byRemainingDays = (a, b) => a.remaining_days - b.remaining_days;
+  timeCardExpiring.sort(byRemainingDays);
+  countCardExpiring.sort(byRemainingDays);
+  countCardLow.sort((a, b) => a.remaining_credits - b.remaining_credits);
+
+  // 久未跳舞：只统计套餐正常使用中的会员（active、未停卡、次数未用完），
+  // 最后上课（签到）时间距今超过 inactive_days 天（从未上过课的不算）
+  const inactiveDays = cfg.inactive_days.days;
+  const inactiveMembers = [];
+  if (inactiveDays > 0) {
+    // 正常使用中的套餐：status=active 且未停卡；次卡还需剩余次数>0（过期/用完/停卡的不提醒）
+    const isUsable = (pkg) => pkg.status === 'active' && !pkg.is_suspended &&
+      (pkg.package_type === 'time_card' || (pkg.remaining_credits || 0) > 0);
+
+    const lastAttendedAgg = await Attendance.aggregate([
+      { $group: { _id: '$user_id', last_attended: { $max: '$check_in_time' } } },
+    ]);
+    const lastAttendedMap = new Map();
+    lastAttendedAgg.forEach(item => {
+      if (item._id) lastAttendedMap.set(String(item._id), item.last_attended);
+    });
+
+    // 会员去重（一个会员可能有多张激活套餐）
+    const seen = new Set();
+    packages.forEach(pkg => {
+      if (!pkg.user_id || !isUsable(pkg)) return;
+      const uid = String(pkg.user_id._id);
+      if (seen.has(uid)) return;
+      seen.add(uid);
+      const last = lastAttendedMap.get(uid);
+      if (!last) return; // 从未上过课的不算"久未跳舞"
+      const daysSince = now.diff(dayjs(last), 'day');
+      if (daysSince >= inactiveDays) {
+        inactiveMembers.push({
+          user_id: pkg.user_id._id,
+          user_name: pkg.user_id.real_name || pkg.user_id.nick_name || '未知会员',
+          avatar_url: pkg.user_id.avatar_url || '',
+          phone: pkg.user_id.wechat_phone || pkg.user_id.reserve_phone || pkg.user_id.phone || '',
+          package_name: pkg.name || '',
+          package_type: pkg.package_type,
+          last_attended: last,
+          days_since: daysSince,
+          store_name: (pkg.store_id && pkg.store_id.name) || '',
+        });
+      }
+    });
+    inactiveMembers.sort((a, b) => b.days_since - a.days_since);
+  }
+
+  return {
+    config: cfg,
+    time_card_expiring: timeCardExpiring,
+    count_card_expiring: countCardExpiring,
+    count_card_low: countCardLow,
+    inactive_members: inactiveMembers,
   };
 };

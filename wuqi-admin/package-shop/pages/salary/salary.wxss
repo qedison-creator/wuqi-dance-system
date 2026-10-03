@@ -591,7 +591,7 @@
   width: 36rpx;
   height: 36rpx;
   border-radius: 50%;
-  border: 3rpx solid #C9C4C0;
+  border: 2rpx solid #C9C4C0;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -604,10 +604,15 @@
   border-color: #D4786E;
 }
 
-.check-mark {
-  font-size: 20rpx;
-  color: #FFF;
-  font-weight: bold;
+/* 纯 CSS 对勾：替代文本 √ 字形，避免字形尾巴导致歪斜出圈 */
+.bill-coach-check .tick {
+  width: 20rpx;
+  height: 10rpx;
+  border-left: 4rpx solid #FFF;
+  border-bottom: 4rpx solid #FFF;
+  border-radius: 2rpx;
+  transform: rotate(-45deg);
+  margin-top: -4rpx;
 }
 
 .coach-name {
@@ -1365,4 +1370,477 @@
 /* ==================== 弹窗大尺寸 ==================== */
 .modal-large {
   width: min(94%, 680rpx);
+}
+/* ==================== V2 新增：年份切换 / 警告 / 已删标记 ==================== */
+.year-switch {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16rpx;
+}
+
+.year-switch-picker {
+  display: inline-block;
+  padding: 10rpx 24rpx;
+  border-radius: 10rpx;
+  background: var(--color-bg-secondary, #f5f6f8);
+  font-size: 26rpx;
+  color: var(--color-text, #333);
+}
+
+.year-switch-picker.small {
+  padding: 6rpx 18rpx;
+  font-size: 24rpx;
+}
+
+.year-switch-summary {
+  font-size: 24rpx;
+  color: var(--color-text-secondary, #999);
+}
+
+.salary-section-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16rpx;
+}
+
+.orphan-tip {
+  padding: 16rpx 20rpx;
+  border-radius: 10rpx;
+  background: #FFF7E6;
+  border: 1rpx solid #FFD591;
+  margin-bottom: 16rpx;
+}
+
+.orphan-tip text {
+  font-size: 24rpx;
+  color: #AD6800;
+  line-height: 1.5;
+}
+
+.warning-text {
+  display: block;
+  font-size: 24rpx;
+  color: #C44B4B;
+  line-height: 1.6;
+}
+
+.warning-text.skip {
+  color: #AD6800;
+}
+
+.salary-coach-warnings {
+  margin-top: 12rpx;
+  padding: 12rpx 16rpx;
+  border-radius: 8rpx;
+  background: #FDF0F0;
+}
+
+.salary-row-store {
+  font-size: 22rpx;
+  color: var(--color-text-secondary, #999);
+}
+
+.salary-row-rate.rate-miss {
+  color: #C44B4B;
+  font-weight: 600;
+}
+
+.config-name-wrap {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+}
+
+.config-deleted-tag {
+  font-size: 20rpx;
+  color: #fff;
+  background: #B8B8B8;
+  border-radius: 6rpx;
+  padding: 2rpx 10rpx;
+}
+
+.form-picker.locked {
+  opacity: 0.6;
+}
+
+.form-tip {
+  display: block;
+  margin-top: 10rpx;
+  font-size: 22rpx;
+  color: var(--color-text-secondary, #999);
+  line-height: 1.5;
+}
+
+.hours-loading {
+  padding: 12rpx 0;
+  text-align: center;
+}
+
+.hours-loading text {
+  font-size: 22rpx;
+  color: var(--color-text-secondary, #999);
+}
+
+/* ==================== 费率版本展示 / 单价纠错 ==================== */
+.config-versions {
+  display: flex;
+  flex-direction: column;
+  gap: 8rpx;
+  margin: 12rpx 0;
+}
+
+.config-version-row {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  padding: 10rpx 12rpx;
+  border-radius: 8rpx;
+  background: var(--color-bg-secondary, #f7f8fa);
+}
+
+.cv-duration {
+  font-size: 24rpx;
+  font-weight: 600;
+  color: var(--color-text, #333);
+  flex-shrink: 0;
+}
+
+.cv-rate {
+  font-size: 24rpx;
+  color: var(--color-primary, #C0724A);
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.cv-period {
+  font-size: 22rpx;
+  color: var(--color-text-secondary, #999);
+  flex: 1;
+}
+
+.cv-status {
+  font-size: 20rpx;
+  color: var(--color-text-secondary, #999);
+  flex-shrink: 0;
+}
+
+.cv-status.active {
+  color: #3D9A6C;
+  font-weight: 600;
+}
+
+.cv-correct-btn {
+  font-size: 22rpx;
+  color: #AD6800;
+  background: #FFF7E6;
+  border: 1rpx solid #FFD591;
+  border-radius: 6rpx;
+  padding: 4rpx 14rpx;
+  flex-shrink: 0;
+}
+
+.cv-correct-btn:active {
+  opacity: 0.7;
+}
+
+.correction-warning {
+  margin-top: 12rpx;
+  padding: 14rpx 16rpx;
+  border-radius: 8rpx;
+  background: #FFF7E6;
+  border: 1rpx solid #FFD591;
+}
+
+.correction-warning text {
+  font-size: 22rpx;
+  color: #AD6800;
+  line-height: 1.6;
+}
+
+/* ==================== 单价时间线（按时长分组） ==================== */
+.config-del-btn {
+  font-size: 24rpx;
+  color: var(--color-danger, #C44B4B);
+}
+
+.duration-group {
+  margin: 16rpx 0;
+  padding: 12rpx 16rpx;
+  border-radius: 10rpx;
+  background: var(--color-bg-secondary, #fafafa);
+}
+
+.dg-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8rpx;
+}
+
+.dg-title {
+  font-size: 26rpx;
+  font-weight: 600;
+  color: var(--color-text, #333);
+}
+
+.dg-add {
+  font-size: 22rpx;
+  color: var(--color-primary, #C0724A);
+  padding: 4rpx 12rpx;
+  border: 1rpx solid var(--color-primary, #C0724A);
+  border-radius: 8rpx;
+}
+
+.dg-add:active {
+  opacity: 0.7;
+}
+
+.config-version-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12rpx;
+  padding: 10rpx 12rpx;
+  border-radius: 8rpx;
+  background: #fff;
+  margin-bottom: 8rpx;
+}
+
+.cv-main {
+  display: flex;
+  flex-direction: column;
+  gap: 4rpx;
+  flex: 1;
+  min-width: 0;
+}
+
+.cv-period {
+  font-size: 22rpx;
+  color: var(--color-text-secondary, #999);
+}
+
+.cv-rate {
+  font-size: 26rpx;
+  font-weight: 600;
+  color: var(--color-text, #333);
+}
+
+.cv-rate.active {
+  color: var(--color-primary, #C0724A);
+}
+
+.cv-ops {
+  display: flex;
+  gap: 10rpx;
+  flex-shrink: 0;
+}
+
+.cv-op {
+  font-size: 22rpx;
+  color: var(--color-primary, #C0724A);
+  border: 1rpx solid var(--color-primary, #C0724A);
+  border-radius: 8rpx;
+  padding: 6rpx 16rpx;
+}
+
+.cv-op.del {
+  color: var(--color-danger, #C44B4B);
+  border-color: var(--color-danger, #C44B4B);
+}
+
+.cv-op:active {
+  opacity: 0.7;
+}
+
+.period-tip {
+  margin-top: 12rpx;
+  padding: 14rpx 16rpx;
+  border-radius: 8rpx;
+  background: #FFF7E6;
+  border: 1rpx solid #FFD591;
+}
+
+.period-tip text {
+  font-size: 22rpx;
+  color: #AD6800;
+  line-height: 1.6;
+}
+
+/* ==================== 空档提示 / 时期行新版式 ==================== */
+.gap-panel {
+  margin-bottom: 20rpx;
+  padding: 16rpx 20rpx;
+  border-radius: 10rpx;
+  background: #FFF7E6;
+  border: 1rpx solid #FFD591;
+}
+
+.gap-title {
+  font-size: 24rpx;
+  font-weight: 600;
+  color: #AD6800;
+  margin-bottom: 8rpx;
+}
+
+.gap-item {
+  margin-top: 4rpx;
+}
+
+.gap-text {
+  font-size: 23rpx;
+  color: #AD6800;
+  line-height: 1.6;
+}
+
+.cv-line1 {
+  display: flex;
+  align-items: center;
+  gap: 10rpx;
+}
+
+.cv-range {
+  font-size: 25rpx;
+  font-weight: 600;
+  color: var(--color-text, #333);
+}
+
+.cv-current-tag {
+  font-size: 20rpx;
+  color: #fff;
+  background: var(--color-primary, #C0724A);
+  border-radius: 6rpx;
+  padding: 2rpx 10rpx;
+  flex-shrink: 0;
+}
+
+.cv-bad-tag {
+  font-size: 20rpx;
+  color: #fff;
+  background: var(--color-danger, #C44B4B);
+  border-radius: 6rpx;
+  padding: 2rpx 10rpx;
+  flex-shrink: 0;
+}
+
+/* ==================== 空档提示（按教练折叠） ==================== */
+.gap-coach {
+  margin-top: 6rpx;
+}
+
+.gap-coach-header {
+  display: flex;
+  align-items: center;
+  gap: 10rpx;
+  padding: 8rpx 4rpx;
+  border-radius: 8rpx;
+}
+
+.gap-coach-header:active {
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.gap-coach-toggle {
+  font-size: 22rpx;
+  color: #AD6800;
+  transition: transform 0.15s;
+  transform: rotate(0deg);
+}
+
+.gap-coach-toggle.expanded {
+  transform: rotate(90deg);
+}
+
+.gap-coach-name {
+  font-size: 26rpx;
+  font-weight: 600;
+  color: #AD6800;
+}
+
+.gap-coach-summary {
+  font-size: 22rpx;
+  color: #AD6800;
+  opacity: 0.8;
+  margin-left: auto;
+}
+
+.gap-coach-items {
+  padding: 4rpx 8rpx 4rpx 34rpx;
+}
+
+/* ==================== 空档提示（面板整体折叠） ==================== */
+.gap-panel {
+  padding: 14rpx 20rpx;
+}
+
+.gap-panel-header {
+  display: flex;
+  align-items: center;
+  gap: 10rpx;
+}
+
+.gap-panel-header:active {
+  opacity: 0.75;
+}
+
+.gap-panel .gap-title {
+  margin-bottom: 0;
+  flex: 1;
+}
+
+.gap-panel-summary {
+  font-size: 22rpx;
+  color: #AD6800;
+  opacity: 0.85;
+  flex-shrink: 0;
+}
+
+.gap-coach-list {
+  margin-top: 8rpx;
+  padding-top: 8rpx;
+  border-top: 1rpx solid rgba(173, 104, 0, 0.15);
+}
+
+/* ==================== 账单预览未入账提示（折叠） ==================== */
+.bill-unresolved {
+  margin: 12rpx 0;
+  padding: 14rpx 16rpx;
+  border-radius: 8rpx;
+  background: #FDF0F0;
+}
+
+.bill-unresolved-header {
+  display: flex;
+  align-items: center;
+  gap: 10rpx;
+}
+
+.bill-unresolved-header:active {
+  opacity: 0.75;
+}
+
+.bill-unresolved-title {
+  font-size: 24rpx;
+  font-weight: 600;
+  color: #C44B4B;
+  flex: 1;
+  line-height: 1.5;
+}
+
+.bill-unresolved .gap-coach-toggle {
+  color: #C44B4B;
+}
+
+.bill-unresolved .gap-coach-name {
+  color: #C44B4B;
+}
+
+.bill-unresolved .gap-coach-summary {
+  color: #C44B4B;
+  opacity: 0.8;
+}
+
+.bill-unresolved .gap-text {
+  color: #C44B4B;
 }

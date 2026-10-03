@@ -61,6 +61,8 @@ Page({
     announceBarIndex: 0,
     announceNextIndex: 1,
     announceAnimPhase: '',
+    showAnnouncePopup: false,
+    popupAnnounce: null,
     showStoreModal: false,
     showLoginModal: false,
     showLocationAuthModal: false,
@@ -125,6 +127,8 @@ Page({
       // 登录状态变化时重置页面数据标记，确保强制全量刷新（清除旧会员残留数据）
       this._dataLoaded = false;
       this._lastStoreId = '';
+      // 登录态变化后重新允许公告弹窗检查（登录后补弹）
+      this._announcePopupShown = false;
     }
 
     // 门店已变化但页面数据未更新（如 selectNearestStore 异步更新了门店）→ 强制刷新
@@ -135,6 +139,7 @@ Page({
       this.setData({ _lastStoreId: currentStoreId });
       this.loadHomeData();
       this.startAnnounceFlip();
+      this.maybeShowAnnouncePopup();
       return;
     }
 
@@ -145,6 +150,7 @@ Page({
     }
     this.checkLocationAuth();
     this.startAnnounceFlip();
+    this.maybeShowAnnouncePopup();
   },
 
   // 异步等待 app.globalData.currentStore 就绪（会员场景 determineDefaultStore 异步匹配中）
@@ -521,6 +527,9 @@ Page({
     this._lastLoginStateToken = app.globalData.loginStateToken || 0;
     // 登录成功后刷新页面数据
     this.loadHomeData();
+    // 游客期间不弹公告，登录后立即补弹一次
+    this._announcePopupShown = false;
+    this.maybeShowAnnouncePopup();
   },
 
   checkLocationAuth() {
@@ -764,6 +773,60 @@ Page({
 
   onCloseAnnounceModal() {
     this.setData({ showAnnounceModal: false });
+  },
+
+  // 公告自动弹出：登录会员进入首页时检查，一次使用内最多弹一条（下次冷启动再弹）
+  // 优先级 重要 > 永久 > 一般（后端已按此排序）；一般弹窗按本机已读记录过滤
+  async maybeShowAnnouncePopup() {
+    if (this._announcePopupShown) return;
+    // 让位：登录/门店/位置授权/公告栏弹窗正在显示时本次不弹（不置标记，下次 onShow 重试）
+    if (this.data.showLoginModal || this.data.showStoreModal || this.data.showLocationAuthModal || this.data.showAnnounceModal) return;
+    // 公告只对舞栖会员开放，游客不弹
+    if (!auth.checkLogin()) return;
+
+    try {
+      const storeId = this.data.currentStore ? this.data.currentStore._id : '';
+      const res = await request({ url: `/announces/popup?store_id=${storeId}`, method: 'GET', silent: true });
+      const list = res.data && res.data.list ? res.data.list : [];
+      if (!list.length) return;
+
+      // 一般弹窗：过滤本机已读记录
+      let readMap = {};
+      try { readMap = wx.getStorageSync('announce_popup_read_map') || {}; } catch (e) { readMap = {}; }
+      const candidates = list.filter(a => a.popup_type !== 'normal' || !readMap[a._id]);
+      if (!candidates.length) return;
+
+      const pick = candidates[0];
+      this._announcePopupShown = true;
+      this.setData({
+        popupAnnounce: {
+          ...pick,
+          createdAtDisplay: pick.created_at ? new Date(pick.created_at).toLocaleDateString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit', weekday: 'short' }) : ''
+        },
+        showAnnouncePopup: true
+      });
+    } catch (err) {
+      console.error('加载弹窗公告失败', err);
+    }
+  },
+
+  onAnnouncePopupClose() {
+    const picked = this.data.popupAnnounce;
+    // 一般弹窗记录本机已读，之后不再弹（编辑内容也不重弹，删除重发才会）
+    if (picked && picked.popup_type === 'normal') {
+      try {
+        const readMap = wx.getStorageSync('announce_popup_read_map') || {};
+        readMap[picked._id] = Date.now();
+        // 防止无限膨胀：超过 100 条时丢弃最早的记录
+        const keys = Object.keys(readMap);
+        if (keys.length > 100) {
+          keys.sort((a, b) => readMap[a] - readMap[b]);
+          keys.slice(0, keys.length - 100).forEach(k => { delete readMap[k]; });
+        }
+        wx.setStorageSync('announce_popup_read_map', readMap);
+      } catch (e) { }
+    }
+    this.setData({ showAnnouncePopup: false });
   },
 
   onPreventMove() {

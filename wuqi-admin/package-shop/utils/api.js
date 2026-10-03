@@ -89,11 +89,7 @@ module.exports = {
     create: (data) => request({ url: '/coach-salaries', method: 'POST', data }),
     update: (id, data) => request({ url: `/coach-salaries/${id}`, method: 'PUT', data }),
     delete: (id) => request({ url: `/coach-salaries/${id}`, method: 'DELETE' }),
-    getStatsList: (data) => request({ url: '/coach-salaries/stats/list', data }),
-    getStatsSummary: (data) => request({ url: '/coach-salaries/stats/summary', data }),
     generateStats: (data) => request({ url: '/coach-salaries/stats/generate', method: 'POST', data }),
-    settleStats: (id, data) => request({ url: `/coach-salaries/stats/${id}/settle`, method: 'PUT', data }),
-    cancelStats: (id) => request({ url: `/coach-salaries/stats/${id}/cancel`, method: 'PUT' }),
   },
 
   // 放假相关

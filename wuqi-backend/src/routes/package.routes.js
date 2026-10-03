@@ -108,7 +108,8 @@ router.delete('/user/:id', auth, checkPermission(['super_admin', 'store_manager'
 router.get('/activation-records', auth, checkPermission(['super_admin', 'store_manager', 'staff']), storeFilter(), async (req, res, next) => {
   try {
     const result = await packageService.getActivationRecords(req.query);
-    res.json(success(paginate(result.list, result.total, result.page, result.pageSize)));
+    // monthCounts：全量年/月记录数统计（不受会员分页影响）
+    res.json(success({ ...paginate(result.list, result.total, result.page, result.pageSize), monthCounts: result.monthCounts || {}, yearMemberCounts: result.yearMemberCounts || {} }));
   } catch (err) {
     next(err);
   }
@@ -120,7 +121,8 @@ router.get('/activation-records', auth, checkPermission(['super_admin', 'store_m
 router.get('/entry-records', auth, checkPermission(['super_admin', 'store_manager', 'staff']), storeFilter(), async (req, res, next) => {
   try {
     const result = await packageService.getEntryRecords(req.query);
-    res.json(success(paginate(result.list, result.total, result.page, result.pageSize)));
+    // monthCounts：全量年/月记录数统计（不受会员分页影响）
+    res.json(success({ ...paginate(result.list, result.total, result.page, result.pageSize), monthCounts: result.monthCounts || {}, yearMemberCounts: result.yearMemberCounts || {} }));
   } catch (err) {
     next(err);
   }
@@ -132,7 +134,8 @@ router.get('/entry-records', auth, checkPermission(['super_admin', 'store_manage
 router.get('/extension-records', auth, checkPermission(['super_admin', 'store_manager', 'staff']), storeFilter(), async (req, res, next) => {
   try {
     const result = await packageService.getExtensionRecords(req.query);
-    res.json(success(paginate(result.list, result.total, result.page, result.pageSize)));
+    // monthCounts：全量年/月记录数统计（不受会员分页影响）
+    res.json(success({ ...paginate(result.list, result.total, result.page, result.pageSize), monthCounts: result.monthCounts || {}, yearMemberCounts: result.yearMemberCounts || {} }));
   } catch (err) {
     next(err);
   }
@@ -213,7 +216,7 @@ router.get('/package-activations', auth, checkPermission(['super_admin', 'store_
       store_id: req.query.store_id
     };
     const result = await packageService.getActivationRecords(query);
-    res.json(success(paginate(result.list, result.total, result.page, result.pageSize)));
+    res.json(success({ ...paginate(result.list, result.total, result.page, result.pageSize), monthCounts: result.monthCounts || {}, yearMemberCounts: result.yearMemberCounts || {} }));
   } catch (err) {
     next(err);
   }
@@ -227,7 +230,8 @@ router.get('/package-extensions', auth, checkPermission(['super_admin', 'store_m
       store_id: req.query.store_id
     };
     const result = await packageService.getExtensionRecords(query);
-    res.json(success(paginate(result.list, result.total, result.page, result.pageSize)));
+    // monthCounts：全量年/月记录数统计（不受会员分页影响）
+    res.json(success({ ...paginate(result.list, result.total, result.page, result.pageSize), monthCounts: result.monthCounts || {}, yearMemberCounts: result.yearMemberCounts || {} }));
   } catch (err) {
     next(err);
   }

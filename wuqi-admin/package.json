@@ -1,0 +1,8 @@
+{
+  "name": "wuqi-admin",
+  "version": "1.1.6",
+  "description": "舞栖Dance 管理端小程序（增强编译所需 @babel/runtime）",
+  "dependencies": {
+    "@babel/runtime": "^7.29.7"
+  }
+}

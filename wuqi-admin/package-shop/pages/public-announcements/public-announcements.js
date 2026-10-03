@@ -1,6 +1,15 @@
 const app = getApp();
 const { request } = require('../../../utils/request');
 
+// 弹窗显示选项（与后端 popup_type 枚举一致）
+const POPUP_TYPE_OPTIONS = [
+  { value: 'none', label: '不弹窗', hint: '只在公告栏滚动展示，不弹窗。' },
+  { value: 'normal', label: '一般弹窗', hint: '会员打开小程序进入首页时弹一次，关闭后不再弹；公告栏仍可查看。' },
+  { value: 'important', label: '重要弹窗', hint: '每次打开小程序都会弹，需阅读 3 秒后才能关闭；公告下架后停止弹。' },
+  { value: 'always', label: '永久弹窗', hint: '每次打开小程序进入首页都会弹，手动关闭，下次打开继续弹。' }
+];
+const POPUP_TYPE_LABELS = { normal: '一般弹窗', important: '重要弹窗', always: '永久弹窗' };
+
 Page({
   data: {
     loading: true,
@@ -10,6 +19,8 @@ Page({
     formTitle: '',
     formContent: '',
     formStatus: 'active',
+    popupTypeOptions: POPUP_TYPE_OPTIONS,
+    formPopupIndex: 0,
     deleting: false, // 防抖标志位
     canOperate: false // 当前用户是否可操作（仅超级管理员/审核员）
   },
@@ -52,6 +63,7 @@ Page({
           store_name: '',
           is_global: true,
           store_label: '全平台公告',
+          popup_label: POPUP_TYPE_LABELS[item.popup_type] || '',
           can_operate: canOperate
         }));
       this.setData({ announcements: list, loading: false });
@@ -74,7 +86,8 @@ Page({
       editingItem: null,
       formTitle: '',
       formContent: '',
-      formStatus: 'active'
+      formStatus: 'active',
+      formPopupIndex: 0
     });
   },
 
@@ -90,7 +103,8 @@ Page({
       editingItem: item,
       formTitle: item.title || '',
       formContent: item.content || '',
-      formStatus: item.status || 'active'
+      formStatus: item.status || 'active',
+      formPopupIndex: Math.max(0, POPUP_TYPE_OPTIONS.findIndex(o => o.value === (item.popup_type || 'none')))
     });
   },
 
@@ -108,12 +122,16 @@ Page({
     this.setData({ formContent: e.detail.value });
   },
 
+  onFormPopupChange(e) {
+    this.setData({ formPopupIndex: Number(e.detail.value) });
+  },
+
   onToggleFormStatus(e) {
     this.setData({ formStatus: e.currentTarget.dataset.status });
   },
 
   async onSubmit() {
-    const { formTitle, formContent, formStatus, editingItem } = this.data;
+    const { formTitle, formContent, formStatus, editingItem, popupTypeOptions, formPopupIndex } = this.data;
 
     if (!formTitle.trim()) {
       wx.showToast({ title: '请输入公告标题', icon: 'none' });
@@ -130,7 +148,8 @@ Page({
         title: formTitle.trim(),
         content: formContent.trim(),
         store_id: null,
-        status: formStatus
+        status: formStatus,
+        popup_type: popupTypeOptions[formPopupIndex].value
       };
 
       if (editingItem) {

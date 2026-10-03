@@ -8,8 +8,10 @@ const Schedule = require('../models/Schedule');
 const Package = require('../models/Package');
 const Image = require('../models/Image');
 const imageService = require('../services/image.service');
+const { resolveStoreConfig } = require('../services/coach.service');
 const User = require('../models/User');
 const Booking = require('../models/Booking');
+const UserPackage = require('../models/UserPackage');
 const dayjs = require('dayjs');
 const utc = require('dayjs/plugin/utc');
 const timezone = require('dayjs/plugin/timezone');
@@ -83,6 +85,21 @@ router.get('/admin', auth, storeFilter(), async (req, res, next) => {
     // 统计数据
     const totalMembers = await User.countDocuments({ user_type: 'member', member_status: 'official', ...storeFilter });
     const officialMembers = await User.countDocuments({ user_type: 'member', member_status: 'official', ...storeFilter });
+
+    // 在籍会员：本店正式会员中，名下有至少一个"有效套餐"的人数
+    // 有效套餐 = status='active' 且（时间卡；或次卡且剩余次数>0）；停卡中（is_suspended）算在籍；过期/用完/待激活不算
+    // 过期信任 status（调度任务自动把过期套餐置为 expired）；时间卡 remaining_credits 为哨兵值，不参与次数判断
+    const residentMemberIds = await User.find({ user_type: 'member', member_status: 'official', ...storeFilter }).distinct('_id');
+    const residentMembers = residentMemberIds.length === 0
+      ? 0
+      : (await UserPackage.distinct('user_id', {
+          user_id: { $in: residentMemberIds },
+          status: 'active',
+          $or: [
+            { package_type: 'time_card' },
+            { package_type: 'count_card', remaining_credits: { $gt: 0 } },
+          ],
+        })).length;
     // 今日课程数：统计今日有效排课（排除已删除和已取消，避免数量虚高）
     const todaySchedules = await Schedule.countDocuments({ ...storeFilter, date: today, status: { $nin: ['deleted', 'cancelled'] } });
     const todayBookings = await Booking.countDocuments({
@@ -168,6 +185,7 @@ router.get('/admin', auth, storeFilter(), async (req, res, next) => {
       stats: {
         total_members: totalMembers,
         official_members: officialMembers,
+        resident_members: residentMembers,
         today_schedules: todaySchedules,
         today_bookings: todayBookings,
         month_bookings: monthBookings,
@@ -225,7 +243,7 @@ router.get('/dance-styles', async (req, res, next) => {
 router.get('/coaches', async (req, res, next) => {
   try {
     const { store_id, limit = 10 } = req.query;
-    const filter = { status: 'active', is_deleted: { $ne: true } };
+    const filter = { status: 'active', is_deleted: { $ne: true }, show_on_home: { $ne: false } };
 
     // 门店过滤（基于 store_ids 多门店执教模型）：
     // 该门店独占教练 + 多门店执教教练（store_ids 为空或不存在 = 全门店共用，存量教练）
@@ -239,12 +257,28 @@ router.get('/coaches', async (req, res, next) => {
       ];
     }
 
-    const coaches = await Coach.find(filter)
+    // 取全量（上限保护）后按门店展示配置过滤/排序：
+    // 该门店 is_teaching=false 的教练不展示；顺序按门店配置 sort_order（未配置回退全局值）
+    let coaches = await Coach.find(filter)
       .populate('dance_styles', 'name')
-      .sort({ sort_order: 1, created_at: -1 })
-      .limit(Number(limit));
+      .select('-phone')
+      .limit(200)
+      .lean();
 
-    res.json(success(coaches));
+    if (store_id) {
+      const sid = String(store_id);
+      coaches = coaches.filter(c => resolveStoreConfig(c, sid).is_teaching);
+    }
+
+    const sid = store_id ? String(store_id) : null;
+    coaches.sort((a, b) => {
+      const orderA = sid ? resolveStoreConfig(a, sid).sort_order : (a.sort_order || 0);
+      const orderB = sid ? resolveStoreConfig(b, sid).sort_order : (b.sort_order || 0);
+      if (orderA !== orderB) return orderA - orderB;
+      return new Date(b.created_at || 0) - new Date(a.created_at || 0);
+    });
+
+    res.json(success(coaches.slice(0, Number(limit))));
   } catch (err) {
     next(err);
   }

@@ -38,11 +38,22 @@
       <text class="stat-val">{{stats.todaySchedules || 0}}</text>
     </view>
     <view class="stat stat-member" bindtap="onStatTap" data-type="members">
-      <view class="stat-head">
-        <text class="stat-dot dot-member"></text>
-        <text class="stat-title">会员总数</text>
+      <view class="stat-duo">
+        <view class="stat-duo-item">
+          <view class="stat-head">
+            <text class="stat-dot dot-member"></text>
+            <text class="stat-title">会员总数</text>
+          </view>
+          <text class="stat-val">{{stats.totalMembers || 0}}</text>
+        </view>
+        <view class="stat-duo-item">
+          <view class="stat-head">
+            <text class="stat-dot dot-member"></text>
+            <text class="stat-title">在籍会员</text>
+          </view>
+          <text class="stat-val">{{stats.residentMembers || 0}}</text>
+        </view>
       </view>
-      <text class="stat-val">{{stats.totalMembers || 0}}</text>
     </view>
     <view class="stat stat-wait" bindtap="onStatTap" data-type="waitlist">
       <view class="stat-head">
@@ -226,9 +237,13 @@
       <text class="bnav-icon">☰</text>
       <text class="bnav-label">预约记录</text>
     </view>
-    <view class="bnav-item" bindtap="onGoToWaitlist">
-      <text class="bnav-icon">▤</text>
-      <text class="bnav-label">候补排队</text>
+    <view class="bnav-item" bindtap="onGoToPackageLogs">
+      <text class="bnav-icon">▦</text>
+      <text class="bnav-label">套餐记录</text>
+    </view>
+    <view class="bnav-item" bindtap="onGoToDataCenter">
+      <text class="bnav-icon">◈</text>
+      <text class="bnav-label">数据中心</text>
     </view>
   </view>
 

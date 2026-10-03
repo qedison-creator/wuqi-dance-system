@@ -35,30 +35,39 @@
       </view>
     </view>
 
-    <scroll-view class="filter-bar" scroll-x enhanced show-scrollbar="{{false}}" enable-flex>
-      <view class="filter-item {{activeFilter === 'all' ? 'active' : ''}}" data-filter="all" bindtap="onFilterChange">
-        <text>全部</text>
-      </view>
-      <view class="filter-item {{activeFilter === 'no-package' ? 'active' : ''}}" data-filter="no-package" bindtap="onFilterChange">
-        <text>未录套餐</text>
-      </view>
-      <view class="filter-item {{activeFilter === 'active' ? 'active' : ''}}" data-filter="active" bindtap="onFilterChange">
-        <text>使用中</text>
-      </view>
-      <view class="filter-item {{activeFilter === 'cross_store' ? 'active' : ''}}" data-filter="cross_store" bindtap="onFilterChange">
-        <text>跨门店</text>
-      </view>
-      <view class="filter-item {{activeFilter === 'unactivated' ? 'active' : ''}}" data-filter="unactivated" bindtap="onFilterChange">
-        <text>待激活</text>
-      </view>
-      <view class="filter-item {{activeFilter === 'suspended' ? 'active' : ''}}" data-filter="suspended" bindtap="onFilterChange">
-        <text>已停卡</text>
-      </view>
-      <view class="filter-item {{activeFilter === 'expired' ? 'active' : ''}}" data-filter="expired" bindtap="onFilterChange">
-        <text>已过期</text>
-      </view>
-      <view class="filter-item {{activeFilter === 'exhausted' ? 'active' : ''}}" data-filter="exhausted" bindtap="onFilterChange">
-        <text>已用完</text>
+    <scroll-view class="filter-bar" scroll-x enhanced show-scrollbar="{{false}}">
+      <view class="filter-bar-inner">
+        <view class="filter-item {{activeFilter === 'all' ? 'active' : ''}}" data-filter="all" bindtap="onFilterChange">
+          <text>全部</text>
+        </view>
+        <view class="filter-item {{activeFilter === 'no-package' ? 'active' : ''}}" data-filter="no-package" bindtap="onFilterChange">
+          <text>未录套餐</text>
+          <view class="filter-count" wx:if="{{filterCounts.no_package > 0}}">{{filterCounts.no_package}}</view>
+        </view>
+        <view class="filter-item {{activeFilter === 'active' ? 'active' : ''}}" data-filter="active" bindtap="onFilterChange">
+          <text>使用中</text>
+          <view class="filter-count" wx:if="{{filterCounts.active > 0}}">{{filterCounts.active}}</view>
+        </view>
+        <view class="filter-item {{activeFilter === 'cross_store' ? 'active' : ''}}" data-filter="cross_store" bindtap="onFilterChange">
+          <text>跨门店</text>
+          <view class="filter-count" wx:if="{{filterCounts.cross_store > 0}}">{{filterCounts.cross_store}}</view>
+        </view>
+        <view class="filter-item {{activeFilter === 'unactivated' ? 'active' : ''}}" data-filter="unactivated" bindtap="onFilterChange">
+          <text>待激活</text>
+          <view class="filter-count" wx:if="{{filterCounts.unactivated > 0}}">{{filterCounts.unactivated}}</view>
+        </view>
+        <view class="filter-item {{activeFilter === 'suspended' ? 'active' : ''}}" data-filter="suspended" bindtap="onFilterChange">
+          <text>已停卡</text>
+          <view class="filter-count" wx:if="{{filterCounts.suspended > 0}}">{{filterCounts.suspended}}</view>
+        </view>
+        <view class="filter-item {{activeFilter === 'expired' ? 'active' : ''}}" data-filter="expired" bindtap="onFilterChange">
+          <text>已过期</text>
+          <view class="filter-count" wx:if="{{filterCounts.expired > 0}}">{{filterCounts.expired}}</view>
+        </view>
+        <view class="filter-item {{activeFilter === 'exhausted' ? 'active' : ''}}" data-filter="exhausted" bindtap="onFilterChange">
+          <text>已用完</text>
+          <view class="filter-count" wx:if="{{filterCounts.exhausted > 0}}">{{filterCounts.exhausted}}</view>
+        </view>
       </view>
     </scroll-view>
   </view>

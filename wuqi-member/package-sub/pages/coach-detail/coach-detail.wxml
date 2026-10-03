@@ -67,6 +67,7 @@
           <view class="cd-course-body">
             <text class="cd-course-name">{{item.course_name || '课程名称'}}</text>
             <view class="cd-course-tag" wx:if="{{item.danceStyleName}}" style="background: {{item.danceTagBg}}; color: {{item.danceTagText}}">{{item.danceStyleName}}</view>
+            <view class="cd-course-tag exempt-lock-tag" wx:if="{{item.exemptLockTag}}">不可豁免取消</view>
             <view class="cd-course-meta">
               <view class="cd-course-meta-dot"></view>
               <text>{{item.date}} {{item.weekday}} {{item.start_time}}-{{item.end_time}}</text>
@@ -80,18 +81,18 @@
               <text class="cd-deadline-text cancel">截止取消：{{item.cancel_deadline_text}}</text>
             </view>
             <view class="cd-card-meta-row">
-              <view class="cd-course-count" wx:if="{{isOfficial && canViewCapacity}}">
+              <view class="cd-course-count" wx:if="{{isOfficial && item.capacityVisible}}">
                 <text class="cdc-label">已约</text>
                 <text class="cdc-num">{{item.current_bookings || 0}}</text>
                 <text class="cdc-total">/{{item.max_bookings || 20}}人</text>
               </view>
-              <view class="cd-course-count" wx:elif="{{isOfficial && !canViewCapacity}}">
+              <view class="cd-course-count" wx:elif="{{isOfficial && !item.capacityVisible}}">
                 <text class="cdc-label">已约</text>
                 <text class="cdc-num">?</text>
                 <text class="cdc-total">/?人</text>
               </view>
               <text class="cdc-min-capacity" wx:if="{{item.min_bookings}}">最低{{item.min_bookings}}人成班</text>
-              <view class="cd-booked-avatars" wx:if="{{canViewCapacity && item.booked_users && item.booked_users.length > 0}}">
+              <view class="cd-booked-avatars" wx:if="{{item.capacityVisible && item.booked_users && item.booked_users.length > 0}}">
                 <block wx:for="{{item.booked_users}}" wx:for-item="bu" wx:for-index="bui" wx:key="user_id" wx:if="{{bui < 10}}">
                   <image class="cd-booked-avatar" src="{{bu.avatar_url}}" mode="aspectFill" style="z-index: {{bui + 1}};" />
                 </block>
@@ -152,6 +153,12 @@
                 <text>不可预约</text>
               </view>
               <view class="cd-book-btn disabled-clickable" wx:elif="{{item.courseStyleMatched === false}}" data-course="{{item}}" catchtap="onBookTap">
+                <text>不可预约</text>
+              </view>
+              <view class="cd-book-btn disabled-clickable" wx:elif="{{item.weekdayMatched === false}}" data-course="{{item}}" catchtap="onBookTap">
+                <text>不可预约</text>
+              </view>
+              <view class="cd-book-btn disabled-clickable" wx:elif="{{item.timeMatched === false}}" data-course="{{item}}" catchtap="onBookTap">
                 <text>不可预约</text>
               </view>
               <view class="cd-book-btn" wx:else data-course="{{item}}" catchtap="onBookTap">

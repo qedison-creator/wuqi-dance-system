@@ -74,7 +74,9 @@ const _rawRequest = (options) => {
 
 const request = (options) => {
   const method = (options.method || 'GET').toUpperCase();
-  const maxRetry = options.retry !== undefined ? options.retry : (method === 'GET' ? 1 : 0);
+  // GET 默认重试 2 次（与会员端对齐）：生产链路存在约5-10%的间歇性连接重置，
+  // 1次重试最终失败率约0.25%~1%，2次可降到约0.1%以下，日常使用基本无感
+  const maxRetry = options.retry !== undefined ? options.retry : (method === 'GET' ? 2 : 0);
   const silent = options.silent || false;
 
   return new Promise((resolve, reject) => {

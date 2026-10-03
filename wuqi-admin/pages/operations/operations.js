@@ -17,12 +17,15 @@ const COURSE_CANCEL_TYPES = ['admin_cancel', 'min_bookings_not_met', 'holiday', 
  *   - cancelReasonText: 取消原因文案
  *
  * 业务规则：
- *   - 已预约 = 走过预约流程的记录（booked / 已签到的预约 / 已完成的预约 / 管理员或课程取消的预约）
- *   - 已签到 = 已签到/已完成的记录（含现场直接签到，source='onsite'）
+ *   - 已预约（isActiveBooked）= 开课前的有效预约人数，不含任何已取消（会员自行取消/豁免/管理员/课程取消），
+ *     也不含现场补签（没走过预约流程）。未开课时 = 当前仍预约中的人数（status='booked'）；
+ *     开课后 = 开课时刻的有效预约数（到场者就是当时的有效预约，自动签到只是形态转换，数字不归零）
+ *   - 已签到（isCheckedIn）= 上课的签到人数，自动签到/扫码/现场补签等所有形式均计入
+ *   - 已预约列表（isBooked）= 走过预约流程的记录（booked / 已签到的预约 / 已完成的预约 / 管理员或课程取消的预约），用于列表展示
  *   - 已取消 = 仅会员自行取消（normal），退还课时
  *   - 管理员手动取消（admin_cancel）/ 课程取消（min_bookings_not_met/holiday/after_checkin_cancel）：
- *     只在"已预约"列表展示，标注取消原因，退还课时，不显示签到/取消按钮
- *   - 现场直接签到（source='onsite'）：仅计入"已签到"，不计入"已预约"（没有预约过）
+ *     只在"已预约"列表展示，标注取消原因，退还课时，不显示签到/取消按钮；不计入"已预约"数字
+ *   - 现场直接签到（source='onsite'）：计入"已签到"，不计入"已预约"（没有预约过）
  */
 function classifyBooking(item) {
   const status = item.status;
@@ -35,18 +38,21 @@ function classifyBooking(item) {
   const isOnsiteCheckIn = item.source === 'onsite';
 
   let isBooked = false;
+  let isActiveBooked = false;
   let isCancelled = false;
   let cancelReasonText = '';
 
   if (isCheckedIn) {
-    // 已签到/已完成：计入已签到
-    // 现场直接签到（onsite）未走过预约流程，不计入已预约；其余签到（有预约）同时计入已预约
+    // 已签到：所有形式均计入
+    // 现场补签（onsite）没走过预约流程，不属于"开课前的有效预约"；走过预约流程的到场者计入已预约
     if (!isOnsiteCheckIn) {
       isBooked = true;
+      isActiveBooked = true;
     }
   } else if (status === 'booked') {
-    // 正常预约中
+    // 开课前仍预约中：有效预约
     isBooked = true;
+    isActiveBooked = true;
   } else if (isCourseCancel) {
     // 管理员手动取消 / 课程取消：只在"已预约"列表展示，不在"已取消"列表
     isBooked = true;
@@ -62,7 +68,7 @@ function classifyBooking(item) {
     cancelReasonText = item.cancel_reason || '用户取消';
   }
 
-  return { isBooked, isCheckedIn, isCancelled, isCourseCancel, cancelType, cancelReasonText };
+  return { isBooked, isActiveBooked, isCheckedIn, isCancelled, isCourseCancel, cancelType, cancelReasonText };
 }
 
 Page({
@@ -253,6 +259,8 @@ Page({
       })();
 
       this.setData({ stores: list, currentStoreId: storeId, currentStoreName: storeName }, () => {
+        // 门店就绪后重拉放假（loadHolidays 依赖门店），避免冷启动竞态漏掉门店级放假
+        this.loadHolidays();
         if (storeId !== originalStoreId) {
           this.loadTodaySchedules();
           this.loadMonthSchedules(this.data.currentMonth);
@@ -280,6 +288,7 @@ Page({
         const { currentStoreId, currentDate, todayDate } = this.data;
         if (id === currentStoreId && name === this.data.currentStoreName) return;
         this.setData({ currentStoreId: id, currentStoreName: name }, () => {
+          this.loadHolidays();
           this.loadTodaySchedules();
           this.loadMonthSchedules(this.data.currentMonth);
           if (currentDate !== todayDate) {
@@ -365,8 +374,10 @@ Page({
       let booked = 0, checkedIn = 0, cancelled = 0, exempted = 0;
       userLatestMap.forEach(item => {
         const result = classifyBooking(item);
+        // 已预约 = 开课前的有效预约人数（不含已取消、不含现场补签；开课后不归零）
+        // 已签到 = 所有形式签到的上课人数
         if (result.isCheckedIn) checkedIn++;
-        if (result.isBooked) booked++;
+        if (result.isActiveBooked) booked++;
         if (result.isCancelled) {
           cancelled++;
           if (item.status === 'exempted' || item.is_exempted) exempted++;
@@ -412,10 +423,22 @@ Page({
 
   async loadHolidays() {
     try {
-      const res = await request({ url: '/holidays', method: 'GET' });
+      // 按当前门店过滤：放假是门店级数据，不带 store_id 会返回全部门店的放假，
+      // 导致 A 店放假被错误标记到 B 店视角的日历/今日课程
+      const storeId = this.data.currentStoreId || '';
+      if (!storeId) {
+        // 门店未就绪：先清空，待 loadStores/切店回调重拉
+        this.setData({ holidays: [] });
+        return;
+      }
+      const res = await request({ url: '/holidays', method: 'GET', data: { store_id: storeId } });
       const list = res.data && Array.isArray(res.data.list) ? res.data.list : (Array.isArray(res.data) ? res.data : []);
       const activeHolidays = list.filter(h => h.status !== 'cancelled' && h.status !== 'disabled');
-      this.setData({ holidays: activeHolidays });
+      this.setData({ holidays: activeHolidays }, () => {
+        // 放假状态影响今日课程与月历展示，门店级放假就绪后重算
+        this.loadTodaySchedules();
+        this.loadMonthSchedules(this.data.currentMonth);
+      });
     } catch (err) {
       console.error('加载假期失败', err);
     }
@@ -674,6 +697,8 @@ Page({
           userAvatar: fixImageUrl(item.user_id?.avatar_url),
           bookingTime: item.created_at ? formatDateTime(item.created_at) : '',
           creditsDeducted: item.credits_deducted || 0,
+          deductDays: item.deduct_days || null,
+          checkInTime: item.check_in_time ? formatDateTime(item.check_in_time) : '',
           checkedIn: item.checked_in || status === 'checked_in' || status === 'completed',
           isCompleted: status === 'completed',
           // 签到方式文本：现场签到 / 扫码签到 / 自动签到 / 管理员签到

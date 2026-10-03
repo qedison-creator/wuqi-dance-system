@@ -21,6 +21,14 @@ const userPackageSchema = new mongoose.Schema({
   monthly_limit: { type: Number },
   // 舞种限制：空数组=不限舞种；非空=仅限这些舞种的课程可预约
   dance_style_limit: [{ type: mongoose.Schema.Types.ObjectId, ref: 'DanceStyle' }],
+  // 可用星期限制：空数组/缺省=整周可用；非空=仅可在这些星期使用（0=周日，1=周一…6=周六，与 Date.getDay 一致）
+  weekday_limit: [{ type: Number, min: 0, max: 6 }],
+  // 可用时段限制（双边界独立开关，均可空=不限；同开时 before 必须 < after）：
+  //   usable_before 非空 = 仅开课时间 < 该时刻的课可用（「20:30前可用」）
+  //   usable_after  非空 = 仅开课时间 > 该时刻的课可用（「18:00后可用」）
+  //   两者同开 = 时段前之前 或 时段后之后 可用，介于两者之间禁用（前须早于后）
+  usable_before: { type: String, default: '' },
+  usable_after: { type: String, default: '' },
   used_count_current_period: { type: Number, default: 0 },
   period_start_date: { type: Date },
   // 激活相关

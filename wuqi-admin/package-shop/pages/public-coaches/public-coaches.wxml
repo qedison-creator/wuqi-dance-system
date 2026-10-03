@@ -3,6 +3,7 @@
   <!-- 页面标题 -->
   <view class="page-header">
     <text class="page-title">多门店执教教练（公共功能）</text>
+    <text class="page-header-desc">此处为全平台共享的教练资源库，仅维护教练基础资料；各门店的显示顺序与是否任教，请在「店务管理 → 门店教练」页按门店调整。</text>
   </view>
 
   <!-- 教练列表 -->

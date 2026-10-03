@@ -57,5 +57,6 @@ router.use('/attendance', attendanceRoutes);
 router.use('/pre-members', preMemberRoutes);
 router.use('/template-mappings', require('./template-mapping.routes'));
 router.use('/schedule-export', scheduleExportRoutes);
+router.use('/datacenter', require('./datacenter.routes'));
 
 module.exports = router;

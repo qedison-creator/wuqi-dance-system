@@ -1710,3 +1710,20 @@
   font-size: 26rpx;
   font-weight: 500;
 }
+
+/* 豁免取消开关（卡片标签 / 快捷按钮 / 编辑弹窗提示） */
+.schedule-source-tag.exempt-lock-tag {
+  background-color: rgba(232, 152, 94, 0.12);
+  color: #E8985E;
+}
+
+.action-btn.exempt-toggle-btn.active {
+  background-color: rgba(232, 152, 94, 0.12);
+  color: #E8985E;
+}
+
+.exempt-lock-hint {
+  margin-top: 8rpx;
+  font-size: 22rpx;
+  color: #999999;
+}

@@ -2,6 +2,10 @@ const Announcement = require('../models/Announcement');
 const logService = require('./log.service');
 const { getAllowedStoreIds } = require('../utils/storeOwnership');
 
+// 弹窗显示类型（与 Announcement.popup_type 枚举一致）
+const POPUP_TYPES = ['none', 'normal', 'important', 'always'];
+const POPUP_TYPE_LABELS = { none: '不弹窗', normal: '一般弹窗', important: '重要弹窗', always: '永久弹窗' };
+
 // 校验公告的门店归属（用于更新/删除/启用操作）
 // - 超管/审核员（allowedStoreIds 为 null）：通过
 // - 全局公告（store_id 为空）：仅超管/审核员可操作
@@ -76,11 +80,36 @@ exports.getAnnouncementById = async (id) => {
   return announcement;
 };
 
+// 会员端弹窗公告：生效中且设置了弹窗显示（本门店 + 全平台）
+// 排序：重要 > 永久 > 一般；同优先级按发布时间倒序（先 created_at 查询倒序，再做稳定排序）
+exports.getPopupAnnouncements = async (query) => {
+  const { store_id } = query;
+  const filter = {
+    status: 'active',
+    popup_type: { $in: POPUP_TYPES.filter(t => t !== 'none') }
+  };
+  if (store_id) {
+    filter.$or = [{ store_id: null }, { store_id: store_id }];
+  } else {
+    filter.store_id = null;
+  }
+  const list = await Announcement.find(filter)
+    .populate('store_id', 'name')
+    .sort({ created_at: -1 })
+    .limit(20);
+  const priority = { important: 0, always: 1, normal: 2 };
+  list.sort((a, b) => priority[a.popup_type] - priority[b.popup_type]);
+  return { list };
+};
+
 exports.createAnnouncement = async (data, operatorId, operatorName, reqUser) => {
-  const { title, content, store_id, status } = data;
+  const { title, content, store_id, status, popup_type } = data;
 
   if (!title) throw new Error('公告标题不能为空');
   if (!content) throw new Error('公告内容不能为空');
+  if (popup_type !== undefined && !POPUP_TYPES.includes(popup_type)) {
+    throw new Error('无效的弹窗显示类型');
+  }
 
   // 单门店角色只能创建所属门店的公告，不能创建全部门店公告
   const allowedStoreIds = getAllowedStoreIds(reqUser);
@@ -99,7 +128,8 @@ exports.createAnnouncement = async (data, operatorId, operatorName, reqUser) => 
       title,
       content,
       store_id: finalStoreId,
-      status: status || 'active'
+      status: status || 'active',
+      popup_type: popup_type || 'none'
     });
 
     console.log('[公告服务] 公告创建成功, id:', announcement._id);
@@ -131,7 +161,7 @@ exports.updateAnnouncement = async (id, data, operatorId, operatorName, reqUser)
   // 归属校验：单门店角色不能编辑全局公告或非所属门店公告
   assertCanManageAnnouncement(announcement, reqUser, '编辑');
 
-  const { title, content, store_id, status } = data;
+  const { title, content, store_id, status, popup_type } = data;
   const changes = [];
 
   if (title !== undefined) { announcement.title = title; changes.push(`标题: ${title}`); }
@@ -147,6 +177,11 @@ exports.updateAnnouncement = async (id, data, operatorId, operatorName, reqUser)
     }
   }
   if (status !== undefined) { announcement.status = status; changes.push(`状态: ${status}`); }
+  if (popup_type !== undefined) {
+    if (!POPUP_TYPES.includes(popup_type)) throw new Error('无效的弹窗显示类型');
+    announcement.popup_type = popup_type;
+    changes.push(`弹窗显示: ${POPUP_TYPE_LABELS[popup_type]}`);
+  }
 
   await announcement.save();
 

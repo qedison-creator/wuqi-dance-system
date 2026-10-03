@@ -12,6 +12,9 @@ Page({
     isLoggedIn: false,
     isOfficialMember: false,
     memberSinceDays: 0,
+    showExemptionTip: false,
+    exemptionTipTop: 0,
+    exemptionTipRight: 0,
     memberStatus: 'active',
     profileSaved: false,
     profileForm: {
@@ -984,6 +987,19 @@ Page({
         pkg._danceStyleLimitText = '';
       }
 
+      // 可用星期展示文本：空数组/缺省 = 整周可用（不显示）
+      var weekdayNames = { 0: '周日', 1: '周一', 2: '周二', 3: '周三', 4: '周四', 5: '周五', 6: '周六' };
+      var wl = (Array.isArray(pkg.weekday_limit) ? pkg.weekday_limit : []).map(Number);
+      pkg._weekdayLimitText = (wl.length > 0 && wl.length < 7)
+        ? [1, 2, 3, 4, 5, 6, 0].filter(function(d) { return wl.indexOf(d) !== -1; }).map(function(d) { return weekdayNames[d]; }).join('、')
+        : '';
+
+      // 可用时段文本（双边界）：空=不限（不显示）
+      var tb = pkg.usable_before || '';
+      var ta = pkg.usable_after || '';
+      pkg._timeLimitText = (tb && ta) ? (tb + '前、' + ta + '后') : (tb ? (tb + '前') : (ta ? (ta + '后') : ''));
+      pkg._timeLimitBoth = !!(tb && ta);  // 双边界是否同时开启（决定时段标签是否单独一行）
+
       // 套餐类型标签（简短版用于标签）
       pkg._typeLabel = pkg.package_type === 'time_card' ? '时间卡' : '次卡';
       
@@ -1064,22 +1080,26 @@ Page({
         pkg._hasProgress = false;
       }
 
-      // 时间卡使用情况（本周预约数
-      if (pkg.package_type === 'time_card' && pkg.timeCardUsage) {
-        if (pkg.timeCardUsage.daily_limit) {
-          pkg._weekUsed = pkg.timeCardUsage.daily_used;
-          pkg._weekLimit = pkg.timeCardUsage.daily_limit;
-          pkg._weekRemaining = pkg.timeCardUsage.daily_remaining;
+      // 时间卡周期限制展示（timeCardUsage 优先，缺失时回退到套餐自身 limit 字段）
+      if (pkg.package_type === 'time_card') {
+        var usage = pkg.timeCardUsage || null;
+        var dLimit = (usage && usage.daily_limit) ? usage.daily_limit : (pkg.daily_limit || null);
+        var wLimit = (usage && usage.weekly_limit) ? usage.weekly_limit : (pkg.weekly_limit || null);
+        var mLimit = (usage && usage.monthly_limit) ? usage.monthly_limit : (pkg.monthly_limit || null);
+        if (dLimit) {
+          pkg._weekUsed = (usage && usage.daily_used !== null && usage.daily_used !== undefined) ? usage.daily_used : 0;
+          pkg._weekLimit = dLimit;
+          pkg._weekRemaining = (usage && usage.daily_remaining !== null && usage.daily_remaining !== undefined) ? usage.daily_remaining : dLimit;
           pkg._periodLabel = '今日';
-        } else if (pkg.timeCardUsage.weekly_limit) {
-          pkg._weekUsed = pkg.timeCardUsage.weekly_used;
-          pkg._weekLimit = pkg.timeCardUsage.weekly_limit;
-          pkg._weekRemaining = pkg.timeCardUsage.weekly_remaining;
+        } else if (wLimit) {
+          pkg._weekUsed = (usage && usage.weekly_used !== null && usage.weekly_used !== undefined) ? usage.weekly_used : 0;
+          pkg._weekLimit = wLimit;
+          pkg._weekRemaining = (usage && usage.weekly_remaining !== null && usage.weekly_remaining !== undefined) ? usage.weekly_remaining : wLimit;
           pkg._periodLabel = '本周';
-        } else if (pkg.timeCardUsage.monthly_limit) {
-          pkg._weekUsed = pkg.timeCardUsage.monthly_used;
-          pkg._weekLimit = pkg.timeCardUsage.monthly_limit;
-          pkg._weekRemaining = pkg.timeCardUsage.monthly_remaining;
+        } else if (mLimit) {
+          pkg._weekUsed = (usage && usage.monthly_used !== null && usage.monthly_used !== undefined) ? usage.monthly_used : 0;
+          pkg._weekLimit = mLimit;
+          pkg._weekRemaining = (usage && usage.monthly_remaining !== null && usage.monthly_remaining !== undefined) ? usage.monthly_remaining : mLimit;
           pkg._periodLabel = '本月';
         } else {
           pkg._weekUsed = null;
@@ -1087,8 +1107,19 @@ Page({
           pkg._weekRemaining = -1;
           pkg._periodLabel = '不限次数';
         }
-        pkg._nextWeekUsed = pkg.timeCardUsage.next_week_used;
-        pkg._nextWeekRemaining = pkg.timeCardUsage.next_week_remaining;
+        pkg._nextWeekUsed = usage ? usage.next_week_used : null;
+        pkg._nextWeekRemaining = usage ? usage.next_week_remaining : null;
+        // 周期限制参数文案（右侧胶囊显示）
+        pkg._hasPeriodLimit = true;
+        if (dLimit) {
+          pkg._periodLimitText = '每日至多 ' + dLimit + '次';
+        } else if (wLimit) {
+          pkg._periodLimitText = '每周至多 ' + wLimit + '次';
+        } else if (mLimit) {
+          pkg._periodLimitText = '每月至多 ' + mLimit + '次';
+        } else {
+          pkg._periodLimitText = '不限次';
+        }
       }
       
       // 待激活套餐显示文案
@@ -1100,16 +1131,16 @@ Page({
                 pkg._pendingCreditsText = '有效期' + (pkg.duration_value || '-') + unitText;
             }
             
-            // 待激活套餐使用限制
+            // 待激活套餐使用限制（与活跃时间卡"周期限制"胶囊格式一致）
             if (pkg.daily_limit) {
-              pkg._pendingRestrictionLabel = '每日限制';
-              pkg._pendingRestrictionValue = pkg.daily_limit + ' 次';
+              pkg._pendingRestrictionLabel = '周期限制';
+              pkg._pendingRestrictionValue = '每日至多 ' + pkg.daily_limit + '次';
             } else if (pkg.weekly_limit) {
-              pkg._pendingRestrictionLabel = '每周限制';
-              pkg._pendingRestrictionValue = pkg.weekly_limit + ' 次';
+              pkg._pendingRestrictionLabel = '周期限制';
+              pkg._pendingRestrictionValue = '每周至多 ' + pkg.weekly_limit + '次';
             } else if (pkg.monthly_limit) {
-              pkg._pendingRestrictionLabel = '每月限制';
-              pkg._pendingRestrictionValue = pkg.monthly_limit + ' 次';
+              pkg._pendingRestrictionLabel = '周期限制';
+              pkg._pendingRestrictionValue = '每月至多 ' + pkg.monthly_limit + '次';
             } else {
               pkg._pendingRestrictionLabel = '';
               pkg._pendingRestrictionValue = '';
@@ -1323,6 +1354,27 @@ Page({
 
   onChangePhone() {
     this.onShowChangePhoneModal();
+  },
+
+  // 豁免取消规则说明气泡：定位到「豁免取消剩余N次」胶囊下方展示
+  onToggleExemptionTip() {
+    if (this.data.showExemptionTip) {
+      this.setData({ showExemptionTip: false });
+      return;
+    }
+    const windowInfo = wx.getSystemInfoSync();
+    wx.createSelectorQuery().in(this).select('.hero-exemption').boundingClientRect(rect => {
+      if (!rect) return;
+      this.setData({
+        showExemptionTip: true,
+        exemptionTipTop: rect.bottom + 8,
+        exemptionTipRight: Math.max(12, windowInfo.windowWidth - rect.right)
+      });
+    }).exec();
+  },
+
+  onHideExemptionTip() {
+    this.setData({ showExemptionTip: false });
   },
 
   onShowQRCode() {

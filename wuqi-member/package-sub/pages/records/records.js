@@ -135,6 +135,8 @@ Page({
           base.sourceLabel = CHECK_IN_METHOD_LABEL_MAP[base.checkInMethod] || SOURCE_LABEL_MAP[item.source] || '签到';
           base.checkInTime = item.check_in_time ? formatDate(item.check_in_time, 'HH:mm') : '';
           base.creditsCost = item.credits_cost || 0;
+          // 按天口径（不限次卡/每日1节卡）：显示占天而不是扣课时
+          base.deductDays = item.deduct_days || null;
           // 签到后取消的记录：课时已退还，不显示消耗课时，显示管理员勾选的取消原因
           if (base.checkInMethod === 'cancelled_after_checkin') {
             base.creditsCost = 0;
@@ -149,6 +151,8 @@ Page({
         if (tab === 'booking') {
           // 预约记录页：统一状态分类标签
           base.statusLabel = BOOKING_STATUS_LABEL_MAP[item.status] || item.status || '';
+          // 按天口径（不限次卡/每日1节卡）：显示缩短的有效期天数
+          base.deductDays = item.deduct_days || null;
           if (item.status === 'cancelled') {
             // 签到后取消：显示管理员勾选的具体原因 + "（签到后取消）"
             if (item.cancel_type === 'after_checkin_cancel') {

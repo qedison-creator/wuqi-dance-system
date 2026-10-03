@@ -5,6 +5,7 @@ const UserPackage = require('../models/UserPackage');
 const PackageActivation = require('../models/PackageActivation');
 const User = require('../models/User');
 const logService = require('./log.service');
+const { buildDeductionInfo } = require('./booking.service');
 const dayjs = require('dayjs');
 const utc = require('dayjs/plugin/utc');
 const timezone = require('dayjs/plugin/timezone');
@@ -147,6 +148,7 @@ exports.getAttendanceBySchedule = async (scheduleId) => {
       } : null,
       checked_in: isCompleted || !!att || b.checked_in,
       credits_deducted: b.credits_deducted || 0,
+      ...buildDeductionInfo(b),
     };
   });
 
@@ -251,6 +253,7 @@ exports.getMyAttendance = async (userId, page, pageSize) => {
       // 用 booking 数据构造一个虚拟的 attendance 返回（补齐快照字段，避免课程删除后无法溯源）
       merged.push({
         _id: booking._id,
+        booking_id: booking._id,
         schedule_id: sch,
         user_id: booking.user_id,
         check_in_time: booking.check_in_time || new Date(),
@@ -282,7 +285,22 @@ exports.getMyAttendance = async (userId, page, pageSize) => {
   const start = (page - 1) * pageSize;
   const list = merged.slice(start, start + Number(pageSize));
 
-  return { list, total, page: Number(page), pageSize: Number(pageSize) };
+  // 附带按天口径（不限次卡/每日1节卡）缩期信息：Attendance 表不存该字段，从关联 Booking 取
+  const shrinkIds = [...new Set(list.map(a => a.booking_id).filter(Boolean).map(String))];
+  const shrinkById = new Map();
+  if (shrinkIds.length > 0) {
+    const shrinkBookings = await Booking.find({ _id: { $in: shrinkIds } }).select('shrink_days');
+    shrinkBookings.forEach(b => shrinkById.set(String(b._id), b.shrink_days));
+  }
+  const resultList = list.map(a => {
+    const shrinkDays = a.booking_id ? (shrinkById.get(String(a.booking_id)) || 0) : 0;
+    return {
+      ...(a.toObject ? a.toObject() : a),
+      ...buildDeductionInfo({ shrink_days: shrinkDays }),
+    };
+  });
+
+  return { list: resultList, total, page: Number(page), pageSize: Number(pageSize) };
 };
 
 /**
@@ -310,9 +328,18 @@ exports.getAttendanceByUser = async (userId) => {
     .sort({ check_in_time: -1 })
     .lean();
 
+  // 按天口径（不限次卡/每日1节卡）缩期信息：从关联 Booking 取 shrink_days
+  const shrinkIds = [...new Set(records.map(att => att.booking_id).filter(Boolean).map(String))];
+  const shrinkById = new Map();
+  if (shrinkIds.length > 0) {
+    const shrinkBookings = await Booking.find({ _id: { $in: shrinkIds } }).select('shrink_days');
+    shrinkBookings.forEach(b => shrinkById.set(String(b._id), b.shrink_days));
+  }
+
   // 格式化返回数据，优先从 schedule_id 取值，回退到快照字段
   const list = records.map(att => {
     const sch = att.schedule_id;
+    const shrinkDays = att.booking_id ? (shrinkById.get(String(att.booking_id)) || 0) : 0;
     return {
       _id: att._id,
       schedule_id: sch ? sch._id : null,
@@ -326,6 +353,7 @@ exports.getAttendanceByUser = async (userId) => {
       check_in_method: att.check_in_method,
       source: att.source,
       credits_cost: att.credits_cost || 0,
+      ...buildDeductionInfo({ shrink_days: shrinkDays }),
       remark: att.remark || '',
       created_at: att.created_at,
     };

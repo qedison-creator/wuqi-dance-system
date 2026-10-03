@@ -1,4 +1,17 @@
 <page-meta page-style="{{showDeleteModal || showDeletePackageModal || showStoreModal || showAddPackageModal || showPackageEditModal || showEditNameModal || showSuspendModal || showExtendModal || showDanceStylePicker ? 'overflow: hidden;' : ''}}"/>
+
+<!-- WXS：WXML 绑定不支持方法调用（indexOf），数组包含判断必须走 WXS -->
+<wxs module="wArr">
+module.exports = {
+  has: function (arr, v) {
+    if (!arr || !arr.length) return false;
+    for (var i = 0; i < arr.length; i++) {
+      if (arr[i] === v) return true;
+    }
+    return false;
+  }
+};
+</wxs>
 <view class="member-detail-page">
   <!-- 会员头部卡片 -->
   <view class="member-header card">
@@ -154,6 +167,12 @@
           <!-- 舞种限制 -->
           <text class="package-expire package-dance-style" wx:if="{{item._danceStyleLimitText}}">舞种限制：{{item._danceStyleLimitText}}</text>
 
+          <!-- 可用星期限制 -->
+          <text class="package-expire" wx:if="{{item._weekdayLimitText}}">可用星期：{{item._weekdayLimitText}}</text>
+
+          <!-- 可用时段限制 -->
+          <text class="package-expire" wx:if="{{item._timeLimitText}}">可用时段：{{item._timeLimitText}}</text>
+
           <!-- 未激活：待激活倒计时 -->
           <text class="package-expire package-pending" wx:if="{{!item.is_activated && item.auto_activate_at_display}}">待激活 · {{item.auto_activate_at_display}} 自动激活</text>
         </view>
@@ -291,7 +310,12 @@
                         <text class="detail-label">上课门店</text>
                         <text class="detail-value">{{att.store_name || '未知门店'}}</text>
                       </view>
-                      <view class="booking-detail-row" wx:if="{{att.credits_cost > 0}}">
+                      <view class="booking-detail-row" wx:if="{{att.deduct_days}}">
+                        <text class="detail-icon"></text>
+                        <text class="detail-label">消耗课时</text>
+                        <text class="detail-value highlight">缩短套餐有效期{{att.deduct_days}}天</text>
+                      </view>
+                      <view class="booking-detail-row" wx:elif="{{att.credits_cost > 0}}">
                         <text class="detail-icon"></text>
                         <text class="detail-label">消耗课时</text>
                         <text class="detail-value highlight">{{att.credits_cost}}课时</text>
@@ -299,7 +323,7 @@
                       <view class="booking-detail-row" wx:if="{{att.isCancelledAfterCheckin}}">
                         <text class="detail-icon"></text>
                         <text class="detail-label">课时状态</text>
-                        <text class="detail-value">已退还</text>
+                        <text class="detail-value">{{att.deduct_days ? '有效期已恢复' : '已退还'}}</text>
                       </view>
                       <view class="booking-detail-row" wx:if="{{att.cancelReasonText}}">
                         <text class="detail-icon"></text>
@@ -565,6 +589,37 @@
       </view>
 
       <view class="form-group">
+        <text class="form-label">可用星期（取消勾选后该天不可预约）</text>
+        <view class="weekday-chip-row">
+          <view class="weekday-chip {{wArr.has(addPackageForm.weekday_limit, item.value) ? 'active' : ''}}" wx:for="{{weekdayOptions}}" wx:key="value" data-value="{{item.value}}" data-scope="add" bindtap="onTogglePackageWeekday">
+            <text>{{item.label}}</text>
+          </view>
+        </view>
+        <text class="weekday-chip-tip">全选 = 整周可用；至少保留 1 天</text>
+      </view>
+
+      <view class="form-group">
+        <text class="form-label">可用时段（开启后仅该时段内开课的课可用，默认关闭不限）</text>
+        <view class="time-limit-row">
+          <view class="time-limit-switch {{addPackageForm.usable_before ? 'active' : ''}}" data-field="usable_before" bindtap="onToggleTimeLimit">
+            <text>时段前可用</text>
+          </view>
+          <picker wx:if="{{addPackageForm.usable_before}}" mode="time" value="{{addPackageForm.usable_before}}" data-field="usable_before" bindchange="onTimeLimitTimeChange">
+            <view class="time-limit-picker"><text>{{addPackageForm.usable_before}}</text></view>
+          </picker>
+        </view>
+        <view class="time-limit-row">
+          <view class="time-limit-switch {{addPackageForm.usable_after ? 'active' : ''}}" data-field="usable_after" bindtap="onToggleTimeLimit">
+            <text>时段后可用</text>
+          </view>
+          <picker wx:if="{{addPackageForm.usable_after}}" mode="time" value="{{addPackageForm.usable_after}}" data-field="usable_after" bindchange="onTimeLimitTimeChange">
+            <view class="time-limit-picker"><text>{{addPackageForm.usable_after}}</text></view>
+          </picker>
+        </view>
+        <text class="weekday-chip-tip">两个都开启时，时段前之前、时段后之后的课可用，介于两者之间的课不可用</text>
+      </view>
+
+      <view class="form-group">
         <text class="form-label">备注</text>
         <input class="input-field" placeholder="选填" value="{{addPackageForm.remark}}" data-field="remark" bindinput="onAddPackageInput" />
       </view>
@@ -689,11 +744,45 @@
       </view>
 
       <view class="form-group">
+        <text class="form-label">可用星期（取消勾选后该天不可预约）</text>
+        <view class="weekday-chip-row">
+          <view class="weekday-chip {{wArr.has(editPackageForm.weekday_limit, item.value) ? 'active' : ''}}" wx:for="{{weekdayOptions}}" wx:key="value" data-value="{{item.value}}" data-scope="edit" bindtap="onTogglePackageWeekday">
+            <text>{{item.label}}</text>
+          </view>
+        </view>
+        <text class="weekday-chip-tip">全选 = 整周可用；至少保留 1 天</text>
+      </view>
+
+      <view class="form-group">
+        <text class="form-label">可用时段（开启后仅该时段内开课的课可用，默认关闭不限）</text>
+        <view class="time-limit-row">
+          <view class="time-limit-switch {{editPackageForm.usable_before ? 'active' : ''}}" data-field="usable_before" bindtap="onToggleTimeLimit">
+            <text>时段前可用</text>
+          </view>
+          <picker wx:if="{{editPackageForm.usable_before}}" mode="time" value="{{editPackageForm.usable_before}}" data-field="usable_before" bindchange="onTimeLimitTimeChange">
+            <view class="time-limit-picker"><text>{{editPackageForm.usable_before}}</text></view>
+          </picker>
+        </view>
+        <view class="time-limit-row">
+          <view class="time-limit-switch {{editPackageForm.usable_after ? 'active' : ''}}" data-field="usable_after" bindtap="onToggleTimeLimit">
+            <text>时段后可用</text>
+          </view>
+          <picker wx:if="{{editPackageForm.usable_after}}" mode="time" value="{{editPackageForm.usable_after}}" data-field="usable_after" bindchange="onTimeLimitTimeChange">
+            <view class="time-limit-picker"><text>{{editPackageForm.usable_after}}</text></view>
+          </picker>
+        </view>
+        <text class="weekday-chip-tip">两个都开启时，时段前之前、时段后之后的课可用，介于两者之间的课不可用</text>
+      </view>
+
+      <view class="form-group">
         <text class="form-label">备注</text>
         <input class="input-field" placeholder="选填" value="{{editPackageForm.remark}}" data-field="remark" bindinput="onEditPackageInput" />
       </view>
 
-      <button class="btn-primary submit-btn" bindtap="onSubmitPackageEdit">确认修改</button>
+      <view class="modal-actions">
+        <view class="btn-secondary" bindtap="onClosePackageEditModal"><text>取消</text></view>
+        <view class="btn-primary" bindtap="onSubmitPackageEdit"><text>确认修改</text></view>
+      </view>
     </view>
   </view>
 

@@ -348,6 +348,7 @@ Page({
       cancel_time_display: item.cancel_time ? this.formatDateTime(item.cancel_time) : '',
       cancel_type_text: this.getCancelTypeText(item.cancel_type),
       credits_deducted: item.credits_deducted || 0,
+      deduct_days: item.deduct_days || null,
       credits_refunded: item.credits_refunded || 0
     };
   },
@@ -536,6 +537,7 @@ Page({
         cancel_type_text: item.cancel_type_text,
         cancel_reason: item.cancel_reason || '',
         credits_deducted: item.credits_deducted,
+        deduct_days: item.deduct_days,
         credits_refunded: item.credits_refunded
       });
 
@@ -593,11 +595,12 @@ Page({
                 r.status === 'cancelled' && !isCourseCancelType(r.cancel_type)
               ) || mg.records.some(r => r.status === 'exempted');
 
-              // 提取最新签到记录的扣次和签到方式（已签到区块显示用）
+              // 提取最新签到记录的扣次/占天和签到方式（已签到区块显示用）
               const checkInRecords = mg.records.filter(r => r.status === 'completed' || r.status === 'checked_in');
               if (checkInRecords.length > 0) {
                 const latestCheckIn = checkInRecords[0];
                 mg._checkInCredits = latestCheckIn.credits_deducted || 0;
+                mg._checkInDeductDays = latestCheckIn.deduct_days || null;
                 const method = latestCheckIn.check_in_method || (latestCheckIn.source === 'onsite' ? 'onsite' : 'scan');
                 mg._checkInMethodText = this.getCheckInMethodText(method);
               }

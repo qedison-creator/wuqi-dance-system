@@ -11,6 +11,7 @@ Page({
     permImage: false,
     permSalary: false,
     permPackageLog: false,
+    permDashboard: false,
     permBanner: false,
     permHoliday: false,
     permCheckin: false,
@@ -56,6 +57,7 @@ Page({
         permImage: app.hasPermission('image'),
         permSalary: app.hasPermission('salary'),
         permPackageLog: app.hasPermission('package_log'),
+        permDashboard: app.hasPermission('dashboard'),
         permBanner: app.hasPermission('banner'),
         permHoliday: app.hasPermission('holiday'),
         permCheckin: app.hasPermission('checkin'),
@@ -167,6 +169,10 @@ Page({
     wx.navigateTo({ url: '/package-shop/pages/shop/store-maintenance/store-maintenance' });
   },
 
+  onGoToDataCenter() {
+    wx.navigateTo({ url: '/package-data/pages/member-data/member-data' });
+  },
+
   onGoToSchedule() {
     wx.navigateTo({ url: '/package-schedule/pages/schedule/schedule' });
   },
@@ -181,6 +187,10 @@ Page({
 
   onGoToPackageLogs() {
     wx.navigateTo({ url: '/package-shop/pages/package-logs/package-logs' });
+  },
+
+  onGoToPackageStatus() {
+    wx.navigateTo({ url: '/package-shop/pages/package-status/package-status' });
   },
 
   onGoToCoaches() {

@@ -1,3 +1,15 @@
+<!-- WXS：WXML 绑定不支持方法调用（indexOf），数组包含判断必须走 WXS -->
+<wxs module="wArr">
+module.exports = {
+  has: function (arr, v) {
+    if (!arr || !arr.length) return false;
+    for (var i = 0; i < arr.length; i++) {
+      if (arr[i] === v) return true;
+    }
+    return false;
+  }
+};
+</wxs>
 <view class="pre-member-page">
   <!-- 顶部固定区域：门店筛选 + 操作栏 + 状态标签 -->
   <view class="sticky-header">
@@ -100,6 +112,8 @@
               <view class="pkg-row-info">
                 <text class="package-text">{{pkg.info}}</text>
                 <text class="pkg-row-dance" wx:if="{{pkg.dance_style_text}}">舞种限制：{{pkg.dance_style_text}}</text>
+                <text class="pkg-row-dance" wx:if="{{pkg.weekday_text}}">可用星期：{{pkg.weekday_text}}</text>
+                <text class="pkg-row-dance" wx:if="{{pkg.time_text}}">可用时段：{{pkg.time_text}}</text>
               </view>
               <view class="pkg-row-status {{pkg.status_cls}}">
                 <text>{{pkg.status_text}}</text>
@@ -457,6 +471,41 @@
               <text class="dance-style-picker-text {{pkg.dance_style_limit.length > 0 ? 'has-value' : ''}}">{{pkg._danceStyleText || '不限舞种'}}</text>
               <text class="dance-style-picker-arrow">›</text>
             </view>
+          </view>
+
+          <!-- 可用星期：每个套餐独立配置，默认整周可用 -->
+          <view class="form-group" wx:if="{{pkg.package_type}}">
+            <text class="form-label">可用星期（取消勾选后该天不可预约）</text>
+            <view class="weekday-chip-row">
+              <view class="weekday-chip {{wArr.has(pkg.weekday_limit, item.value) ? 'active' : ''}}"
+                    wx:for="{{weekdayOptions}}" wx:key="value"
+                    data-value="{{item.value}}" data-index="{{pkgIdx}}" bindtap="onTogglePkgWeekday">
+                <text>{{item.label}}</text>
+              </view>
+            </view>
+            <text class="weekday-chip-tip">全选 = 整周可用；至少保留 1 天</text>
+          </view>
+
+          <!-- 可用时段：每个套餐独立配置，双开关，默认关闭不限 -->
+          <view class="form-group" wx:if="{{pkg.package_type}}">
+            <text class="form-label">可用时段（开启后仅该时段内开课的课可用，默认关闭不限）</text>
+            <view class="time-limit-row">
+              <view class="time-limit-switch {{pkg.usable_before ? 'active' : ''}}" data-field="usable_before" data-index="{{pkgIdx}}" bindtap="onTogglePkgTimeLimit">
+                <text>时段前可用</text>
+              </view>
+              <picker wx:if="{{pkg.usable_before}}" mode="time" value="{{pkg.usable_before}}" data-field="usable_before" data-index="{{pkgIdx}}" bindchange="onPkgTimeLimitTimeChange">
+                <view class="time-limit-picker"><text>{{pkg.usable_before}}</text></view>
+              </picker>
+            </view>
+            <view class="time-limit-row">
+              <view class="time-limit-switch {{pkg.usable_after ? 'active' : ''}}" data-field="usable_after" data-index="{{pkgIdx}}" bindtap="onTogglePkgTimeLimit">
+                <text>时段后可用</text>
+              </view>
+              <picker wx:if="{{pkg.usable_after}}" mode="time" value="{{pkg.usable_after}}" data-field="usable_after" data-index="{{pkgIdx}}" bindchange="onPkgTimeLimitTimeChange">
+                <view class="time-limit-picker"><text>{{pkg.usable_after}}</text></view>
+              </picker>
+            </view>
+            <text class="weekday-chip-tip">两个都开启时，时段前之前、时段后之后的课可用，介于两者之间的课不可用</text>
           </view>
         </block>
       </view>

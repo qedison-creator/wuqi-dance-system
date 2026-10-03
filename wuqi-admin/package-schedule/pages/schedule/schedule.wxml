@@ -83,6 +83,7 @@
         <view class="schedule-header-tags">
           <text class="schedule-source-tag" wx:if="{{viewMode === 'month' && !item.isTemplatePreview && item.from_template}}">来自排课设置</text>
           <text class="schedule-source-tag temp-tag" wx:if="{{viewMode === 'month' && !item.isTemplatePreview && !item.from_template}}">临时增设</text>
+          <text class="schedule-source-tag exempt-lock-tag" wx:if="{{viewMode === 'month' && !item.isTemplatePreview && item.exempt_cancel_locked}}">已禁豁免取消</text>
           <text class="schedule-status {{item.status}} {{item.isHistory ? 'history-status' : ''}} {{item.isTemplatePreview ? 'template-status' : ''}} {{item.hasScheduled ? 'scheduled-status' : ''}}">{{item.statusText}}</text>
         </view>
       </view>
@@ -159,6 +160,9 @@
           </block>
           <!-- 正常状态：无预约时显示下线+取消，有预约时仅显示取消 -->
           <block wx:else>
+            <view class="action-btn exempt-toggle-btn {{item.exempt_cancel_locked ? 'active' : ''}}" data-id="{{item._id}}" data-locked="{{item.exempt_cancel_locked ? 'yes' : 'no'}}" bindtap="onToggleExemptLock">
+              <text>{{item.exempt_cancel_locked ? '已禁豁免' : '禁豁免'}}</text>
+            </view>
             <view class="action-btn warning" wx:if="{{(item.current_bookings || 0) === 0}}" data-id="{{item._id}}" data-bookings="{{item.current_bookings || 0}}" bindtap="onOfflineSchedule">
               <text>下线</text>
             </view>
@@ -371,6 +375,17 @@
             </view>
           </view>
           <input wx:if="{{formData.cancelBookingDeadline === -1}}" class="input-field" type="number" placeholder="请输入分钟数" value="{{formData.customCancelBookingDeadline}}" data-field="customCancelBookingDeadline" bindinput="onFormInput" />
+        </view>
+
+        <!-- 豁免取消开关（仅编辑已有排课时可设置，逐节课生效） -->
+        <view class="form-group" wx:if="{{viewMode === 'month' && formData._id}}">
+          <text class="form-label">禁止豁免取消（临时控制，仅本节课）</text>
+          <view class="deadtime-list">
+            <view class="deadtime-item {{formData.exempt_cancel_locked ? 'active' : ''}}" bindtap="onFormToggleExemptLock">
+              <text>{{formData.exempt_cancel_locked ? '已禁止' : '未禁止'}}</text>
+            </view>
+          </view>
+          <view class="exempt-lock-hint"><text>禁止后会员无法对该节课使用豁免取消，不影响取消时限前的正常取消</text></view>
         </view>
 
         <!-- 冲突规则说明 -->
@@ -734,7 +749,7 @@
       <scroll-view class="modal-body-scroll" scroll-y="true">
         <view class="warning-box">
           <text class="warning-icon">!</text>
-          <text class="warning-text">该课程已有 {{cancelScheduleBookings}} 人预约，取消后将自动退还课时并通知会员。请选择取消原因：</text>
+          <text class="warning-text">该课程已有 {{cancelScheduleBookings}} 人预约，取消后将自动退还课时（按天套餐自动恢复已缩短的有效期）并通知会员。请选择取消原因：</text>
         </view>
         <view class="reason-list">
           <view class="reason-item {{cancelSelectedReason === '恶劣天气' ? 'active' : ''}}" bindtap="onSelectCancelReason" data-reason="恶劣天气">

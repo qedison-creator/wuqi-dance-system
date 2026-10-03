@@ -30,6 +30,36 @@ router.get('/', async (req, res, next) => {
   }
 });
 
+// PUT /api/v1/coaches/store-configs/reorder - 按门店批量重排教练展示顺序
+// body: { store_id, coach_ids: [完整顺序] }
+// 门店与教练归属校验在 service 层（多门店执教教练=资源库教练，各门店均可配置）
+router.put('/store-configs/reorder', auth, checkModulePermission('coach'), adminStoreFilter, async (req, res, next) => {
+  try {
+    const { store_id, coach_ids } = req.body;
+    const result = await coachService.reorderStoreConfigs(store_id, coach_ids, req.user);
+    res.json(success(result, '排序已更新'));
+  } catch (err) {
+    next(err);
+  }
+});
+
+// PUT /api/v1/coaches/:id/store-config - 更新教练在某门店的展示配置（排序/是否任教）
+// body: { store_id, sort_order?, is_teaching? }
+router.put('/:id/store-config', auth, checkModulePermission('coach'), adminStoreFilter, async (req, res, next) => {
+  try {
+    const { store_id, sort_order, is_teaching } = req.body;
+    const storeConfig = await coachService.upsertStoreConfig(
+      req.params.id,
+      store_id,
+      { sort_order, is_teaching },
+      req.user
+    );
+    res.json(success(storeConfig, '已保存'));
+  } catch (err) {
+    next(err);
+  }
+});
+
 // GET /api/v1/coaches/:id - 获取教练详情（会员端公开访问，不挂载 auth/storeFilter）
 router.get('/:id', async (req, res, next) => {
   try {

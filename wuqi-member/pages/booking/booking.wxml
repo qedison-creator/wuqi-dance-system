@@ -71,6 +71,7 @@
           <text class="course-title">{{item.course_name || '课程名称'}}</text>
           <view class="course-tag-row">
             <view class="course-tag" wx:if="{{item.r.danceStyle}}" style="background: {{item.r.danceTagBg}}; color: {{item.r.danceTagText}}">{{item.r.danceStyle}}</view>
+            <view class="course-tag exempt-lock-tag" wx:if="{{item.r.exemptLockTag}}">不可豁免取消</view>
           </view>
           <text class="course-room" wx:if="{{item.r.showRoom}}">{{item.r.room}}</text>
           <view class="course-deadline-row" wx:if="{{item.r.showDeadline}}">

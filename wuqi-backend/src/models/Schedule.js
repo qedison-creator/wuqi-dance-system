@@ -20,6 +20,7 @@ const scheduleSchema = new mongoose.Schema({
   duration: { type: Number, default: 75 },
   booking_deadline: { type: Number, default: 120 },
   cancel_deadline: { type: Number, default: 60 },
+  exempt_cancel_locked: { type: Boolean, default: false },
   credits_cost: { type: Number, default: 1 },
   from_template: { type: Boolean, default: false },
   remark: { type: String },

@@ -85,6 +85,17 @@
     <view class="menu-section">
       <view class="menu-section-title">运营管理</view>
       <view class="menu-card">
+        <view class="menu-item" data-handler="onGoToDataCenter" bindtap="onStoreMenuTap">
+          <view class="menu-icon-wrap" style="background:rgba(212,120,110,0.10)">
+            <image class="menu-icon" src="/images/icons/shop-package.svg" mode="aspectFit" decoding="async"></image>
+          </view>
+          <view class="menu-text">
+            <text class="menu-label">数据中心</text>
+            <text class="menu-desc">经营数据与账单</text>
+          </view>
+          <image class="menu-arrow" src="/images/icons/chevron-right.svg" mode="aspectFit" decoding="async"></image>
+        </view>
+
         <view class="menu-item" wx:if="{{permSchedule}}" data-handler="onGoToSchedule" bindtap="onStoreMenuTap">
           <view class="menu-icon-wrap" style="background:rgba(93,155,155,0.10)">
             <image class="menu-icon" src="/images/icons/shop-calendar.svg" mode="aspectFit" decoding="async"></image>

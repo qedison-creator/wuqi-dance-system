@@ -59,8 +59,9 @@ let reconnectTimer = null;
 let fallbackPollTimer = null;
 let connectTimeoutTimer = null;     // 连接建立超时定时器
 
-// 事件处理器映射：{ event: handler }
-let messageHandlers = {};
+// 事件处理器注册表：{ key: { event: handler } }
+// 多页面共用一条连接：dashboard 走 connect()（key='default'），子页面用 registerHandlers/unregisterHandlers
+const handlerRegistry = new Map();
 // 降级轮询回调
 let fallbackPollCallback = null;
 // 连接状态变化回调
@@ -69,12 +70,12 @@ let onStatusChange = null;
 /**
  * 建立 WebSocket 连接
  * @param {Object} options
- * @param {Object} options.onMessage - 事件处理器映射，如 { booking_create: fn, booking_cancel: fn }
+ * @param {Object} options.onMessage - 事件处理器映射，如 { booking_create: fn, booking_cancel: fn }（存入 'default' 注册位）
  * @param {Function} options.onFallback - 降级轮询回调（降级时被调用，用于拉取数据）
  * @param {Function} options.onStatusChange - 连接状态变化回调 (status: 'connected'|'disconnected'|'reconnecting'|'fallback')
  */
 function connect(options = {}) {
-  messageHandlers = options.onMessage || {};
+  if (options.onMessage) handlerRegistry.set('default', options.onMessage);
   fallbackPollCallback = options.onFallback || null;
   onStatusChange = options.onStatusChange || null;
 
@@ -138,9 +139,11 @@ function connect(options = {}) {
       // 连接确认
       if (msg.type === 'connected') return;
 
-      // 按事件类型分发
-      if (msg.event && messageHandlers[msg.event]) {
-        messageHandlers[msg.event](msg.data || {}, msg);
+      // 按事件类型分发：遍历所有注册位（dashboard + 各子页面）
+      if (msg.event) {
+        handlerRegistry.forEach((handlers) => {
+          if (handlers[msg.event]) handlers[msg.event](msg.data || {}, msg);
+        });
       }
     } catch (e) {
       console.error('[Admin WebSocket] 消息解析失败:', e);
@@ -184,6 +187,26 @@ function disconnect() {
   isConnected = false;
   isConnecting = false;
   isHandlingDisconnect = false;
+}
+
+/**
+ * 注册页面级事件处理器（不新建连接；未连接时自动拉起）
+ * 供 dashboard 之外的子页面使用，避免 connect() 覆盖 dashboard 的处理器
+ * @param {String} key - 注册位标识（如 'datacenter'）
+ * @param {Object} handlers - { event: fn }
+ */
+function registerHandlers(key, handlers) {
+  if (!key || !handlers) return;
+  handlerRegistry.set(key, handlers);
+  // 从未连接过（dashboard 尚未拉起）时，由本页面拉起连接（处理器走注册表）
+  if (!isConnected && !isConnecting) connect({});
+}
+
+/**
+ * 注销页面级事件处理器（页面 onUnload 时调用）
+ */
+function unregisterHandlers(key) {
+  if (key) handlerRegistry.delete(key);
 }
 
 /**
@@ -330,12 +353,8 @@ function _reconnect() {
     reconnectTimer = null;
     // 主动断开后不再重连
     if (isManualDisconnect) return;
-    // 递归调用 connect，复用已注册的 handlers
-    connect({
-      onMessage: messageHandlers,
-      onFallback: fallbackPollCallback,
-      onStatusChange: onStatusChange
-    });
+    // 递归调用 connect，处理器走注册表（注册位不因重连丢失）
+    connect({});
   }, delay);
 }
 
@@ -380,5 +399,7 @@ function _notifyStatus(status) {
 module.exports = {
   connect,
   disconnect,
-  getConnectionStatus
+  getConnectionStatus,
+  registerHandlers,
+  unregisterHandlers
 };

@@ -701,13 +701,16 @@ exports.joinWaitlist = async (userId, scheduleId) => {
   }
 
   // 检查是否已在候补中
+  // 注意：Waitlist 存在 {user_id, schedule_id} 唯一索引，取消候补仅标记 status='cancelled' 不删记录，
+  // 因此查重需不限状态；再次排队时复用历史记录恢复为 waiting，避免触发唯一索引冲突
   const Waitlist = require('../models/Waitlist');
   const existing = await Waitlist.findOne({
     user_id: userId,
     schedule_id: scheduleId,
-    status: { $in: ['waiting', 'notified'] },
   });
-  if (existing) throw new Error('您已在候补名单中');
+  if (existing && ['waiting', 'notified'].includes(existing.status)) {
+    throw new Error('您已在候补名单中');
+  }
 
   // 检查是否已预约
   const booked = await Booking.findOne({
@@ -722,6 +725,17 @@ exports.joinWaitlist = async (userId, scheduleId) => {
     schedule_id: scheduleId,
     status: 'waiting',
   });
+
+  // 已有历史记录（取消候补/候补过期/候补转正后再次排队）：复用记录恢复排队
+  if (existing) {
+    existing.status = 'waiting';
+    existing.position = count + 1;
+    existing.notified_at = null;
+    existing.expire_at = null;
+    existing.remark = '';
+    await existing.save();
+    return existing;
+  }
 
   const waitlist = await Waitlist.create({
     user_id: userId,

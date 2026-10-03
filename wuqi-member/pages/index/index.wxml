@@ -1,5 +1,5 @@
 <wxs src="../../utils/distance.wxs" module="fmt"/>
-<page-meta page-style="{{showAnnounceModal ? 'overflow: hidden;' : ''}}"/>
+<page-meta page-style="{{(showAnnounceModal || showAnnouncePopup) ? 'overflow: hidden;' : ''}}"/>
 <scroll-view class="page-scroll" scroll-y enhanced show-scrollbar="{{false}}">
 <view class="page">
   <!-- ===== 骨架屏 ===== -->
@@ -333,4 +333,7 @@
       </view>
     </view>
   </view>
+  <!-- 公告自动弹窗（一般/重要/永久三种类型，样式见 components/announce-popup） -->
+  <announce-popup visible="{{showAnnouncePopup}}" announce="{{popupAnnounce}}" bind:close="onAnnouncePopupClose"></announce-popup>
+
 <update-modal />

@@ -12,17 +12,25 @@ const coachSalarySchema = new mongoose.Schema({
   remark: { type: String },
 }, { timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' } });
 
-// 唯一索引：同一教练在同一门店（含null=多门店执教）的同一时长只能有一条配置
-// 支持同一教练在不同门店设置不同薪酬
-coachSalarySchema.index({ coach_id: 1, store_id: 1, duration: 1 }, { unique: true });
+// 费率版本化：改价 = 关闭当前行（is_active=false, effective_to=新生效日）+ 新开一行
+// 唯一约束只对启用中的版本生效（部分唯一索引），历史版本行永久保留，
+// 供"按上课日期匹配当时费率"使用（教练删除后历史统计不受影响的关键）。
+coachSalarySchema.index(
+  { coach_id: 1, store_id: 1, duration: 1 },
+  {
+    unique: true,
+    partialFilterExpression: { is_active: true },
+    name: 'uniq_active_coach_store_duration',
+  }
+);
 coachSalarySchema.index({ coach_id: 1 });
 coachSalarySchema.index({ store_id: 1 });
 coachSalarySchema.index({ is_active: 1 });
 
 const CoachSalary = mongoose.model('CoachSalary', coachSalarySchema);
 
-// 同步索引：删除旧的 { coach_id: 1, duration: 1 } 唯一索引，创建新的复合唯一索引
-// 在连接建立后自动执行，幂等操作
+// 同步索引：旧的全局唯一索引（含软删行，阻止版本化）由 syncIndexes 自动删除，
+// 新的部分唯一索引按显式名创建，幂等操作
 CoachSalary.syncIndexes().catch(err => {
   console.error('[CoachSalary] syncIndexes failed:', err.message);
 });

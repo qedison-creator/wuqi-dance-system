@@ -333,6 +333,21 @@
   letter-spacing: -2rpx;
 }
 
+/* 会员卡片并列双指标（会员总数 / 在籍会员，样式一致） */
+.stat-duo {
+  display: flex;
+  align-items: flex-start;
+}
+
+.stat-duo-item {
+  flex: 1;
+  min-width: 0;
+}
+
+.stat-duo-item + .stat-duo-item {
+  margin-left: 16rpx;
+}
+
 .val-warn { color: #C4663E; }
 .val-danger { color: #C44B4B; }
 

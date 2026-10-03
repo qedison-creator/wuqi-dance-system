@@ -837,6 +837,20 @@
   color: #8B7E6A;
 }
 
+/* 预约/签到时间行 */
+.booking-time-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16rpx;
+  margin-top: 2rpx;
+}
+
+.booking-time-item {
+  font-size: 22rpx;
+  color: #B8AFA4;
+}
+
 .booking-actions {
   display: flex;
   align-items: center;

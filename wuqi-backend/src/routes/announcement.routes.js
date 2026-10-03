@@ -43,6 +43,17 @@ router.get('/', async (req, res) => {
   }
 });
 
+// GET /popup - 会员端弹窗公告（公开接口）：生效中且设置了弹窗显示的公告，按 重要>永久>一般 排序
+// 注意：必须注册在 GET /:id 之前，否则 "popup" 会被当作 id 匹配
+router.get('/popup', async (req, res) => {
+  try {
+    const result = await announcementService.getPopupAnnouncements(req.query);
+    res.json({ code: 200, data: result });
+  } catch (err) {
+    res.status(500).json({ code: 500, message: err.message });
+  }
+});
+
 // GET /:id - 公开接口（前端展示需要）
 router.get('/:id', async (req, res) => {
   try {

@@ -56,6 +56,8 @@ Page({
     memberPackageStoreIds: [],
     canBookCurrentStore: false,
     memberPackageDanceStyleIds: [],
+    memberAllowedWeekdays: null,  // 套餐可用星期并集（null=不限；数组=仅可在这些星期预约，0=周日…6=周六）
+    memberTimeWindows: null,      // 套餐可用时段窗口（null=任一套餐不限；数组=[{before,after}]，开课时间落任一窗口内即可用）
     canViewCapacity: false,
     isPackageSuspended: false,
     showBookingModal: false,
@@ -149,6 +151,11 @@ Page({
         // 收到课程更新事件，重新加载课程列表
         course_update: () => {
           this.loadCourses(true);
+        },
+        // 收到套餐变更事件（管理端新增/修改/延长/暂停套餐等），重新拉取套餐与会员信息，
+        // 即时刷新课程卡片预约按钮的可用状态
+        package_update: () => {
+          this.refreshUserInfo();
         }
       },
       // WebSocket 连续重连失败后降级为轮询
@@ -214,6 +221,8 @@ Page({
           memberPackageStoreIds: [],
           canBookCurrentStore: false,
           memberPackageDanceStyleIds: [],
+          memberAllowedWeekdays: null,
+          memberTimeWindows: null,
           bookedScheduleIds: [],
           canViewCapacity: false,
           isRestrictedUser: true,
@@ -234,7 +243,7 @@ Page({
         restrictedReason: isOfficial ? '您暂无可用套餐，请联系门店开通' : '您不是正式会员，请联系门店办理'
       });
       if (isOfficial) {
-        this.setData({ memberPackageStoreIds: [], canBookCurrentStore: false, memberPackageDanceStyleIds: [], bookedScheduleIds: [], canViewCapacity: false });
+        this.setData({ memberPackageStoreIds: [], canBookCurrentStore: false, memberPackageDanceStyleIds: [], memberAllowedWeekdays: null, memberTimeWindows: null, bookedScheduleIds: [], canViewCapacity: false });
       }
       // 刷新按钮状态以反映最新的用户身份（课程列表已由 onShow 中的 initPage 加载）
       this.loadMyBookings();
@@ -307,37 +316,39 @@ Page({
   },
 
   _updateCanViewCapacity(userData, pkgData) {
-    if (userData.member_status !== 'official') {
+    if (!userData || userData.member_status !== 'official' || userData.status === 'disabled') {
       this.setData({ canViewCapacity: false });
       return;
     }
-    if (userData.status === 'disabled') {
+    if (!pkgData) {
       this.setData({ canViewCapacity: false });
       return;
     }
     const history = pkgData.history || [];
     const packages = pkgData.packages || history;
     const allPackages = Array.isArray(packages) ? packages : [];
-    const hasValidPackage = allPackages.some(pkg => {
-      if (pkg.status === 'pending') return true;
-      if (pkg.status !== 'active' || pkg.is_suspended) return false;
-      // 过滤已过期套餐
-      if (pkg.is_activated && pkg.end_date && new Date() > new Date(pkg.end_date)) return false;
-      return true;
+    // 有效套餐覆盖的门店集合：待激活 或 正常使用中（未暂停、未过期），含跨店附加门店。
+    // 口径与后端 getBookingViewableStoreIds 一致：只有覆盖当前查看门店的有效套餐，
+    // 才能查看该店每节课的预约人数/预约情况（无跨店套餐看其他门店显示"已约?/?"）
+    const coveredStoreIds = new Set();
+    allPackages.forEach(pkg => {
+      const isValid = pkg.status === 'pending' ||
+        (pkg.status === 'active' && !pkg.is_suspended &&
+          !(pkg.is_activated && pkg.end_date && new Date() > new Date(pkg.end_date)));
+      if (!isValid) return;
+      if (pkg.store_id) {
+        const sid = typeof pkg.store_id === 'string' ? pkg.store_id : (pkg.store_id._id || pkg.store_id);
+        if (sid) coveredStoreIds.add(String(sid));
+      }
+      (pkg.extra_store_ids || []).forEach(eid => {
+        const sid = typeof eid === 'string' ? eid : (eid._id || eid);
+        if (sid) coveredStoreIds.add(String(sid));
+      });
     });
-    if (!hasValidPackage) {
-      this.setData({ canViewCapacity: false });
-      return;
-    }
-    const hasActivePackage = allPackages.some(pkg => {
-      if (pkg.status !== 'active') return false;
-      if (pkg.is_suspended) return false;
-      // 过滤已过期套餐
-      if (pkg.is_activated && pkg.end_date && new Date() > new Date(pkg.end_date)) return false;
-      return true;
+    const currentStoreId = this.data.currentStore ? String(this.data.currentStore._id) : '';
+    this.setData({ canViewCapacity: coveredStoreIds.has(currentStoreId) }, () => {
+      this._updateCoursesButtonState();
     });
-    const hasPendingPackage = allPackages.some(pkg => pkg.status === 'pending');
-    this.setData({ canViewCapacity: hasActivePackage || hasPendingPackage });
   },
 
   _updatePackageStoreIds(pkgData) {
@@ -348,6 +359,10 @@ Page({
     // 因此这里收集的是"所有套餐都不限制舞种"标志 + "有限制舞种的套餐允许的舞种合集"
     const hasAnyUnlimitedDance = { value: false }; // 是否存在不限舞种的有效套餐
     const danceStyleIdSet = new Set(); // 有限制套餐允许的舞种合集
+    const hasAnyUnlimitedWeekday = { value: false }; // 是否存在整周可用的有效套餐
+    const weekdaySet = new Set(); // 有限制套餐允许的星期合集（0=周日…6=周六）
+    const hasAnyUnlimitedTime = { value: false }; // 是否存在不限时段的有效套餐
+    const timeWindowList = []; // 有限制套餐的时段窗口合集
     packages.forEach(pkg => {
       if (pkg.store_id) {
         const sid = typeof pkg.store_id === 'string' ? pkg.store_id : (pkg.store_id._id || pkg.store_id);
@@ -370,13 +385,31 @@ Page({
           if (did) danceStyleIdSet.add(did);
         });
       }
+      // 可用星期：空数组/缺省=整周可用
+      const wl = Array.isArray(pkg.weekday_limit) ? pkg.weekday_limit.map(Number) : [];
+      if (wl.length === 0) {
+        hasAnyUnlimitedWeekday.value = true;
+      } else {
+        wl.forEach(d => { if (d >= 0 && d <= 6) weekdaySet.add(d); });
+      }
+      // 可用时段：双边界均空=不限
+      const tb = pkg.usable_before || '';
+      const ta = pkg.usable_after || '';
+      if (!tb && !ta) {
+        hasAnyUnlimitedTime.value = true;
+      } else {
+        timeWindowList.push({ before: tb, after: ta });
+      }
     });
     const packageStoreIds = Array.from(storeIds);
     const currentStoreId = this.data.currentStore ? String(this.data.currentStore._id) : '';
     const canBookCurrentStore = packageStoreIds.includes(currentStoreId);
     // 舞种限制：只要存在任意不限舞种的套餐，则视为不限舞种（避免误拦截）
     const memberPackageDanceStyleIds = hasAnyUnlimitedDance.value ? [] : Array.from(danceStyleIdSet);
-    this.setData({ memberPackageStoreIds: packageStoreIds, canBookCurrentStore, memberPackageDanceStyleIds }, () => {
+    // 可用星期：只要存在任意整周可用的套餐，则视为不限；否则取各套餐允许星期的并集
+    const memberAllowedWeekdays = hasAnyUnlimitedWeekday.value ? null : Array.from(weekdaySet);
+    const memberTimeWindows = hasAnyUnlimitedTime.value ? null : timeWindowList;
+    this.setData({ memberPackageStoreIds: packageStoreIds, canBookCurrentStore, memberPackageDanceStyleIds, memberAllowedWeekdays, memberTimeWindows }, () => {
       this._updateCoursesButtonState();
     });
     if (!canBookCurrentStore) {
@@ -394,6 +427,10 @@ Page({
       payload.bookedScheduleIds = [];
     }
     this.setData(payload, () => {
+      // 切换门店后按新门店重算预约人数可见性（有效套餐是否覆盖当前门店）
+      if (this._packagesData) {
+        this._updateCanViewCapacity(app.globalData.userInfo, this._packagesData);
+      }
       this._updateCoursesButtonState();
     });
   },
@@ -473,7 +510,16 @@ Page({
 
   async loadHolidays() {
     try {
-      const res = await request({ url: '/holidays', method: 'GET' });
+      // 按当前选中门店过滤：放假是门店级数据，不带 store_id 会返回全部门店的放假，
+      // 导致 A 店放假被错误显示给 B 店会员（日历标记放假 + 课程列表被清空）
+      const currentStore = this.data.currentStore || app.globalData.currentStore;
+      const storeId = currentStore ? String(currentStore._id) : '';
+      if (!storeId) {
+        // 门店未就绪（冷启动竞态）：先清空，待 loadStoreList/切店回调重拉
+        this.setData({ holidays: [] });
+        return;
+      }
+      const res = await request({ url: '/holidays', method: 'GET', data: { store_id: storeId } });
       const list = res.data && Array.isArray(res.data.list) ? res.data.list : (Array.isArray(res.data) ? res.data : []);
       const activeHolidays = list.filter(h => h.status === 'active');
       const dates = getNextDays(7, activeHolidays);
@@ -486,7 +532,20 @@ Page({
       const weekDaysIndex = selectedIndex >= 0 ? selectedIndex : 0;
       const selectedDateItem = dates[selectedIndex] || dates[0];
       const sectionTitle = selectedDateItem.isToday ? '今天场次' : (this.formatDate(selectedDateItem.date) + ' ' + selectedDateItem.weekDay);
-      this.setData({ holidays: activeHolidays, dates, weekDays, selectedDate, weekDaysIndex, sectionTitle });
+      // 对比选中日期的放假状态是否变化，变化时静默重拉课程（loadCourses 依赖 holidays）
+      const wasHoliday = (this.data.holidays || []).some(h => {
+        const hEnd = h.end_date || h.date;
+        return h.date <= selectedDate && hEnd >= selectedDate;
+      });
+      const isHolidayNow = activeHolidays.some(h => {
+        const hEnd = h.end_date || h.date;
+        return h.date <= selectedDate && hEnd >= selectedDate;
+      });
+      this.setData({ holidays: activeHolidays, dates, weekDays, selectedDate, weekDaysIndex, sectionTitle }, () => {
+        if (wasHoliday !== isHolidayNow) {
+          this.loadCourses(true);
+        }
+      });
     } catch (err) {
       console.error('加载假期信息失败', err);
       this.generateWeekDaysSym();
@@ -503,7 +562,12 @@ Page({
         const store = savedStore || list[0];
         app.globalData.storeList = list;
         app.globalData.currentStore = store;
-        this.setData({ storeList: list, currentStore: store });
+        this.setData({ storeList: list, currentStore: store }, () => {
+          // 门店就绪晚于套餐数据时，补算预约人数可见性与按钮状态
+          this._updateCanBookForStore();
+          // 门店就绪后重拉放假（loadHolidays 依赖门店），避免冷启动竞态漏掉门店级放假
+          this.loadHolidays();
+        });
       }
     }).catch((err) => {
       console.error('加载门店列表失败:', err);
@@ -558,6 +622,8 @@ Page({
         canViewCapacity: this.data.canViewCapacity,
         canBookCurrentStore: this.data.canBookCurrentStore,
         memberPackageDanceStyleIds: this.data.memberPackageDanceStyleIds,
+        memberAllowedWeekdays: this.data.memberAllowedWeekdays,
+        memberTimeWindows: this.data.memberTimeWindows,
         bookedScheduleIds: this.data.bookedScheduleIds,
         waitlistedScheduleIds: this.data.waitlistedScheduleIds,
         completedScheduleIds: this.data.completedScheduleIds
@@ -732,6 +798,7 @@ Page({
         this._updateCanBookForStore();
         this.loadDanceStyles();
         this.loadBookingWindowDays();
+        this.loadHolidays();
         this.loadCourses();
       });
     } else {
@@ -758,6 +825,7 @@ Page({
       this._updateCanBookForStore();
       this.loadDanceStyles();
       this.loadBookingWindowDays();
+      this.loadHolidays();
       this.loadCourses();
     });
   },
@@ -1127,6 +1195,49 @@ Page({
       }
     }
 
+    // 可用星期拦截：课程日期不在套餐允许的星期并集内（覆盖预约与加入候补入口）
+    if (this.data.isOfficial && Array.isArray(this.data.memberAllowedWeekdays) && course && course.date) {
+      const courseWeekday = new Date(`${course.date}T00:00:00+08:00`).getDay();
+      if (this.data.memberAllowedWeekdays.indexOf(courseWeekday) === -1) {
+        const weekdayNames = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+        const allowedText = [...this.data.memberAllowedWeekdays].sort((a, b) => a - b).map(d => weekdayNames[d]).join('、');
+        wx.showModal({
+          title: '星期限制',
+          content: `您的套餐仅可在${allowedText}预约课程，该课程（${course.date} ${weekdayNames[courseWeekday]}）不可预约，请选择其他日期的课程。`,
+          showCancel: false,
+          confirmText: '知道了',
+          confirmColor: '#D4786E'
+        });
+        return;
+      }
+    }
+
+    // 可用时段拦截：开课时间不在套餐允许的时段窗口内（覆盖预约与加入候补入口）
+    if (this.data.isOfficial && Array.isArray(this.data.memberTimeWindows) && course && course.start_time) {
+      const toMin = (t) => { const parts = String(t).split(':'); return parseInt(parts[0], 10) * 60 + parseInt(parts[1] || 0, 10); };
+      const startMin = toMin(course.start_time);
+      const matched = this.data.memberTimeWindows.some(w => {
+        const bMin = w.before ? toMin(w.before) : null;
+        const aMin = w.after ? toMin(w.after) : null;
+        if (bMin !== null && aMin !== null) return startMin <= bMin || startMin >= aMin;
+        if (bMin !== null) return startMin <= bMin;
+        if (aMin !== null) return startMin >= aMin;
+        return true;
+      });
+      if (!matched) {
+        const desc = (w) => (w.before && w.after) ? `${w.before}前、${w.after}后` : (w.before ? `${w.before}前` : `${w.after}后`);
+        const windowsText = [...new Set(this.data.memberTimeWindows.map(desc))].join(' 或 ');
+        wx.showModal({
+          title: '时段限制',
+          content: `您的套餐仅可预约${windowsText}开课的课程，该课程（${course.start_time}开课）不可预约，请选择其他时段的课程。`,
+          showCancel: false,
+          confirmText: '知道了',
+          confirmColor: '#D4786E'
+        });
+        return;
+      }
+    }
+
     // WXML 中按钮统一绑定 catchtap，根据预计算类型过滤无响应的按钮，避免已结束/已满等状态触发业务逻辑
     // 加入候补按钮通过 data-action="waitlist" 单独放行
     const action = e.currentTarget.dataset.action;
@@ -1290,6 +1401,8 @@ Page({
       canViewCapacity = false,
       canBookCurrentStore = false,
       memberPackageDanceStyleIds = [],
+      memberAllowedWeekdays = null,
+      memberTimeWindows = null,
       bookedScheduleIds = [],
       waitlistedScheduleIds = [],
       completedScheduleIds = []
@@ -1299,6 +1412,27 @@ Page({
     const isBooked = bookedScheduleIds.indexOf(id) !== -1;
     const isWaitlisted = waitlistedScheduleIds.indexOf(id) !== -1;
     const isCompleted = completedScheduleIds.indexOf(id) !== -1;
+
+    // 可用星期匹配：memberAllowedWeekdays=null（任一套餐整周可用）或课程日期星期在允许并集内
+    let weekdayMatched = true;
+    if (memberAllowedWeekdays && course.date) {
+      const courseWeekday = new Date(`${course.date}T00:00:00+08:00`).getDay();
+      weekdayMatched = memberAllowedWeekdays.indexOf(courseWeekday) !== -1;
+    }
+    // 可用时段匹配：memberTimeWindows=null（任一套餐不限时段）或开课时间落任一窗口内（边界含等于）
+    let timeMatched = true;
+    if (memberTimeWindows && course.start_time) {
+      const toMin = (t) => { const parts = String(t).split(':'); return parseInt(parts[0], 10) * 60 + parseInt(parts[1] || 0, 10); };
+      const startMin = toMin(course.start_time);
+      timeMatched = memberTimeWindows.some(w => {
+        const bMin = w.before ? toMin(w.before) : null;
+        const aMin = w.after ? toMin(w.after) : null;
+        if (bMin !== null && aMin !== null) return startMin <= bMin || startMin >= aMin;
+        if (bMin !== null) return startMin <= bMin;
+        if (aMin !== null) return startMin >= aMin;
+        return true;
+      });
+    }
 
     let bookBtnType = '';
     let bookBtnText = '';
@@ -1368,11 +1502,29 @@ Page({
           bookBtnType = 'cannot_book_dance_style';
           bookBtnText = '不可预约';
           bookBtnClass = 'disabled-clickable';
+        } else if (!weekdayMatched) {
+          // 可用星期限制：课程日期不在套餐允许的星期并集内
+          bookBtnType = 'cannot_book_weekday';
+          bookBtnText = '不可预约';
+          bookBtnClass = 'disabled-clickable';
+        } else if (!timeMatched) {
+          // 可用时段限制：开课时间不在套餐允许的时段窗口内
+          bookBtnType = 'cannot_book_time';
+          bookBtnText = '不可预约';
+          bookBtnClass = 'disabled-clickable';
         } else {
           bookBtnType = 'book';
           bookBtnText = '预约';
           bookBtnClass = '';
         }
+      } else if (isOfficial && !weekdayMatched) {
+        bookBtnType = 'cannot_book_weekday';
+        bookBtnText = '不可预约';
+        bookBtnClass = 'disabled-clickable';
+      } else if (isOfficial && !timeMatched) {
+        bookBtnType = 'cannot_book_time';
+        bookBtnText = '不可预约';
+        bookBtnClass = 'disabled-clickable';
       } else {
         bookBtnType = 'book';
         bookBtnText = '预约';
@@ -1381,6 +1533,9 @@ Page({
     }
 
     const bookedUsers = course.booked_users || [];
+    // 双保险：后端对无覆盖查看者不下发 current_bookings（字段缺失即代表已脱敏），
+    // 即使前端 canViewCapacity 状态与后端不一致，也强制显示"已约?/?"
+    const capacityVisible = canViewCapacity && course.current_bookings !== undefined;
     return {
       ...course,
       r: {
@@ -1392,13 +1547,16 @@ Page({
         danceTagBg: course.danceTagBg,
         danceTagText: course.danceTagText,
         minCapacity: `最低${course.min_bookings || 5}人成班`,
-        capacity: canViewCapacity ? `已约${course.current_bookings || 0}/${course.max_bookings || 20}` : '已约?/?',
-        capacityLocked: !canViewCapacity,
+        weekdayMatched,
+        timeMatched,
+        exemptLockTag: !!course.exempt_cancel_locked && !course._started && !course._ended,
+        capacity: capacityVisible ? `已约${course.current_bookings || 0}/${course.max_bookings || 20}` : '已约?/?',
+        capacityLocked: !capacityVisible,
         bookBtnType,
         bookBtnText,
         bookBtnClass,
         showWaitlistBtn,
-        showAvatars: canViewCapacity && bookedUsers.length > 0,
+        showAvatars: capacityVisible && bookedUsers.length > 0,
         avatarList: bookedUsers.slice(0, 10),
         avatarMore: Math.max(0, bookedUsers.length - 10),
         deadlineText: course.booking_deadline_text || '',
@@ -1413,10 +1571,10 @@ Page({
 
   // 仅更新课程列表中各卡片的按钮状态（ bookedScheduleIds / waitlistedScheduleIds 变化时调用）
   _updateCoursesButtonState() {
-    const { courses, isOfficial, isRestrictedUser, canViewCapacity, canBookCurrentStore, memberPackageDanceStyleIds, bookedScheduleIds, waitlistedScheduleIds, completedScheduleIds } = this.data;
+    const { courses, isOfficial, isRestrictedUser, canViewCapacity, canBookCurrentStore, memberPackageDanceStyleIds, memberAllowedWeekdays, memberTimeWindows, bookedScheduleIds, waitlistedScheduleIds, completedScheduleIds } = this.data;
     if (!courses || courses.length === 0) return;
 
-    const pageState = { isOfficial, isRestrictedUser, canViewCapacity, canBookCurrentStore, memberPackageDanceStyleIds, bookedScheduleIds, waitlistedScheduleIds, completedScheduleIds };
+    const pageState = { isOfficial, isRestrictedUser, canViewCapacity, canBookCurrentStore, memberPackageDanceStyleIds, memberAllowedWeekdays, memberTimeWindows, bookedScheduleIds, waitlistedScheduleIds, completedScheduleIds };
     const updates = {};
     courses.forEach((course, index) => {
       const rendered = this._computeCourseRender(course, pageState);

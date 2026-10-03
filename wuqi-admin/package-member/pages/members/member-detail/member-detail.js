@@ -81,6 +81,12 @@ Page({
     editExtraStoreOptions: [],
     // 舞种列表（新增/编辑套餐时使用，复用同一份）
     danceStyleList: [],
+    // 可用星期选项（周一在前，周日=0 与后端 weekday_limit 口径一致）
+    weekdayOptions: [
+      { value: 1, label: '一' }, { value: 2, label: '二' }, { value: 3, label: '三' },
+      { value: 4, label: '四' }, { value: 5, label: '五' }, { value: 6, label: '六' },
+      { value: 0, label: '日' }
+    ],
     // 舞种限制单选弹窗
     showDanceStylePicker: false,
     danceStylePickerTarget: 'add',   // 'add' 或 'edit'
@@ -280,6 +286,16 @@ Page({
         } else {
           pkg._danceStyleLimitText = '';
         }
+        // 可用星期展示文本：空数组/缺省 = 整周可用（不显示）
+        const WEEKDAY_NAMES = { 0: '周日', 1: '周一', 2: '周二', 3: '周三', 4: '周四', 5: '周五', 6: '周六' };
+        const wl = (Array.isArray(pkg.weekday_limit) ? pkg.weekday_limit : []).map(Number);
+        pkg._weekdayLimitText = (wl.length > 0 && wl.length < 7)
+          ? [1, 2, 3, 4, 5, 6, 0].filter(d => wl.includes(d)).map(d => WEEKDAY_NAMES[d]).join('、')
+          : '';
+        // 可用时段说明文本：''=不限（不显示）
+        const tb = pkg.usable_before || '';
+        const ta = pkg.usable_after || '';
+        pkg._timeLimitText = (tb && ta) ? (tb + '前、' + ta + '后') : (tb ? (tb + '前') : (ta ? (ta + '后') : ''));
         return pkg;
       });
 
@@ -539,7 +555,14 @@ Page({
         limit_value: pkg.daily_limit || pkg.weekly_limit || pkg.monthly_limit || '',
         remark: pkg.remark || '',
         extra_store_ids: (pkg.extra_store_ids || []).map(s => _normalizeStoreId(typeof s === 'object' ? (s._id || s.id) : s)),
-        dance_style_limit: (pkg.dance_style_limit || []).map(ds => _normalizeDanceStyleId(typeof ds === 'object' ? (ds._id || ds.id) : ds))
+        dance_style_limit: (pkg.dance_style_limit || []).map(ds => _normalizeDanceStyleId(typeof ds === 'object' ? (ds._id || ds.id) : ds)),
+        // 可用星期：空数组/缺省（历史数据）= 整周可用，回填为全选
+        weekday_limit: (Array.isArray(pkg.weekday_limit) && pkg.weekday_limit.length > 0)
+          ? pkg.weekday_limit.map(Number)
+          : [0, 1, 2, 3, 4, 5, 6],
+        // 可用时段：空=未开启（不限），回填原值
+        usable_before: pkg.usable_before || '',
+        usable_after: pkg.usable_after || ''
       }
     });
     this._buildEditExtraStoreOptions();
@@ -862,8 +885,12 @@ Page({
         remark: editPackageForm.remark,
         package_type: editPackageForm.package_type,
         extra_store_ids: editPackageForm.extra_store_ids || [],
-        dance_style_limit: editPackageForm.dance_style_limit || []
+        dance_style_limit: editPackageForm.dance_style_limit || [],
+        weekday_limit: this._weekdayFormValue(editPackageForm.weekday_limit),
+        usable_before: editPackageForm.usable_before || '',
+        usable_after: editPackageForm.usable_after || ''
       };
+      if (!this._validateTimeLimit(editPackageForm)) return;
 
       // 有效期处理：
       // - 已激活套餐：直接发送 end_date（后端优先使用显式日期，不重算）
@@ -953,7 +980,10 @@ Page({
       limit_value: '',
       remark: '',
       extra_store_ids: [],
-      dance_style_limit: []
+      dance_style_limit: [],
+      weekday_limit: [0, 1, 2, 3, 4, 5, 6],  // 默认全选=整周可用
+      usable_before: '',  // 可用时段（前），''=未开启；开启时预选 20:30
+      usable_after: ''    // 可用时段（后），''=未开启
     };
 
     let storeList = [];
@@ -1092,6 +1122,59 @@ Page({
     this.setData({ [`addPackageForm.${field}`]: e.detail.value });
   },
 
+  // 切换可用时段开关（仅改本地表单状态，点确认保存才提交；开启时预选 20:30）
+  onToggleTimeLimit(e) {
+    const field = e.currentTarget.dataset.field; // 'usable_before' | 'usable_after'
+    const isAdd = this.data.showAddPackageModal;
+    const prefix = isAdd ? 'addPackageForm' : 'editPackageForm';
+    const current = (this.data[prefix] || {})[field] || '';
+    this.setData({ [`${prefix}.${field}`]: current ? '' : '20:30' });
+  },
+
+  // 可用时段时间选择
+  onTimeLimitTimeChange(e) {
+    const field = e.currentTarget.dataset.field;
+    const isAdd = this.data.showAddPackageModal;
+    const prefix = isAdd ? 'addPackageForm' : 'editPackageForm';
+    this.setData({ [`${prefix}.${field}`]: e.detail.value });
+  },
+
+  // 提交校验：双开时时段前须早于时段后（前之前 或 后之后 可用，中间禁用）
+  _validateTimeLimit(form) {
+    const b = form.usable_before || '';
+    const a = form.usable_after || '';
+    if (b && a && a <= b) {
+      wx.showToast({ title: '可用时段无效：时段前需早于时段后', icon: 'none' });
+      return false;
+    }
+    return true;
+  },
+
+  // 切换套餐可用星期（仅改本地表单状态，点确认保存才提交；取消/关闭弹窗自动丢弃）
+  onTogglePackageWeekday(e) {
+    const value = Number(e.currentTarget.dataset.value);
+    const scope = e.currentTarget.dataset.scope; // 'add' | 'edit'
+    const field = scope === 'add' ? 'addPackageForm.weekday_limit' : 'editPackageForm.weekday_limit';
+    const arr = [...((scope === 'add' ? this.data.addPackageForm : this.data.editPackageForm).weekday_limit || [])];
+    const idx = arr.indexOf(value);
+    if (idx !== -1) {
+      if (arr.length <= 1) {
+        wx.showToast({ title: '至少保留一天可用', icon: 'none' });
+        return;
+      }
+      arr.splice(idx, 1);
+    } else {
+      arr.push(value);
+    }
+    this.setData({ [field]: arr });
+  },
+
+  // 表单星期 → 提交值：全选 7 天 = 整周可用（提交空数组），否则去重升序原样提交
+  _weekdayFormValue(arr) {
+    const list = Array.isArray(arr) ? arr.map(Number).filter(n => n >= 0 && n <= 6) : [];
+    return list.length === 7 ? [] : [...new Set(list)].sort((a, b) => a - b);
+  },
+
   onCloseAddPackageModal() {
     this.setData({ showAddPackageModal: false, addPackageForm: {} });
   },
@@ -1143,8 +1226,12 @@ Page({
         duration_unit: addPackageForm.duration_unit,
         extra_store_ids: addPackageForm.extra_store_ids || [],
         dance_style_limit: addPackageForm.dance_style_limit || [],
+        weekday_limit: this._weekdayFormValue(addPackageForm.weekday_limit),
+        usable_before: addPackageForm.usable_before || '',
+        usable_after: addPackageForm.usable_after || '',
         remark: addPackageForm.remark
       };
+      if (!this._validateTimeLimit(addPackageForm)) return;
 
       if (addPackageForm.package_type === 'count_card') {
         postData.total_credits = parseInt(addPackageForm.total_credits);
@@ -1425,6 +1512,8 @@ Page({
         // 课程中取消特殊处理
         const isCancelledAfterCheckin = att.check_in_method === 'cancelled_after_checkin';
         let creditsCost = att.credits_cost || 0;
+        // 按天口径（不限次卡/每日1节卡）：显示占天而不是扣课时
+        const deductDays = att.deduct_days || null;
         if (isCancelledAfterCheckin) creditsCost = 0;
 
         let cancelReasonText = '';
@@ -1440,6 +1529,7 @@ Page({
           sourceLabel,
           isCancelledAfterCheckin,
           credits_cost: creditsCost,
+          deduct_days: deductDays,
           cancelReasonText
         };
       });

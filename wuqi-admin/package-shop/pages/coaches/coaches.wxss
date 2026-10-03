@@ -186,6 +186,85 @@
   line-height: 1.6;
 }
 
+/* 门店提示行（当前门店 + 排序说明） */
+.store-hint {
+  font-size: 24rpx;
+  color: var(--text-secondary);
+  background: var(--color-primary-bg);
+  border-radius: var(--radius-md);
+  padding: 14rpx 20rpx;
+  margin-bottom: 4rpx;
+}
+
+/* 未在本店任教：卡片整体弱化 */
+.coach-item-not-teaching {
+  opacity: 0.55;
+}
+
+.coach-not-teaching-tag {
+  display: inline-block;
+  padding: 2rpx 12rpx;
+  font-size: 20rpx;
+  color: #9E9E9E;
+  background-color: #F5F5F5;
+  border-radius: 6rpx;
+  line-height: 1.6;
+}
+
+/* 本店展示配置行：任教开关 + 上下移 */
+.coach-store-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 12rpx;
+  padding-top: 12rpx;
+  border-top: 1rpx solid var(--border);
+}
+
+.teach-control {
+  display: flex;
+  align-items: center;
+}
+
+.teach-label {
+  font-size: 26rpx;
+  color: var(--text-primary);
+  margin-right: 8rpx;
+}
+
+.move-controls {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+}
+
+.move-btn {
+  width: 56rpx;
+  height: 56rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--color-primary-bg);
+  border-radius: var(--radius-md);
+  font-size: 28rpx;
+  color: var(--color-primary);
+  font-weight: bold;
+}
+
+.move-btn-disabled {
+  opacity: 0.3;
+  pointer-events: none;
+}
+
+/* 表单字段补充说明 */
+.form-hint {
+  display: block;
+  font-size: 22rpx;
+  color: var(--text-tertiary);
+  margin-top: 10rpx;
+  line-height: 1.5;
+}
+
 .modal-header {
   display: flex;
   align-items: center;

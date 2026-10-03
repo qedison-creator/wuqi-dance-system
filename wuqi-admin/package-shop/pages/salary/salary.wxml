@@ -14,12 +14,23 @@
 
   <!-- ========== 课时统计 Tab ========== -->
   <view class="tab-content" wx:if="{{activeTab === 'hours'}}">
+    <!-- 年份切换 -->
+    <view class="year-switch">
+      <picker mode="selector" range="{{hoursYearOptions}}" bindchange="onHoursYearChange">
+        <view class="year-switch-picker">
+          <text>{{hoursYear}}年 ▾</text>
+        </view>
+      </picker>
+      <text class="year-switch-summary" wx:if="{{hoursSummary}}">共 {{hoursSummary.total_classes}} 节</text>
+    </view>
+
+    <!-- 数据异常提示（签到指向已删除的排课） -->
+    <view class="orphan-tip" wx:if="{{hoursOrphanCount > 0}}">
+      <text>⚠ 有 {{hoursOrphanCount}} 条签到记录对应的课程已不存在，未计入统计，请核查数据</text>
+    </view>
+
     <view class="hours-year-list" wx:if="{{classHoursYears.length > 0}}">
       <view class="hours-year-group" wx:for="{{classHoursYears}}" wx:key="year" wx:for-index="yi">
-        <!-- 年份纯文字 -->
-        <text class="hours-year-label">{{item.yearLabel}}</text>
-
-        <!-- 月份横条 -->
         <view class="hours-month-group" wx:for="{{item.months}}" wx:for-item="month" wx:key="monthKey" wx:for-index="mi">
           <view class="hours-month-header" bindtap="onToggleHoursMonth" data-yi="{{yi}}" data-mi="{{mi}}">
             <text class="hours-month-toggle {{month._expanded ? 'expanded' : ''}}">▸</text>
@@ -37,7 +48,7 @@
                 <text class="hours-coach-toggle {{coach._expanded ? 'expanded' : ''}}">▸</text>
               </view>
 
-              <!-- 展开：门店分组 -->
+              <!-- 展开：门店分组（逐课明细按需加载） -->
               <view class="hours-coach-stores" wx:if="{{coach._expanded}}">
                 <view class="hours-store-group" wx:for="{{coach.stores}}" wx:for-item="store" wx:key="store_id">
                   <view class="hours-store-header">
@@ -47,13 +58,15 @@
                     </text>
                   </view>
                   <view class="hours-store-records">
-                    <view class="hours-record-row" wx:for="{{store.records}}" wx:for-item="rec" wx:key="class_date">
+                    <view class="hours-record-row" wx:for="{{store.records}}" wx:for-item="rec" wx:key="_key">
                       <text class="hours-rec-seq">{{index + 1}}</text>
                       <text class="hours-rec-date">{{rec.class_date}}</text>
                       <text class="hours-rec-weekday">{{rec.weekday}}</text>
                       <text class="hours-rec-time">{{rec.start_time}}-{{rec.end_time}}</text>
-                      <text class="hours-rec-store">{{rec.store_name}}</text>
                       <text class="hours-rec-dur">{{rec.duration}}分钟</text>
+                    </view>
+                    <view class="hours-loading" wx:if="{{!coach._recordsLoaded}}">
+                      <text>加载明细中...</text>
                     </view>
                   </view>
                 </view>
@@ -76,18 +89,63 @@
       </view>
     </view>
 
+    <!-- 单价空档提示：有课程但该时期未配置单价（默认收起为一行，点击展开） -->
+    <view class="gap-panel" wx:if="{{rateGaps.length > 0}}">
+      <view class="gap-panel-header" bindtap="onToggleGapPanel">
+        <text class="gap-coach-toggle {{gapPanelExpanded ? 'expanded' : ''}}">▸</text>
+        <text class="gap-title">有课程但未配置单价的时期（按 ¥0 计）</text>
+        <text class="gap-panel-summary">{{rateGaps.length}} 位教练 · {{gapClassTotal}} 节课</text>
+      </view>
+      <view class="gap-coach-list" wx:if="{{gapPanelExpanded}}">
+        <view class="gap-coach" wx:for="{{rateGaps}}" wx:key="coach_id" wx:for-index="gi" wx:for-item="gapCoach">
+          <view class="gap-coach-header" bindtap="onToggleGapCoach" data-index="{{gi}}">
+            <text class="gap-coach-toggle {{gapCoach._expanded ? 'expanded' : ''}}">▸</text>
+            <text class="gap-coach-name">{{gapCoach.coach_name}}</text>
+            <text class="gap-coach-summary">{{gapCoach.periodCount}} 段时期 · {{gapCoach.classCount}} 节课</text>
+          </view>
+          <view class="gap-coach-items" wx:if="{{gapCoach._expanded}}">
+            <view class="gap-item" wx:for="{{gapCoach.items}}" wx:key="_key" wx:for-item="gap">
+              <text class="gap-text">{{gap.duration}}分钟 · {{gap.store_name}}：{{gap.from}} ~ {{gap.to}}，共 {{gap.count}} 节</text>
+            </view>
+          </view>
+        </view>
+      </view>
+    </view>
+
     <view class="config-list" wx:if="{{salaryConfigList.length > 0}}">
-      <view class="config-item card" wx:for="{{salaryConfigList}}" wx:key="_id">
+      <view class="config-item card" wx:for="{{salaryConfigList}}" wx:key="_id" wx:for-item="group">
         <view class="config-header">
-          <text class="config-name">{{item.coach_name}}</text>
-          <text class="config-status {{item.is_active ? 'status-active' : 'status-inactive'}}">{{item.is_active ? '生效中' : '已停用'}}</text>
+          <view class="config-name-wrap">
+            <text class="config-name">{{group.coach_name}}</text>
+            <text class="config-deleted-tag" wx:if="{{group.is_deleted_coach}}">教练已删除</text>
+          </view>
+          <view class="config-del-btn" wx:if="{{!group.is_deleted_coach}}" bindtap="onDeleteConfig" data-item="{{group}}">删除配置</view>
         </view>
-        <view class="config-summary">
-          <text class="summary-text" wx:for="{{item.configs}}" wx:key="_id" wx:for-item="cfg">{{cfg.duration}}分钟 · ¥{{cfg.salary_rate}}/节</text>
+
+        <!-- 按时长分组的单价时期 -->
+        <view class="duration-group" wx:for="{{group.durationGroups}}" wx:key="duration" wx:for-item="dg">
+          <view class="dg-header">
+            <text class="dg-title">{{dg.duration}}分钟</text>
+            <view class="dg-add" wx:if="{{!group.is_deleted_coach}}" bindtap="onAddPeriod" data-group="{{group}}" data-duration="{{dg.duration}}">+ 添加</view>
+          </view>
+          <view class="config-version-row" wx:for="{{dg.versions}}" wx:key="_id" wx:for-item="cfg">
+            <view class="cv-main">
+              <view class="cv-line1">
+                <text class="cv-range">{{cfg._range}}</text>
+                <text class="cv-current-tag" wx:if="{{cfg.is_active}}">当前</text>
+                <text class="cv-bad-tag" wx:if="{{cfg._bad}}">期间异常</text>
+              </view>
+              <text class="cv-rate">¥{{cfg.salary_rate}}/节</text>
+            </view>
+            <view class="cv-ops" wx:if="{{!group.is_deleted_coach}}">
+              <view class="cv-op" bindtap="onEditPeriod" data-cfg="{{cfg}}" data-coachname="{{group.coach_name}}">编辑</view>
+              <view class="cv-op del" bindtap="onDeleteVersion" data-cfg="{{cfg}}" data-coachname="{{group.coach_name}}">删除</view>
+            </view>
+          </view>
         </view>
+
         <view class="config-actions">
-          <view class="action-btn edit" bindtap="onEditConfig" data-item="{{item}}">编辑</view>
-          <view class="action-btn delete" bindtap="onDeleteConfig" data-item="{{item}}">删除</view>
+          <view class="action-btn edit" wx:if="{{!group.is_deleted_coach}}" bindtap="onAddConfigFor" data-item="{{group}}">+ 为该教练添加时长</view>
         </view>
       </view>
     </view>
@@ -98,10 +156,16 @@
   <!-- 薪酬统计 -->
   <view class="tab-content" wx:if="{{activeTab === 'stats'}}">
     <!-- ======== 上半部分：月度薪酬列表 ======== -->
-    <view class="salary-section-title">月度薪酬明细</view>
+    <view class="salary-section-title-row">
+      <text class="salary-section-title">月度薪酬明细</text>
+      <picker mode="selector" range="{{monthYearOptions}}" bindchange="onMonthlyYearChange">
+        <view class="year-switch-picker small">
+          <text>{{monthlyYear}}年 ▾</text>
+        </view>
+      </picker>
+    </view>
     <view class="salary-year-list" wx:if="{{salaryMonthlyYears.length > 0}}">
       <view class="salary-year-group" wx:for="{{salaryMonthlyYears}}" wx:key="year" wx:for-index="yi">
-        <text class="salary-year-label">{{item.yearLabel}}</text>
         <view class="salary-month-group" wx:for="{{item.months}}" wx:for-item="month" wx:key="monthKey" wx:for-index="mi">
           <view class="salary-month-header" bindtap="onToggleSalaryMonth" data-yi="{{yi}}" data-mi="{{mi}}">
             <text class="salary-month-toggle {{month._expanded ? 'expanded' : ''}}">▸</text>
@@ -119,14 +183,18 @@
                 <text class="salary-card-total">¥{{coach.total_amount}}</text>
               </view>
               <view class="salary-card-rows">
-                <view class="salary-card-row" wx:for="{{coach.durations}}" wx:for-item="d" wx:key="duration">
-                  <text class="salary-row-dur">{{d.duration}}分钟</text>
+                <view class="salary-card-row" wx:for="{{coach.durations}}" wx:for-item="d" wx:key="index">
+                  <text class="salary-row-dur">{{d.duration}}分钟<text class="salary-row-store" wx:if="{{d.store_name}}">（{{d.store_name}}）</text></text>
                   <text class="salary-row-count">{{d.count}}节</text>
                   <text class="salary-row-mul">×</text>
-                  <text class="salary-row-rate">¥{{d.rate}}/节</text>
+                  <text class="salary-row-rate {{d.matched !== 'exact' && d.matched !== 'generic' ? 'rate-miss' : ''}}">{{d.matched === 'exact' || d.matched === 'generic' ? '¥' + d.rate + '/节' : '未配置'}}</text>
                   <text class="salary-row-eq">=</text>
                   <text class="salary-row-amount">¥{{d.amount}}</text>
                 </view>
+              </view>
+              <!-- 费率缺失警告 -->
+              <view class="salary-coach-warnings" wx:if="{{coach.warnings.length > 0}}">
+                <text class="warning-text" wx:for="{{coach.warnings}}" wx:key="index" wx:for-item="w">⚠ {{w}}</text>
               </view>
             </view>
           </view>
@@ -168,24 +236,45 @@
       <view class="bill-coaches" wx:for="{{billPreview}}" wx:key="coach_id" wx:for-index="bi" wx:for-item="item">
         <view class="bill-coach-header" bindtap="onToggleBillCoach" data-index="{{bi}}">
           <view class="bill-coach-check {{item._selected ? 'checked' : ''}}">
-            <text class="check-mark" wx:if="{{item._selected}}">√</text>
+            <view class="tick" wx:if="{{item._selected}}"></view>
           </view>
           <text class="coach-name">{{item.coach_name}}</text>
           <text class="coach-total">¥{{item.total_amount}}</text>
         </view>
-        <view class="bill-items" wx:for="{{item.items}}" wx:key="duration" wx:for-item="detail">
+        <view class="bill-items" wx:for="{{item.items}}" wx:key="index" wx:for-item="detail">
           <view class="bill-item-row">
-            <text class="bill-item-label">{{detail.duration}}分钟 × {{detail.count}}节</text>
+            <text class="bill-item-label">{{detail.duration}}分钟<text wx:if="{{detail.store_name}}">（{{detail.store_name}}）</text> × {{detail.count}}节</text>
             <text class="bill-item-value">¥{{detail.amount}}</text>
           </view>
         </view>
       </view>
+      <!-- 未配置单价未入账（两级折叠） -->
+      <view class="bill-unresolved" wx:if="{{billUnresolvedCoachs.length > 0}}">
+        <view class="bill-unresolved-header" bindtap="onToggleBillUnresolved">
+          <text class="gap-coach-toggle {{billUnresolvedExpanded ? 'expanded' : ''}}">▸</text>
+          <text class="bill-unresolved-title">{{billUnresolvedClassTotal}} 节课未配置单价，按 ¥0 计、未入账</text>
+        </view>
+        <view class="bill-unresolved-list" wx:if="{{billUnresolvedExpanded}}">
+          <view class="gap-coach" wx:for="{{billUnresolvedCoachs}}" wx:key="coach_id" wx:for-index="ci" wx:for-item="uc">
+            <view class="gap-coach-header" bindtap="onToggleBillUnresolvedCoach" data-index="{{ci}}">
+              <text class="gap-coach-toggle {{uc._expanded ? 'expanded' : ''}}">▸</text>
+              <text class="gap-coach-name">{{uc.coach_name}}</text>
+              <text class="gap-coach-summary">{{uc.periodCount}} 段时期 · {{uc.classCount}} 节课</text>
+            </view>
+            <view class="gap-coach-items" wx:if="{{uc._expanded}}">
+              <view class="gap-item" wx:for="{{uc.items}}" wx:key="_key" wx:for-item="g">
+                <text class="gap-text">{{g.duration}}分钟 · {{g.store_name}}：{{g.from}} ~ {{g.to}}，共 {{g.count}} 节（{{g.reason}}）</text>
+              </view>
+            </view>
+          </view>
+        </view>
+      </view>
+      <view class="bill-warning" wx:if="{{billSkippedCount > 0}}">
+        <text class="warning-text skip">{{billSkippedCount}} 节课已入账，将自动跳过</text>
+      </view>
       <view class="bill-total-row">
         <text class="bill-total-label">已选 {{billSelectedCount}} 位教练 · 合计</text>
         <text class="bill-total-value">¥{{billSelectedAmount}}</text>
-      </view>
-      <view class="bill-warning" wx:if="{{settledWarning}}">
-        <text class="warning-text">{{settledWarning}}</text>
       </view>
       <view class="bill-inline-actions">
         <view class="modal-btn cancel" bindtap="onCloseBillContent">取消</view>
@@ -219,8 +308,8 @@
               <text class="bill-body-coach">{{coach.coach_name}}</text>
               <text class="bill-body-coach-total">¥{{coach.total_amount}}</text>
             </view>
-            <view class="bill-body-item" wx:for="{{coach.items}}" wx:for-item="di" wx:key="duration">
-              <text class="bill-body-dur">{{di.duration}}分钟</text>
+            <view class="bill-body-item" wx:for="{{coach.items}}" wx:for-item="di" wx:key="index">
+              <text class="bill-body-dur">{{di.duration}}分钟<text wx:if="{{di.store_name}}">（{{di.store_name}}）</text></text>
               <text class="bill-body-calc">{{di.count}}节 · ¥{{di.rate}}/节</text>
               <text class="bill-body-amt">¥{{di.amount}}</text>
             </view>
@@ -246,145 +335,102 @@
     <text class="load-more">加载中...</text>
   </view>
 
-  <!-- 配置弹窗 -->
-  <view class="modal-mask" wx:if="{{showConfigModal}}" bindtap="onCloseModal">
+  <!-- 添加一期单价弹窗 -->
+  <view class="modal-mask" wx:if="{{showAddPeriodModal}}" bindtap="onCloseAddPeriod">
     <view class="modal-content" catchtap="stopPropagation">
       <view class="modal-header">
-        <text class="modal-title">{{editConfig ? '编辑薪酬配置' : '添加薪酬配置'}}</text>
-        <text class="modal-close" bindtap="onCloseModal">×</text>
+        <text class="modal-title">添加一期单价</text>
+        <text class="modal-close" bindtap="onCloseAddPeriod">×</text>
       </view>
       <view class="modal-body">
         <view class="form-item">
           <text class="form-label">教练</text>
-          <picker mode="selector" range="{{coachNames}}" bindchange="onCoachChange">
-            <view class="form-picker">
-              <text>{{selectedCoachName || '请选择教练'}}</text>
+          <picker mode="selector" range="{{coachNames}}" bindchange="onAddPeriodCoachChange" disabled="{{addPeriodForm._lockCoach}}">
+            <view class="form-picker {{addPeriodForm._lockCoach ? 'locked' : ''}}">
+              <text>{{addPeriodForm.coach_name || '请选择教练'}}</text>
             </view>
           </picker>
         </view>
 
         <view class="form-item">
-          <view class="form-label-row">
-            <text class="form-label">时长配置</text>
-            <view class="add-item-btn" bindtap="addConfigItem">
-              <text>+ 添加</text>
-            </view>
-          </view>
-          
-          <view class="config-items-list">
-            <view class="config-item-row" wx:for="{{configItems}}" wx:key="index">
-              <view class="item-left">
-                <picker mode="selector" range="{{durationOptions}}" bindchange="onDurationItemChange" data-index="{{index}}">
-                  <view class="form-picker small">
-                    <text>{{item.duration}}分钟</text>
-                  </view>
-                </picker>
-                <text class="divider">/</text>
-                <input class="form-input small" type="digit" placeholder="薪酬" value="{{item.salary_rate}}" bindinput="onSalaryRateChange" data-index="{{index}}" />
-                <text class="unit">元/节</text>
-              </view>
-              <view class="item-right" wx:if="{{configItems.length > 1}}" bindtap="removeConfigItem" data-index="{{index}}">
-                <text class="remove-icon">×</text>
-              </view>
-            </view>
-          </view>
+          <text class="form-label">课程时长（分钟）</text>
+          <input class="form-input" type="number" placeholder="例如 75" value="{{addPeriodForm.duration}}" disabled="{{addPeriodForm._lockDuration}}" bindinput="onAddPeriodInput" data-field="duration" />
         </view>
 
         <view class="form-item">
           <text class="form-label">生效日期</text>
-          <picker mode="date" value="{{commonForm.effective_from}}" bindchange="onEffectiveFromChange">
+          <picker mode="date" value="{{addPeriodForm.effective_from}}" bindchange="onAddPeriodDateChange">
             <view class="form-picker">
-              <text>{{commonForm.effective_from || '请选择日期'}}</text>
+              <text>{{addPeriodForm.effective_from || '请选择日期'}}</text>
             </view>
           </picker>
         </view>
 
         <view class="form-item">
+          <text class="form-label">单价（元/节）</text>
+          <input class="form-input" type="digit" placeholder="例如 150" value="{{addPeriodForm.salary_rate}}" bindinput="onAddPeriodInput" data-field="salary_rate" />
+        </view>
+
+        <view class="form-item">
           <text class="form-label">备注</text>
-          <input class="form-input" type="text" placeholder="请输入备注" value="{{commonForm.remark}}" bindinput="onCommonInputChange" data-field="remark" />
+          <input class="form-input" type="text" placeholder="选填" value="{{addPeriodForm.remark}}" bindinput="onAddPeriodInput" data-field="remark" />
+        </view>
+
+        <view class="period-tip">
+          <text>同一时长可设多期单价：填过去的日期即补设历史时期的单价；填未来的日期即调价（到日起生效，之前时期单价不变）。</text>
         </view>
       </view>
       <view class="modal-footer">
-        <view class="modal-btn cancel" bindtap="onCloseModal">取消</view>
-        <view class="modal-btn confirm" bindtap="onSaveConfig">保存</view>
+        <view class="modal-btn cancel" bindtap="onCloseAddPeriod">取消</view>
+        <view class="modal-btn confirm" bindtap="onSaveAddPeriod">保存</view>
       </view>
     </view>
   </view>
 
-  <!-- 统计详情弹窗 -->
-  <view class="modal-mask" wx:if="{{showStatModal && currentStat}}" bindtap="onCloseModal">
-    <view class="modal-content" catchtap="">
+  <!-- 编辑时期弹窗（开始/结束日期与单价） -->
+  <view class="modal-mask" wx:if="{{showEditPeriodModal}}" bindtap="onCloseEditPeriod">
+    <view class="modal-content" catchtap="stopPropagation">
       <view class="modal-header">
-        <text class="modal-title">薪酬详情</text>
-        <text class="modal-close" bindtap="onCloseModal">×</text>
+        <text class="modal-title">编辑时期单价</text>
+        <text class="modal-close" bindtap="onCloseEditPeriod">×</text>
       </view>
       <view class="modal-body">
         <view class="detail-row">
           <text class="detail-label">教练</text>
-          <text class="detail-value">{{currentStat.coach_id && currentStat.coach_id.name ? currentStat.coach_id.name : '-'}}</text>
+          <text class="detail-value">{{editPeriodForm.coach_name}} · {{editPeriodForm.duration}}分钟</text>
         </view>
-        <view class="detail-row">
-          <text class="detail-label">课程名称</text>
-          <text class="detail-value">{{currentStat.schedule_id && currentStat.schedule_id.course_name ? currentStat.schedule_id.course_name : '-'}}</text>
-        </view>
-        <view class="detail-row">
-          <text class="detail-label">上课时间</text>
-          <text class="detail-value">{{currentStat.class_date ? currentStat.class_date.split('T')[0] : '-'}} {{currentStat.schedule_id && currentStat.schedule_id.start_time ? currentStat.schedule_id.start_time : '-'}}</text>
-        </view>
-        <view class="detail-row">
-          <text class="detail-label">课程时长</text>
-          <text class="detail-value">{{currentStat.duration || 0}}分钟</text>
-        </view>
-        <view class="detail-row">
-          <text class="detail-label">薪酬单价</text>
-          <text class="detail-value">¥{{currentStat.salary_rate || 0}}/节</text>
-        </view>
-        <view class="detail-row">
-          <text class="detail-label">签到人数</text>
-          <text class="detail-value">{{currentStat.attendance_count || 0}}人</text>
-        </view>
-        <view class="detail-row total">
-          <text class="detail-label">应发金额</text>
-          <text class="detail-value">¥{{currentStat.total_salary || 0}}</text>
-        </view>
-        <view class="detail-row">
-          <text class="detail-label">状态</text>
-          <text class="detail-value {{currentStat.status === 'settled' ? 'text-green' : currentStat.status === 'cancelled' ? 'text-red' : 'text-orange'}}">
-            {{currentStat.status === 'settled' ? '已结算' : currentStat.status === 'cancelled' ? '已取消' : '待结算'}}
-          </text>
-        </view>
-        <view class="detail-row" wx:if="{{currentStat.settled_at}}">
-          <text class="detail-label">结算时间</text>
-          <text class="detail-value">{{currentStat.settled_at ? currentStat.settled_at.split('T')[0] : '-'}}</text>
-        </view>
-        <view class="detail-row" wx:if="{{currentStat.remark}}">
-          <text class="detail-label">备注</text>
-          <text class="detail-value">{{currentStat.remark}}</text>
-        </view>
-      </view>
-      <view class="modal-footer" wx:if="{{currentStat.status !== 'settled' && currentStat.status !== 'cancelled'}}">
-        <view class="modal-btn cancel" bindtap="onCancelStat">取消统计</view>
-        <view class="modal-btn confirm" bindtap="onSettleStat">确认结算</view>
-      </view>
-    </view>
-  </view>
-
-  <!-- 自定义时长弹窗 -->
-  <view class="modal-mask" wx:if="{{showCustomDurationModal}}" bindtap="onCloseCustomDurationModal">
-    <view class="modal-content" catchtap="stopPropagation">
-      <view class="modal-header">
-        <text class="modal-title">自定义时长</text>
-        <text class="modal-close" bindtap="onCloseCustomDurationModal">×</text>
-      </view>
-      <view class="modal-body">
         <view class="form-item">
-          <text class="form-label">请输入时长（分钟）</text>
-          <input class="form-input" type="digit" placeholder="例如：75" value="{{customDurationValue}}" bindinput="onCustomDurationInput" />
+          <text class="form-label">开始日期</text>
+          <picker mode="date" value="{{editPeriodForm.effective_from}}" bindchange="onEditPeriodFromChange">
+            <view class="form-picker">
+              <text>{{editPeriodForm.effective_from || '请选择日期'}}</text>
+            </view>
+          </picker>
+        </view>
+        <view class="form-item">
+          <view class="form-label-row">
+            <text class="form-label">长期有效（无结束日期）</text>
+            <switch checked="{{editPeriodForm.noEnd}}" bindchange="onEditPeriodNoEnd" color="#C0724A" />
+          </view>
+          <block wx:if="{{!editPeriodForm.noEnd}}">
+            <picker mode="date" value="{{editPeriodForm.effective_to}}" bindchange="onEditPeriodToChange">
+              <view class="form-picker">
+                <text>{{editPeriodForm.effective_to || '请选择结束日期'}}</text>
+              </view>
+            </picker>
+          </block>
+        </view>
+        <view class="form-item">
+          <text class="form-label">单价（元/节）</text>
+          <input class="form-input" type="digit" placeholder="请输入单价" value="{{editPeriodForm.salary_rate}}" bindinput="onEditPeriodInput" />
+        </view>
+        <view class="period-tip">
+          <text>开始日期需晚于上一时期、早于下一时期；结束日期不能超过下一时期开始（可以留空档，空档期有课会在页面上方提示）。修改单价后，该时期已入账的薪酬与账单将按新单价重算。</text>
         </view>
       </view>
       <view class="modal-footer">
-        <view class="modal-btn cancel" bindtap="onCloseCustomDurationModal">取消</view>
-        <view class="modal-btn confirm" bindtap="onConfirmCustomDuration">确认</view>
+        <view class="modal-btn cancel" bindtap="onCloseEditPeriod">取消</view>
+        <view class="modal-btn confirm" bindtap="onSaveEditPeriod">保存</view>
       </view>
     </view>
   </view>

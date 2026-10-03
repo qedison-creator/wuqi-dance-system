@@ -104,6 +104,7 @@ Page({
         customBookingDeadline: '',
         cancelBookingDeadline: '',
         customCancelBookingDeadline: '',
+        exempt_cancel_locked: false,
         creditsCost: 1,
         customCreditsCost: '',
         coverUrl: ''
@@ -876,6 +877,7 @@ Page({
         customBookingDeadline: '',
         cancelBookingDeadline: 180,
         customCancelBookingDeadline: '',
+        exempt_cancel_locked: false,
         creditsCost: 1,
         customCreditsCost: '',
         coverUrl: ''
@@ -938,6 +940,7 @@ Page({
         customBookingDeadline: '',
         cancelBookingDeadline: schedule.cancel_deadline || '',
         customCancelBookingDeadline: '',
+        exempt_cancel_locked: !!schedule.exempt_cancel_locked,
         creditsCost: schedule.credits_cost || 1,
         customCreditsCost: '',
         coverUrl: schedule.cover ? this._fixImageUrl(schedule.cover) : ''
@@ -1477,7 +1480,9 @@ Page({
       booking_deadline: bookingDeadline,
       cancel_deadline: cancelBookingDeadline,
       credits_cost: creditsCost,
-      cover: this._extractRelativePath(formData.coverUrl)
+      cover: this._extractRelativePath(formData.coverUrl),
+      // 豁免取消开关仅编辑已有排课时提交（新建时由接口默认 false）
+      ...(formData._id ? { exempt_cancel_locked: !!formData.exempt_cancel_locked } : {})
     };
 
     try {
@@ -1507,6 +1512,43 @@ Page({
         wx.showToast({ title: errMsg, icon: 'none' });
       }
     }
+  },
+
+  // 排课卡片快捷开关：禁止/恢复该节课的豁免取消
+  async onToggleExemptLock(e) {
+    const id = e.currentTarget.dataset.id;
+    const currentlyLocked = e.currentTarget.dataset.locked === 'yes';
+    const index = this.data.schedules.findIndex(s => s._id === id);
+    if (index === -1) return;
+    const item = this.data.schedules[index];
+    if (item.isHistory || item.isTemplatePreview || ['cancelled', 'completed', 'offline'].includes(item.status)) {
+      return;
+    }
+
+    wx.showModal({
+      title: currentlyLocked ? '恢复豁免取消' : '禁止豁免取消',
+      content: currentlyLocked
+        ? '恢复后，会员超过取消时限时可消耗豁免次数取消该节课预约。'
+        : '禁止后，会员将无法对该节课使用豁免取消（不影响取消时限前的正常取消）。确定禁止吗？',
+      confirmText: currentlyLocked ? '恢复' : '禁止',
+      cancelText: '再想想',
+      success: async (res) => {
+        if (!res.confirm) return;
+        try {
+          await request({ url: `/schedules/${id}/exempt-lock`, method: 'PUT', data: { locked: !currentlyLocked } });
+          this.setData({ [`schedules[${index}].exempt_cancel_locked`]: !currentlyLocked });
+          wx.showToast({ title: currentlyLocked ? '已恢复' : '已禁止', icon: 'success' });
+        } catch (err) {
+          const errMsg = err.message || err.data?.message || '操作失败';
+          wx.showModal({ title: '操作失败', content: errMsg, showCancel: false, confirmText: '知道了' });
+        }
+      }
+    });
+  },
+
+  // 编辑弹窗内的豁免取消开关
+  onFormToggleExemptLock() {
+    this.setData({ 'formData.exempt_cancel_locked': !this.data.formData.exempt_cancel_locked });
   },
 
   // 取消排课/删除模板

@@ -52,16 +52,19 @@
           <text class="booking-time" wx:if="{{item.checkInTime}}">签到时间: {{item.checkInTime}}</text>
         </view>
       </view>
-      <!-- 操作区：已签到/已完成/课程取消的预约不可取消，仅显示扣次/退还信息 -->
+      <!-- 操作区：已签到/已完成/课程取消的预约不可取消，仅显示扣次/缩期/退还信息 -->
       <view class="booking-meta" wx:if="{{item.checkedIn}}">
-        <text class="credits">扣课: {{item.creditsDeducted}}次</text>
+        <text class="credits" wx:if="{{item.deductDays}}">缩短有效期: {{item.deductDays}}天</text>
+        <text class="credits" wx:else>扣课: {{item.creditsDeducted}}次</text>
         <text class="status-tag checked-in-tag">已签到</text>
       </view>
       <view class="booking-meta" wx:elif="{{item.cancelType === 'admin_cancel' || item.cancelType === 'min_bookings_not_met' || item.cancelType === 'holiday' || item.cancelType === 'after_checkin_cancel'}}">
-        <text class="credits refunded">已退还: {{item.creditsRefunded || item.creditsDeducted}}次</text>
+        <text class="credits refunded" wx:if="{{item.deductDays}}">有效期已恢复</text>
+        <text class="credits refunded" wx:else>已退还: {{item.creditsRefunded || item.creditsDeducted}}次</text>
       </view>
       <view class="booking-meta" wx:else>
-        <text class="credits">扣课: {{item.creditsDeducted}}次</text>
+        <text class="credits" wx:if="{{item.deductDays}}">缩短有效期: {{item.deductDays}}天</text>
+        <text class="credits" wx:else>扣课: {{item.creditsDeducted}}次</text>
         <view class="action-btn danger" data-id="{{item._id}}" bindtap="onCancelBooking">
           <text>取消预约</text>
         </view>
@@ -91,7 +94,8 @@
         </view>
       </view>
       <view class="booking-meta">
-        <text class="credits">扣课: {{item.creditsDeducted}}次</text>
+        <text class="credits" wx:if="{{item.deductDays}}">缩短有效期: {{item.deductDays}}天</text>
+        <text class="credits" wx:else>扣课: {{item.creditsDeducted}}次</text>
       </view>
     </view>
     <view class="empty-state" wx:if="{{checkedInList.length === 0}}">
@@ -121,7 +125,8 @@
           <text class="cancel-time">取消: {{item.cancelTime}}</text>
           <text class="cancel-reason" wx:if="{{item.cancelReason}}">原因: {{item.cancelReason}}</text>
         </view>
-        <text class="credits refunded" wx:if="{{item.creditsRefunded > 0}}">退还: {{item.creditsRefunded}}次</text>
+        <text class="credits refunded" wx:if="{{item.deductDays}}">有效期已恢复</text>
+        <text class="credits refunded" wx:elif="{{item.creditsRefunded > 0}}">退还: {{item.creditsRefunded}}次</text>
       </view>
     </view>
     <view class="empty-state" wx:if="{{cancelledList.length === 0}}">
@@ -149,7 +154,8 @@
         <view class="check-in-method method-{{item.checkInMethod}}" wx:if="{{item.checkedIn}}">
           <text>{{item.checkInMethodText}}</text>
         </view>
-        <text class="credits">扣课: {{item.creditsCost}}次</text>
+        <text class="credits" wx:if="{{item.deductDays}}">缩短有效期: {{item.deductDays}}天</text>
+        <text class="credits" wx:else>扣课: {{item.creditsCost}}次</text>
       </view>
     </view>
     <view class="empty-state" wx:if="{{attendanceList.length === 0}}">
