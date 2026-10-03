@@ -1,0 +1,46 @@
+"use strict";
+
+function ownKeys(object, enumerableOnly) {
+    var keys = Object.keys(object);
+
+    if (Object.getOwnPropertySymbols) {
+        var symbols = Object.getOwnPropertySymbols(object);
+        if (enumerableOnly) {
+            symbols = symbols.filter(function(sym) {
+                return Object.getOwnPropertyDescriptor(object, sym).enumerable;
+            });
+        }
+        keys.push.apply(keys, symbols);
+    }
+
+    return keys;
+}
+function _object_spread_props(target, source) {
+    source = source != null ? source : {};
+
+    if (Object.getOwnPropertyDescriptors) Object.defineProperties(target, Object.getOwnPropertyDescriptors(source));
+    else {
+        ownKeys(Object(source)).forEach(function(key) {
+            Object.defineProperty(target, key, Object.getOwnPropertyDescriptor(source, key));
+        });
+    }
+
+    return target;
+}
+exports._ = _object_spread_props;
+
+// ===== swc-runtime compat（由 gen-swc-runtime.js 追加）=====
+(function () {
+  try {
+    var keys = Object.keys(module.exports);
+    var main = null;
+    for (var i = 0; i < keys.length; i++) {
+      if (typeof module.exports[keys[i]] === 'function') { main = module.exports[keys[i]]; break; }
+    }
+    if (typeof main !== 'function' || typeof module.exports === 'function') return;
+    main['_object_spread_props'] = main;
+    main._ = main;
+    main.default = main;
+    module.exports = main;
+  } catch (e) { /* 保持原导出 */ }
+})();

@@ -145,7 +145,7 @@
                 <text class="bill-val">-{{b.credits}} 课时</text>
               </view>
               <view class="b2-mid">{{b.course_name}}<text class="co"> · {{b.dance_name || '未分类'}} · {{b.coach_name}}</text></view>
-              <view class="b2-meta"><span><text class="b2-ico">◷</text> 预约于 {{b.booked_at}}</span><text>{{b.check_in_label || '已签到'}}</text></view>
+              <view class="b2-meta"><text><text class="b2-ico">◷</text> 预约于 {{b.booked_at}}</text><text>{{b.check_in_label || '已签到'}}</text></view>
             </view>
             <view class="bill-subtotal">小计 {{item.credits}} 课时 / {{item.sessions}} 节</view>
           </view>

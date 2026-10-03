@@ -5,7 +5,7 @@ const { request } = require('../../../utils/request');
 const POPUP_TYPE_OPTIONS = [
   { value: 'none', label: '不弹窗', hint: '只在公告栏滚动展示，不弹窗。' },
   { value: 'normal', label: '一般弹窗', hint: '会员打开小程序进入首页时弹一次，关闭后不再弹；公告栏仍可查看。' },
-  { value: 'important', label: '重要弹窗', hint: '每次打开小程序都会弹，需阅读 3 秒后才能关闭；公告下架后停止弹。' },
+  { value: 'important', label: '重要弹窗', hint: '每次打开小程序都会弹，需阅读 5 秒后才能关闭；公告下架后停止弹。' },
   { value: 'always', label: '永久弹窗', hint: '每次打开小程序进入首页都会弹，手动关闭，下次打开继续弹。' }
 ];
 const POPUP_TYPE_LABELS = { normal: '一般弹窗', important: '重要弹窗', always: '永久弹窗' };

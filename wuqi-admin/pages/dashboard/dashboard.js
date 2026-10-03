@@ -1411,7 +1411,12 @@ Page({
   },
 
   onGoToDataCenter() {
-    wx.navigateTo({ url: '/package-data/pages/member-data/member-data' });
+    if (this._dcNavigating) return; // 防抖：避免快速连点触发并发路由
+    this._dcNavigating = true;
+    wx.navigateTo({
+      url: '/package-data/pages/member-data/member-data',
+      complete: () => { this._dcNavigating = false; }
+    });
   },
 
   onGoToCheckIn() {

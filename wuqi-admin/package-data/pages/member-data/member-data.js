@@ -79,6 +79,7 @@ Page({
   },
 
   onUnload() {
+    this._unloaded = true; // 页面存活标记：错峰回调/异步回调据此短路
     this._disconnectWebSocket();
   },
 
@@ -87,16 +88,28 @@ Page({
     wx.stopPullDownRefresh();
   },
 
+  // 请求参数：仅在有门店时携带 store_id（避免 undefined 被序列化进 URL）
+  buildBase() {
+    const p = {};
+    if (this.data.storeId) p.store_id = this.data.storeId;
+    return p;
+  },
+
   // ---- 数据加载 ----
   loadAll() {
-    const base = { store_id: this.data.storeId || undefined };
+    const base = this.buildBase();
+    // 核心指标（速览/趋势/提醒）立即加载；明细类错峰 400ms，避免 7 个请求并发突发
     this.loadOverview(base);
     this.loadTrend(base);
     if (this.data.role !== 'reviewer') {
       this.loadReminders(base);
-      this.loadRanks(base);
-      this.loadHot(base);
-      this.loadBill(base);
+      if (this._unloaded) return;
+      setTimeout(() => {
+        if (this._unloaded) return;
+        this.loadRanks(base);
+        this.loadHot(base);
+        this.loadBill(base);
+      }, 400);
     }
   },
 
@@ -145,7 +158,10 @@ Page({
         const items = groups[m.key] || [];
         return { ...m, pending: items.filter(x => !x.followup_done).length };
       });
-      this.setData({ reminders: d, alertMeta, activeAlertType: '', alertViewDone: false, alertList: [] });
+      this.setData({ reminders: d, alertMeta, activeAlertType: '', alertViewDone: false, alertList: [] }, () => {
+        // 弹层开着时刷新数据，需按当前视图重新填充名单，否则会停留在空列表
+        if (this.data.alertPanelType) this._fillAlertList();
+      });
     }).catch(() => {});
   },
 
@@ -177,25 +193,6 @@ Page({
       this.setData({ hotCoaches: list, coachChart });
     }).catch(() => {});
     return Promise.all([courseReq, coachReq]);
-  },
-
-  loadBill(base) {
-    if (this.data.billLoading) return Promise.resolve();
-    this.setData({ billLoading: true });
-    const params = { ...base, start_date: this.data.periodStart || undefined, end_date: this.data.periodEnd || undefined };
-    if (this.data.billSearch) params.search = this.data.billSearch;
-    return request({ url: '/datacenter/member-bill', data: params }).then(res => {
-      const d = res.data || {};
-      const WEEKD = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
-      const billMembers = (d.members || []).map(m => ({
-        ...m,
-        bills: (m.bills || []).map(b => ({ ...b, weekday: WEEKD[new Date(b.date.replace(/-/g, '/')).getDay()] })),
-      }));
-      const billByDate = (d.by_date || []).map(g => ({ ...g, weekday: WEEKD[new Date(g.date.replace(/-/g, '/')).getDay()] }));
-      this.setData({ billMembers, billByDate, billTotals: { credits: d.total_credits, sessions: d.total_sessions }, billLoading: false });
-    }).catch(() => {
-      this.setData({ billLoading: false });
-    });
   },
 
   // ---- 时间切换 ----
@@ -261,26 +258,29 @@ Page({
   },
 
   onMarkDone(e) {
-    const { memberid, alerttype, periodkey } = e.currentTarget.dataset;
+    const { memberid, periodkey } = e.currentTarget.dataset;
+    const alerttype = e.currentTarget.dataset.alerttype || this.data.alertPanelType;
     request({
       url: '/datacenter/reminders/followup', method: 'POST',
-      data: { member_id: memberid, alert_type: alerttype, period_key: periodkey, store_id: this.data.storeId || undefined },
+      data: { member_id: memberid, alert_type: alerttype, period_key: periodkey },
     }).then(() => {
       wx.showToast({ title: '已标记', icon: 'success' });
-      this.loadReminders({ store_id: this.data.storeId || undefined });
+      this.loadReminders({ ...this.buildBase() });
     }).catch(err => {
       if (!err._handled) wx.showToast({ title: err.message || '操作失败', icon: 'none' });
     });
   },
 
   onUndoDone(e) {
-    const { memberid, alerttype, periodkey } = e.currentTarget.dataset;
+    const { memberid, periodkey } = e.currentTarget.dataset;
+    const alerttype = e.currentTarget.dataset.alerttype || this.data.alertPanelType;
     request({
       url: `/datacenter/reminders/followup?member_id=${memberid}&alert_type=${alerttype}&period_key=${periodkey}`,
       method: 'DELETE',
-    }).then(() => {
-      wx.showToast({ title: '已恢复提醒', icon: 'success' });
-      this.loadReminders({ store_id: this.data.storeId || undefined });
+    }).then(res => {
+      const deleted = (res && res.data && res.data.deletedCount) || 0;
+      wx.showToast({ title: deleted ? '已恢复提醒' : '未找到已联系记录', icon: deleted ? 'success' : 'none' });
+      this.loadReminders({ ...this.buildBase() });
     }).catch(err => {
       if (!err._handled) wx.showToast({ title: err.message || '操作失败', icon: 'none' });
     });
@@ -355,9 +355,9 @@ Page({
       this._stale = true;
       return;
     }
-    this.loadOverview({ store_id: this.data.storeId || undefined });
-    if (this.data.activeTab === 'rank') this.loadRanks({ store_id: this.data.storeId || undefined });
-    if (this.data.activeTab === 'bill') this.loadBill({ store_id: this.data.storeId || undefined });
+    this.loadOverview({ ...this.buildBase() });
+    if (this.data.activeTab === 'rank') this.loadRanks({ ...this.buildBase() });
+    if (this.data.activeTab === 'bill') this.loadBill({ ...this.buildBase() });
     wx.showToast({ title: '数据已更新', icon: 'none', duration: 800 });
   },
 });

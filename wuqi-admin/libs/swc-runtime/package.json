@@ -1,0 +1,6 @@
+{
+  "name": "@swc/runtime",
+  "version": "0.5.23",
+  "description": "WeChat devtools SWC compiler runtime helpers (self-hosted)。仅作为 libs 源维护，不进入 npm 依赖；main 必须指向 index.js（getter 逐文件 require 格式），严禁指向单文件，否则开发者工具按 main 注册模块导致 require 失败",
+  "main": "./index.js"
+}

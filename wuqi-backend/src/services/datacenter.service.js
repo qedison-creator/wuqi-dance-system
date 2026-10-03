@@ -242,31 +242,12 @@ exports.getMemberRank = async ({ storeId, period, startDate, endDate, role }) =>
     { $group: { _id: '$user_id', credits: { $sum: { $ifNull: ['$credits_deducted', 0] } }, sessions: { $sum: 1 } } },
     { $sort: { credits: -1 } }, { $limit: 10 },
   ]);
-  const monthKey = dayjs().tz(BJ).format('YYYY-MM');
-  const cancelMatch = {
-    ...(sid ? { store_id: sid } : {}),
-    status: 'cancelled', cancel_type: { $in: ['normal', 'exempt'] },
-    booking_date: { $gte: `${monthKey}-01` },
-  };
+  // 取消榜与消耗榜同口径：跟随所选时间区间（baseMatch 已含 period 区间与门店）
   const cancelAgg = await Booking.aggregate([
-    { $match: cancelMatch },
+    { $match: { ...baseMatch, status: 'cancelled', cancel_type: { $in: ['normal', 'exempt'] } } },
     { $group: { _id: '$user_id', count: { $sum: 1 } } },
     { $sort: { count: -1 } }, { $limit: 10 },
   ]);
-
-  const decorate = (rows, withCredits) => rows.map((x, i) => {
-    // 会员姓名：快照优先，关联回退
-    const snap = x.member_snapshot;
-    return {
-      rank: i + 1,
-      member_id: x._id,
-      name: (snap && (snap.real_name || snap.nick_name)) || x._name || '已删除会员',
-      code: (snap && snap.member_code) || x._code || '',
-      credits: withCredits ? (x.credits || 0) : undefined,
-      sessions: x.sessions || 0,
-      cancel_count: x.count || 0,
-    };
-  });
 
   // 快照/编号补齐：查会员（被删的走"已删除会员"）
   const ids = [...new Set([...consumeAgg, ...cancelAgg].map(x => String(x._id)))];
@@ -302,6 +283,8 @@ exports.getReminders = async ({ storeId, role }) => {
     const done = doneMap.get(`${mid}_${type}`);
     return {
       ...it,
+      // 回写分组类型：前端"已联系/恢复提醒"依赖它回传 alert_type，缺失会导致恢复提醒删不掉记录
+      alert_type: type,
       member_id: it.member_id || it.user_id,
       period_key: monthKey,
       followup_done: !!done,
@@ -331,7 +314,15 @@ exports.markReminderDone = async ({ storeId, memberId, alertType, periodKey, ope
 };
 
 exports.undoReminderDone = async ({ memberId, alertType, periodKey }) => {
-  return DcAlertFollowup.deleteOne({ member_id: memberId, alert_type: alertType, period_key: periodKey });
+  // 兼容前端可能传来的空值/字符串 "undefined"
+  const type = (alertType && alertType !== 'undefined') ? alertType : '';
+  // 精确删除该分组记录，同时清理历史脏数据（alert_type 为 null/'' 的旧记录从未参与展示，属无害残留）
+  const res = await DcAlertFollowup.deleteMany({
+    member_id: memberId,
+    period_key: periodKey,
+    alert_type: { $in: [type, null, ''] },
+  });
+  return { deletedCount: res.deletedCount };
 };
 
 // ===================== 7. 课时账单 =====================

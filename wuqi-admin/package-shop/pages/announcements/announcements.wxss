@@ -159,6 +159,9 @@
 }
 
 .item-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
   margin-bottom: 16rpx;
 }
 
@@ -183,6 +186,7 @@
 
 .item-popup-tag {
   display: inline-block;
+  flex-shrink: 0;
   margin-left: 12rpx;
   font-size: 22rpx;
   color: var(--color-warning);

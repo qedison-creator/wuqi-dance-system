@@ -187,11 +187,13 @@ Page({
         page: this.data.page,
         pageSize: this.data.pageSize
       };
-      // 并发拉取列表和数量统计
-      const [res, statsRes] = await Promise.all([
+      // 并发拉取列表和数量统计（不用数组解构，规避 SWC 增强编译对 @swc/runtime/_array_with_holes 的依赖）
+      const _settled = await Promise.all([
         request({ url: '/pre-members', method: 'GET', data: params }),
         request({ url: '/pre-members/stats', method: 'GET', data: { store_id: this.data.currentStoreId } }).catch(() => null)
       ]);
+      const res = _settled[0];
+      const statsRes = _settled[1];
       const newList = res.data && res.data.list ? res.data.list : [];
       const total = res.data && res.data.total ? res.data.total : newList.length;
       // 手机号脱敏处理：保留原始手机号供切换显示，脱敏号默认展示

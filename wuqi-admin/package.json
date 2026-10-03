@@ -1,7 +1,7 @@
 {
   "name": "wuqi-admin",
   "version": "1.1.6",
-  "description": "舞栖Dance 管理端小程序（增强编译所需 @babel/runtime）",
+  "description": "舞栖Dance 管理端小程序（增强编译所需 @babel/runtime；@swc/runtime 以 miniprogram_npm 目录形式维护，不入 npm 依赖，避免“构建 npm”重新打包成损坏格式）",
   "dependencies": {
     "@babel/runtime": "^7.29.7"
   }

@@ -2203,10 +2203,15 @@ page {
   background: linear-gradient(135deg, #A3C2E8, #7297CC);
 }
 
-/* 可用时段 tag - 暖橙渐变（与可用星期雾蓝区分）；双开时换行显示 */
+/* 可用时段 tag - 抹茶绿渐变（柔和暖调，与门店棕橙/星期雾蓝/跨店玫粉/时间卡紫/次卡青碧均区分）；仅作为行内非首元素时缩进 */
 .pkg-tag-time {
-  background: linear-gradient(135deg, #F2B18B, #DF8B5A);
+  background: linear-gradient(135deg, #8CBF9E, #5FA37E);
   margin-left: 14rpx;
+}
+
+/* 仅时段（无可用星期）时它是行内第一个标签，清掉分隔缩进以与门店标签左对齐 */
+.pkg-new-weekday-row .pkg-tag-time:first-child {
+  margin-left: 0;
 }
 
 .pkg-new-time-both .pkg-tag-weekday {

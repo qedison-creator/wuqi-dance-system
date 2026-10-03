@@ -127,7 +127,7 @@ function futureDate(offset) {
   check('消耗课时=5（2+2+1）', overview.consumed_credits === 5, overview);
   check('节数=3', overview.sessions === 3, overview);
   check('会员数=2', overview.members === 2, overview);
-  check('到课率=100%（测试数据无已过期爽约）', overview.attendance_rate === 100, overview.attendance_rate);
+  check('取消率=0%（此时尚无取消，3 个总预约）', overview.cancel_rate === 0 && overview.total_bookings === 3, JSON.stringify(overview));
   check('对比期无数据 → diff_pct=null', overview.diff_pct === null, overview.diff_pct);
 
   // ---- [2] 每日趋势 ----
@@ -167,6 +167,10 @@ function futureDate(offset) {
   const rank = await dc.getMemberRank({ storeId: String(store._id), period: 'custom', startDate: start, endDate: end, role: 'super_admin' });
   check('消耗榜第一名=甲会员(3课时2节)', rank.consume_top[0] && rank.consume_top[0].name === '甲会员' && rank.consume_top[0].credits === 3 && rank.consume_top[0].sessions === 2, rank.consume_top);
   check('取消榜第一名=丙会员(3次)', rank.cancel_top[0] && rank.cancel_top[0].name === '丙会员' && rank.cancel_top[0].cancel_count === 3, rank.cancel_top);
+
+  // 取消率跟随所选区间：取消产生后总览重算（3 取消 / 6 总预约 = 50%）
+  const overviewAfter = await dc.getOverview({ storeId: String(store._id), period: 'custom', startDate: start, endDate: end });
+  check('取消率=50%（3 取消 / 6 总预约）', overviewAfter.cancel_rate === 50 && overviewAfter.cancel_sessions === 3 && overviewAfter.total_bookings === 6, JSON.stringify(overviewAfter));
 
   // ---- [6] 提醒三类 ----
   console.log('\n[6] 提醒');
@@ -220,18 +224,9 @@ function futureDate(offset) {
   const deletedRow = billAfterDelete.members.find(m => m.name === '被删会员');
   check('会员删除后账单姓名靠快照保留', !!deletedRow, billAfterDelete.members.map(m => m.name));
 
-  // 爽约率：注入一条"课程日期已过但仍 booked"的预约（原生驱动改日期，模拟约了没来）
-  const mH = await makeMember('爽约会员');
-  await timePkg(mH, {});
-  const s8 = await makeSchedule(futureDate(0), 1, styleJazz);
-  await bookingService.createBooking(mH._id, s8._id);
-  await Booking.collection.updateOne(
-    { user_id: mH._id, schedule_id: s8._id },
-    { $set: { booking_date: futureDate(-2) } }
-  );
-  const overviewNs = await dc.getOverview({ storeId: String(store._id), period: 'custom', startDate: futureDate(-2), endDate: end });
-  check('爽约识别：no_show_sessions=1', overviewNs.no_show_sessions === 1, overviewNs.no_show_sessions);
-  check('爽约后到课率下降（4节到课/1节爽约=80%）', overviewNs.attendance_rate === 80, overviewNs.attendance_rate);
+  // 取消率跨周期口径：更宽的自定义区间重算（爽约注入已移除，取消率指标于前轮迭代替代到课率）
+  const overviewWide = await dc.getOverview({ storeId: String(store._id), period: 'custom', startDate: futureDate(-2), endDate: end });
+  check('宽区间重算仍正确（消耗=7 课时）', overviewWide.consumed_credits === 7, JSON.stringify(overviewWide));
 
   // ---- [8] 权限 ----
   console.log('\n[8] 权限');
