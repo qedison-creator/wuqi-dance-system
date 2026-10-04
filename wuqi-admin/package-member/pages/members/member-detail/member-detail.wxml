@@ -313,7 +313,7 @@ module.exports = {
                       <view class="booking-detail-row" wx:if="{{att.deduct_days}}">
                         <text class="detail-icon"></text>
                         <text class="detail-label">消耗课时</text>
-                        <text class="detail-value highlight">缩短套餐有效期{{att.deduct_days}}天</text>
+                        <text class="detail-value highlight">有效期减{{att.deduct_days}}天</text>
                       </view>
                       <view class="booking-detail-row" wx:elif="{{att.credits_cost > 0}}">
                         <text class="detail-icon"></text>

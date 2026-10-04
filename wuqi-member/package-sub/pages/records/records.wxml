@@ -58,7 +58,7 @@
             </view>
             <view class="rci-row" wx:if="{{item.deductDays && item.status !== 'cancelled'}}">
               <view class="rci-icon credit"></view>
-              <text class="rci-text highlight">已缩短套餐有效期 {{item.deductDays}} 天</text>
+              <text class="rci-text highlight">有效期减 {{item.deductDays}} 天</text>
             </view>
             <view class="rci-row" wx:if="{{item.deductDays && item.status === 'cancelled'}}">
               <view class="rci-icon credit"></view>
@@ -123,7 +123,7 @@
             </view>
             <view class="rci-row" wx:if="{{!item.isCancelledAfterCheckin && item.deductDays}}">
               <view class="rci-icon credit"></view>
-              <text class="rci-text highlight">已缩短套餐有效期 {{item.deductDays}} 天</text>
+              <text class="rci-text highlight">有效期减 {{item.deductDays}} 天</text>
             </view>
             <view class="rci-row" wx:if="{{!item.isCancelledAfterCheckin && !item.deductDays && item.creditsCost > 0}}">
               <view class="rci-icon credit"></view>

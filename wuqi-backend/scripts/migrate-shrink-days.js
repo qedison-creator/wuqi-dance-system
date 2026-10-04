@@ -4,7 +4,11 @@
  * 改为预约时直接把套餐 end_date 缩短 N 天（取消时加回）。旧规则的历史数据清理与展示回填：
  *   1. 清除全部 Booking.occupied_dates（旧规则死数据，新代码不再读写）
  *   2. 给按天口径时间卡（不限次/每日1节）的历史预约回填 shrink_days = credits_deducted（N≥2 才标记）
- *   3. 历史套餐 end_date 不追溯缩短（按售卖口径保留；确认过的决策）
+ *   3. 历史套餐 end_date 本脚本不追溯缩短（按售卖口径保留）
+ *
+ * 注意：2026-10 用户复核发现，"只回填 shrink_days 却不缩 end_date"会导致上课记录显示"已缩短N天"
+ *   而会员详情页套餐截止日期未变的不一致。已改为由 migrate-timecard-retro-shrink.js 追溯缩短
+ *   历史套餐 end_date（并标记 retro_shrink_applied_days）。本脚本[2]的回填仍保留（作为追溯依据）。
  *
  * 幂等：可重复执行；shrink_days 已有的预约跳过不改。
  *
@@ -89,7 +93,7 @@ async function main() {
   console.log(`[2] 按天口径套餐: ${r.targetPackages} 个，需回填 shrink_days 的预约: ${r.backfillCandidates} 条`);
   console.log(`    按状态分布: ${JSON.stringify(r.statusDist)}${APPLY ? `，已回填 ${r.backfilled} 条` : ''}`);
   console.log(`[3] 1课时历史预约（不缩期、不标记）: ${r.skippedOneCredit} 条`);
-  console.log('    历史套餐 end_date 不追溯缩短（按售卖口径保留）。');
+  console.log('    历史套餐 end_date 由 migrate-timecard-retro-shrink.js 追溯缩短（本脚本不缩）。');
   if (!APPLY) console.log('\n预览完成。确认无误后加 --apply 执行写库。');
 
   await mongoose.disconnect();

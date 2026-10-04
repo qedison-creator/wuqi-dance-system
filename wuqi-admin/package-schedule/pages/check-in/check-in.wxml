@@ -90,7 +90,7 @@
           </view>
           <view class="detail-row" wx:if="{{item.deduct_days}}">
             <text class="detail-label">消耗课时</text>
-            <text class="detail-value">缩短套餐有效期{{item.deduct_days}}天</text>
+            <text class="detail-value">有效期减{{item.deduct_days}}天</text>
           </view>
           <view class="detail-row" wx:else>
             <text class="detail-label">消耗课时</text>

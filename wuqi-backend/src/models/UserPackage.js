@@ -16,6 +16,9 @@ const userPackageSchema = new mongoose.Schema({
   start_date: { type: Date },
   end_date: { type: Date },
   original_end_date: { type: Date },
+  // 按天口径（不限次/每天1节时间卡）历史缩期追溯迁移标记：
+  // 非空 = 该套餐已按历史预约 shrink_days 之和追溯缩短过 end_date，天数记录于此（迁移脚本幂等依据）
+  retro_shrink_applied_days: { type: Number },
   daily_limit: { type: Number },
   weekly_limit: { type: Number },
   monthly_limit: { type: Number },

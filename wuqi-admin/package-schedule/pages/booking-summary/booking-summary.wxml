@@ -152,7 +152,7 @@
                                       <text class="tl-time">{{record.created_at_display}}</text>
                                     </view>
                                     <view class="tl-detail" wx:if="{{record.status === 'booked' || record.status === 'completed'}}">
-                                      <text class="tl-text" wx:if="{{record.deduct_days}}">缩短套餐有效期{{record.deduct_days}}天</text>
+                                      <text class="tl-text" wx:if="{{record.deduct_days}}">有效期减{{record.deduct_days}}天</text>
                                       <text class="tl-text" wx:else>扣{{record.credits_deducted}}课时</text>
                                     </view>
                                     <view class="tl-detail" wx:if="{{record.status === 'cancelled'}}">
@@ -214,7 +214,7 @@
                                       <text class="tl-time">{{record.created_at_display}}</text>
                                     </view>
                                     <view class="tl-detail" wx:if="{{record.status === 'booked'}}">
-                                      <text class="tl-text" wx:if="{{record.deduct_days}}">预约 · 缩短套餐有效期{{record.deduct_days}}天</text>
+                                      <text class="tl-text" wx:if="{{record.deduct_days}}">预约 · 有效期减{{record.deduct_days}}天</text>
                                       <text class="tl-text" wx:else>预约 · 扣{{record.credits_deducted}}课时</text>
                                     </view>
                                     <view class="tl-detail" wx:if="{{record.status === 'cancelled'}}">
@@ -290,7 +290,7 @@
                                       <text class="tl-time">{{record.created_at_display}}</text>
                                     </view>
                                     <view class="tl-detail" wx:if="{{record.status === 'booked'}}">
-                                      <text class="tl-text" wx:if="{{record.deduct_days}}">预约 · 缩短套餐有效期{{record.deduct_days}}天<text wx:if="{{index === 0}}">（当前有效）</text></text>
+                                      <text class="tl-text" wx:if="{{record.deduct_days}}">预约 · 有效期减{{record.deduct_days}}天<text wx:if="{{index === 0}}">（当前有效）</text></text>
                                       <text class="tl-text" wx:else>预约 · 扣{{record.credits_deducted}}课时<text wx:if="{{index === 0}}">（当前有效）</text></text>
                                     </view>
                                     <view class="tl-detail" wx:if="{{record.status === 'cancelled'}}">
