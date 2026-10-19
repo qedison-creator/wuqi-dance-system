@@ -404,27 +404,24 @@ async function createPackageForUser(userId, storeId, packageData, operatorId, is
 
   const mainPkg = await UserPackage.create(packageRecord);
 
-  // 赠送课时：创建独立赠课卡（先扣赠送；待激活时随主套餐联动激活）
+  // 赠送课时：创建独立赠课卡（待激活时随主套餐联动激活）
+  // 赠课有效期语义：随主套餐到期；或主套餐激活(生效)后X个月内有效（生效日起算，超期自动失效）
   const bonusCredits = Number(bonus_credits || 0);
   if (bonusCredits > 0) {
+    // 兼容旧版前端：gift_validity_months>0 且未显式选 months 模式时，按「激活(生效)后X个月」处理
+    let mode = bonus_expire_mode === 'months' ? 'months' : 'follow_main';
+    let months = Number(bonus_months || 0);
+    if (mode === 'follow_main' && Number(gift_validity_months || 0) > 0) {
+      mode = 'months';
+      months = Number(gift_validity_months);
+    }
     await createBonusCardForMain(mainPkg, {
       bonusCredits,
-      bonusExpireMode: bonus_expire_mode === 'months' ? 'months' : 'follow_main',
-      bonusMonths: Number(bonus_months || 0),
+      bonusExpireMode: mode,
+      bonusMonths: months,
       operatorId,
       pending: usePendingMode,
     });
-  }
-
-  // 赠送有效期：直接生效→主卡 end_date 按自然月顺延；待激活→暂存 bonus_validity_months 激活时生效
-  const giftValidityMonths = Number(gift_validity_months || 0);
-  if (giftValidityMonths > 0) {
-    if (usePendingMode) {
-      mainPkg.bonus_validity_months = giftValidityMonths;
-    } else if (mainPkg.end_date) {
-      mainPkg.end_date = addNaturalMonths(mainPkg.end_date, giftValidityMonths);
-    }
-    await mainPkg.save();
   }
 
   return mainPkg;
@@ -535,7 +532,8 @@ async function updatePackageForUser(packageId, packageData, operatorId, isOldMem
 
 /**
  * 编辑预建档时同步主卡的赠送配置（内部辅助函数）
- * 锁定规则（决策6）：赠课卡已激活或已使用 → 拒绝改赠送配置；主卡已激活 → 赠送有效期锁定（走延长有效期）
+ * 赠课有效期语义：随主套餐到期；或主套餐激活(生效)后X个月内有效（超期自动失效）
+ * 锁定规则（决策6）：赠课卡已激活或已使用 → 拒绝改赠送配置
  * @param {Object} mainPkg 已保存的主卡 doc
  * @param {Object} packageData 前端提交的套餐数据
  * @param {string} operatorId 操作人
@@ -547,12 +545,28 @@ async function syncBonusConfigForMain(mainPkg, packageData, operatorId, usePendi
   const submittedCredits = bonus_credits === undefined ? undefined : Number(bonus_credits || 0);
   const submittedMode = bonus_expire_mode === 'months' ? 'months' : 'follow_main';
   const submittedMonths = Number(bonus_months || 0);
-  const submittedGiftValidity = gift_validity_months === undefined ? undefined : Number(gift_validity_months || 0);
 
   // 找主卡名下最早的赠课卡（录入时创建的那张；追加赠送产生的赠课卡不受预建档编辑管理）
   const bonusCards = (await UserPackage.find({ is_bonus: true, bonus_source_id: mainPkg._id }).sort({ created_at: 1 }))
     .filter(b => b.status !== 'voided');
   const bonusCard = bonusCards[0] || null;
+
+  // 旧数据兼容：历史版本「赠送有效期」暂存在主卡 bonus_validity_months（旧语义为顺延主卡服务期），
+  // 按新语义迁移为未激活赠课卡自身的 months 有效期，并清除主卡暂存字段（已激活主卡的字段为残留值，直接清除）
+  const legacyMonths = Number(mainPkg.bonus_validity_months || 0);
+  if (legacyMonths > 0) {
+    const unlockedPending = bonusCard && !bonusCard.is_activated
+      && bonusCard.remaining_credits >= bonusCard.total_credits
+      && bonusCard.bonus_expire_mode !== 'months';
+    if (unlockedPending) {
+      bonusCard.bonus_expire_mode = 'months';
+      bonusCard.duration_value = legacyMonths;
+      bonusCard.duration_unit = 'month';
+      await bonusCard.save();
+    }
+    mainPkg.bonus_validity_months = 0;
+    await mainPkg.save();
+  }
 
   if (bonusCard) {
     const locked = bonusCard.is_activated || bonusCard.remaining_credits < bonusCard.total_credits;
@@ -574,10 +588,13 @@ async function syncBonusConfigForMain(mainPkg, packageData, operatorId, usePendi
         bonusCard.total_credits = submittedCredits;
         bonusCard.original_total_credits = submittedCredits;
         bonusCard.remaining_credits = submittedCredits;
-        bonusCard.bonus_expire_mode = submittedMode;
-        if (submittedMode === 'months' && submittedMonths > 0) {
-          bonusCard.duration_value = submittedMonths;
-          bonusCard.duration_unit = 'month';
+        // 有效期模式仅在显式提交时覆盖，避免缺省 follow_main 误改 months 卡
+        if (bonus_expire_mode !== undefined) {
+          bonusCard.bonus_expire_mode = submittedMode;
+          if (submittedMode === 'months' && submittedMonths > 0) {
+            bonusCard.duration_value = submittedMonths;
+            bonusCard.duration_unit = 'month';
+          }
         }
         // 限制快照随本次编辑刷新（能走到这里说明未激活未使用）
         bonusCard.dance_style_limit = Array.isArray(dance_style_limit) ? dance_style_limit : [];
@@ -601,7 +618,10 @@ async function syncBonusConfigForMain(mainPkg, packageData, operatorId, usePendi
           bonusCard.start_date = mainPkg.start_date || null;
           bonusCard.auto_activate_at = null;
           if (bonusCard.bonus_expire_mode === 'months' && Number(bonusCard.duration_value) > 0) {
-            bonusCard.end_date = addNaturalMonths(mainPkg.start_date, bonusCard.duration_value);
+            // 激活日 + X 自然月；到期日不晚于主卡到期日（封顶兜底）
+            let end = addNaturalMonths(mainPkg.start_date, bonusCard.duration_value);
+            if (mainPkg.end_date && end > new Date(mainPkg.end_date)) end = new Date(mainPkg.end_date);
+            bonusCard.end_date = end;
           } else {
             bonusCard.end_date = mainPkg.end_date || null;
           }
@@ -622,19 +642,6 @@ async function syncBonusConfigForMain(mainPkg, packageData, operatorId, usePendi
     } else if (bonusCard && !bonusCard.is_activated && bonusCard.remaining_credits >= bonusCard.total_credits) {
       // 赠送清空 → 删除赠课卡（仅未激活未使用）
       await UserPackage.findByIdAndDelete(bonusCard._id);
-    }
-  }
-
-  // 赠送有效期：主卡已激活 → 锁定（走延长有效期）；待激活 → 可改
-  if (submittedGiftValidity !== undefined) {
-    if (mainPkg.is_activated || mainPkg.status === 'active') {
-      const current = Number(mainPkg.bonus_validity_months || 0);
-      if (submittedGiftValidity > 0 && submittedGiftValidity !== current) {
-        throw new Error('主套餐已激活，赠送有效期不可修改，请使用延长有效期功能');
-      }
-    } else {
-      mainPkg.bonus_validity_months = submittedGiftValidity;
-      await mainPkg.save();
     }
   }
 }

@@ -896,6 +896,11 @@
   font-size: 26rpx;
   color: #5C5246;
 }
+/* 选项置灰不可选（赠课「单独有效期」在主套餐时长不足时禁用） */
+.period-option.option-disabled {
+  opacity: 0.45;
+  color: #B0A69A;
+}
 
 .period-option.active {
   background: #C4663E;

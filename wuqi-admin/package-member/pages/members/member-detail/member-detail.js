@@ -76,7 +76,7 @@ Page({
     showAddBonusSection: false,   // 新增套餐弹窗：赠送折叠区展开状态
     // 追加赠送弹窗（仅使用中的主套餐）
     showBonusModal: false,
-    bonusForm: { bonus_credits: '', bonus_expire_mode: 'follow_main', bonus_months: '', main_end_display: '' },
+    bonusForm: { bonus_credits: '', bonus_expire_mode: 'follow_main', bonus_months: '', main_end_display: '', _bonusMaxMonths: 0, _bonusMonthsDisabled: true },
     bonusTargetId: '',
     // 编辑赠课弹窗（赠课卡专属：限制跟随主套餐，仅可纠错总次数/自定义月数模式的到期日）
     showBonusEditModal: false,
@@ -1177,6 +1177,12 @@ Page({
       total_credits: '',
       duration_value: '',
       duration_unit: 'month',
+      // 赠送（选填）：独立赠课卡（随主套餐到期 或 单独有效期）
+      bonus_credits: '',
+      bonus_expire_mode: 'follow_main',
+      bonus_months: '',
+      _bonusMaxMonths: 0,         // 单独有效期可用月数上限（动态，随主套餐时长刷新）
+      _bonusMonthsDisabled: true, // 主套餐时长不足2个月 → 单独有效期置灰（未填时长时默认禁用）
       limit_type: 'limited',
       limit_cycle: 'weekly',
       limit_value: '',
@@ -1317,11 +1323,30 @@ Page({
 
   onAddPackageDurationUnitChange(e) {
     this.setData({ 'addPackageForm.duration_unit': e.currentTarget.dataset.unit });
+    // 时长单位变化 → 重算赠课单独有效期的上限/禁用态
+    this._recalcAddBonusLimit();
   },
 
   onAddPackageInput(e) {
     const { field } = e.currentTarget.dataset;
     this.setData({ [`addPackageForm.${field}`]: e.detail.value });
+    // 主套餐时长变化 → 重算赠课单独有效期的上限/禁用态
+    if (field === 'duration_value') this._recalcAddBonusLimit();
+  },
+
+  // 重算新增套餐表单赠课「单独有效期」的可用上限与禁用态；禁用时自动切回随主套餐
+  _recalcAddBonusLimit() {
+    const f = this.data.addPackageForm;
+    const dv = Number(f.duration_value || 0);
+    const maxMonths = dv > 0 ? (f.duration_unit === 'day' ? Math.floor(dv / 30.44) : dv) : 0;
+    const updates = {
+      'addPackageForm._bonusMaxMonths': maxMonths,
+      'addPackageForm._bonusMonthsDisabled': maxMonths < 2
+    };
+    if (maxMonths < 2 && f.bonus_expire_mode === 'months') {
+      updates['addPackageForm.bonus_expire_mode'] = 'follow_main';
+    }
+    this.setData(updates);
   },
 
   // 切换可用时段开关（仅改本地表单状态，点确认保存才提交；开启时预选 20:30）
@@ -1389,6 +1414,10 @@ Page({
   onAddBonusModeChange(e) {
     const mode = e.currentTarget.dataset.mode;
     if (this.data.addPackageForm.bonus_expire_mode === mode) return;
+    if (mode === 'months' && this.data.addPackageForm._bonusMonthsDisabled) {
+      wx.showToast({ title: '主套餐有效期不足 2 个月，赠课仅支持随主套餐到期', icon: 'none' });
+      return;
+    }
     this.setData({ 'addPackageForm.bonus_expire_mode': mode });
   },
 
@@ -1397,6 +1426,14 @@ Page({
     const { id } = e.currentTarget.dataset;
     const pkg = this.data.packages.find(p => p._id === id);
     if (!pkg) return;
+    // 主套餐剩余有效期 → 「单独有效期」可用月数上限（剩余不足1个月禁用，口径与后端一致：30.44天/月向下取整）
+    let maxMonths = 0;
+    if (pkg.end_date) {
+      const nowDay = getBeijingDate();
+      const endDay = getBeijingDate(pkg.end_date);
+      const remainDays = Math.round((endDay - nowDay) / (1000 * 60 * 60 * 24));
+      maxMonths = remainDays > 0 ? Math.floor(remainDays / 30.44) : 0;
+    }
     this.setData({
       showBonusModal: true,
       bonusTargetId: id,
@@ -1404,7 +1441,9 @@ Page({
         bonus_credits: '',
         bonus_expire_mode: 'follow_main',
         bonus_months: '',
-        main_end_display: pkg.end_date_display || '无'
+        main_end_display: pkg.end_date_display || '无',
+        _bonusMaxMonths: maxMonths,
+        _bonusMonthsDisabled: maxMonths < 1
       }
     });
   },
@@ -1413,7 +1452,7 @@ Page({
     this.setData({
       showBonusModal: false,
       bonusTargetId: '',
-      bonusForm: { bonus_credits: '', bonus_expire_mode: 'follow_main', bonus_months: '', main_end_display: '' }
+      bonusForm: { bonus_credits: '', bonus_expire_mode: 'follow_main', bonus_months: '', main_end_display: '', _bonusMaxMonths: 0, _bonusMonthsDisabled: true }
     });
   },
 
@@ -1425,6 +1464,10 @@ Page({
   onBonusModeChange(e) {
     const mode = e.currentTarget.dataset.mode;
     if (this.data.bonusForm.bonus_expire_mode === mode) return;
+    if (mode === 'months' && this.data.bonusForm._bonusMonthsDisabled) {
+      wx.showToast({ title: '主套餐剩余不足 1 个月，赠课仅支持随主套餐到期', icon: 'none' });
+      return;
+    }
     this.setData({ 'bonusForm.bonus_expire_mode': mode });
   },
 
@@ -1437,8 +1480,14 @@ Page({
     }
     if (bonusForm.bonus_expire_mode === 'months') {
       const months = Number(bonusForm.bonus_months);
-      if (!bonusForm.bonus_months || isNaN(months) || months < 1 || months > 36) {
-        wx.showToast({ title: '赠课月数需在1-36之间', icon: 'none' });
+      if (!bonusForm.bonus_months || isNaN(months) || months < 1) {
+        wx.showToast({ title: '请输入赠课月数', icon: 'none' });
+        return;
+      }
+      // 上限=主套餐剩余有效期月数（动态，打开弹窗时按主卡到期日计算；0=无法确定，由后端兜底）
+      const maxMonths = bonusForm._bonusMaxMonths || 0;
+      if (maxMonths > 0 && months > maxMonths) {
+        wx.showToast({ title: `赠课有效期不能超过主套餐有效期（${maxMonths}个月）`, icon: 'none' });
         return;
       }
     }
@@ -1574,15 +1623,14 @@ Page({
     }
     if (bonusCredits > 0 && addPackageForm.bonus_expire_mode === 'months') {
       const bonusMonths = Number(addPackageForm.bonus_months || 0);
-      if (!(bonusMonths >= 1 && bonusMonths <= 36)) {
-        wx.showToast({ title: '赠课月数需在1-36之间', icon: 'none' });
+      if (!(bonusMonths >= 1)) {
+        wx.showToast({ title: '请输入赠课月数', icon: 'none' });
         return;
       }
-    }
-    if (addPackageForm.gift_validity_months) {
-      const giftMonths = Number(addPackageForm.gift_validity_months);
-      if (isNaN(giftMonths) || giftMonths < 0 || giftMonths > 36) {
-        wx.showToast({ title: '赠送有效期需在0-36之间', icon: 'none' });
+      // 上限=主套餐有效期月数（动态，_bonusMaxMonths 随时长实时刷新；0=无法确定，由后端兜底）
+      const maxMonths = addPackageForm._bonusMaxMonths || 0;
+      if (maxMonths > 0 && bonusMonths > maxMonths) {
+        wx.showToast({ title: `赠课有效期不能超过主套餐有效期（${maxMonths}个月）`, icon: 'none' });
         return;
       }
     }
@@ -1600,9 +1648,8 @@ Page({
         weekday_limit: this._weekdayFormValue(addPackageForm.weekday_limit),
         usable_before: addPackageForm.usable_before || '',
         usable_after: addPackageForm.usable_after || '',
-        // 赠送配置（选填）
+        // 赠送配置（选填）：独立赠课卡（随主套餐 或 单独有效期）
         bonus_credits: bonusCredits,
-        gift_validity_months: addPackageForm.gift_validity_months ? Number(addPackageForm.gift_validity_months) : 0,
         remark: addPackageForm.remark
       };
       if (bonusCredits > 0 && addPackageForm.bonus_expire_mode === 'months') {

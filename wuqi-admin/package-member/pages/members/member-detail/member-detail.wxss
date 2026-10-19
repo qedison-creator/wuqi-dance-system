@@ -972,6 +972,11 @@
   border-color: var(--color-primary);
   color: var(--color-primary);
 }
+/* 选项置灰不可选（赠课「单独有效期」在主套餐时长不足时禁用） */
+.type-option.option-disabled {
+  opacity: 0.45;
+  color: var(--text-quaternary, #B0A69A);
+}
 
 /* 附加门店开关 */
 .extra-store-list {
@@ -1842,6 +1847,14 @@
   background: #FBF8F4;
   border-radius: 12rpx;
 }
+.bonus-lock-tip {
+  font-size: 24rpx;
+  color: #C4663E;
+  background: #FBEDE6;
+  padding: 12rpx 16rpx;
+  border-radius: 8rpx;
+  margin-bottom: 16rpx;
+}
 .bonus-field-row {
   display: flex;
   align-items: center;
@@ -1967,6 +1980,11 @@
 .bonus-mode-option.active {
   border-color: var(--color-primary);
   background: var(--color-primary-bg);
+}
+/* 卡片置灰不可选（追加赠送：主套餐剩余不足1个月时禁用单独有效期） */
+.bonus-mode-option.option-disabled {
+  opacity: 0.55;
+  background: #F6F3F0;
 }
 .bonus-mode-radio {
   width: 28rpx;

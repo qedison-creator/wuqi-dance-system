@@ -176,7 +176,7 @@ module.exports = {
         <view class="package-actions" wx:if="{{item.canOperate}}">
           <view class="package-action-btn" wx:if="{{!item.is_bonus && item.is_activated && (item._displayStatus || item.status) === 'active'}}" data-id="{{item._id}}" catchtap="onOpenBonusModal"><text>课时赠送</text></view>
           <view class="package-action-btn" data-id="{{item._id}}" bindtap="onEditPackage"><text>变更</text></view>
-          <view class="package-action-btn" wx:if="{{item.canOperate && item.is_activated && (item._displayStatus || item.status) === 'active' && (!item.is_bonus || item.bonus_expire_mode === 'months')}}" data-id="{{item._id}}" data-end="{{item.end_date_display}}" catchtap="onExtendPackage"><text>延长</text></view>
+          <view class="package-action-btn" wx:if="{{item.canOperate && item.is_activated && (item._displayStatus || item.status) === 'active' && !item.is_bonus}}" data-id="{{item._id}}" data-end="{{item.end_date_display}}" catchtap="onExtendPackage"><text>延长</text></view>
           <view class="package-action-btn danger" data-id="{{item._id}}" bindtap="onDeletePackage"><text>删除</text></view>
         </view>
       </view>
@@ -518,11 +518,11 @@ module.exports = {
               <text class="bonus-mode-desc">与主套餐同天到期（至 {{bonusForm.main_end_display}}）</text>
             </view>
           </view>
-          <view class="bonus-mode-option {{bonusForm.bonus_expire_mode === 'months' ? 'active' : ''}}" data-mode="months" bindtap="onBonusModeChange">
+          <view class="bonus-mode-option {{bonusForm.bonus_expire_mode === 'months' ? 'active' : ''}} {{bonusForm._bonusMonthsDisabled ? 'option-disabled' : ''}}" data-mode="months" bindtap="onBonusModeChange">
             <view class="bonus-mode-radio"></view>
             <view class="bonus-mode-texts">
-              <text class="bonus-mode-title">自定义月数</text>
-              <text class="bonus-mode-desc">自赠送之日起 N 个月后到期（1-36 个月）</text>
+              <text class="bonus-mode-title">单独有效期</text>
+              <text class="bonus-mode-desc">{{bonusForm._bonusMonthsDisabled ? '主套餐剩余不足 1 个月，仅支持随主套餐到期' : '设置当日起X个月内到期，不超主套餐（最多 ' + bonusForm._bonusMaxMonths + '个月）'}}</text>
             </view>
           </view>
         </view>
@@ -530,7 +530,7 @@ module.exports = {
 
       <view class="form-group" wx:if="{{bonusForm.bonus_expire_mode === 'months'}}">
         <text class="form-label">赠课月数 *</text>
-        <input class="input-field" type="number" placeholder="1-36" value="{{bonusForm.bonus_months}}" data-field="bonus_months" bindinput="onBonusFormInput" />
+        <input class="input-field" type="number" placeholder="请输入月数" value="{{bonusForm.bonus_months}}" data-field="bonus_months" bindinput="onBonusFormInput" />
       </view>
 
       <view class="modal-actions">
@@ -561,7 +561,7 @@ module.exports = {
       <!-- 随主套餐模式：有效期只读展示 -->
       <view class="form-group" wx:if="{{bonusEditInfo.mode === 'follow_main'}}">
         <text class="form-label">到期日期</text>
-        <view class="bonus-edit-readonly">随主套餐到期（{{bonusEditInfo.main_end}}），主套餐顺延自动同步</view>
+        <view class="bonus-edit-readonly">随主套餐到期（{{bonusEditInfo.main_end}}）</view>
       </view>
 
       <!-- 自定义月数模式·已激活：直接改到期日 -->
@@ -575,8 +575,8 @@ module.exports = {
       <!-- 自定义月数模式·未激活：改月数，激活时自激活日起算 -->
       <view class="form-group" wx:if="{{bonusEditInfo.mode === 'months' && !bonusEditInfo.is_activated}}">
         <text class="form-label">赠课月数 *</text>
-        <input class="input-field" type="number" placeholder="1-36" value="{{bonusEditForm.duration_value}}" data-field="duration_value" bindinput="onBonusEditInput" />
-        <text class="bonus-edit-hint">激活时自激活日起算 N 个月</text>
+        <input class="input-field" type="number" placeholder="请输入月数" value="{{bonusEditForm.duration_value}}" data-field="duration_value" bindinput="onBonusEditInput" />
+        <text class="bonus-edit-hint">自激活日起算</text>
       </view>
 
       <view class="form-group">
@@ -758,8 +758,9 @@ module.exports = {
         <view class="bonus-toggle" bindtap="onToggleAddBonusSection">
           <text class="form-label bonus-toggle-label">赠送（选填）</text>
           <view class="bonus-toggle-right">
-            <text class="bonus-toggle-summary" wx:if="{{addPackageForm.bonus_credits > 0 || addPackageForm.gift_validity_months > 0}}">{{addPackageForm.bonus_credits > 0 ? '赠' + addPackageForm.bonus_credits + '节' : ''}}{{addPackageForm.bonus_credits > 0 && addPackageForm.gift_validity_months > 0 ? ' · ' : ''}}{{addPackageForm.gift_validity_months > 0 ? '有效期+' + addPackageForm.gift_validity_months + '个月' : ''}}</text>
-            <text class="bonus-toggle-summary bonus-toggle-empty" wx:else>不赠送</text>
+            <text class="bonus-toggle-summary" wx:if="{{addPackageForm.bonus_credits > 0}}">赠{{addPackageForm.bonus_credits}}节</text>
+            <text class="bonus-toggle-summary" wx:if="{{addPackageForm.bonus_credits > 0 && addPackageForm.bonus_expire_mode === 'months' && addPackageForm.bonus_months > 0}}"> · {{addPackageForm.bonus_months}}个月</text>
+            <text class="bonus-toggle-summary bonus-toggle-empty" wx:if="{{!(addPackageForm.bonus_credits > 0)}}">不赠送</text>
             <text class="bonus-toggle-arrow {{showAddBonusSection ? 'open' : ''}}">›</text>
           </view>
         </view>
@@ -773,21 +774,17 @@ module.exports = {
             <view class="bonus-field-row">
               <text class="bonus-field-label">赠课有效期</text>
               <view class="package-type-selector bonus-mode-picker">
-                <view class="type-option {{addPackageForm.bonus_expire_mode !== 'months' ? 'active' : ''}}" data-mode="follow_main" bindtap="onAddBonusModeChange">随主套餐</view>
-                <view class="type-option {{addPackageForm.bonus_expire_mode === 'months' ? 'active' : ''}}" data-mode="months" bindtap="onAddBonusModeChange">{{addPackageForm.activate_mode !== 'active' ? '激活后' : '生效后'}}N个月</view>
+                <view class="type-option {{addPackageForm.bonus_expire_mode !== 'months' ? 'active' : ''}}" data-mode="follow_main" bindtap="onAddBonusModeChange">随主套餐到期</view>
+                <view class="type-option {{addPackageForm.bonus_expire_mode === 'months' ? 'active' : ''}} {{addPackageForm._bonusMonthsDisabled ? 'option-disabled' : ''}}" data-mode="months" bindtap="onAddBonusModeChange">单独有效期</view>
               </view>
             </view>
+            <text class="weekday-chip-tip" wx:if="{{addPackageForm._bonusMonthsDisabled}}">主套餐有效期不足 2 个月，赠课仅支持随主套餐到期</text>
             <view class="bonus-field-row" wx:if="{{addPackageForm.bonus_expire_mode === 'months'}}">
               <text class="bonus-field-label">赠课月数</text>
-              <input class="input-field bonus-input" type="number" placeholder="0" placeholder-class="input-placeholder" value="{{addPackageForm.bonus_months}}" data-field="bonus_months" bindinput="onAddPackageInput" />
-              <text class="bonus-field-unit">个月（1-36）</text>
+              <input class="input-field bonus-input" type="number" placeholder="请输入月数" placeholder-class="input-placeholder" value="{{addPackageForm.bonus_months}}" data-field="bonus_months" bindinput="onAddPackageInput" />
+              <text class="bonus-field-unit">{{addPackageForm._bonusMaxMonths > 0 ? '个月（自套餐生效日起算，最多 ' + addPackageForm._bonusMaxMonths + '个月）' : '个月（自套餐生效日起算，不超过主套餐有效期）'}}</text>
             </view>
           </block>
-          <view class="bonus-field-row">
-            <text class="bonus-field-label">赠送有效期</text>
-            <input class="input-field bonus-input" type="number" placeholder="0" placeholder-class="input-placeholder" value="{{addPackageForm.gift_validity_months}}" data-field="gift_validity_months" bindinput="onAddPackageInput" />
-            <text class="bonus-field-unit">个月（主卡按自然月顺延，0=不赠送）</text>
-          </view>
         </view>
       </view>
 

@@ -55,7 +55,31 @@ function addNaturalMonths(date, months) {
 exports.addNaturalMonths = addNaturalMonths;
 
 /**
+ * 估算主套餐有效期月数（用于赠课有效期封顶校验）
+ * 优先按起止日期实测，无起止时按时长字段换算；均无法确定返回 0（不校验，仅靠到期日封顶兜底）
+ * 口径：30.44 天/月向下取整（与前端动态上限一致）
+ * @param {Object} mainPkg 主卡 doc
+ * @returns {number} 主套餐月数，无法确定时为 0
+ */
+function calcMainDurationMonths(mainPkg) {
+  if (!mainPkg) return 0;
+  if (mainPkg.start_date && mainPkg.end_date) {
+    const days = (new Date(mainPkg.end_date) - new Date(mainPkg.start_date)) / (1000 * 60 * 60 * 24);
+    return days > 0 ? Math.max(1, Math.floor(days / 30.44)) : 0;
+  }
+  const v = Number(mainPkg.duration_value || 0);
+  if (v > 0) {
+    if (mainPkg.duration_unit === 'day') return Math.max(1, Math.floor(v / 30.44));
+    if (mainPkg.duration_unit === 'month') return v;
+  }
+  return 0;
+}
+exports.calcMainDurationMonths = calcMainDurationMonths;
+
+/**
  * 为主卡创建赠课卡（方案B独立赠送卡：固定 count_card、限制/门店快照自主卡、预约时先扣赠送）
+ * 赠课有效期语义：随主套餐到期；或主套餐激活(生效)后X个月内有效（超期自动失效）
+ * months 模式的月数不能超过主套餐有效期（录入时校验，到期日仍按主卡到期日封顶兜底）
  * @param {Object} mainPkg 主卡 doc（需已落库）
  * @param {Object} opts { bonusCredits, bonusExpireMode('follow_main'|'months'), bonusMonths, operatorId, pending, monthsFrom('main_start'|'now') }
  * @returns {Object|null} 赠课卡（bonusCredits<=0 时返回 null）
@@ -67,6 +91,20 @@ async function createBonusCardForMain(mainPkg, opts = {}) {
   const bonusMonths = Number(opts.bonusMonths || 0);
   const pending = !!opts.pending;
   const now = new Date();
+  // 录入校验：单独有效期月数不能超过主套餐有效期
+  //   录入/预建档场景：按主套餐总时长校验；追加赠送（monthsFrom='now'）：按主卡剩余有效期校验
+  if (mode === 'months' && bonusMonths > 0) {
+    let limitMonths;
+    if (opts.monthsFrom === 'now' && mainPkg.end_date) {
+      const remainDays = (new Date(mainPkg.end_date) - now) / (1000 * 60 * 60 * 24);
+      limitMonths = remainDays > 0 ? Math.floor(remainDays / 30.44) : 0;
+    } else {
+      limitMonths = calcMainDurationMonths(mainPkg);
+    }
+    if (limitMonths > 0 && bonusMonths > limitMonths) {
+      throw new Error(`赠课有效期不能超过主套餐有效期（${limitMonths}个月）`);
+    }
+  }
   const mainName = (mainPkg.package_snapshot && mainPkg.package_snapshot.name) || '';
 
   const record = {
@@ -115,11 +153,13 @@ async function createBonusCardForMain(mainPkg, opts = {}) {
     record.start_date = startMoment.startOf('day').toDate();
     record.auto_activate_at = null;
     if (mode === 'months' && bonusMonths > 0) {
-      // 生效后X个月：主卡起始日（或赠送时刻）+ X 自然月
+      // 生效后X个月：主卡起始日（或赠送时刻）+ X 自然月；到期日不晚于主卡到期日（封顶兜底）
       const baseMoment = opts.monthsFrom === 'now' ? dayjs(now).tz(BEIJING_TZ) : startMoment;
       const { end_date } = calculateValidityDates(baseMoment, bonusMonths, 'month');
-      record.end_date = end_date;
-      record.original_end_date = new Date(end_date);
+      let end = end_date;
+      if (mainPkg.end_date && end > new Date(mainPkg.end_date)) end = new Date(mainPkg.end_date);
+      record.end_date = end;
+      record.original_end_date = new Date(end);
       record.duration_value = bonusMonths;
       record.duration_unit = 'month';
     } else {
@@ -149,6 +189,21 @@ async function activateLinkedBonusCards(mainPkg, options = {}) {
   }).sort({ created_at: 1 });
   if (bonusCards.length === 0) return [];
 
+  // 旧数据兼容：历史版本「赠送有效期」暂存在主卡 bonus_validity_months（旧语义为顺延主卡服务期），
+  // 按新语义迁移为赠课卡自身的 months 有效期（主套餐激活后X个月内有效），并清除主卡暂存字段
+  const legacyMonths = Number(mainPkg.bonus_validity_months || 0);
+  if (legacyMonths > 0) {
+    const legacyTarget = bonusCards.find(b => b.bonus_expire_mode !== 'months');
+    if (legacyTarget) {
+      legacyTarget.bonus_expire_mode = 'months';
+      legacyTarget.duration_value = legacyMonths;
+      legacyTarget.duration_unit = 'month';
+      console.log(`[Package] 旧版赠送有效期已迁移为赠课卡有效期: 主卡=${mainPkg._id}, 赠课卡=${legacyTarget._id}, ${legacyMonths}个月`);
+    }
+    mainPkg.bonus_validity_months = 0;
+    await mainPkg.save();
+  }
+
   const activated = [];
   for (const bonus of bonusCards) {
     const now = new Date();
@@ -156,12 +211,14 @@ async function activateLinkedBonusCards(mainPkg, options = {}) {
     bonus.activated_at = now;
     bonus.status = 'active';
     if (bonus.bonus_expire_mode === 'months' && bonus.duration_value) {
-      // 激活时刻 + X 自然月
+      // 激活时刻 + X 自然月；到期日不晚于主卡到期日（封顶兜底）
       const startMoment = dayjs(now).tz(BEIJING_TZ);
       bonus.start_date = startMoment.startOf('day').toDate();
       const { end_date } = calculateValidityDates(startMoment, bonus.duration_value, 'month');
-      bonus.end_date = end_date;
-      bonus.original_end_date = new Date(end_date);
+      let end = end_date;
+      if (mainPkg.end_date && end > new Date(mainPkg.end_date)) end = new Date(mainPkg.end_date);
+      bonus.end_date = end;
+      bonus.original_end_date = new Date(end);
     } else {
       // 随主套餐：复制主卡起止
       bonus.start_date = mainPkg.start_date || null;
@@ -782,20 +839,23 @@ exports.createPackage = async (data, operatorId) => {
   });
 
   // 赠送课时：创建独立赠课卡（pending，随主套餐联动激活）
+  // 赠课有效期语义：随主套餐到期；或主套餐激活后X个月内有效（激活日起算，超期自动失效）
   const bonusCredits = Number(bonus_credits || 0);
   if (bonusCredits > 0) {
+    // 兼容旧版前端：gift_validity_months>0 且未显式选 months 模式时，按「激活后X个月」处理
+    let mode = bonus_expire_mode === 'months' ? 'months' : 'follow_main';
+    let months = Number(bonus_months || 0);
+    if (mode === 'follow_main' && Number(gift_validity_months || 0) > 0) {
+      mode = 'months';
+      months = Number(gift_validity_months);
+    }
     await createBonusCardForMain(userPackage, {
       bonusCredits,
-      bonusExpireMode: bonus_expire_mode === 'months' ? 'months' : 'follow_main',
-      bonusMonths: Number(bonus_months || 0),
+      bonusExpireMode: mode,
+      bonusMonths: months,
       operatorId,
       pending: true,
     });
-  }
-  // 赠送有效期：暂存到主卡，激活时按自然月并入 end_date
-  if (Number(gift_validity_months || 0) > 0) {
-    userPackage.bonus_validity_months = Number(gift_validity_months);
-    await userPackage.save();
   }
 
   // 记录操作日志
@@ -865,12 +925,6 @@ exports.activatePackageById = async (packageId, userId, options = {}) => {
       const { end_date } = calculateValidityDates(startMoment, 1, 'year');
       pkg.end_date = end_date;
       pkg.original_end_date = new Date(end_date);
-    }
-
-    // 赠送有效期：按自然月并入主卡有效期（录入时暂存 bonus_validity_months，激活时生效）
-    if (Number(pkg.bonus_validity_months || 0) > 0) {
-      pkg.end_date = addNaturalMonths(pkg.end_date, pkg.bonus_validity_months);
-      pkg.original_end_date = new Date(pkg.end_date);
     }
 
     await pkg.save();
@@ -996,12 +1050,6 @@ exports.checkAutoActivation = async () => {
       const { end_date } = calculateValidityDates(startMoment, 1, 'year');
       pkg.end_date = end_date;
       pkg.original_end_date = new Date(end_date);
-    }
-
-    // 赠送有效期：按自然月并入主卡有效期
-    if (Number(pkg.bonus_validity_months || 0) > 0) {
-      pkg.end_date = addNaturalMonths(pkg.end_date, pkg.bonus_validity_months);
-      pkg.original_end_date = new Date(pkg.end_date);
     }
 
     await pkg.save();
@@ -1217,6 +1265,28 @@ exports.updatePackage = async (id, data, operatorId = null) => {
 
   await userPackage.save();
 
+  // 「随主套餐」赠课卡跟随主卡当前起止（含本次编辑延长/缩短结果），与预建档编辑的同步逻辑保持一致；
+  // months（单独有效期）模式的赠课卡不受主卡编辑影响
+  if (!userPackage.is_bonus) {
+    const linkedBonuses = await UserPackage.find({
+      is_bonus: true,
+      bonus_source_id: userPackage._id,
+      status: 'active',
+      bonus_expire_mode: { $ne: 'months' },
+    });
+    for (const bonus of linkedBonuses) {
+      bonus.start_date = userPackage.start_date || null;
+      bonus.end_date = userPackage.end_date || null;
+      bonus.original_end_date = userPackage.original_end_date || userPackage.end_date || null;
+      bonus.duration_value = userPackage.duration_value || null;
+      bonus.duration_unit = userPackage.duration_unit || 'month';
+      await bonus.save();
+    }
+    if (linkedBonuses.length > 0) {
+      console.log(`[Package] 主卡(${userPackage._id})编辑有效期，联动更新随主套餐赠课卡 ${linkedBonuses.length} 张`);
+    }
+  }
+
   // 记录套餐变更历史（仅当存在字段变更时）
   if (changes.length > 0) {
     try {
@@ -1388,7 +1458,8 @@ exports.addBonusToPackage = async (mainId, data, operatorId) => {
   if (!(bonusCredits >= 1 && bonusCredits <= 99)) throw new Error('赠送课时数需在1-99之间');
   const mode = data.bonus_expire_mode === 'months' ? 'months' : 'follow_main';
   const bonusMonths = Number(data.bonus_months || 0);
-  if (mode === 'months' && !(bonusMonths >= 1 && bonusMonths <= 36)) throw new Error('赠送月数需在1-36之间');
+  if (mode === 'months' && !(bonusMonths >= 1)) throw new Error('请输入赠课月数');
+  // 「不超主套餐剩余有效期」由 createBonusCardForMain 内部校验（monthsFrom='now' 走剩余月数口径）+ 到期日封顶兜底
 
   const bonus = await createBonusCardForMain(mainPkg, {
     bonusCredits,
@@ -1981,6 +2052,8 @@ exports.extendPackage = async (packageId, extendDays, operatorId, operatorName, 
   if (!userPackage) throw new Error('套餐不存在');
   if (!userPackage.is_activated) throw new Error('未激活的套餐不能延长');
   if (userPackage.status === 'expired' || userPackage.status === 'exhausted') throw new Error('已过期或已用完的套餐不能延长');
+  // 赠课卡不支持延长：随主套餐模式由主卡延长自动同步，单独有效期模式到期自动失效
+  if (userPackage.is_bonus) throw new Error('赠课卡不支持延长');
 
   // 延长单位与数值：month 按自然月相加（如 3/15 → 4/15），day 按自然日相加。
   // 不能把「1个月」折算成 30 天，否则跨月会少算天数（3/15 + 30天 = 4/14，正确应为 4/15）。

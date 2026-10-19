@@ -508,13 +508,14 @@ module.exports = {
             <text class="weekday-chip-tip">两个都开启时，时段前之前、时段后之后的课可用，介于两者之间的课不可用</text>
           </view>
 
-          <!-- 赠送（选填）：独立赠课卡 + 主卡赠送有效期，默认折叠 -->
+          <!-- 赠送（选填）：独立赠课卡（随主套餐到期 或 单独有效期），默认折叠 -->
           <view class="form-group" wx:if="{{pkg.package_type}}">
             <view class="bonus-toggle" data-index="{{pkgIdx}}" bindtap="onToggleBonusSection">
               <text class="form-label bonus-toggle-label">赠送（选填）</text>
               <view class="bonus-toggle-right">
-                <text class="bonus-toggle-summary" wx:if="{{pkg.bonus_credits > 0 || pkg.gift_validity_months > 0}}">{{pkg.bonus_credits > 0 ? '赠' + pkg.bonus_credits + '节' : ''}}{{pkg.bonus_credits > 0 && pkg.gift_validity_months > 0 ? ' · ' : ''}}{{pkg.gift_validity_months > 0 ? '有效期+' + pkg.gift_validity_months + '个月' : ''}}</text>
-                <text class="bonus-toggle-summary bonus-toggle-empty" wx:else>不赠送</text>
+                <text class="bonus-toggle-summary" wx:if="{{pkg.bonus_credits > 0}}">赠{{pkg.bonus_credits}}节</text>
+                <text class="bonus-toggle-summary" wx:if="{{pkg.bonus_credits > 0 && pkg.bonus_expire_mode === 'months' && pkg.bonus_months > 0}}"> · {{pkg.bonus_months}}个月</text>
+                <text class="bonus-toggle-summary bonus-toggle-empty" wx:if="{{!(pkg.bonus_credits > 0)}}">不赠送</text>
                 <text class="bonus-toggle-arrow {{pkg._showBonus ? 'open' : ''}}">›</text>
               </view>
             </view>
@@ -530,21 +531,17 @@ module.exports = {
                   <view class="bonus-field-row">
                     <text class="bonus-field-label">赠课有效期</text>
                     <view class="period-picker bonus-mode-picker">
-                      <view class="period-option {{pkg.bonus_expire_mode !== 'months' ? 'active' : ''}}" data-mode="follow_main" data-index="{{pkgIdx}}" bindtap="onBonusModeChange">随主套餐</view>
-                      <view class="period-option {{pkg.bonus_expire_mode === 'months' ? 'active' : ''}}" data-mode="months" data-index="{{pkgIdx}}" bindtap="onBonusModeChange">{{(form.member_identity === 'new' || pkg.activate_mode === 'pending') ? '激活后' : '生效后'}}N个月</view>
+                      <view class="period-option {{pkg.bonus_expire_mode !== 'months' ? 'active' : ''}}" data-mode="follow_main" data-index="{{pkgIdx}}" bindtap="onBonusModeChange">随主套餐到期</view>
+                      <view class="period-option {{pkg.bonus_expire_mode === 'months' ? 'active' : ''}} {{pkg._bonusMonthsDisabled ? 'option-disabled' : ''}}" data-mode="months" data-index="{{pkgIdx}}" bindtap="onBonusModeChange">单独有效期</view>
                     </view>
                   </view>
+                  <text class="weekday-chip-tip" wx:if="{{pkg._bonusMonthsDisabled}}">主套餐有效期不足 2 个月，赠课仅支持随主套餐到期</text>
                   <view class="bonus-field-row" wx:if="{{pkg.bonus_expire_mode === 'months'}}">
                     <text class="bonus-field-label">赠课月数</text>
-                    <input class="input-field bonus-input" type="number" placeholder="0" placeholder-class="input-placeholder" value="{{pkg.bonus_months}}" disabled="{{pkg._bonusLocked}}" bindinput="onFormInput" data-field="bonus_months" data-index="{{pkgIdx}}" />
-                    <text class="bonus-field-unit">个月（1-36）</text>
+                    <input class="input-field bonus-input" type="number" placeholder="请输入月数" placeholder-class="input-placeholder" value="{{pkg.bonus_months}}" disabled="{{pkg._bonusLocked}}" bindinput="onFormInput" data-field="bonus_months" data-index="{{pkgIdx}}" />
+                    <text class="bonus-field-unit">{{pkg._bonusMaxMonths > 0 ? '个月（自套餐生效日起算，最多 ' + pkg._bonusMaxMonths + '个月）' : '个月（自套餐生效日起算，不超过主套餐有效期）'}}</text>
                   </view>
                 </block>
-                <view class="bonus-field-row">
-                  <text class="bonus-field-label">赠送有效期</text>
-                  <input class="input-field bonus-input" type="number" placeholder="0" placeholder-class="input-placeholder" value="{{pkg.gift_validity_months}}" disabled="{{pkg._bonusLocked}}" bindinput="onFormInput" data-field="gift_validity_months" data-index="{{pkgIdx}}" />
-                  <text class="bonus-field-unit">个月（主卡按自然月顺延，0=不赠送）</text>
-                </view>
               </block>
             </view>
           </view>
