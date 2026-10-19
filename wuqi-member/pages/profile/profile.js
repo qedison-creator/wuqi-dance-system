@@ -56,6 +56,7 @@ Page({
     qrDynamicToken: '',
     qrCodeUrl: '',
     qrCodeToken: '',
+    qrTempImage: '',
     qrExpireSeconds: 60,
     qrCountdown: 60,
     showCheckInSuccess: false,
@@ -149,9 +150,17 @@ Page({
   },
 
   onShow() {
+    // 皮肤状态（纯前端偏好，仅影响外观）
+    const skin = require('../../utils/skin.js');
     if (typeof this.getTabBar === 'function' && this.getTabBar()) {
-      this.getTabBar().setData({ selected: 2, active: 'profile' });
+      this.getTabBar().setData({ selected: 2, active: 'profile', skinId: skin.getSkinId() });
     }
+    this.setData(skin.pageState());
+    // 自绘标题栏：状态栏高度（与场次预约页取值方式一致，保证标题栏与内容位置完全对齐）
+    const win = wx.getWindowInfo();
+    this.setData({ statusBarHeight: win.statusBarHeight || 44 });
+    // 最近一课（paper/volt 个人中心快捷卡，复用我的记录接口，仅展示；内部有去重与静默失败）
+    if (skin.getSkinId() !== 'classic') this._loadLastSession();
     this.checkLoginStatus();
     // 初始化时启用下拉刷新
 
@@ -1000,9 +1009,13 @@ Page({
       pkg._timeLimitText = (tb && ta) ? (tb + '前、' + ta + '后') : (tb ? (tb + '前') : (ta ? (ta + '后') : ''));
       pkg._timeLimitBoth = !!(tb && ta);  // 双边界是否同时开启（决定时段标签是否单独一行）
 
-      // 套餐类型标签（简短版用于标签）
-      pkg._typeLabel = pkg.package_type === 'time_card' ? '时间卡' : '次卡';
-      
+      // 套餐类型标签（简短版用于标签）；赠课卡单点覆盖：classic 标签与票券类型行都用它
+      pkg._typeLabel = pkg.is_bonus ? '赠课' : (pkg.package_type === 'time_card' ? '时间卡' : '次卡');
+      pkg._isBonus = !!pkg.is_bonus;
+      pkg._isUnlimitedCount = pkg.is_bonus && !(pkg.total_credits > 0);  // 赠课卡总次数异常时兜底
+      pkg._sourceText = pkg.is_bonus ? (pkg._sourceText || '') : '';  // 后端附加的来源主套餐文本
+      pkg._pendingHint = '';
+
       // 状态文案（情绪价值表达，无emoji）      // 动态修正：已激活但有效期已过的，标记为已过期
       var isExpired = pkg.is_activated && pkg.end_date && new Date() > new Date(pkg.end_date);
       if (pkg.is_suspended) {
@@ -1013,6 +1026,7 @@ Page({
         pkg._statusText = '畅享中';
       } else if (pkg.status === 'pending') {
         pkg._statusText = '静待开启';
+        if (pkg.is_bonus) pkg._pendingHint = '随主套餐激活后生效';
       } else {
         pkg._statusText = '已满员';
       }
@@ -1303,6 +1317,42 @@ Page({
     wx.navigateTo({ url: '/package-sub/pages/subscribe-settings/subscribe-settings' });
   },
 
+  // VOLT 皮肤：最近一课数据（复用我的记录接口，仅展示）
+  _loadLastSession() {
+    if (this.data.lastSession) return;
+    const request = require('../../utils/request.js').request;
+    request({ url: '/bookings/my?type=completed&pageSize=50', silent: true }).then(res => {
+      const list = res.data && res.data.list ? res.data.list : [];
+      if (!list.length) { this.setData({ lastSession: null }); return; }
+      const b = list[0];
+      const sch = b.schedule_id && typeof b.schedule_id === 'object' ? b.schedule_id : {};
+      const name = b.course_name || sch.course_name || '课程';
+      const date = b.date || sch.date || '';
+      const time = b.start_time || sch.start_time || '';
+      const coach = (b.coach_id && b.coach_id.name) || (sch.coach_id && sch.coach_id.name) || '';
+      const room = b.classroom || sch.classroom || '';
+      const d = date ? new Date(String(date).replace(/-/g, '/')) : null;
+      const wd = d ? '周' + '日一二三四五六'.charAt(d.getDay()) : '';
+      this.setData({ lastSession: { name: name, meta: [date, wd, time, coach, room].filter(Boolean).join(' · '), index: list.length } });
+    }).catch(() => { /* 静默 */ });
+  },
+
+  // 我的套餐：跳转套餐列表页（paper/volt 菜单入口）
+  onGoPackages() {
+    if (!requireLogin(() => this._goLogin())) return;
+    wx.navigateTo({ url: '/package-sub/pages/package-detail/package-detail' });
+  },
+
+  // 此间画面：画廊（paper/volt 菜单入口）
+  onGoGallery() {
+    wx.navigateTo({ url: '/package-sub/pages/gallery/gallery' });
+  },
+
+  // 皮肤外观：纯前端偏好切换，不涉及任何业务数据
+  onSkinSettings() {
+    wx.navigateTo({ url: '/package-sub/pages/skin-settings/skin-settings' });
+  },
+
   onMyBookings() {
     if (!requireLogin(() => this._goLogin())) return;
     wx.navigateTo({ url: '/package-sub/pages/records/records' });
@@ -1363,7 +1413,7 @@ Page({
       return;
     }
     const windowInfo = wx.getSystemInfoSync();
-    wx.createSelectorQuery().in(this).select('.hero-exemption').boundingClientRect(rect => {
+    wx.createSelectorQuery().in(this).select('.exemption-anchor').boundingClientRect(rect => {
       if (!rect) return;
       this.setData({
         showExemptionTip: true,
@@ -1754,6 +1804,16 @@ Page({
             background: '#ffffff',
             foreground: '#2A2122'
           });
+          // VOLT/PAPER 弹窗不内嵌 canvas（原生画布在该布局跑偏）：导出临时图片由 image 显示
+          if (this.data.skinId !== 'classic') {
+            setTimeout(() => {
+              wx.canvasToTempFilePath({
+                canvas: canvas,
+                success: (res) => { this.setData({ qrTempImage: res.tempFilePath }); },
+                fail: () => { /* 失败时保持 loading，下次 59s 刷新重试 */ }
+              });
+            }, 120);
+          }
         });
     });
   },

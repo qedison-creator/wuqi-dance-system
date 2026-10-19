@@ -1,0 +1,15 @@
+/* subscribe-settings 皮肤覆盖（纸上舞台 / VOLT）—— 由 subscribe-settings.wxss 通过 @import 引入 */
+
+/* 订阅设置：纸上舞台 / VOLT 完整覆盖 */
+.skin-root.skin-paper.page { background: #F5F1E8; }
+.skin-paper .subscribe-all-card { background: #FCFAF4; border: 2rpx solid #DFD6C2; border-radius: 8rpx; box-shadow: none; }
+.skin-paper .subscribe-all-card .sa-text { color: var(--sk-ink); font-family: var(--sk-serif); }
+.skin-paper .subscribe-all-card .sa-sub { color: var(--sk-sub); }
+.skin-paper .setting-status { color: #B93A26; font-family: 'Noto Serif SC', serif; }
+.skin-paper .setting-status-btn { background: #B93A26; color: #FCF7EE; border-radius: 6rpx; font-family: 'Noto Serif SC', serif; }
+.skin-root.skin-volt.page { background: #F2F1ED; }
+.skin-volt .subscribe-all-card { background: #FFFFFF; border: 3rpx solid #111310; border-radius: 24rpx; box-shadow: 5rpx 5rpx 0 #111310; }
+.skin-volt .subscribe-all-card .sa-text { color: var(--sk-ink); font-weight: 800; }
+.skin-volt .subscribe-all-card .sa-sub { color: var(--sk-sub); }
+.skin-volt .setting-status { color: #111310; font-weight: 800; }
+.skin-volt .setting-status-btn { background: #111310; color: #D7FF3B; border-radius: 999rpx; font-weight: 800; }

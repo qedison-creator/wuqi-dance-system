@@ -207,3 +207,5 @@
   font-size: 24rpx;
   color: #CCC0C0;
 }
+
+@import "./package-detail.skin.wxss";

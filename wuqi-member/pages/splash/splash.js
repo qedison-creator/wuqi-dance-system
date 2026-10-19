@@ -1,14 +1,37 @@
+// 启动页：随皮肤的品牌开场（paper 纸底朱砂章 / volt 墨底青柠章 / classic 白底）
 const app = getApp();
+const CRLF = String.fromCharCode(13) + String.fromCharCode(10);
 
 Page({
   data: {
-    ready: false
+    ready: false,
+    skinId: 'classic',
+    sp: {}
   },
 
   onLoad() {
-    // 等待 app.js 初始化完成（getUserInfo + getStoreList）后立即跳转首页
-    // 不再使用固定时长的假进度动画，避免无谓等待
+    // 读取皮肤偏好并应用启动页配色（纯前端偏好）
+    let skinId = 'classic';
+    try {
+      const v = wx.getStorageSync('member_skin_id');
+      skinId = (v === 'paper' || v === 'volt') ? v : 'classic';
+    } catch (e) { /* 忽略 */ }
+    const sp = this.splashStyle(skinId);
+    this.setData({ skinId: skinId, sp: sp });
+    if (skinId === 'paper') {
+      // 启动页期间预热思源宋体加载（内部有去重，后续页面 pageState 再调不会重复加载）
+      require('../../utils/skin.js').ensurePaperFont();
+    }
+    try {
+      wx.setNavigationBarColor({ frontColor: '#ffffff', backgroundColor: sp.bg, fail: function () {} });
+    } catch (e) { /* 忽略 */ }
     this.waitAppReady();
+  },
+
+  splashStyle(id) {
+    if (id === 'volt') return { bg: '#111310', sealBg: '#D7FF3B', sealColor: '#111310', nameColor: '#F2F1ED', enColor: '#77786F' };
+    if (id === 'paper') return { bg: '#F5F1E8', sealBg: '#B93A26', sealColor: '#FCF7EE', nameColor: '#221D15', enColor: '#A79D89' };
+    return { bg: '#FFFFFF', sealBg: '#D4786E', sealColor: '#FFFFFF', nameColor: '#2A2122', enColor: '#B5A5A5' };
   },
 
   waitAppReady() {

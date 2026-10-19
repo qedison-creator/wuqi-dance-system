@@ -641,7 +641,7 @@ Page({
         .slice()
         .sort((a, b) => getPkgOrder(a) - getPkgOrder(b))
         .map((pkg, idx) => {
-          const typeLabel = pkg.package_type === 'time_card' ? '时间卡' : '次卡';
+          const typeLabel = pkg.is_bonus ? '赠课' : (pkg.package_type === 'time_card' ? '时间卡' : '次卡');
           const startDate = pkg.start_date ? formatDate(pkg.start_date) : '';
           const endDate = pkg.end_date ? formatDate(pkg.end_date) : '';
           const dateRange = (startDate || endDate) ? `${startDate}至${endDate}` : '';

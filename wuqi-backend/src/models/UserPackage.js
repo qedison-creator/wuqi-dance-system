@@ -44,8 +44,13 @@ const userPackageSchema = new mongoose.Schema({
   suspend_end_date: { type: Date },
   frozen_remaining_credits: { type: Number },
   frozen_end_date: { type: Date },
-  // 状态：pending(待激活) / active(使用中) / exhausted(已用完) / expired(已过期)
-  status: { type: String, enum: ['pending', 'active', 'expired', 'exhausted'], required: true, default: 'pending' },
+  // 状态：pending(待激活) / active(使用中) / exhausted(已用完) / expired(已过期) / voided(已作废)
+  // voided：管理员作废（非物理删除），保留记录用于权益溯源；仅未激活且从未使用的录入错误套餐可物理删除
+  status: { type: String, enum: ['pending', 'active', 'expired', 'exhausted', 'voided'], required: true, default: 'pending' },
+  // 作废溯源：作废时间/操作人/原因
+  voided_at: { type: Date },
+  voided_by: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  voided_reason: { type: String },
   extension_days: { type: Number, default: 0 },
   extension_reason: { type: String },
   remark: { type: String },
@@ -64,6 +69,15 @@ const userPackageSchema = new mongoose.Schema({
   package_snapshot: {
     name: { type: String, default: '' },
   },
+  // 赠送相关：赠课卡是独立的 count_card 记录，跟随主套餐限制；主卡可携带赠送有效期月数
+  // is_bonus=true 表示该记录是赠课卡（package_snapshot.name 固定 '赠送课时'）
+  is_bonus: { type: Boolean, default: false },
+  // 赠课卡指向的主卡 _id；主卡此字段为 null
+  bonus_source_id: { type: mongoose.Schema.Types.ObjectId, ref: 'UserPackage', default: null },
+  // 赠课卡有效期模式：'follow_main'=随主套餐起止；'months'=激活时刻+X自然月
+  bonus_expire_mode: { type: String, default: null },
+  // 主卡字段：赠送有效期月数，待激活时暂存，激活时按自然月并入主卡 end_date
+  bonus_validity_months: { type: Number, default: 0 },
 }, { timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' }, strictPopulate: false });
 
 userPackageSchema.index({ user_id: 1, status: 1 });

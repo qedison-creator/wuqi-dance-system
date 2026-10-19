@@ -158,6 +158,11 @@ exports.wxLogin = async (code, storeId, clientType = 'member', profileData = {})
     }
   }
 
+  // 已注销会员禁止登录（注销为软删除，记录仍保留用于溯源）
+  if (user && user.is_deleted) {
+    throw new Error('该账号已注销，如需恢复使用请联系门店管理员');
+  }
+
   // 3. 生成JWT token
   const token = generateToken(user);
 

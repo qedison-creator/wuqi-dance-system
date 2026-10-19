@@ -1,4 +1,4 @@
-<view class="update-mask" wx:if="{{visible}}" bindtap="noop">
+<view class="update-mask skin-root skin-{{skinId}}" wx:if="{{visible}}" bindtap="noop">
   <view class="update-content" catchtap="noop">
     <view class="update-icon-wrap">
       <text class="update-icon">↑</text>

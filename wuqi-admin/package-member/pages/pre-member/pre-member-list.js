@@ -29,6 +29,13 @@ const _createEmptyPackage = () => ({
   weekday_limit: [0, 1, 2, 3, 4, 5, 6],  // 可用星期（0=周日…6=周六；全选=整周可用）
   usable_before: '',  // 可用时段（前），''=未开启；开启时预选 20:30
   usable_after: '',   // 可用时段（后），''=未开启
+  // 赠送（选填）：独立赠课卡 + 主卡赠送有效期
+  bonus_credits: '',        // 赠送课时节数（1-99，空=不赠送）
+  bonus_expire_mode: 'follow_main', // 赠课卡有效期模式：'follow_main' 随主套餐 / 'months' 激活(生效)后N个月
+  bonus_months: '',         // 赠课卡月数（1-36，mode=months 时必填）
+  gift_validity_months: '', // 赠送主卡有效期月数（1-36，按自然月顺延，空=不赠送）
+  _showBonus: false,        // 赠送折叠区展开状态
+  _bonusLocked: false,      // 赠课卡已激活/已使用 → 赠送配置锁定
   _danceStyleText: ''      // 已选舞种文本（仅前端展示用）
 });
 
@@ -353,7 +360,7 @@ Page({
       .slice()
       .sort((a, b) => getPkgOrder(a) - getPkgOrder(b))
       .map((pkg, idx) => {
-        const typeLabel = pkg.package_type === 'time_card' ? '时间卡' : '次卡';
+        const typeLabel = pkg.is_bonus ? '赠课' : (pkg.package_type === 'time_card' ? '时间卡' : '次卡');
         const startDate = pkg.start_date ? this._formatDate(pkg.start_date) : '';
         const endDate = pkg.end_date ? this._formatDate(pkg.end_date) : '';
         const dateRange = (startDate || endDate) ? `${startDate}至${endDate}` : '';
@@ -524,9 +531,14 @@ Page({
       const rawPackages = Array.isArray(data.packages) && data.packages.length > 0
         ? data.packages
         : (data.package ? [data.package] : []);
-      const packages = rawPackages.map(pkg => {
+      // 赠课卡不作为独立套餐块展示，回显到对应主卡的「赠送」折叠区
+      const mainPackages = rawPackages.filter(p => !p.is_bonus);
+      const bonusCards = rawPackages.filter(p => p.is_bonus);
+      const packages = mainPackages.map(pkg => {
         const extraIds = (pkg.extra_store_ids || []).map(s => _normalizeStoreId(typeof s === 'object' ? (s._id || s.id) : s));
         const danceStyleIds = (pkg.dance_style_limit || []).map(ds => _normalizeStoreId(typeof ds === 'object' ? (ds._id || ds.id) : ds));
+        const bonusCard = pkg._id ? bonusCards.find(b => b.bonus_source_id && String(b.bonus_source_id) === String(pkg._id)) : null;
+        const bonusLocked = !!bonusCard && (bonusCard.is_activated || (bonusCard.remaining_credits || 0) < (bonusCard.total_credits || 0));
         return {
           _id: pkg._id ? String(pkg._id) : '',   // 保留套餐ID，编辑提交时用于后端原地更新
           package_type: pkg.package_type || '',
@@ -547,6 +559,13 @@ Page({
             : [0, 1, 2, 3, 4, 5, 6],
           usable_before: pkg.usable_before || '',
           usable_after: pkg.usable_after || '',
+          // 赠送配置回显（从赠课卡/主卡 bonus_validity_months 读回）
+          bonus_credits: bonusCard && bonusCard.total_credits ? String(bonusCard.total_credits) : '',
+          bonus_expire_mode: (bonusCard && bonusCard.bonus_expire_mode === 'months') ? 'months' : 'follow_main',
+          bonus_months: (bonusCard && bonusCard.bonus_expire_mode === 'months' && bonusCard.duration_value) ? String(bonusCard.duration_value) : '',
+          gift_validity_months: (pkg.bonus_validity_months && Number(pkg.bonus_validity_months) > 0) ? String(pkg.bonus_validity_months) : '',
+          _showBonus: !!bonusCard || Number(pkg.bonus_validity_months || 0) > 0,
+          _bonusLocked: bonusLocked,
           _danceStyleText: ''   // 稍后由 _refreshAllDanceStyleText 填充
         };
       });
@@ -824,6 +843,22 @@ Page({
     this.setData({ ['form.packages[' + pkgIdx + '].' + field]: e.detail.value });
   },
 
+  // 展开/收起某套餐的「赠送」折叠区
+  onToggleBonusSection(e) {
+    const pkgIdx = Number(e.currentTarget.dataset.index);
+    const pkg = this.data.form.packages[pkgIdx];
+    if (!pkg) return;
+    this.setData({ [`form.packages[${pkgIdx}]._showBonus`]: !pkg._showBonus });
+  },
+
+  // 赠课卡有效期模式切换：随主套餐有效期 / 激活(生效)后N个月
+  onBonusModeChange(e) {
+    const mode = e.currentTarget.dataset.mode;
+    const pkgIdx = Number(e.currentTarget.dataset.index);
+    if (this.data.form.packages[pkgIdx].bonus_expire_mode === mode) return;
+    this.setData({ [`form.packages[${pkgIdx}].bonus_expire_mode`]: mode });
+  },
+
   // 表单星期 → 提交值：全选 7 天 = 整周可用（提交空数组），否则去重升序原样提交
   _weekdayFormValue(arr) {
     const list = Array.isArray(arr) ? arr.map(Number).filter(n => n >= 0 && n <= 6) : [];
@@ -933,6 +968,19 @@ Page({
         if (!pkg.period_cycle) return failValidation(`${prefix}请选择周期类型`);
         if (!pkg.period_count || Number(pkg.period_count) <= 0) return failValidation(`${prefix}请输入周期次数`);
       }
+      // 赠送配置校验（选填）
+      const bonusCredits = pkg.bonus_credits ? Number(pkg.bonus_credits) : 0;
+      if (pkg.bonus_credits !== '' && pkg.bonus_credits !== undefined && pkg.bonus_credits !== null && (isNaN(bonusCredits) || bonusCredits < 0 || bonusCredits > 99)) {
+        return failValidation(`${prefix}赠送课时需在0-99之间`);
+      }
+      if (bonusCredits > 0 && pkg.bonus_expire_mode === 'months') {
+        const bonusMonths = Number(pkg.bonus_months || 0);
+        if (!(bonusMonths >= 1 && bonusMonths <= 36)) return failValidation(`${prefix}赠课月数需在1-36之间`);
+      }
+      if (pkg.gift_validity_months !== '' && pkg.gift_validity_months !== undefined && pkg.gift_validity_months !== null) {
+        const giftMonths = Number(pkg.gift_validity_months);
+        if (isNaN(giftMonths) || giftMonths < 0 || giftMonths > 36) return failValidation(`${prefix}赠送有效期需在0-36之间`);
+      }
     }
 
     // 构造请求数据
@@ -980,6 +1028,16 @@ Page({
       if (form.member_identity === 'old') {
         packageData.activate_mode = pkg.activate_mode === 'pending' ? 'pending' : 'active';
       }
+      // 赠送配置（选填）：赠课卡 + 主卡赠送有效期
+      const submitBonusCredits = pkg.bonus_credits ? Number(pkg.bonus_credits) : 0;
+      packageData.bonus_credits = submitBonusCredits;
+      if (submitBonusCredits > 0) {
+        packageData.bonus_expire_mode = pkg.bonus_expire_mode === 'months' ? 'months' : 'follow_main';
+        if (packageData.bonus_expire_mode === 'months') {
+          packageData.bonus_months = Number(pkg.bonus_months || 0);
+        }
+      }
+      packageData.gift_validity_months = pkg.gift_validity_months ? Number(pkg.gift_validity_months) : 0;
       if (pkg.package_type === 'count_card') {
         packageData.total_credits = Number(pkg.total_credits);
       } else {

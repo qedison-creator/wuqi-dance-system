@@ -4,13 +4,18 @@
 // - 组件挂载时向 app 注册自身；页面 onShow（pageLifetimes.show）时检查待提醒状态
 // - 点击"立即重启"调用 applyUpdate() 应用新版本并重启（微信自动管理代码包缓存）
 Component({
-  data: {
+    data: {
+    skinId: 'classic',
     visible: false,
     updating: false
   },
 
   lifetimes: {
     attached() {
+      try {
+        const skinId = wx.getStorageSync('member_skin_id');
+        this.setData({ skinId: skinId === 'paper' || skinId === 'volt' ? skinId : 'classic' });
+      } catch (e) { /* 忽略 */ }
       const app = getApp();
       if (typeof app.registerUpdateModal === 'function') {
         app.registerUpdateModal(this);

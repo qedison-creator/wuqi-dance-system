@@ -4,6 +4,7 @@ const Booking = require('../models/Booking');
 const ExemptionLog = require('../models/ExemptionLog');
 const logService = require('./log.service');
 const packageService = require('./package.service');
+const packageLabel = require('../utils/packageLabel');
 const { sendToUser } = require('./websocket.service');
 const mongoose = require('mongoose');
 const dayjs = require('dayjs');
@@ -28,7 +29,7 @@ function buildMemberKeywordOr(keyword) {
 // 获取会员列表(支持status/keyword/store_id/package_active/package_suspended/package_expired/package_pending/package_exhausted筛选)
 exports.getMemberList = async (query) => {
   const { status, keyword, store_id, member_status, package_active, package_suspended, package_expired, package_pending, package_exhausted, no_package, no_store, cross_store, page = 1, pageSize = 20 } = query;
-  const filter = { user_type: 'member' };
+  const filter = { user_type: 'member', is_deleted: { $ne: true } };
 
   // 将字符串 store_id 转为 ObjectId，供聚合查询使用
   const storeObjectId = store_id && mongoose.isValidObjectId(store_id) ? new mongoose.Types.ObjectId(store_id) : null;
@@ -189,7 +190,7 @@ exports.getMemberList = async (query) => {
     // $match 直接从查询参数重建，不搬运 filter 内部结构——
     // 无关键词时 filter.$or 存的是门店分支条件（含字符串型 store_id，永远匹配不上 ObjectId），
     // 混入聚合会把本类别清空；且跨店会员必有套餐，本类别门店范围用纯 store_id 等值即可
-    const noPkgMatch = { user_type: 'member', member_status: 'official' };
+    const noPkgMatch = { user_type: 'member', member_status: 'official', is_deleted: { $ne: true } };
     if (status) noPkgMatch.status = status;
     if (keyword) noPkgMatch.$or = buildMemberKeywordOr(keyword);
     if (storeObjectId) {
@@ -208,7 +209,7 @@ exports.getMemberList = async (query) => {
     if (targetIds.length > 0) {
       filter._id = { $in: targetIds };
     } else {
-      return { list: [], total: 0, pendingCount: await User.countDocuments({ user_type: 'member', member_status: 'registered', ...(store_id ? { store_id } : {}) }), page: Number(page), pageSize: Number(pageSize) };
+      return { list: [], total: 0, pendingCount: await User.countDocuments({ user_type: 'member', member_status: 'registered', is_deleted: { $ne: true }, ...(store_id ? { store_id } : {}) }), page: Number(page), pageSize: Number(pageSize) };
     }
   }
 
@@ -222,13 +223,13 @@ exports.getMemberList = async (query) => {
   const total = await User.countDocuments(filter);
 
   // 统计待审核数量
-  const pendingFilter = { user_type: 'member', member_status: 'registered' };
+  const pendingFilter = { user_type: 'member', member_status: 'registered', is_deleted: { $ne: true } };
   if (store_id) pendingFilter.store_id = store_id;
   const pendingCount = await User.countDocuments(pendingFilter);
 
   // 为每个会员附加套餐信息
   const listWithPackages = await Promise.all(list.map(async (user) => {
-    const packages = await UserPackage.find({ user_id: user._id })
+    const packages = await UserPackage.find({ user_id: user._id, status: { $ne: 'voided' } })
       .populate('store_id', 'name')
       .populate('dance_style_limit', 'name')
       .sort({ created_at: -1 });
@@ -258,18 +259,42 @@ exports.getMemberById = async (id) => {
   await packageService.refreshPackageStatus(id);
 
   // 获取会员套餐（使用 lean 返回普通对象，确保可附加 extensions 字段）
-  const packages = await UserPackage.find({ user_id: id })
+  // 作废套餐（voided）在会员详情隐藏，仅在后台"套餐记录查询"可见
+  const packages = await UserPackage.find({ user_id: id, status: { $ne: 'voided' } })
     .populate('store_id', 'name')
     .populate('extra_store_ids', 'name')
     .populate('dance_style_limit', 'name')
+    .populate('bonus_source_id', 'package_snapshot status is_activated is_suspended end_date package_type total_credits daily_limit weekly_limit monthly_limit')
     .sort({ created_at: -1 })
     .lean();
 
   // 为每个套餐加载延长记录 + 字段变更记录，合并为统一变更日志
   const PackageExtension = require('../models/PackageExtension');
   const PackageChange = require('../models/PackageChange');
+  const Booking = require('../models/Booking');
+  const dayjsLocal = require('dayjs');
+  const utcLocal = require('dayjs/plugin/utc');
+  const tzLocal = require('dayjs/plugin/timezone');
+  dayjsLocal.extend(utcLocal);
+  dayjsLocal.extend(tzLocal);
   for (const pkg of packages) {
-    const [extensions, changes] = await Promise.all([
+    // 赠课卡：附加来源主套餐文本（来源行展示）
+    if (pkg.is_bonus) {
+      const src = pkg.bonus_source_id && typeof pkg.bonus_source_id === 'object' ? pkg.bonus_source_id : null;
+      // 主套餐名兜底：快照名缺失（录入套餐不挂模板时快照 name 为空）→ 用类型+规格描述
+      const srcTypeText = (s) => {
+        if (!s) return '';
+        if (s.package_type === 'time_card') {
+          const limit = s.daily_limit ? `每日${s.daily_limit}次` : s.weekly_limit ? `每周${s.weekly_limit}次` : s.monthly_limit ? `每月${s.monthly_limit}次` : '不限次数';
+          return `时间卡·${limit}`;
+        }
+        return `次卡·${(s.total_credits || 0)}次`;
+      };
+      const srcName = (src && src.package_snapshot && src.package_snapshot.name) || (src ? srcTypeText(src) : '');
+      // 仅当关联丢失（赠课卡无主卡引用）才显示"主套餐已删除"
+      pkg._sourceText = src ? `主套餐：${srcName || '主套餐'}` : '主套餐已删除';
+    }
+    const [extensions, changes, revokeMarks] = await Promise.all([
       PackageExtension.find({
         user_package_id: pkg._id,
         operation_type: 'extend',
@@ -280,14 +305,23 @@ exports.getMemberById = async (id) => {
       PackageChange.find({ user_package_id: pkg._id })
         .populate('operator_id', 'nick_name username')
         .sort({ created_at: -1 })
-        .lean()
+        .lean(),
+      // 已被撤销的延长记录 ID 集合（revoke 记录的 revoked_extension_id 指向原记录）
+      PackageExtension.find({ user_package_id: pkg._id, revoked_extension_id: { $ne: null } })
+        .select('revoked_extension_id')
+        .lean(),
     ]);
+    const revokedExtIds = new Set(revokeMarks.map(r => String(r.revoked_extension_id)));
+    const UNDO_WINDOW_MS = packageService.UNDO_WINDOW_MS || 2 * 60 * 60 * 1000;
+    const nowMs = Date.now();
 
-    // 延长记录 → 统一变更日志项
-    const extLogs = extensions.map(ext => {
+    // 延长记录 → 统一变更日志项（撤回预览涉及预约冲突查询，异步处理）
+    const extLogs = await Promise.all(extensions.map(async ext => {
       const unitText = ext.extend_unit === 'month' ? '月' : '天';
       const value = ext.extend_value || ext.extend_days || 0;
-      return {
+      const undone = revokedExtIds.has(String(ext._id)) || !!ext.undone_at;
+      const withinWindow = nowMs - new Date(ext.created_at).getTime() <= UNDO_WINDOW_MS;
+      const log = {
         _id: ext._id,
         record_type: 'extend',
         created_at: ext.created_at,
@@ -296,14 +330,51 @@ exports.getMemberById = async (id) => {
         extend_days: ext.extend_days || 0,
         extend_value: value,
         extend_unit: ext.extend_unit || 'day',
+        original_expire_at: ext.original_expire_at,
+        new_expire_at: ext.new_expire_at,
         reason: ext.reason || ext.remark || '',
+        undone,
+        undoable: false,
+        blocked_reason: '',
+        undo_preview: [],
       };
-    });
+      if (!undone && withinWindow) {
+        log.undo_deadline = new Date(new Date(ext.created_at).getTime() + UNDO_WINDOW_MS).toISOString();
+        // 撤回可行性预览：到期日仍等于延长后的值 + 延长期内无预约/上课
+        if (!pkg.end_date || new Date(pkg.end_date).getTime() !== new Date(ext.new_expire_at).getTime()) {
+          log.blocked_reason = '该套餐在此次延长后又被修改过到期日，无法自动撤回';
+        } else {
+          const rollbackEnd = new Date(new Date(pkg.end_date).getTime() - (ext.extend_days || 0) * 86400000);
+          const rollbackEndDay = dayjsLocal(rollbackEnd).tz('Asia/Shanghai').format('YYYY-MM-DD');
+          // 延长期内已有预约/上课 → 阻止撤回（撤回会使这些预约落到有效期外）
+          const conflicts = await Booking.find({
+            user_package_id: pkg._id,
+            booking_date: { $gt: rollbackEndDay },
+            status: { $in: ['booked', 'completed'] },
+          }).select('booking_date status schedule_id').sort({ booking_date: 1 }).limit(3).lean();
+          if (conflicts.length > 0) {
+            const Schedule = require('../models/Schedule');
+            const scheduleIds = conflicts.map(c => c.schedule_id).filter(Boolean);
+            const schedules = scheduleIds.length > 0 ? await Schedule.find({ _id: { $in: scheduleIds } }).select('course_name').lean() : [];
+            const courseMap = new Map(schedules.map(c => [String(c._id), c.course_name || '课程']));
+            log.blocked_reason = `会员在撤回的有效期内已有预约/上课（如 ${conflicts.map(c => `${c.booking_date} ${courseMap.get(String(c.schedule_id)) || ''}【${c.status === 'completed' ? '已完成' : '已预约'}】`).join('、')}），请先取消这些预约再撤回`;
+          } else {
+            log.undo_preview = [{ label: '到期日', from: dayjsLocal(pkg.end_date).tz('Asia/Shanghai').format('YYYY-MM-DD'), to: rollbackEndDay }];
+          }
+        }
+        log.undoable = !log.blocked_reason;
+      }
+      return log;
+    }));
     // 字段变更记录 → 统一变更日志项
     const changeLogs = changes.map(ch => {
       const labels = (ch.changes || []).map(c => c.field_label).filter(Boolean);
-      const event_name = labels.length > 0 ? `变更${labels.join('、')}` : '套餐字段变更';
-      return {
+      const event_name = ch.is_undo
+        ? `撤回变更${labels.length > 0 ? '：' + labels.join('、') : ''}`
+        : (labels.length > 0 ? `变更${labels.join('、')}` : '套餐字段变更');
+      const undone = !!ch.undone_at;
+      const withinWindow = !ch.is_undo && !undone && nowMs - new Date(ch.created_at).getTime() <= UNDO_WINDOW_MS;
+      const log = {
         _id: ch._id,
         record_type: 'change',
         created_at: ch.created_at,
@@ -311,8 +382,35 @@ exports.getMemberById = async (id) => {
         event_name,
         changes: ch.changes || [],
         reason: ch.remark || '',
+        undone,
+        is_undo: !!ch.is_undo,
+        undoable: false,
+        blocked_reason: '',
+        undo_preview: [],
       };
+      if (withinWindow) {
+        log.undo_deadline = new Date(new Date(ch.created_at).getTime() + UNDO_WINDOW_MS).toISOString();
+        // 撤回预览（含冲突检测），异步补充到日志项
+        log._previewPending = true;
+      }
+      return log;
     });
+    // 有待预览的变更记录：批量补充撤回可行性（仅 2 小时内的少量记录，成本低）
+    const pendingPreviews = changeLogs.filter(l => l._previewPending);
+    for (const logItem of pendingPreviews) {
+      const ch = changes.find(c => String(c._id) === String(logItem._id));
+      if (!ch) continue;
+      try {
+        const preview = await packageService.previewChangeUndo(pkg, ch);
+        logItem.undoable = !!preview.undoable;
+        logItem.blocked_reason = preview.blocked_reason || '';
+        logItem.undo_preview = preview.preview || [];
+      } catch (e) {
+        logItem.undoable = false;
+        logItem.blocked_reason = '撤回预览失败，请刷新重试';
+      }
+      delete logItem._previewPending;
+    }
     // 合并并按时间倒序排列
     const change_logs = [...extLogs, ...changeLogs].sort((a, b) => {
       const ta = a.created_at ? new Date(a.created_at).getTime() : 0;
@@ -335,7 +433,9 @@ exports.getMemberById = async (id) => {
   }
 
   // 获取预约记录
-  const bookings = await Booking.find({ user_id: id })
+  // 排除现场签到（source='onsite'）自动生成的记录：现场签到未预约，不应出现在"预约记录"，
+  // 仅体现在"上课记录"（由 /attendance/member/:id 返回）。这些记录本身是扣课凭证，必须保留。
+  const bookings = await Booking.find({ user_id: id, source: { $ne: 'onsite' } })
     .populate({
       path: 'schedule_id',
       populate: [
@@ -343,7 +443,19 @@ exports.getMemberById = async (id) => {
         { path: 'store_id', select: 'name' }
       ]
     })
-    .sort({ created_at: -1 });
+    .sort({ created_at: -1 })
+    .lean();
+
+  // 扣课溯源展示字段：package_label（后缀）+ deduct_days（按天口径缩期天数）
+  const memberTypeCounts = (await packageLabel.getMemberTypeCounts([id]))[String(id)] || {};
+  bookings.forEach(b => {
+    b.package_label = packageLabel.resolvePackageSuffix(
+      b.package_name,
+      b.package_type,
+      memberTypeCounts[b.package_type] || 0
+    );
+    b.deduct_days = b.shrink_days || null;
+  });
 
   // 统计数据
   const totalBookings = await Booking.countDocuments({
@@ -495,7 +607,7 @@ exports.updateMember = async (id, data) => {
 
 // 获取会员统计
 exports.getMemberStats = async (storeId) => {
-  const filter = { user_type: 'member' };
+  const filter = { user_type: 'member', is_deleted: { $ne: true } };
   if (storeId) filter.store_id = storeId;
 
   const total = await User.countDocuments(filter);
@@ -513,7 +625,7 @@ exports.getMemberStats = async (storeId) => {
 exports.getMemberFilterCounts = async (query) => {
   const { store_id } = query;
   const storeObjectId = store_id && mongoose.isValidObjectId(store_id) ? new mongoose.Types.ObjectId(store_id) : null;
-  const memberBase = { user_type: 'member', member_status: 'official' };
+  const memberBase = { user_type: 'member', member_status: 'official', is_deleted: { $ne: true } };
 
   // 门店范围（对应 getMemberList 的 store_id 分支）：本店会员 + 有命中本店 active 套餐的跨店会员
   let storeCondition = {};
@@ -926,7 +1038,8 @@ exports.getPhoneAuditList = async (query = {}) => {
   
   const filter = {
     phone_audit_status: 'pending',
-    user_type: 'member'
+    user_type: 'member',
+    is_deleted: { $ne: true }
   };
   
   if (store_id) {
@@ -1038,7 +1151,7 @@ exports.exportMembers = async (store_id) => {
   const User = require('../models/User');
   const Store = require('../models/Store');
   
-  let query = { member_status: 'approved' };
+  let query = { member_status: 'approved', is_deleted: { $ne: true } };
   if (store_id) {
     query.store_id = store_id;
   }
@@ -1099,7 +1212,7 @@ exports.requestInfoChange = async (userId, changeData) => {
 
 exports.getInfoChangeList = async (query = {}) => {
   const User = require('../models/User');
-  const filter = { 'info_change_request.status': 'pending' };
+  const filter = { 'info_change_request.status': 'pending', is_deleted: { $ne: true } };
   if (query.store_id) filter.store_id = query.store_id;
 
   const list = await User.find(filter)

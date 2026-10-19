@@ -1,4 +1,4 @@
-<view class="empty-state">
+<view class="empty-state skin-root skin-{{skinId}}">
   <view class="empty-icon" wx:if="{{!iconText}}">
     <view class="empty-icon-inner"></view>
   </view>

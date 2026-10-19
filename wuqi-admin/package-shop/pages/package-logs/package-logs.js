@@ -59,10 +59,12 @@ Page({
     this._requestSeq = 0;
     this._thresholdTimer = null;
 
-    // 接收跳转参数：tab=指定初始TAB，keyword=会员搜索关键字
+    // 接收跳转参数：tab=指定初始TAB，keyword=会员搜索关键字，user_id=从会员详情钻取的会员ID
     if (options.tab) {
       this.setData({ activeTab: options.tab });
     }
+    // 「查看完整变更记录」钻取：按会员 ID 精确过滤（同名会员/跨门店套餐也不会漏）
+    this._drillUserId = options.user_id || '';
     if (options.keyword) {
       const kw = decodeURIComponent(options.keyword);
       if (options.tab === 'extension') {
@@ -85,6 +87,8 @@ Page({
   onTabChange(e) {
     const tab = e.currentTarget.dataset.tab;
     if (tab === this.data.activeTab) return;
+    // 切换TAB后不再沿用钻取的会员过滤
+    this._drillUserId = '';
     this._resetTabState(tab);
     this._resetScroll();
     this.setData({ activeTab: tab, loading: true });
@@ -145,7 +149,9 @@ Page({
         pageSize: PAGE_SIZE,
         store_id: app.globalData.shopStoreId || '',
         keyword: this.data[`${tab}Keyword`] || '',
-        month: monthKey
+        month: monthKey,
+        // 钻取模式：按会员 ID 精确过滤（仅"套餐变更"TAB生效）
+        user_id: (tab === 'extension' && this._drillUserId) ? this._drillUserId : ''
       }
     });
     return res.data || {};
@@ -257,6 +263,8 @@ Page({
 
   _searchTab(tab) {
     if (this.data.loading) return;
+    // 手动搜索改用关键字过滤，退出钻取模式
+    this._drillUserId = '';
     this._resetTabState(tab);
     this._resetScroll();
     this.setData({ loading: true });

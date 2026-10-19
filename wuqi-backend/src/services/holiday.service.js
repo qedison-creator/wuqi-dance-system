@@ -367,14 +367,14 @@ const extendMemberPackages = async (totalDays, storeId, holidayId, operatorId, o
     ...buildPackageStoreFilter(storeId),
   };
 
-  const activePackages = await UserPackage.find(pkgFilter).populate('user_id', 'member_status status user_type');
+  const activePackages = await UserPackage.find(pkgFilter).populate('user_id', 'member_status status user_type is_deleted');
   let extendedCount = 0;
   const extensionRecords = [];
 
   for (const pkg of activePackages) {
     // 仅处理正式会员的有效账号套餐
     const user = pkg.user_id;
-    if (!user || user.user_type !== 'member' || user.member_status !== 'official' || user.status !== 'active') {
+    if (!user || user.user_type !== 'member' || user.member_status !== 'official' || user.status !== 'active' || user.is_deleted) {
       continue;
     }
 

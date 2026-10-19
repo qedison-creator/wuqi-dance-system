@@ -365,20 +365,14 @@
 }
 
 .package-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
   margin-bottom: 16rpx;
-  gap: 16rpx;
 }
 
 .package-badges {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 8rpx;
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
 }
 
 .package-type-badge {
@@ -445,49 +439,35 @@
 .package-actions {
   display: flex;
   align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
   gap: 12rpx;
-  flex-shrink: 0;
+  margin-top: 16rpx;
+  padding-top: 16rpx;
+  border-top: 1rpx solid var(--border);
 }
 
-.package-edit-btn {
-  padding: 6rpx 16rpx;
+/* 功能按钮：统一描边矩形风格（与标签的填充胶囊区分），删除按钮保留危险红 */
+.package-action-btn {
+  padding: 8rpx 24rpx;
   border: 2rpx solid var(--color-primary);
-  border-radius: var(--radius-lg);
-  font-size: 22rpx;
+  border-radius: 8rpx;
+  font-size: 24rpx;
   color: var(--color-primary);
   white-space: nowrap;
   flex-shrink: 0;
 }
 
-.package-edit-btn:active {
+.package-action-btn:active {
   background: var(--color-primary-bg);
 }
 
-.package-extend-btn {
-  padding: 6rpx 16rpx;
-  border: 2rpx solid #4CAF93;
-  border-radius: var(--radius-lg);
-  font-size: 22rpx;
-  color: #4CAF93;
-  white-space: nowrap;
-  flex-shrink: 0;
-}
-
-.package-extend-btn:active {
-  background: rgba(76, 175, 147, 0.1);
-}
-
-.package-delete-btn {
-  padding: 6rpx 16rpx;
-  border: 2rpx solid rgba(196, 75, 75, 0.4);
-  border-radius: var(--radius-lg);
-  font-size: 22rpx;
+.package-action-btn.danger {
+  border-color: rgba(196, 75, 75, 0.4);
   color: var(--color-danger);
-  white-space: nowrap;
-  flex-shrink: 0;
 }
 
-.package-delete-btn:active {
+.package-action-btn.danger:active {
   background: var(--color-danger-bg);
 }
 
@@ -575,6 +555,41 @@
 
 .package-change-summary .extension-text {
   color: #D4786E;
+}
+
+/* 撤回按钮（2小时内可撤回的记录右侧） */
+.ext-undo-btn {
+  flex-shrink: 0;
+  margin-left: 12rpx;
+  padding: 4rpx 14rpx;
+  border-radius: 20rpx;
+  background: #D4786E;
+  color: #fff;
+  font-size: 20rpx;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.ext-undo-btn:active {
+  opacity: 0.8;
+}
+
+/* 已撤回标记与文字置灰 */
+.ext-undone-tag {
+  flex-shrink: 0;
+  margin-left: 12rpx;
+  padding: 2rpx 12rpx;
+  border-radius: 16rpx;
+  border: 1rpx solid #C4B3A4;
+  color: #A89A8C;
+  font-size: 18rpx;
+  white-space: nowrap;
+}
+
+.extension-text.ext-undone-text {
+  color: #A89A8C;
+  text-decoration: line-through;
+  text-decoration-color: rgba(168, 154, 140, 0.6);
 }
 
 .package-change-summary:active {
@@ -1784,4 +1799,219 @@
   color: #C5744B;
   font-size: 24rpx;
   font-weight: 600;
+}
+
+/* ===== 赠送（选填）折叠区 / 追加赠送 / 赠课联动 ===== */
+.bonus-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20rpx 24rpx;
+  background: #FBF8F4;
+  border: 1rpx dashed #D9CDBA;
+  border-radius: 12rpx;
+}
+.bonus-toggle-label {
+  color: #8A6D3B;
+  font-weight: 500;
+}
+.bonus-toggle-right {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+}
+.bonus-toggle-summary {
+  font-size: 24rpx;
+  color: #C4663E;
+}
+.bonus-toggle-empty {
+  color: #B0A79A;
+}
+.bonus-toggle-arrow {
+  color: #B0A79A;
+  font-size: 28rpx;
+  transform: rotate(0deg);
+  transition: transform 0.2s ease;
+}
+.bonus-toggle-arrow.open {
+  transform: rotate(90deg);
+}
+.bonus-section {
+  margin-top: 16rpx;
+  padding: 16rpx 24rpx;
+  background: #FBF8F4;
+  border-radius: 12rpx;
+}
+.bonus-field-row {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  margin-bottom: 16rpx;
+  min-height: 64rpx;
+}
+.bonus-field-label {
+  width: 160rpx;
+  flex-shrink: 0;
+  font-size: 26rpx;
+  color: #5C5246;
+}
+.bonus-input {
+  width: 140rpx;
+  height: 64rpx;
+  min-height: 64rpx;
+  line-height: 64rpx;
+  text-align: center;
+  padding: 0;
+  background: #FFFFFF;
+  border: 1rpx solid #E3D9CB;
+  border-radius: 8rpx;
+}
+.bonus-field-unit {
+  flex: 1;
+  font-size: 22rpx;
+  color: #A09584;
+}
+.bonus-mode-picker {
+  flex: 1;
+}
+.bonus-link-warning {
+  display: block;
+  font-size: 22rpx;
+  color: #C0563E;
+  margin-top: 12rpx;
+}
+
+/* 赠课卡来源主套餐行 */
+.package-source {
+  display: block;
+  font-size: 24rpx;
+  color: #C4862E;
+  background: #FFFBF2;
+  border-radius: 8rpx;
+  padding: 8rpx 16rpx;
+  margin-bottom: 12rpx;
+}
+
+/* 编辑赠课弹窗 */
+.bonus-edit-tip {
+  background: #F5F7FA;
+  border-radius: 8rpx;
+  padding: 16rpx 20rpx;
+  margin-bottom: 24rpx;
+}
+.bonus-edit-tip-text {
+  font-size: 24rpx;
+  color: #8A94A6;
+}
+.bonus-edit-hint {
+  display: block;
+  font-size: 22rpx;
+  color: #8A94A6;
+  margin-top: 8rpx;
+}
+.bonus-edit-readonly {
+  background: #F5F7FA;
+  border-radius: 8rpx;
+  padding: 20rpx;
+  font-size: 26rpx;
+  color: #5A6478;
+}
+
+.package-type-badge.bonus {
+  background: #FFF4E0;
+  color: #C4862E;
+  border-color: #F0DDB8;
+}
+/* 联动作废赠课卡勾选 */
+.bonus-link-list {
+  margin-top: 8rpx;
+}
+.bonus-link-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16rpx;
+  padding: 16rpx;
+  background: #FBF8F4;
+  border-radius: 12rpx;
+  margin-bottom: 12rpx;
+}
+.bonus-link-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4rpx;
+}
+.bonus-link-name {
+  font-size: 26rpx;
+  color: #5C5246;
+}
+.bonus-link-date {
+  font-size: 22rpx;
+  color: #A09584;
+}
+/* 追加赠送弹窗：赠课有效期单选卡片（竖排，标题+副说明） */
+.bonus-mode-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12rpx;
+}
+.bonus-mode-option {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  padding: 20rpx 24rpx;
+  border: 2rpx solid var(--border);
+  border-radius: var(--radius-lg);
+  background: #fff;
+}
+.bonus-mode-option.active {
+  border-color: var(--color-primary);
+  background: var(--color-primary-bg);
+}
+.bonus-mode-radio {
+  width: 28rpx;
+  height: 28rpx;
+  border-radius: 50%;
+  border: 3rpx solid #C9C2B4;
+  box-sizing: border-box;
+  flex-shrink: 0;
+}
+.bonus-mode-option.active .bonus-mode-radio {
+  border-color: var(--color-primary);
+  border-width: 8rpx;
+}
+.bonus-mode-texts {
+  display: flex;
+  flex-direction: column;
+  gap: 4rpx;
+  min-width: 0;
+}
+.bonus-mode-title {
+  font-size: 26rpx;
+  color: var(--text-primary);
+  font-weight: 500;
+}
+.bonus-mode-option.active .bonus-mode-title {
+  color: var(--color-primary);
+}
+.bonus-mode-desc {
+  font-size: 22rpx;
+  color: var(--text-secondary);
+}
+/* 延长原因预置 */
+.reason-preset-row {
+  display: flex;
+  gap: 16rpx;
+  margin-bottom: 16rpx;
+}
+.reason-preset {
+  padding: 12rpx 28rpx;
+  background: #F6F3F0;
+  border-radius: 32rpx;
+  font-size: 24rpx;
+  color: #5C5246;
+}
+.reason-preset.active {
+  background: #C4663E;
+  color: #FFFFFF;
 }

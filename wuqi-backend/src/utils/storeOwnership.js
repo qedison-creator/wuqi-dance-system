@@ -67,12 +67,15 @@ function getAllowedStoreIds(reqUser) {
 }
 
 /**
- * 校验单门店角色是否可查看/签到指定会员（用于扫码签到场景）
+ * 校验单门店角色是否可访问指定会员（用于扫码签到/查看会员记录等场景）
  * 规则：
  *   - 超管/审核员：直接通过
  *   - 会员归属门店在允许范围内：通过
  *   - 会员归属门店不在允许范围，但拥有跨门店可用套餐（UserPackage.store_id 或 extra_store_ids 命中允许门店）：通过
  *   - 否则：拒绝
+ * 注意：本函数只做「门店隔离」判定，不拦截已注销会员——
+ *   已注销会员的记录必须可被溯源查看（会员详情/上课签到记录/签到档案）。
+ *   签到、修改会员等「写操作」由服务层与 assertMemberOwnership 另行拦截 is_deleted。
  * @param {string} userId - 会员用户ID
  * @param {Object} reqUser - req.user 对象
  * @returns {Promise<{ok: boolean, reason?: string, crossStore?: boolean}>}
@@ -151,9 +154,12 @@ async function assertPackageOwnership(packageId, reqUser) {
   }
 
   const UserPackage = require('../models/UserPackage');
-  const pkg = await UserPackage.findById(packageId).select('store_id').lean();
+  const pkg = await UserPackage.findById(packageId).select('store_id status').lean();
   if (!pkg) {
     return { ok: false, reason: '套餐不存在' };
+  }
+  if (pkg.status === 'voided') {
+    return { ok: false, reason: '该套餐已作废，无法操作' };
   }
 
   const pkgStoreId = pkg.store_id ? String(pkg.store_id) : null;
@@ -170,6 +176,7 @@ async function assertPackageOwnership(packageId, reqUser) {
  *   - 超管/审核员：直接通过
  *   - 会员归属门店在允许范围内：通过
  *   - 跨门店套餐会员（通过套餐关系访问但非归属门店）：拒绝，不可修改个人信息
+ *   - 已注销会员：拒绝，仅可只读溯源，不可修改
  * @param {string} userId - 会员用户ID
  * @param {Object} reqUser - req.user 对象
  * @returns {Promise<{ok: boolean, reason?: string}>}
@@ -182,6 +189,12 @@ async function assertMemberOwnership(userId, reqUser) {
   // 跨门店访问：可查看但不可修改个人信息
   if (access.crossStore) {
     return { ok: false, reason: '跨门店会员仅可查看，无权修改会员信息' };
+  }
+  // 已注销会员：仅可只读溯源，不可再修改（与角色无关，单独判定）
+  const User = require('../models/User');
+  const member = await User.findById(userId).select('is_deleted').lean();
+  if (member && member.is_deleted) {
+    return { ok: false, reason: '会员已注销，无法修改其信息' };
   }
   return { ok: true };
 }

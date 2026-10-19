@@ -27,6 +27,7 @@ const BJ = 'Asia/Shanghai';
 
 const Booking = require('../models/Booking');
 const UserPackage = require('../models/UserPackage');
+const packageLabel = require('../utils/packageLabel');
 const User = require('../models/User');
 const Coach = require('../models/Coach');
 const CoachAttendance = require('../models/CoachAttendance');
@@ -276,7 +277,10 @@ exports.getReminders = async ({ storeId, role }) => {
   const monthKey = now.format('YYYY-MM');
   const statusList = await statsService.getPackageStatusList(storeId);
 
-  const followups = await DcAlertFollowup.find({ ...(storeId ? { store_id: storeId } : {}), period_key: monthKey }).lean();
+  // 标记的身份键是（会员 × 提醒类型 × 周期），模型唯一索引亦不含 store_id；
+  // 若读取时按门店过滤，而 POST 未传 store_id（记录 store_id 为空），则永远查不到 → 「已联系」点了没反应。
+  // 故按身份键读取，与写入保持一致；同一会员也不会被两个门店重复跟进。
+  const followups = await DcAlertFollowup.find({ period_key: monthKey }).lean();
   const doneMap = new Map(followups.map(f => [`${String(f.member_id)}_${f.alert_type}`, f]));
   const withDone = (type, items) => items.map(it => {
     const mid = String(it.member_id || it.user_id || '');
@@ -292,12 +296,18 @@ exports.getReminders = async ({ storeId, role }) => {
     };
   });
 
+  // 标注套餐类型（时间卡套餐 / 次卡套餐），便于运营一眼看清是哪种套餐到期
+  const withPackageType = (it) => ({
+    ...it,
+    package_label: packageLabel.TYPE_LABEL[it.package_type] ? `${packageLabel.TYPE_LABEL[it.package_type]}套餐` : '',
+  });
+
   const expiring = withDone('expiring', [
-    ...statusList.time_card_expiring.map(x => ({ ...x, tip: `有效期剩 ${x.remaining_days} 天` })),
-    ...statusList.count_card_expiring.map(x => ({ ...x, tip: `有效期剩 ${x.remaining_days} 天` })),
+    ...statusList.time_card_expiring.map(x => withPackageType({ ...x, tip: `有效期剩 ${x.remaining_days} 天` })),
+    ...statusList.count_card_expiring.map(x => withPackageType({ ...x, tip: `有效期剩 ${x.remaining_days} 天` })),
   ]);
-  const lowCredits = withDone('low_credits', statusList.count_card_low.map(x => ({ ...x, tip: `剩余 ${x.remaining_credits} 次` })));
-  const dormant = withDone('dormant', statusList.inactive_members.map(x => ({ ...x, tip: `已 ${x.days_since} 天没来上课` })));
+  const lowCredits = withDone('low_credits', statusList.count_card_low.map(x => withPackageType({ ...x, tip: `剩余 ${x.remaining_credits} 次` })));
+  const dormant = withDone('dormant', statusList.inactive_members.map(x => withPackageType({ ...x, tip: `已 ${x.days_since} 天没来上课` })));
 
   const groups = { expiring, low_credits: lowCredits, dormant };
   const counts = {};
@@ -328,13 +338,13 @@ exports.undoReminderDone = async ({ memberId, alertType, periodKey }) => {
 // ===================== 7. 课时账单 =====================
 
 // 每节课明细（快照兜底：会员/教练/课程删除后信息完整）
-function buildBillRow(b, memberInfo) {
+function buildBillRow(b, memberInfo, typeCounts) {
   const u = b.user_id && b.user_id._id ? b.user_id : null;
   const snap = b.member_snapshot || {};
   return {
     id: String(b._id),
     member_id: (u && u._id) || b.user_id,
-    member_name: (u ? (u.real_name || u.nick_name) : '') || snap.real_name || snap.nick_name || '已删除会员',
+    member_name: (u ? (u.real_name || u.nick_name) : '') || snap.real_name || snap.nick_name || '已注销会员',
     member_code: (u && u.member_code) || snap.member_code || '',
     date: b.booking_date,
     weekday: WEEKDAY_NAMES[dayjs(b.booking_date).day()],
@@ -345,7 +355,14 @@ function buildBillRow(b, memberInfo) {
     coach_name: b.coach_name || '',
     check_in_method: b.check_in_method || '',
     check_in_label: CHECK_IN_LABELS[b.check_in_method] || '',
-    booked_at: b.created_at,
+    // 预约时间统一北京时间格式化（数据库存 UTC，直接输出 ISO 会显示成 06:03 之类）
+    booked_at: b.created_at ? dayjs(b.created_at).tz(BJ).format('YYYY-MM-DD HH:mm') : '',
+    // 扣课溯源后缀：同类套餐≥2张用具体套餐名，否则用类型词
+    package_label: packageLabel.resolvePackageSuffix(
+      b.package_name,
+      b.package_type,
+      (typeCounts || {})[b.package_type] || 0
+    ),
     status: b.status,
   };
 }
@@ -388,8 +405,12 @@ exports.getMemberBill = async ({ storeId, search, period, startDate, endDate, ro
   // 按会员汇总 + 明细
   const byMember = new Map();
   const byDate = new Map();
+  // 批量取各会员同类未作废套餐张数（判定 package_label 后缀用套餐名还是类型词）
+  const billUserIds = [...new Set(docs.map(d => String(d.user_id && d.user_id._id ? d.user_id._id : d.user_id)).filter(Boolean))];
+  const typeCountsMap = await packageLabel.getMemberTypeCounts(billUserIds);
   docs.forEach(b => {
-    const row = buildBillRow(b, null);
+    const uidForCount = String(b.user_id && b.user_id._id ? b.user_id._id : b.user_id);
+    const row = buildBillRow(b, null, typeCountsMap[uidForCount]);
     const uid = String(row.member_id);
     let g = byMember.get(uid);
     if (!g) {

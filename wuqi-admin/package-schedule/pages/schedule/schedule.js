@@ -1388,7 +1388,7 @@ Page({
       ) {
         wx.showModal({
           title: '无法修改',
-          content: '该课程已有会员预约，上课时间、教练、课程名称、扣课次数不能修改',
+          content: '该课程已有会员预约，上课时间、教练、课程名称、扣课时不能修改',
           showCancel: false,
           confirmText: '知道了'
         });

@@ -1,0 +1,11 @@
+/* about 皮肤覆盖（纸上舞台 / VOLT）—— 由 about.wxss 通过 @import 引入 */
+
+/* 关于：纸上舞台 / VOLT 完整覆盖 */
+.skin-root.skin-paper.page { background: #F5F1E8; }
+.skin-paper .app-name { font-family: 'Noto Serif SC', serif; letter-spacing: 0.1em; }
+.skin-paper .section-title { font-family: 'Noto Serif SC', serif; color: #221D15; }
+.skin-paper .menu-text { color: #6C6353; }
+.skin-root.skin-volt.page { background: #F2F1ED; }
+.skin-volt .app-name { font-weight: 900; color: #111310; }
+.skin-volt .section-title { font-weight: 900; color: #111310; }
+.skin-volt .menu-text { color: #77786F; }

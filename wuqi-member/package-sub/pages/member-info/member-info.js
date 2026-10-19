@@ -22,6 +22,9 @@ Page({
   },
 
   onShow() {
+    // 皮肤状态（纯前端偏好，仅影响外观）
+    const skin = require('../../../utils/skin.js');
+    this.setData(skin.pageState());
     if (!requireLogin()) return;
     this.loadUserInfo();
     // 预加载订阅消息模板，确保后续在 tap 事件中调用 wx.requestSubscribeMessage 时模板已缓存

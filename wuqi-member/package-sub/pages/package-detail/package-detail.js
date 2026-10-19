@@ -19,6 +19,9 @@ Page({
   },
 
   onShow() {
+    // 皮肤状态（纯前端偏好，仅影响外观）
+    const skin = require('../../../utils/skin.js');
+    this.setData(skin.pageState());
     if (!checkLogin()) return;
     const userInfo = app.globalData.userInfo || {};
     if (userInfo.member_status !== 'official') return;
@@ -95,7 +98,7 @@ Page({
     wx.showModal({
       title: '确认激活',
       content: `确认激活套餐吗？激活后将开始计算有效期。`,
-      confirmColor: '#D4786E',
+      confirmColor: require('../../../utils/skin.js').confirmColor(),
       success: (res) => {
         if (res.confirm) {
           this.doActivate(pkg);

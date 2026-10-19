@@ -365,7 +365,7 @@ router.put('/:id/info-change-audit', auth, checkPermission(['super_admin', 'stor
   }
 });
 
-// DELETE /api/v1/members/:id - 删除会员（仅超级管理员）
+// DELETE /api/v1/members/:id - 注销会员（仅超级管理员；软删除，保留全部溯源记录）
 router.delete('/:id', auth, checkPermission(['super_admin']), async (req, res, next) => {
   try {
     const User = require('../models/User');
@@ -402,10 +402,8 @@ router.delete('/:id', auth, checkPermission(['super_admin']), async (req, res, n
       }
     }
 
-    // 删除会员的预约记录（套餐记录保留，仅回填快照，确保套餐录入/激活/延长记录不丢失）
-    await Booking.deleteMany({ user_id: req.params.id });
-
-    // 会员快照：删除会员前回填到所有关联记录，确保 populate 失败时仍可显示会员信息
+    // 注销会员（软删除）：不物理删除任何记录，保留全部溯源信息
+    // 预约/上课/扣课/套餐记录全部原样保留，仅标记会员已注销并排除在正常列表之外
     const memberSnapshot = {
       real_name: member.real_name || '',
       nick_name: member.nick_name || '',
@@ -425,15 +423,36 @@ router.delete('/:id', auth, checkPermission(['super_admin']), async (req, res, n
     );
 
     // 将该会员的所有 active UserPackage 标记为 expired，避免悬空记录被提醒服务误用
-    // 会员被删除后，旧套餐不再参与任何提醒推送（到期/低次数/不活跃）
-    await UserPackage.updateMany(
-      { user_id: member._id, status: 'active' },
-      { $set: { status: 'expired' } }
-    );
+    // 会员注销后，旧套餐不再参与任何提醒推送（到期/低次数/不活跃）；套餐记录本身保留
+    const activePkgs = await UserPackage.find({ user_id: member._id, status: 'active' }).lean();
+    if (activePkgs.length > 0) {
+      await UserPackage.updateMany(
+        { user_id: member._id, status: 'active' },
+        { $set: { status: 'expired' } }
+      );
+      // 补 PackageChange 溯源：注销导致套餐失效这一变更需要留痕
+      const PackageChange = require('../models/PackageChange');
+      await PackageChange.insertMany(activePkgs.map(p => ({
+        user_package_id: p._id,
+        user_id: p.user_id,
+        store_id: p.store_id,
+        operator_id: req.user.id,
+        operator_name: '系统',
+        changes: [{ field: 'status', field_label: '状态', old_value: 'active', new_value: 'expired' }],
+        remark: '会员注销，套餐自动标记为已过期',
+        member_snapshot: memberSnapshot,
+        package_snapshot: {
+          package_type: p.package_type || '',
+          total_credits: p.total_credits || 0,
+          duration_value: p.duration_value || 0,
+          duration_unit: p.duration_unit || ''
+        }
+      })));
+    }
 
     // 为所有 UserPackage 设置包含会员名的 remark（包括 pending/expired/exhausted），
-    // 确保套餐录入记录中已删除会员的姓名可以从 remark 中提取
-    const deleteRemark = (memberSnapshot.real_name || memberSnapshot.nick_name || '已删除会员') + ' 的套餐（会员已删除）';
+    // 确保套餐录入记录中已注销会员的姓名可以从 remark 中提取
+    const deleteRemark = (memberSnapshot.real_name || memberSnapshot.nick_name || '已注销会员') + ' 的套餐（会员已注销）';
     await UserPackage.updateMany(
       { user_id: member._id, remark: { $in: [null, '', undefined] } },
       { $set: { remark: deleteRemark } }
@@ -480,9 +499,14 @@ router.delete('/:id', auth, checkPermission(['super_admin']), async (req, res, n
       }
     );
 
-    await User.findByIdAndDelete(req.params.id);
+    // 软删除：标记注销，绝不物理删除会员（保留会员姓名/手机号/全部记录溯源）
+    // UserPackage 保留并已标记 expired + 快照，防止提醒服务误推
+    await User.updateOne(
+      { _id: member._id },
+      { $set: { is_deleted: true, deleted_at: new Date(), deleted_by: req.user.id } }
+    );
 
-    res.json(success(null, '会员已删除'));
+    res.json(success(null, '会员已注销'));
   } catch (err) {
     next(err);
   }

@@ -1,5 +1,5 @@
 <!-- 弹窗容器：遮罩 + 底部弹窗卡片 -->
-<view class="modal-mask" catchtap="onClose" wx:if="{{visible}}">
+<view class="modal-mask skin-root skin-{{skinId}}" catchtap="onClose" wx:if="{{visible}}">
   <view class="card" catchtap="onModalTap">
     <view class="icon-wrap">
       <view class="icon-dot"></view>

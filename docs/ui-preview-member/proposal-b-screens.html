@@ -1,0 +1,725 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>六屏效果图 · VOLT 舞力场 — 舞栖会员端方案 B</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bone:#F2F1ED; --card:#FFFFFF; --ink:#111310; --mute:#77786F;
+  --line:#DCDAD0; --volt:#D7FF3B;
+  --anton:"Anton","Arial Black",sans-serif;
+  --grot:"Space Grotesk","PingFang SC",sans-serif;
+  --cn:-apple-system,"PingFang SC","HarmonyOS Sans SC","Microsoft YaHei",sans-serif;
+  --spring:cubic-bezier(.34,1.56,.64,1);
+  --snap:cubic-bezier(.22,1,.36,1);
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bone);color:var(--ink);font-family:var(--cn);font-size:15px;line-height:1.75}
+.wrap{max-width:1160px;margin:0 auto;padding:52px 28px 120px}
+.back{font-family:var(--grot);font-size:12px;letter-spacing:.2em;color:var(--mute);text-decoration:none;border-bottom:2px solid var(--line);padding-bottom:3px;font-weight:700}
+.back:hover{color:var(--ink);border-color:var(--ink)}
+.mast{border-bottom:3px solid var(--ink);padding-bottom:24px;margin:18px 0 8px;display:flex;justify-content:space-between;align-items:flex-end;gap:20px;flex-wrap:wrap}
+h1{font-size:36px;font-weight:900;letter-spacing:0}
+h1 .hl{background:var(--volt);padding:0 12px;display:inline-block;transform:rotate(-1.5deg)}
+.mast p{max-width:560px;color:var(--mute);font-size:14px}
+.mode{font-family:var(--grot);font-weight:700;font-size:12px;letter-spacing:.2em;background:var(--ink);color:var(--volt);padding:10px 18px;border-radius:999px}
+
+.screen{display:flex;gap:44px;margin-top:80px;align-items:flex-start}
+.info{flex:1;min-width:280px;max-width:400px;position:sticky;top:40px}
+.sc-no{font-family:var(--grot);font-weight:700;font-size:12px;letter-spacing:.25em;color:var(--mute)}
+.sc-no b{background:var(--volt);color:var(--ink);padding:1px 8px;border-radius:4px;margin-right:8px}
+.sc-title{font-size:28px;font-weight:900;margin:8px 0 2px}
+.sc-en{font-family:var(--anton);font-weight:400;font-size:14px;letter-spacing:.08em;color:var(--mute);text-transform:uppercase}
+.sc-desc{font-size:13.5px;color:var(--mute);margin:16px 0;border-top:2px solid var(--ink);border-bottom:1.5px dashed var(--line);padding:14px 0}
+.sc-desc b{color:var(--ink)}
+.notes{list-style:none}
+.notes li{display:flex;gap:12px;padding:8px 0;border-bottom:1.5px dashed var(--line);font-size:13px;color:var(--mute)}
+.notes li b{color:var(--ink);flex-shrink:0}
+.notes li::before{content:"✺";color:var(--ink);background:var(--volt);border-radius:3px;font-size:10px;line-height:1.9;padding:0 4px;height:fit-content;flex-shrink:0}
+
+.phone{width:392px;height:848px;background:#171310;border-radius:46px;box-shadow:0 30px 70px rgba(17,19,16,.22);padding:8px;flex-shrink:0;overflow:hidden;position:relative}
+.ph-inner{width:100%;height:100%;border-radius:38px;overflow:hidden;background:var(--bone);display:flex;flex-direction:column;position:relative}
+.statusbar{height:38px;display:flex;justify-content:space-between;align-items:center;padding:0 24px;font-size:12px;font-weight:700;flex-shrink:0}
+.statusbar .sig{letter-spacing:2px;font-size:10px}
+.scroll{flex:1;overflow-y:auto;scrollbar-width:none}
+.scroll::-webkit-scrollbar{display:none}
+/* TabBar：胶囊指示 */
+.tabbar{height:66px;flex-shrink:0;display:flex;align-items:center;gap:6px;padding:0 14px;background:var(--bone);border-top:2px solid var(--ink)}
+.tab{flex:1;height:46px;display:flex;align-items:center;justify-content:center;gap:7px;font-size:12.5px;font-weight:700;letter-spacing:.08em;color:var(--mute);border-radius:999px;transition:all .2s var(--snap)}
+.tab .tdot{width:6px;height:6px;border-radius:2px;background:transparent}
+.tab.on{background:var(--ink);color:var(--volt)}
+.tab.on .tdot{background:var(--volt)}
+/* 通用 */
+.btn{display:inline-flex;align-items:center;justify-content:center;height:44px;padding:0 24px;border-radius:999px;font-size:13.5px;font-weight:800;letter-spacing:.1em;border:2px solid var(--ink);cursor:pointer;transition:transform .15s var(--spring);flex-shrink:0}
+.btn:active{transform:scale(.94)}
+.btn-p{background:var(--ink);color:var(--volt)}
+.btn-v{background:var(--volt);color:var(--ink)}
+.btn-g{background:transparent;color:var(--ink)}
+.btn-dis{background:transparent;color:var(--mute);border-color:var(--line)}
+.tagpill{display:inline-flex;align-items:center;gap:6px;padding:5px 13px;border:1.5px solid var(--ink);border-radius:999px;font-size:11.5px;font-weight:700;background:var(--card)}
+.tagpill.live-tag{background:var(--ink);color:var(--volt)}
+.tagpill.live-tag i{width:6px;height:6px;border-radius:50%;background:var(--volt);animation:blink 1.2s infinite}
+.tagpill.dim{border-color:var(--line);color:var(--mute)}
+@keyframes blink{50%{opacity:.25}}
+/* 跑马灯 */
+.marquee{overflow:hidden;background:var(--ink)}
+.mq-track{display:inline-flex;white-space:nowrap;animation:mq 16s linear infinite}
+.mq-track span{font-family:var(--grot);font-weight:700;font-size:11px;letter-spacing:.2em;color:var(--bone);padding:9px 0}
+.mq-track em{font-style:normal;color:var(--volt);padding:0 12px}
+@keyframes mq{to{transform:translateX(-50%)}}
+/* 首页 */
+.mast-head{display:flex;justify-content:space-between;align-items:center;padding:14px 22px 12px}
+.brand{display:flex;align-items:center;gap:10px}
+.brand .b-mark{width:34px;height:34px;background:var(--ink);color:var(--volt);font-family:var(--anton);font-size:18px;display:flex;align-items:center;justify-content:center;border-radius:10px;transform:rotate(-6deg)}
+.brand .b-name{font-weight:900;font-size:19px;letter-spacing:.06em}
+.brand .b-en{font-family:var(--grot);font-size:8.5px;letter-spacing:.3em;color:var(--mute)}
+.qr-mini{width:38px;height:38px;border:2px solid var(--ink);border-radius:12px;display:flex;align-items:center;justify-content:center;font-family:var(--grot);font-weight:700;font-size:11px;background:var(--card)}
+.hero-sec{padding:10px 22px 0}
+.hero-k{font-family:var(--grot);font-weight:700;font-size:11px;letter-spacing:.25em;color:var(--mute)}
+.hero-t{display:flex;align-items:baseline;gap:10px;margin-top:2px}
+.hero-t .cn{font-size:30px;font-weight:900;letter-spacing:.01em}
+.hero-t .en{font-family:var(--anton);font-size:22px;color:transparent;-webkit-text-stroke:1.3px var(--ink);letter-spacing:.04em}
+.hero-t .cnt{margin-left:auto;font-family:var(--anton);font-size:34px;background:var(--volt);padding:0 12px;border-radius:10px;transform:rotate(-3deg)}
+.drop{background:var(--card);border:2px solid var(--ink);border-radius:18px;margin-top:14px;overflow:hidden;position:relative;box-shadow:5px 5px 0 var(--ink)}
+.drop:active{transform:scale(.98) rotate(-.5deg)}
+.drop .ghost{position:absolute;top:0;right:12px;font-family:var(--anton);font-size:58px;line-height:1.1;color:transparent;-webkit-text-stroke:1.3px #E3E1D6;pointer-events:none}
+.drop-top{display:flex;justify-content:space-between;align-items:center;padding:14px 18px;border-bottom:1.5px dashed var(--line)}
+.drop-top .tm{font-family:var(--grot);font-weight:700;font-size:23px;letter-spacing:-.01em}
+.drop-top .tm small{font-size:11px;color:var(--mute);font-weight:500;margin-left:5px}
+.drop-body{padding:15px 18px 6px}
+.drop-name{font-size:23px;font-weight:900}
+.drop-meta{font-size:12px;color:var(--mute);margin-top:3px}
+.drop-foot{display:flex;align-items:center;gap:14px;padding:12px 18px 16px}
+.seat{flex:1}
+.seat-txt{font-family:var(--grot);font-weight:700;font-size:12.5px}
+.seat-txt .low{background:var(--volt);padding:0 6px;border-radius:4px}
+.seat .bar{height:5px;background:var(--bone);border:1px solid var(--line);border-radius:99px;margin-top:5px;overflow:hidden}
+.seat .bar i{display:block;height:100%;background:var(--ink)}
+.mini-cta{height:40px;padding:0 18px;font-size:12.5px}
+/* 节奏卡 */
+.rhythm{margin:18px 22px 0;background:var(--card);border:2px solid var(--ink);border-radius:18px;padding:16px 18px;box-shadow:5px 5px 0 var(--ink)}
+.rhythm .r-head{display:flex;justify-content:space-between;align-items:center}
+.rhythm .r-t{font-weight:900;font-size:15px}
+.rhythm .r-bpm{font-family:var(--grot);font-weight:700;font-size:12px;letter-spacing:.12em}
+.rhythm .r-bpm b{background:var(--volt);padding:1px 7px;border-radius:5px}
+.rhythm svg{width:100%;height:44px;display:block;margin-top:6px}
+.ecg-run{stroke-dasharray:22 220;animation:ecg 2.4s linear infinite}
+@keyframes ecg{from{stroke-dashoffset:0}to{stroke-dashoffset:-242}}
+.rhythm .r-sub{font-size:11px;color:var(--mute);margin-top:4px}
+/* 教练 */
+.coach-sec{padding:20px 22px 0}
+.sec-h{display:flex;align-items:baseline;gap:10px}
+.sec-h .cn{font-size:17px;font-weight:900}
+.sec-h .en{font-family:var(--grot);font-size:9px;letter-spacing:.25em;color:var(--mute);margin-left:auto}
+.coaches{display:flex;gap:14px;overflow:hidden;padding:12px 0 4px}
+.coach{width:76px;flex-shrink:0}
+.coach .ph{width:76px;height:92px;border:2px solid var(--ink);border-radius:14px;background:var(--card);display:flex;align-items:center;justify-content:center;font-weight:900;font-size:28px;position:relative;box-shadow:3px 3px 0 var(--ink)}
+.coach .ph em{position:absolute;bottom:4px;right:7px;font-style:normal;font-family:var(--grot);font-weight:700;font-size:9px;color:var(--mute)}
+.coach .nm{font-weight:900;font-size:13px;margin-top:7px}
+.coach .st{font-size:10px;color:var(--mute)}
+.foot{padding:26px 0 22px;text-align:center;color:var(--mute)}
+.foot .f1{font-family:var(--grot);font-weight:700;font-size:10px;letter-spacing:.35em}
+/* 预约页 */
+.pg-head{padding:16px 22px 0;display:flex;align-items:baseline;justify-content:space-between}
+.pg-title{font-size:27px;font-weight:900}
+.pg-sub{font-family:var(--grot);font-weight:700;font-size:11px;letter-spacing:.15em;color:var(--mute)}
+.week{display:flex;gap:7px;padding:14px 22px 4px}
+.dchip{flex:1;padding:8px 0 6px;text-align:center;border:1.5px solid var(--line);border-radius:13px;background:var(--card)}
+.dchip .wd{font-size:9.5px;color:var(--mute)}
+.dchip .dn{font-family:var(--grot);font-weight:700;font-size:17px;margin-top:1px}
+.dchip.on{background:var(--ink);border-color:var(--ink)}
+.dchip.on .wd{color:var(--volt);font-weight:700}
+.dchip.on .dn{color:var(--volt)}
+.drop-list{padding:10px 22px 20px}
+.drop-list .drop{box-shadow:4px 4px 0 var(--ink)}
+.locked-tag{display:inline-flex;align-items:center;gap:6px;font-family:var(--anton);font-size:11px;letter-spacing:.1em;background:var(--volt);border:1.5px solid var(--ink);padding:3px 10px;border-radius:7px}
+/* 详情页 */
+.cd-k{padding:18px 22px 0;position:relative}
+.cd-ghost{position:absolute;top:6px;right:16px;font-family:var(--anton);font-size:74px;line-height:1;color:transparent;-webkit-text-stroke:1.5px #E3E1D6}
+.cd-genre{font-family:var(--grot);font-weight:700;font-size:11px;letter-spacing:.3em;color:var(--mute)}
+.cd-title{font-size:31px;font-weight:900;margin:4px 0 2px}
+.cd-meta{font-size:12.5px;color:var(--mute)}
+.cd-meta b{color:var(--ink);font-size:14px}
+.meta-grid{display:grid;grid-template-columns:1fr 1fr;margin:16px 22px 0;background:var(--card);border:2px solid var(--ink);border-radius:16px;overflow:hidden;box-shadow:4px 4px 0 var(--ink)}
+.mg{padding:13px 16px}
+.mg:nth-child(odd){border-right:1.5px dashed var(--line)}
+.mg:nth-child(-n+2){border-bottom:1.5px dashed var(--line)}
+.mg .k{font-family:var(--grot);font-weight:700;font-size:9px;letter-spacing:.25em;color:var(--mute)}
+.mg .v{font-family:var(--grot);font-weight:700;font-size:19px;margin-top:2px}
+.mg .v small{font-size:11px;color:var(--mute);font-weight:500;font-family:var(--cn);margin-left:4px}
+.rule-box{margin:16px 22px 0;border:1.5px dashed var(--line);border-radius:14px;padding:12px 15px;font-size:11.5px;color:var(--mute);line-height:1.8}
+.rule-box b{color:var(--ink)}
+.rule-box .rb-t{font-weight:900;color:var(--ink);font-size:12.5px;margin-bottom:3px}
+.cd-bar{border-top:2px solid var(--ink);background:var(--card);padding:12px 18px;display:flex;align-items:center;gap:14px;flex-shrink:0}
+.cd-cost{display:flex;align-items:baseline;gap:6px}
+.cd-cost .n{font-family:var(--grot);font-weight:700;font-size:25px}
+.cd-cost .l{font-size:10px;color:var(--mute)}
+.cd-cost .volt-chip{background:var(--volt);padding:2px 8px;border-radius:6px;font-family:var(--grot);font-weight:700;font-size:11px}
+.cd-bar .btn{flex:1}
+/* 我的 */
+.pp-head{padding:20px 22px 14px;display:flex;align-items:center;gap:15px}
+.pp-ava{width:64px;height:64px;border:2px solid var(--ink);border-radius:18px;background:var(--card);display:flex;align-items:center;justify-content:center;font-weight:900;font-size:26px;box-shadow:3px 3px 0 var(--ink)}
+.pp-name{font-size:24px;font-weight:900}
+.pp-sub{font-family:var(--grot);font-weight:700;font-size:10px;letter-spacing:.18em;color:var(--mute);margin-top:2px}
+.pp-stats{display:flex;gap:10px;padding:0 22px}
+.pst{flex:1;background:var(--card);border:2px solid var(--ink);border-radius:14px;padding:11px 0;text-align:center;box-shadow:3px 3px 0 var(--ink)}
+.pst.hot{background:var(--volt)}
+.pst .n{font-family:var(--grot);font-weight:700;font-size:22px}
+.pst .l{font-size:9.5px;color:var(--mute);letter-spacing:.15em;margin-top:1px}
+.pst.hot .l{color:var(--ink)}
+.last-sec{padding:20px 22px 0}
+.last-card{display:flex;align-items:center;gap:14px;margin-top:12px;background:var(--card);border:2px solid var(--ink);border-radius:16px;padding:14px 16px;box-shadow:4px 4px 0 var(--ink)}
+.last-card .lc-mark{width:40px;height:40px;border-radius:12px;background:var(--volt);border:2px solid var(--ink);display:flex;align-items:center;justify-content:center;font-weight:900;font-size:18px;flex-shrink:0}
+.last-card .lc-main{flex:1;min-width:0}
+.last-card .lc-name{font-size:15px;font-weight:900}
+.last-card .lc-meta{font-size:11px;color:var(--mute);margin-top:1px}
+.last-card .lc-k{font-family:var(--grot);font-weight:700;font-size:9px;letter-spacing:.2em;color:var(--mute);text-align:right}
+/* 套餐 volt 卡 */
+.volt-card{margin:20px 22px 0;background:var(--volt);border:2px solid var(--ink);border-radius:18px;padding:16px 18px;box-shadow:5px 5px 0 var(--ink);position:relative;overflow:hidden}
+.volt-card .vc-top{display:flex;justify-content:space-between;align-items:center}
+.volt-card .vc-k{font-family:var(--grot);font-weight:700;font-size:9px;letter-spacing:.25em}
+.volt-card .vc-name{font-size:19px;font-weight:900;margin-top:3px}
+.volt-card .vc-meta{font-size:11px;margin-top:2px}
+.volt-card .vc-big{font-family:var(--grot);font-weight:700;font-size:32px;line-height:1}
+.volt-card .vc-big small{font-size:10px;font-family:var(--cn);font-weight:700;margin-left:3px}
+.barcode{display:flex;gap:2px;height:22px;margin-top:12px;align-items:stretch}
+.barcode i{background:var(--ink);flex-grow:1}
+.barcode i:nth-child(2n){flex-grow:2}
+.barcode i:nth-child(3n){flex-grow:3}
+.menu{margin:20px 22px 0;background:var(--card);border:2px solid var(--ink);border-radius:16px;overflow:hidden;box-shadow:4px 4px 0 var(--ink)}
+.mi{display:flex;align-items:center;gap:12px;padding:14px 16px;font-size:13.5px;font-weight:700}
+.mi+.mi{border-top:1.5px dashed var(--line)}
+.mi .m-en{font-family:var(--grot);font-size:8.5px;letter-spacing:.22em;color:var(--mute);margin-left:auto;font-weight:700}
+.mi .arr{color:var(--ink);font-family:var(--grot);font-weight:700}
+.logout{text-align:center;font-size:11px;color:var(--mute);letter-spacing:.3em;padding:22px 0 16px;font-weight:700}
+/* PASS 抽屉 */
+.ovl{position:absolute;inset:0;z-index:20;display:flex;align-items:flex-end}
+.ovl .dim{position:absolute;inset:0;background:rgba(17,19,16,.5)}
+.sheet{position:relative;width:100%;background:var(--card);border-radius:22px 22px 0 0;border-top:2px solid var(--ink);padding:14px 22px 26px;animation:sheetUp .45s var(--snap) both}
+@keyframes sheetUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+.sheet .handle{width:34px;height:5px;border-radius:99px;background:var(--line);margin:0 auto 16px}
+.pass-head{display:flex;justify-content:space-between;align-items:center}
+.pass-head b{font-family:var(--anton);font-size:21px;letter-spacing:.04em}
+.pass-head span{font-family:var(--grot);font-weight:700;font-size:10px;letter-spacing:.2em;color:var(--mute)}
+.pass-card{margin-top:14px;border:2px solid var(--ink);border-radius:18px;background:var(--volt);padding:16px;box-shadow:5px 5px 0 var(--ink)}
+.pass-top{display:flex;justify-content:space-between;align-items:center}
+.pass-top .p-cls{font-weight:900;font-size:16px}
+.pass-top .p-time{font-family:var(--grot);font-weight:700;font-size:13px}
+.qr-stage{display:flex;gap:16px;align-items:center;margin-top:12px;background:var(--card);border:2px solid var(--ink);border-radius:14px;padding:12px}
+.qr{width:104px;height:104px;flex-shrink:0}
+.qr svg{width:100%;height:100%;display:block}
+.p-meta{font-size:12px;color:var(--mute);line-height:1.9}
+.p-meta .cd{font-family:var(--grot);font-weight:700;font-size:18px;letter-spacing:.1em;color:var(--ink)}
+.p-meta .ref{font-size:10.5px}
+.eq-row{display:flex;align-items:flex-end;justify-content:center;gap:5px;height:30px;margin-top:14px}
+.eq-row i{width:5px;border-radius:3px;background:var(--ink);animation:eq .9s ease-in-out infinite alternate}
+.eq-row i:nth-child(1){animation-delay:0s}.eq-row i:nth-child(2){animation-delay:.15s}.eq-row i:nth-child(3){animation-delay:.3s}.eq-row i:nth-child(4){animation-delay:.05s}.eq-row i:nth-child(5){animation-delay:.22s}.eq-row i:nth-child(6){animation-delay:.38s}.eq-row i:nth-child(7){animation-delay:.1s}.eq-row i:nth-child(8){animation-delay:.28s}.eq-row i:nth-child(9){animation-delay:.12s}
+@keyframes eq{from{height:6px}to{height:28px}}
+.bpm-line{text-align:center;font-family:var(--grot);font-weight:700;font-size:11px;letter-spacing:.2em;margin-top:8px}
+.bpm-line b{background:var(--volt);border:1.5px solid var(--ink);padding:1px 8px;border-radius:6px}
+.sheet-note{margin-top:14px;padding-top:12px;border-top:1.5px dashed var(--line);font-size:11px;color:var(--mute);display:flex;justify-content:space-between}
+/* LOCKED */
+.lock-ovl{position:absolute;inset:0;z-index:20;display:flex;align-items:center;justify-content:center;background:rgba(17,19,16,.55)}
+.lock-card{width:310px;background:var(--bone);border:2px solid var(--ink);border-radius:22px;box-shadow:6px 6px 0 var(--ink);padding:26px 24px 22px;text-align:center;position:relative;animation:cardIn .4s var(--snap) both}
+@keyframes cardIn{from{opacity:0;transform:translateY(26px)}to{opacity:1;transform:translateY(0)}}
+.lock-word{font-family:var(--anton);font-size:44px;line-height:1;transform:rotate(-3deg);letter-spacing:.02em}
+.lock-word .hl{background:var(--volt);padding:0 10px;display:inline-block}
+.punching{animation:punch .55s var(--spring) both}
+@keyframes punch{0%{transform:scale(2.8) rotate(-9deg);opacity:0;filter:blur(8px)}60%{filter:blur(0)}100%{transform:scale(1) rotate(-3deg);opacity:1}}
+.shaking{animation:shake .4s linear .08s}
+@keyframes shake{0%,100%{transform:translate(0)}25%{transform:translate(2px,-2px)}50%{transform:translate(-2px,2px)}75%{transform:translate(2px,2px)}}
+.lock-info{margin-top:16px;border-top:1.5px dashed var(--line);padding-top:14px;font-size:12.5px;color:var(--mute);line-height:1.9}
+.lock-info b{color:var(--ink);font-size:14px}
+.lock-info .seat-chip{display:inline-block;background:var(--volt);border:1.5px solid var(--ink);border-radius:7px;padding:1px 8px;font-family:var(--grot);font-weight:700;font-size:11px;color:var(--ink)}
+.lock-card .btn{width:100%;margin-top:14px}
+.confetti{position:absolute;width:9px;height:15px;top:-12px;border-radius:2px;pointer-events:none;z-index:2}
+@keyframes fall{0%{transform:translateY(0) rotate(0);opacity:1}100%{transform:translateY(260px) rotate(260deg);opacity:0}}
+/* ---------- 教练详情 & 画面墙（方案B） ---------- */
+.artist-head{padding:16px 22px 0;position:relative}
+.artist-ghost{position:absolute;top:0;right:14px;font-family:var(--anton);font-size:66px;color:transparent;-webkit-text-stroke:1.3px #E3E1D6;line-height:1;pointer-events:none}
+.artist-genre{font-family:var(--grot);font-weight:700;font-size:10.5px;letter-spacing:.3em;color:var(--mute)}
+.artist-name{font-size:36px;font-weight:900;margin:4px 0 4px;display:flex;align-items:center;gap:10px}
+.artist-name .livepill{font-family:var(--anton);font-size:11px;letter-spacing:.08em;background:var(--ink);color:var(--volt);padding:4px 10px;border-radius:8px}
+.artist-meta{font-size:12.5px;color:var(--mute)}
+.artist-meta b{color:var(--ink)}
+.artist-stats{display:flex;gap:10px;margin:16px 22px 0}
+.ast{flex:1;background:var(--card);border:2px solid var(--ink);border-radius:14px;padding:11px 0 9px;text-align:center;box-shadow:3px 3px 0 var(--ink)}
+.ast .n{font-family:var(--grot);font-weight:700;font-size:20px}
+.ast .l{font-size:9px;color:var(--mute);letter-spacing:.18em;margin-top:2px}
+.ast.hot .n{background:var(--volt);display:inline-block;padding:0 10px;border-radius:7px}
+.bio-card{margin:16px 22px 0;background:var(--card);border:2px solid var(--ink);border-radius:16px;padding:14px 16px;font-size:12.5px;color:var(--mute);line-height:2;box-shadow:4px 4px 0 var(--ink);position:relative}
+.bio-card b{color:var(--ink)}
+.bio-card .bio-tag{position:absolute;top:-11px;left:14px;background:var(--volt);border:1.5px solid var(--ink);border-radius:7px;padding:2px 10px;font-family:var(--grot);font-weight:700;font-size:9.5px;letter-spacing:.15em;color:var(--ink)}
+.strip{display:flex;gap:12px;overflow:hidden;padding:14px 22px 4px}
+.strip .s-item{width:112px;flex-shrink:0;border:2px solid var(--ink);border-radius:14px;background:var(--card);height:146px;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:24px;box-shadow:3px 3px 0 var(--ink);position:relative}
+.strip .s-item em{position:absolute;bottom:5px;left:9px;font-style:normal;font-family:var(--grot);font-weight:700;font-size:8.5px;color:var(--mute);letter-spacing:.1em}
+.wall{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:12px 22px 20px}
+.wall .w-item{border:2px solid var(--ink);border-radius:16px;background:var(--card);overflow:hidden;box-shadow:4px 4px 0 var(--ink)}
+.wall .w-img{display:flex;align-items:center;justify-content:center;font-weight:900;font-size:20px;color:var(--mute)}
+.wall .w-cap{padding:9px 12px;font-family:var(--grot);font-weight:700;font-size:9.5px;letter-spacing:.08em;color:var(--mute);display:flex;justify-content:space-between;align-items:center}
+.wall .w-cap .hot{background:var(--volt);border:1.5px solid var(--ink);color:var(--ink);border-radius:6px;padding:1px 7px;font-size:8.5px}
+.wall .w-cap .shot{color:var(--ink)}
+@media (max-width:1024px){.screen{flex-direction:column}.info{position:static;max-width:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="back" href="proposal-b-index.html">← 返回方案 B 总览</a>
+  <div class="mast">
+    <div>
+      <h1><span class="hl">VOLT</span> 六屏效果图</h1>
+      <p>首页 / 场次预约 / 课程详情 / 我的（会员护照）/ 入场 PASS / 预约成功 LOCKED。人物照片为占位，实施时换门店实拍；数据均为演示假数据。</p>
+    </div>
+    <div class="mode">DANCE CLUB MODE</div>
+  </div>
+
+  <!-- ============ 01 首页 ============ -->
+  <div class="screen">
+    <div class="phone"><div class="ph-inner">
+      <div class="statusbar"><span>9:41</span><span class="sig">●●● ▲ ▮</span></div>
+      <div class="marquee"><div class="mq-track"><span>今日登场 4 节<em>✺</em>19:30 古典舞 仅剩 6 席<em>✺</em>周六教室休<em>✺</em>DANCE CLUB<em>✺</em></span><span aria-hidden="true">今日登场 4 节<em>✺</em>19:30 古典舞 仅剩 6 席<em>✺</em>周六教室休<em>✺</em>DANCE CLUB<em>✺</em></span></div></div>
+      <div class="scroll">
+        <div class="mast-head">
+          <div class="brand">
+            <div class="b-mark">栖</div>
+            <div><div class="b-name">舞栖</div><div class="b-en">WUQI DANCE CLUB</div></div>
+          </div>
+          <div class="qr-mini">PASS</div>
+        </div>
+        <div class="hero-sec">
+          <div class="hero-k">TODAY · 09/24 周三 · 万象城店</div>
+          <div class="hero-t"><span class="cn">今日登场</span><span class="en">SHOWTIME</span><span class="cnt">04</span></div>
+        </div>
+        <div class="drop" style="margin:14px 22px 0">
+          <div class="ghost">01</div>
+          <div class="drop-top"><span class="tagpill">古典舞</span><span class="tm">19:30<small>- 21:00</small></span></div>
+          <div class="drop-body"><div class="drop-name">古典舞 · 基础</div><div class="drop-meta">林晚 · A 教室</div></div>
+          <div class="drop-foot"><div class="seat"><div class="seat-txt">仅剩 <b class="low">6</b> / 12 席</div><div class="bar"><i style="width:50%"></i></div></div><button class="btn btn-p mini-cta">立即锁定</button></div>
+        </div>
+        <div class="drop" style="margin:14px 22px 0">
+          <div class="ghost">02</div>
+          <div class="drop-top"><span class="tagpill live-tag"><i></i>LIVE</span><span class="tm">18:00<small>- 19:00</small></span></div>
+          <div class="drop-body"><div class="drop-name">韩舞 · 框架</div><div class="drop-meta">苏芮 · B 教室 · 进行中</div></div>
+          <div class="drop-foot"><div class="seat"><div class="seat-txt">已满 <b>12</b> / 12 席</div><div class="bar"><i style="width:100%"></i></div></div><button class="btn btn-g mini-cta">候补排队</button></div>
+        </div>
+        <div class="rhythm">
+          <div class="r-head"><span class="r-t">你的节奏</span><span class="r-bpm"><b>128 BPM</b></span></div>
+          <svg viewBox="0 0 300 44">
+            <path d="M0 22 H52 L62 22 L70 8 L80 38 L90 14 L98 22 H150 L160 22 L168 8 L178 38 L188 14 L196 22 H250 L260 22 L268 8 L278 38 L288 14 L296 22 H300" fill="none" stroke="#E3E1D6" stroke-width="2"/>
+            <path class="ecg-run" d="M0 22 H52 L62 22 L70 8 L80 38 L90 14 L98 22 H150 L160 22 L168 8 L178 38 L188 14 L196 22 H250 L260 22 L268 8 L278 38 L288 14 L296 22 H300" fill="none" stroke="#111310" stroke-width="2.5" stroke-linecap="round"/>
+          </svg>
+          <div class="r-sub">本周已上 3 节 · 累计 26 节 —— 别停，气场正热</div>
+        </div>
+        <div class="coach-sec">
+          <div class="sec-h"><span class="cn">带课教练</span><span class="en">COACHES</span></div>
+          <div class="coaches">
+            <div class="coach"><div class="ph">林<em>01</em></div><div class="nm">林晚</div><div class="st">古典舞</div></div>
+            <div class="coach"><div class="ph">苏<em>02</em></div><div class="nm">苏芮</div><div class="st">韩舞</div></div>
+            <div class="coach"><div class="ph">陈<em>03</em></div><div class="nm">陈默</div><div class="st">街舞</div></div>
+            <div class="coach"><div class="ph">周<em>04</em></div><div class="nm">周雨桐</div><div class="st">爵士</div></div>
+          </div>
+        </div>
+        <div class="foot"><div class="f1">WUQI DANCE CLUB · 教室见</div></div>
+      </div>
+      <div class="tabbar">
+        <div class="tab on"><span class="tdot"></span>首页</div>
+        <div class="tab"><span class="tdot"></span>约课</div>
+        <div class="tab"><span class="tdot"></span>我的</div>
+      </div>
+    </div></div>
+    <div class="info">
+      <div class="sc-no"><b>01</b>SCREEN</div>
+      <div class="sc-title">首页 · 俱乐部门口</div>
+      <div class="sc-en">SHOWTIME</div>
+      <p class="sc-desc">进首页像走进剧场门口：黑底跑马灯正在播今日场次，<b>「今日登场 04」</b>是唯一的视觉焦点，两张大海报卡直接可约。你的「节奏」（出勤心电图）替代了传统的数据仪表盘。</p>
+      <ul class="notes">
+        <li><b>跑马灯</b>替换原轮播位：黑底 16s 循环，内容由门店公告+席位余量驱动，14rpx 级小字不吵</li>
+        <li><b>登场大卡</b>每天 ≤4 节，首页露出最近 2 节，卡片约占屏高 1/4.5，幽灵编号 01/02 是海报位</li>
+        <li><b>你的节奏</b>出勤心电图 + BPM 装饰小签 + 一句人话激励（本周已上/累计节数，现有记录统计）——情绪价值核心位</li>
+        <li><b>教练</b>方形描边照片+重影，名字重黑体，不再用圆形彩卡</li>
+        <li><b>PASS 角标</b>右上角常驻入口，到店扫码一步直达</li>
+        <li><b>动效</b>进页大卡依次登台（70ms 间隔）；LIVE 标签黑点呼吸；心电图光点循环</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- ============ 02 预约 ============ -->
+  <div class="screen">
+    <div class="phone"><div class="ph-inner">
+      <div class="statusbar"><span>9:41</span><span class="sig">●●● ▲ ▮</span></div>
+      <div class="scroll">
+        <div class="pg-head"><span class="pg-title">约课</span><span class="pg-sub">BOOKING · 09/24 周三 · 今日 4 场</span></div>
+        <div class="week">
+          <div class="dchip"><div class="wd">一</div><div class="dn">22</div></div>
+          <div class="dchip on"><div class="wd">三</div><div class="dn">24</div></div>
+          <div class="dchip"><div class="wd">四</div><div class="dn">25</div></div>
+          <div class="dchip"><div class="wd">五</div><div class="dn">26</div></div>
+          <div class="dchip"><div class="wd">六</div><div class="dn">27</div></div>
+          <div class="dchip"><div class="wd">日</div><div class="dn">28</div></div>
+        </div>
+        <div class="drop-list">
+          <div class="drop">
+            <div class="ghost">01</div>
+            <div class="drop-top"><span class="tagpill">形体</span><span class="tm">07:30<small>- 08:30</small></span></div>
+            <div class="drop-body"><div class="drop-name">形体 · 晨课</div><div class="drop-meta">周雨桐 · C 教室 · 已结束</div></div>
+            <div class="drop-foot"><div class="seat"><div class="seat-txt" style="color:var(--mute)">已结束</div></div><button class="btn btn-dis mini-cta">NEXT TIME</button></div>
+          </div>
+          <div class="drop">
+            <div class="ghost">02</div>
+            <div class="drop-top"><span class="tagpill">韩舞</span><span class="tm">18:00<small>- 19:00</small></span></div>
+            <div class="drop-body"><div class="drop-name">韩舞 · 框架</div><div class="drop-meta">苏芮 · B 教室</div></div>
+            <div class="drop-foot"><div class="seat"><div class="seat-txt">已满 <b>12</b> / 12 席</div><div class="bar"><i style="width:100%"></i></div></div><button class="btn btn-g mini-cta">候补排队</button></div>
+          </div>
+          <div class="drop">
+            <div class="locked-tag" style="position:absolute;top:-12px;left:16px">✓ LOCKED</div>
+            <div class="ghost">03</div>
+            <div class="drop-top"><span class="tagpill">古典舞</span><span class="tm">19:30<small>- 21:00</small></span></div>
+            <div class="drop-body"><div class="drop-name">古典舞 · 基础</div><div class="drop-meta">林晚 · A 教室</div></div>
+            <div class="drop-foot"><div class="seat"><div class="seat-txt">你已锁定 · <b>7</b> / 12 席</div><div class="bar"><i style="width:58%"></i></div></div><button class="btn btn-v mini-cta">教室见</button></div>
+          </div>
+          <div class="drop">
+            <div class="ghost">04</div>
+            <div class="drop-top"><span class="tagpill">爵士</span><span class="tm">21:00<small>- 22:00</small></span></div>
+            <div class="drop-body"><div class="drop-name">爵士 · solo 拆解</div><div class="drop-meta">周雨桐 · B 教室</div></div>
+            <div class="drop-foot"><div class="seat"><div class="seat-txt"><b class="low" style="background:var(--line)">20:00</b> 开抢</div></div><button class="btn btn-dis mini-cta">未开放</button></div>
+          </div>
+        </div>
+      </div>
+      <div class="tabbar">
+        <div class="tab"><span class="tdot"></span>首页</div>
+        <div class="tab on"><span class="tdot"></span>约课</div>
+        <div class="tab"><span class="tdot"></span>我的</div>
+      </div>
+    </div></div>
+    <div class="info">
+      <div class="sc-no"><b>02</b>SCREEN</div>
+      <div class="sc-title">约课 · 一屏一课</div>
+      <div class="sc-en">BOOKING — BIG CARDS</div>
+      <p class="sc-desc">呼应「每天不超过 4 节」：放弃小列表，<b>每节课一张海报大卡（约屏高 1/4）</b>，滚动节奏是从容的「一屏一课」。稀缺感用大数字讲：仅剩 6、20:00 开抢。</p>
+      <ul class="notes">
+        <li><b>日期</b>胶囊块，选中墨黑底青柠字，切换 Q 弹（见总览演示）</li>
+        <li><b>五态按钮</b>立即锁定（黑）/ 教室见·已持有（青柠反转）/ 候补排队（描边）/ 未开放·NEXT TIME（灰）——现有 12 种状态全部归并到这套视觉</li>
+        <li><b>LOCKED 角标</b>已约课程左上角骑缝贴纸，替代原「已约」灰按钮， ownership 一眼可见</li>
+        <li><b>席位条</b>细进度条+大数字；剩 ≤3 时数字青柠高亮并轻微抖动一次</li>
+        <li><b>「开抢」</b>未开放课程显示开放时间，用抢购语言替代「未开始」</li>
+        <li><b>动效</b>切日期整列大卡依次登台（70ms stagger）；按压卡片微缩+0.5° 倾斜</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- ============ 03 详情 ============ -->
+  <div class="screen">
+    <div class="phone"><div class="ph-inner">
+      <div class="statusbar"><span>9:41</span><span class="sig">●●● ▲ ▮</span></div>
+      <div class="scroll">
+        <div class="cd-k">
+          <div class="cd-ghost">03</div>
+          <div class="cd-genre">CLASSICAL · BASIC · 万象城店</div>
+          <div class="cd-title">古典舞 · 基础</div>
+          <div class="cd-meta">带课 <b>林晚</b> · 查看主页 →</div>
+        </div>
+        <div class="meta-grid">
+          <div class="mg"><div class="k">DATE</div><div class="v">09/24 <small>周三</small></div></div>
+          <div class="mg"><div class="k">TIME</div><div class="v">19:30 <small>- 21:00</small></div></div>
+          <div class="mg"><div class="k">STUDIO</div><div class="v">A 教室 <small>2 层</small></div></div>
+          <div class="mg"><div class="k">SEATS</div><div class="v">7<small>/ 12 人</small></div></div>
+        </div>
+        <div class="rule-box">
+          <div class="rb-t">开抢规则</div>
+          开课前 2 小时停止预约；开课前 1 小时外取消，课时全额退回，之后取消用 1 次「豁免」（你还剩 3 次）；不足 4 人开课会取消并全额退回。
+        </div>
+        <div class="meta-grid">
+          <div class="mg"><div class="k">COST</div><div class="v" style="color:var(--ink)">1 <small>课时</small></div></div>
+          <div class="mg"><div class="k">STOCK</div><div class="v">仅剩 <span style="background:var(--volt);padding:0 8px;border-radius:6px">5</span><small>席</small></div></div>
+        </div>
+      </div>
+      <div class="cd-bar">
+        <div class="cd-cost"><span class="n">1</span><span class="l">CREDIT</span><span class="volt-chip">你的库存 13</span></div>
+        <button class="btn btn-p">立即锁定</button>
+      </div>
+    </div></div>
+    <div class="info">
+      <div class="sc-no"><b>03</b>SCREEN</div>
+      <div class="sc-title">课程详情 · 库存语言</div>
+      <div class="sc-en">SHOW DETAIL</div>
+      <p class="sc-desc">详情页用「商品库存」的逻辑组织：席位是 STOCK、课时是 CREDIT、你的余额是「库存」。决策信息（几点/几席/扣多少/规则）一屏讲完。</p>
+      <ul class="notes">
+        <li><b>头部</b>幽灵大编号 + 海报字，教练名可点进主页</li>
+        <li><b>信息格</b>2×2 白卡虚线十字分隔，Grotesk 数字</li>
+        <li><b>规则</b>大白话一段讲清取消/豁免/最低开班，豁免余量内联</li>
+        <li><b>底栏</b>「1 CREDIT + 你的库存 13」直接对照，按钮唯一焦点</li>
+        <li><b>动效</b>进入时编号先落、信息格 70ms 弹入；点「立即锁定」→ 确认抽屉 → LOCKED 拳入（屏 06）</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- ============ 04 我的 ============ -->
+  <div class="screen">
+    <div class="phone"><div class="ph-inner">
+      <div class="statusbar"><span>9:41</span><span class="sig">●●● ▲ ▮</span></div>
+      <div class="scroll">
+        <div class="pp-head">
+          <div class="pp-ava">顾</div>
+          <div>
+            <div class="pp-name">顾清欢</div>
+            <div class="pp-sub">NO. WQ-0817 · DANCE PASSPORT</div>
+          </div>
+        </div>
+        <div class="pp-stats">
+          <div class="pst"><div class="n">3</div><div class="l">待上课</div></div>
+          <div class="pst"><div class="n">26</div><div class="l">已上课</div></div>
+          <div class="pst hot"><div class="n">13</div><div class="l">课时库存</div></div>
+        </div>
+        <div class="last-sec">
+          <div class="sec-h"><span class="cn">最近一课</span><span class="en">LAST SESSION</span></div>
+          <div class="last-card">
+            <div class="lc-mark">✓</div>
+            <div class="lc-main">
+              <div class="lc-name">古典舞 · 基础</div>
+              <div class="lc-meta">09/22 周一 19:30 · 林晚 · A 教室</div>
+            </div>
+            <div class="lc-k">已上课<br>第 26 节</div>
+          </div>
+        </div>
+        <div class="volt-card">
+          <div class="vc-top">
+            <div>
+              <div class="vc-k">MEMBERSHIP · 季卡</div>
+              <div class="vc-name">时间卡 · 每日一节</div>
+              <div class="vc-meta">有效期至 2026.12.08 · 万象城 / 滨江</div>
+            </div>
+            <div style="text-align:right"><div class="vc-big">94<small>天</small></div></div>
+          </div>
+          <div class="barcode"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+        </div>
+        <div class="menu">
+          <div class="mi">入场 PASS · 到店出示<span class="m-en">PASS</span><span class="arr">→</span></div>
+          <div class="mi">我的记录<span class="m-en">RECORDS</span><span class="arr">→</span></div>
+          <div class="mi">我的套餐<span class="m-en">PACKAGES</span><span class="arr">→</span></div>
+          <div class="mi">消息推送设置<span class="m-en">ALERTS</span><span class="arr">→</span></div>
+          <div class="mi">此间画面 · 画廊<span class="m-en">GALLERY</span><span class="arr">→</span></div>
+          <div class="mi">联系门店<span class="m-en">CONTACT</span><span class="arr">→</span></div>
+        </div>
+        <div class="logout">退 出 登 录</div>
+      </div>
+      <div class="tabbar">
+        <div class="tab"><span class="tdot"></span>首页</div>
+        <div class="tab"><span class="tdot"></span>约课</div>
+        <div class="tab on"><span class="tdot"></span>我的</div>
+      </div>
+    </div></div>
+    <div class="info">
+      <div class="sc-no"><b>04</b>SCREEN</div>
+      <div class="sc-title">我的 · 舞蹈护照</div>
+      <div class="sc-en">DANCE PASSPORT</div>
+      <p class="sc-desc">个人中心 = 一本「舞蹈护照」：数据是出入境记录，<b>最近一课是最新的一枚章</b>，套餐是一张青柠会员卡（带条码）。本页全部来自现有功能与数据，不新增任何业务概念。</p>
+      <ul class="notes">
+        <li><b>数据三格</b>待上课 / 已上课 / 课时库存（现有真实字段），「课时库存」青柠高亮——资产感</li>
+        <li><b>最近一课</b>现有「我的记录」最近一条上课记录的快捷呈现（勾章 + 课名 + 时间 + 第 N 节），翻 App 时先看到自己的进步</li>
+        <li><b>会员卡</b>整卡青柠底黑字 + 条码（现有套餐数据：时间卡显剩余天数、次卡显剩余次数），唯一大面积亮色给「资产」</li>
+        <li><b>菜单</b>入场PASS / 我的记录 / 我的套餐 / 消息推送 / 此间画面 / 联系门店——全部现有功能</li>
+        <li><b>动效</b>数字滚动入场；「最近一课」勾章落下轻震；会员卡进入时轻「拍」一下</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- ============ 05 PASS ============ -->
+  <div class="screen">
+    <div class="phone" style="height:620px"><div class="ph-inner">
+      <div class="statusbar"><span>9:41</span><span class="sig">●●● ▲ ▮</span></div>
+      <div class="scroll"></div>
+      <div class="ovl">
+        <div class="dim"></div>
+        <div class="sheet">
+          <div class="handle"></div>
+          <div class="pass-head"><b>ADMIT ONE</b><span>入场 PASS</span></div>
+          <div class="pass-card">
+            <div class="pass-top"><span class="p-cls">古典舞 · 基础</span><span class="p-time">19:30 · A 教室</span></div>
+            <div class="qr-stage">
+              <div class="qr">
+                <svg viewBox="0 0 29 29" shape-rendering="crispEdges"><rect width="29" height="29" fill="#fff"/><g fill="#111310"><path d="M0 0h7v7H0zM22 0h7v7h-7zM0 22h7v7H0z"/><path d="M1 1h5v5H1zM23 1h5v5h-5zM1 23h5v5H1z" fill="#fff"/><path d="M2 2h3v3H2zM24 2h3v3h-3zM2 24h3v3H2z"/><path d="M9 0h1v2H9zM12 0h2v1h-2zM15 1h2v2h-2zM19 0h2v2h-2zM0 9h2v2H0zM2 12h1v2H2zM0 15h1v3H0zM1 19h2v2H1zM28 9h1v2h-1zM26 11h2v1h-2zM28 14h1v3h-1zM26 18h2v2h-2zM9 5h2v2H9zM11 4h1v3h-1zM14 5h2v1h-2zM17 5h1v2h-1zM19 6h2v2h-2zM5 9h2v1H5zM8 9h1v2H8zM10 10h2v2h-2zM13 9h3v1h-3zM17 9h1v2h-1zM19 10h2v2h-2zM22 9h1v1h-1zM24 10h2v2h-2zM3 13h2v2H3zM6 12h1v2H6zM9 13h1v3H9zM11 14h2v1h-2zM14 12h1v3h-1zM15 15h2v2h-2zM18 13h1v2h-1zM20 14h2v1h-2zM23 13h2v2h-2zM26 13h1v1h-1zM2 17h1v2H2zM4 18h2v1H4zM7 17h1v2H7zM9 18h2v1H9zM12 17h1v2h-1zM13 19h3v1h-3zM17 18h2v1h-2zM20 17h1v2h-1zM22 18h2v1h-2zM25 17h1v2h-1zM27 19h2v1h-2zM9 21h1v2H9zM11 22h2v1h-2zM14 21h1v2h-1zM16 22h2v1h-2zM19 21h1v2h-1zM21 22h2v1h-2zM24 21h2v2h-2zM27 22h1v2h-1zM10 25h1v2h-1zM12 26h2v1h-2zM15 25h2v2h-2zM18 25h1v2h-1zM20 26h2v1h-2zM23 25h1v3h-1zM25 26h2v1h-2z"/></g></svg>
+              </div>
+              <div class="p-meta">
+                顾清欢 · WQ-0817<br>
+                <span class="cd">6C2F · 0817</span><br>
+                <span class="ref">60 秒自动刷新 · 防截图代扫</span>
+              </div>
+            </div>
+          </div>
+          <div class="eq-row"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+          <div class="bpm-line">YOUR RHYTHM · <b>128 BPM</b></div>
+          <div class="sheet-note"><span>出示给门店工作人员扫码签到</span><span>签到后自动关闭</span></div>
+        </div>
+      </div>
+      <div class="tabbar"><div class="tab"><span class="tdot"></span>首页</div><div class="tab"><span class="tdot"></span>约课</div><div class="tab on"><span class="tdot"></span>我的</div></div>
+    </div></div>
+    <div class="info">
+      <div class="sc-no"><b>05</b>STATE</div>
+      <div class="sc-title">入场 PASS</div>
+      <div class="sc-en">QR PASS + EQUALIZER</div>
+      <p class="sc-desc">会员码从白框升级为一张<b>青柠车票</b>：票面信息、大编号、底部一排跳动的均衡器——「这是你的节奏」。到店签到变成一场小型检票仪式。</p>
+      <ul class="notes">
+        <li><b>票面</b>课名+时间在最显眼处，编号大字，工作人员远看可核对</li>
+        <li><b>均衡器</b>9 杆交替律动，纯 CSS 动画零耗电；扫码成功全员齐高定格淡出</li>
+        <li><b>刷新</b>60 秒逻辑不变，提示缩小为脚注</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- ============ 06 LOCKED ============ -->
+  <div class="screen">
+    <div class="phone" style="height:620px"><div class="ph-inner">
+      <div class="statusbar"><span>9:41</span><span class="sig">●●● ▲ ▮</span></div>
+      <div class="scroll"></div>
+      <div class="lock-ovl" id="lockOvl">
+        <div class="lock-card" id="lockCard">
+          <div class="lock-word" id="lockWord">LOCKED<span class="hl">!</span></div>
+          <div class="lock-info">
+            已锁定 <b>古典舞 · 基础</b><br>
+            09/24 周三 19:30 · A 教室<br>
+            扣 1 课时 · 剩 <span class="seat-chip">12</span> · 教室见
+          </div>
+          <button class="btn btn-p">好的，教室见</button>
+        </div>
+      </div>
+      <div class="tabbar"><div class="tab"><span class="tdot"></span>首页</div><div class="tab"><span class="tdot"></span>约课</div><div class="tab"><span class="tdot"></span>我的</div></div>
+    </div></div>
+    <div class="info">
+      <div class="sc-no"><b>06</b>STATE</div>
+      <div class="sc-title">预约成功 · LOCKED!</div>
+      <div class="sc-en">THE PUNCH</div>
+      <p class="sc-desc">签名瞬间：巨字从远处一拳打进（blur→清晰）+ 屏幕轻震 + 青柠/黑双色纸屑落下 + 一句「教室见」。取消预约则同一版式显示灰色「RELEASED」，一正一反。</p>
+      <ul class="notes">
+        <li><b>拳入</b>0.55s spring，scale 2.8→1 + blur 8→0，重感不廉价</li>
+        <li><b>纸屑</b>只有青柠与黑两色，12 片，禁止彩虹色</li>
+        <li><b>复用</b>候补转正/签到成功/审核通过共用此组件（换字与色彩）</li>
+        <li><b>信息闭环</b>扣课与剩余直接写在票面，不用再翻套餐</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- ============ 07 教练详情（B） ============ -->
+  <div class="screen">
+    <div class="phone"><div class="ph-inner">
+      <div class="statusbar"><span>9:41</span><span class="sig">●●● ▲ ▮</span></div>
+      <div class="scroll">
+        <div class="artist-head">
+          <div class="artist-ghost">01</div>
+          <div class="artist-genre">COACH · CLASSICAL · 万象城店</div>
+          <div class="artist-name">林晚<span class="livepill">TODAY</span></div>
+          <div class="artist-meta">古典舞 · 教龄 6 年 · 带课 <b>32</b> 节</div>
+        </div>
+        <div class="artist-stats">
+          <div class="ast hot"><div class="n">4</div><div class="l">本周登场</div></div>
+          <div class="ast"><div class="n">32</div><div class="l">累计带课</div></div>
+          <div class="ast"><div class="n">120+</div><div class="l">学员</div></div>
+        </div>
+        <div class="bio-card">
+          <span class="bio-tag">COACH NOTE</span>
+          「身体先于语言。古典舞的呼吸从脊柱开始，我们一节一节把它唤醒。」
+        </div>
+        <div class="coach-sec">
+          <div class="sec-h"><span class="cn" style="font-size:17px;font-weight:900">画面</span><span class="en">SHOTS</span></div>
+          <div class="strip">
+            <div class="s-item">剧排<em>SHOT 01</em></div>
+            <div class="s-item">身韵<em>SHOT 02</em></div>
+            <div class="s-item">后台<em>SHOT 03</em></div>
+          </div>
+        </div>
+        <div class="drop-list" style="padding-top:16px">
+          <div class="drop">
+            <div class="ghost">01</div>
+            <div class="drop-top"><span class="tagpill">古典舞</span><span class="tm">19:30<small>- 21:00</small></span></div>
+            <div class="drop-body"><div class="drop-name">古典舞 · 基础</div><div class="drop-meta">周三 09/24 · A 教室</div></div>
+            <div class="drop-foot"><div class="seat"><div class="seat-txt">仅剩 <b class="low">6</b> / 12 席</div><div class="bar"><i style="width:50%"></i></div></div><button class="btn btn-p mini-cta">立即锁定</button></div>
+          </div>
+          <div class="drop">
+            <div class="ghost">02</div>
+            <div class="drop-top"><span class="tagpill">古典舞</span><span class="tm">10:00<small>- 11:30</small></span></div>
+            <div class="drop-body"><div class="drop-name">古典舞 · 身韵</div><div class="drop-meta">周六 09/27 · A 教室</div></div>
+            <div class="drop-foot"><div class="seat"><div class="seat-txt">已约 <b>9</b> / 12 席</div><div class="bar"><i style="width:75%"></i></div></div><button class="btn btn-p mini-cta">立即锁定</button></div>
+          </div>
+        </div>
+        <div class="foot"><div class="f1">WUQI DANCE CLUB · 教室见</div></div>
+      </div>
+    </div></div>
+    <div class="info">
+      <div class="sc-no"><b>07</b>SCREEN</div>
+      <div class="sc-title">教练详情 · 主理人卡</div>
+      <div class="sc-en">THE ARTIST</div>
+      <p class="sc-desc">教练在 VOLT 世界里是「主理人」：幽灵编号 + 重黑大名 + TODAY 胸牌（今天有课才亮），数据三格（本周登场/累计带课/学员），教学手记是一张骑缝标签白卡，课程照旧是登场大卡——直接可锁定。</p>
+      <ul class="notes">
+        <li><b>TODAY 胸牌</b>仅当天有排课时显示，黑底青柠字，点它跳到今日约课列表</li>
+        <li><b>数据格</b>「本周登场」青柠高亮；累计带课/学员由现有排课与预约数据统计</li>
+        <li><b>画面横滑</b>教练相册（现有 Image 数据），SHOT 编号与幽灵编号同一语言</li>
+        <li><b>登场卡</b>复用约课页大卡组件，所见即可约，状态逻辑同现有 12 态</li>
+        <li><b>动效</b>大名从左拍入、三格数字滚动、SHOT 卡横滑弹簧跟手</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- ============ 08 画面墙（B） ============ -->
+  <div class="screen">
+    <div class="phone"><div class="ph-inner">
+      <div class="statusbar"><span>9:41</span><span class="sig">●●● ▲ ▮</span></div>
+      <div class="scroll">
+        <div class="pg-head"><span class="pg-title">画面墙</span><span class="pg-sub">THE WALL · 28 SHOTS</span></div>
+        <div class="week" style="padding-bottom:8px">
+          <div class="dchip on" style="flex:none;padding:6px 16px"><div class="wd" style="font-size:10px">全部</div></div>
+          <div class="dchip" style="flex:none;padding:6px 16px"><div class="wd" style="font-size:10px">万象城店</div></div>
+          <div class="dchip" style="flex:none;padding:6px 16px"><div class="wd" style="font-size:10px">滨江店</div></div>
+        </div>
+        <div class="wall">
+          <div class="w-item"><div class="w-img" style="height:150px">排练厅</div><div class="w-cap"><span class="shot">SHOT@万象城</span><span>09/12</span></div></div>
+          <div class="w-item"><div class="w-img" style="height:104px">把杆</div><div class="w-cap"><span class="hot">HOT</span><span>09/10</span></div></div>
+          <div class="w-item"><div class="w-img" style="height:118px">镜屋</div><div class="w-cap"><span class="shot">SHOT@滨江</span><span>09/08</span></div></div>
+          <div class="w-item"><div class="w-img" style="height:168px">演出</div><div class="w-cap"><span class="shot">SHOT@万象城</span><span>09/01</span></div></div>
+          <div class="w-item"><div class="w-img" style="height:112px">软鞋</div><div class="w-cap"><span class="shot">SHOT@万象城</span><span>08/27</span></div></div>
+          <div class="w-item"><div class="w-img" style="height:142px">灯光</div><div class="w-cap"><span class="shot">SHOT@滨江</span><span>08/20</span></div></div>
+        </div>
+        <div class="foot"><div class="f1">MORE COMING · STAY TUNED</div></div>
+      </div>
+    </div></div>
+    <div class="info">
+      <div class="sc-no"><b>08</b>SCREEN</div>
+      <div class="sc-title">画面墙 · THE WALL</div>
+      <div class="sc-en">GALLERY WALL</div>
+      <p class="sc-desc">画廊是一面「贴满照片的墙」：硬描边 + 错位影的拍立得卡片，SHOT@门店 像打卡钢印，热度高的贴 HOT 青柠标。翻起来像逛一家潮店的留言墙。</p>
+      <ul class="notes">
+        <li><b>双列卡片墙</b>图片实高错落（数据同现有 Image 画廊），门店筛选胶囊</li>
+        <li><b>钢印题注</b>SHOT@门店 + 日期；热度标由管理端可配（无配置则不显示）</li>
+        <li><b>点开大图</b>黑底全屏 + 底部青柠编号条，左右滑动切图（现有数据）</li>
+        <li><b>动效</b>卡片依次「贴墙上墙」弹簧落位（70ms stagger）；按压可微倾斜预览</li>
+      </ul>
+    </div>
+  </div>
+
+  <footer style="margin-top:96px;border-top:3px solid var(--ink);padding-top:24px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">
+    <div>
+      <div style="font-size:15px;font-weight:900;letter-spacing:.1em">VOLT 舞力场 · 待确认后实施（方案 A「纸上舞台」同时保留）</div>
+      <div style="font-family:var(--grot);font-size:9px;letter-spacing:.4em;color:var(--mute);margin-top:4px">MOCKUPS ONLY — IMPLEMENTATION AFTER APPROVAL</div>
+    </div>
+    <a class="btn btn-p" style="text-decoration:none" href="proposal-b-index.html">← 返回方案 B 总览</a>
+  </footer>
+</div>
+
+<script>
+window.addEventListener('load',()=>{
+  const w=document.getElementById('lockWord'),c=document.getElementById('lockCard'),o=document.getElementById('lockOvl');
+  if(!w)return;
+  w.classList.add('punching');c.classList.add('shaking');
+  for(let i=0;i<14;i++){
+    const p=document.createElement('i');
+    p.className='confetti';
+    p.style.left=(6+Math.random()*88)+'%';
+    p.style.background=Math.random()>.4?'#D7FF3B':'#111310';
+    p.style.animation=`fall ${.7+Math.random()*.6}s linear ${Math.random()*.3}s both`;
+    o.appendChild(p);
+  }
+});
+</script>
+</body>
+</html>

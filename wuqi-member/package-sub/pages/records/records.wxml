@@ -1,4 +1,12 @@
-<view class="page">
+<view class="page skin-root skin-{{skinId}}">
+  <block wx:if="{{skinId === 'volt'}}">
+    <view class="tbv-bar">
+      <view class="tbv-item {{activeTab === 'booking' ? 'on' : ''}}" data-tab="booking" bindtap="onTabChange"><text>预约记录</text></view>
+      <view class="tbv-item {{activeTab === 'attendance' ? 'on' : ''}}" data-tab="attendance" bindtap="onTabChange"><text>上课记录</text></view>
+      <view class="tbv-item {{activeTab === 'waitlist' ? 'on' : ''}}" data-tab="waitlist" bindtap="onTabChange"><text>排队轮候</text></view>
+    </view>
+  </block>
+  <block wx:else>
   <view class="tab-bar tab-bar-sticky">
     <view class="tb-item {{activeTab === 'booking' ? 'active' : ''}}" data-tab="booking" bindtap="onTabChange">
       <text>预约记录</text>
@@ -11,9 +19,11 @@
     </view>
     <view class="tb-slider {{activeTab === 'attendance' ? 'pos1' : (activeTab === 'waitlist' ? 'pos2' : '')}}"></view>
   </view>
+  </block>
 
   <!-- 预约记录页：待上课 + 已完成 + 已取消 合并显示，默认展开5条 -->
   <block wx:if="{{activeTab === 'booking'}}">
+      <block wx:if="{{skinId !== 'volt'}}">
     <view class="record-list" wx:if="{{records.length > 0}}">
       <view class="r-card" wx:for="{{records}}" wx:key="_id" wx:if="{{index < bookingVisibleCount}}">
         <view class="rc-left-line {{item.status === 'cancelled' ? 'cancelled' : item.status}}"></view>
@@ -56,18 +66,39 @@
               <view class="rci-icon store"></view>
               <text class="rci-text">{{item.storeName || '门店'}}</text>
             </view>
-            <view class="rci-row" wx:if="{{item.deductDays && item.status !== 'cancelled'}}">
+            <view class="rci-row" wx:if="{{item.status !== 'cancelled' && (item.deductDays || item.creditsCost > 0)}}">
               <view class="rci-icon credit"></view>
-              <text class="rci-text highlight">有效期减 {{item.deductDays}} 天</text>
+              <text class="rci-text highlight">{{item.deductDays ? '有效期减 ' + item.deductDays + ' 天' : '扣除 ' + item.creditsCost + ' 课时'}}{{item.packageLabel ? ' · ' + item.packageLabel : ''}}</text>
             </view>
-            <view class="rci-row" wx:if="{{item.deductDays && item.status === 'cancelled'}}">
+            <view class="rci-row" wx:if="{{item.status === 'cancelled' && (item.deductDays || item.creditsCost > 0)}}">
               <view class="rci-icon credit"></view>
-              <text class="rci-text">已恢复套餐有效期</text>
+              <text class="rci-text">{{item.deductDays ? '退还有效期 ' + item.deductDays + ' 天' : '退还 ' + item.creditsCost + ' 课时'}}{{item.packageLabel ? ' · ' + item.packageLabel : ''}}</text>
             </view>
           </view>
         </view>
       </view>
     </view>
+    </block>
+
+    <!-- VOLT：预约记录卡 -->
+    <block wx:if="{{skinId === 'volt'}}">
+      <view class="rd-volt" wx:for="{{records}}" wx:key="_id" wx:if="{{index < bookingVisibleCount}}">
+        <view class="rdv-head">
+          <text class="rdv-name">{{item.courseName || '课程名称'}}</text>
+          <text class="rdv-badge {{item.status === 'cancelled' ? 'off' : 'on'}}">{{item.status === 'cancelled' ? (item.cancelTypeLabel || '已取消') : (item.status === 'completed' ? '已完成' : '待上课')}}</text>
+        </view>
+        <view class="rdv-rows">
+          <view class="rdv-row"><text class="rdv-k">日期</text><text class="rdv-v">{{item.dateStr}}<text class="rdv-s"> {{item.weekDayStr}}</text></text></view>
+          <view class="rdv-row"><text class="rdv-k">时间</text><text class="rdv-v">{{item.startTime}} - {{item.endTime}}</text></view>
+          <view class="rdv-row" wx:if="{{item.status === 'cancelled' && item.cancelTime}}"><text class="rdv-k">取消于</text><text class="rdv-v">{{item.cancelTime}}</text></view>
+          <view class="rdv-row" wx:if="{{item.status === 'completed' && item.checkInMethodText}}"><text class="rdv-k">签到</text><text class="rdv-v rdv-hl">{{item.checkInMethodText}}</text></view>
+          <view class="rdv-row"><text class="rdv-k">教练</text><text class="rdv-v">{{item.coachName || '教练'}}</text></view>
+          <view class="rdv-row"><text class="rdv-k">门店</text><text class="rdv-v">{{item.storeName || '门店'}}</text></view>
+          <view class="rdv-row" wx:if="{{item.status !== 'cancelled' && (item.deductDays || item.creditsCost > 0)}}"><text class="rdv-k">{{item.deductDays ? '按天' : '扣除'}}</text><text class="rdv-v rdv-hl">{{item.deductDays ? '有效期减 ' + item.deductDays + ' 天' : item.creditsCost + ' 课时'}}{{item.packageLabel ? ' · ' + item.packageLabel : ''}}</text></view>
+          <view class="rdv-row" wx:if="{{item.status === 'cancelled' && (item.deductDays || item.creditsCost > 0)}}"><text class="rdv-k">退还</text><text class="rdv-v">{{item.deductDays ? '有效期 ' + item.deductDays + ' 天' : item.creditsCost + ' 课时'}}{{item.packageLabel ? ' · ' + item.packageLabel : ''}}</text></view>
+        </view>
+      </view>
+    </block>
 
     <!-- 加载更多按钮 -->
     <view class="expand-toggle" wx:if="{{hasMore && activeTab === 'booking'}}" bindtap="onToggleBookingExpand">
@@ -84,6 +115,7 @@
 
   <!-- 上课记录页：默认展开5条 -->
   <block wx:if="{{activeTab === 'attendance'}}">
+      <block wx:if="{{skinId !== 'volt'}}">
     <view class="record-list" wx:if="{{records.length > 0}}">
       <view class="r-card" wx:for="{{records}}" wx:key="_id" wx:if="{{index < attendanceVisibleCount}}">
         <view class="rc-left-line {{item.isCancelledAfterCheckin ? 'cancelled' : item.status}}"></view>
@@ -115,7 +147,7 @@
             </view>
             <view class="rci-row" wx:if="{{item.isCancelledAfterCheckin}}">
               <view class="rci-icon credit"></view>
-              <text class="rci-text">{{item.deductDays ? '已恢复套餐有效期' : '课时已退还'}}</text>
+              <text class="rci-text">{{item.deductDays ? '退还有效期 ' + item.deductDays + ' 天' : '退还 ' + item.creditsCost + ' 课时'}}{{item.packageLabel ? ' · ' + item.packageLabel : ''}}</text>
             </view>
             <view class="rci-row" wx:if="{{item.isCancelledAfterCheckin && item.cancelReasonText}}">
               <view class="rci-icon time"></view>
@@ -123,16 +155,37 @@
             </view>
             <view class="rci-row" wx:if="{{!item.isCancelledAfterCheckin && item.deductDays}}">
               <view class="rci-icon credit"></view>
-              <text class="rci-text highlight">有效期减 {{item.deductDays}} 天</text>
+              <text class="rci-text highlight">有效期减 {{item.deductDays}} 天{{item.packageLabel ? ' · ' + item.packageLabel : ''}}</text>
             </view>
             <view class="rci-row" wx:if="{{!item.isCancelledAfterCheckin && !item.deductDays && item.creditsCost > 0}}">
               <view class="rci-icon credit"></view>
-              <text class="rci-text highlight">消耗 {{item.creditsCost}} 课时</text>
+              <text class="rci-text highlight">扣除 {{item.creditsCost}} 课时{{item.packageLabel ? ' · ' + item.packageLabel : ''}}</text>
             </view>
           </view>
         </view>
       </view>
     </view>
+    </block>
+
+    <!-- VOLT：上课记录卡 -->
+    <block wx:if="{{skinId === 'volt'}}">
+      <view class="rd-volt" wx:for="{{records}}" wx:key="_id" wx:if="{{index < attendanceVisibleCount}}">
+        <view class="rdv-head">
+          <text class="rdv-name">{{item.courseName || '课程名称'}}</text>
+          <text class="rdv-badge {{item.isCancelledAfterCheckin ? 'off' : 'on'}}">{{item.isCancelledAfterCheckin ? '课后取消' : (item.sourceLabel || '已上课')}}</text>
+        </view>
+        <view class="rdv-rows">
+          <view class="rdv-row"><text class="rdv-k">日期</text><text class="rdv-v">{{item.dateStr}}<text class="rdv-s"> {{item.weekDayStr}}</text></text></view>
+          <view class="rdv-row"><text class="rdv-k">时间</text><text class="rdv-v">{{item.startTime}} - {{item.endTime}}</text></view>
+          <view class="rdv-row" wx:if="{{item.checkInTime}}"><text class="rdv-k">签到于</text><text class="rdv-v">{{item.checkInTime}}</text></view>
+          <view class="rdv-row"><text class="rdv-k">教练</text><text class="rdv-v">{{item.coachName || '教练'}}</text></view>
+          <view class="rdv-row"><text class="rdv-k">门店</text><text class="rdv-v">{{item.storeName || '门店'}}</text></view>
+          <view class="rdv-row" wx:if="{{item.isCancelledAfterCheckin}}"><text class="rdv-k">退还</text><text class="rdv-v">{{item.deductDays ? '有效期 ' + item.deductDays + ' 天' : item.creditsCost + ' 课时'}}{{item.packageLabel ? ' · ' + item.packageLabel : ''}}</text></view>
+          <view class="rdv-row" wx:elif="{{item.deductDays}}"><text class="rdv-k">按天</text><text class="rdv-v rdv-hl">有效期减 {{item.deductDays}} 天{{item.packageLabel ? ' · ' + item.packageLabel : ''}}</text></view>
+          <view class="rdv-row" wx:elif="{{item.creditsCost > 0}}"><text class="rdv-k">扣除</text><text class="rdv-v rdv-hl">{{item.creditsCost}} 课时{{item.packageLabel ? ' · ' + item.packageLabel : ''}}</text></view>
+        </view>
+      </view>
+    </block>
 
     <!-- 加载更多按钮 -->
     <view class="expand-toggle" wx:if="{{hasMore && activeTab === 'attendance'}}" bindtap="onToggleAttendanceExpand">
@@ -149,6 +202,7 @@
 
   <!-- 排队轮候页 -->
   <block wx:if="{{activeTab === 'waitlist'}}">
+      <block wx:if="{{skinId !== 'volt'}}">
     <view class="record-list" wx:if="{{records.length > 0}}">
       <view class="r-card" wx:for="{{records}}" wx:key="_id">
         <view class="rc-left-line waitlist"></view>
@@ -178,9 +232,28 @@
             </view>
           </view>
         </view>
-        <view class="rca-btn cancel" data-id="{{item._id}}" catchtap="onCancelWaitlistTap">取消</view>
       </view>
     </view>
+    </block>
+
+    <!-- VOLT：排队轮候卡 -->
+    <block wx:if="{{skinId === 'volt'}}">
+      <view class="rd-volt" wx:for="{{records}}" wx:key="_id">
+        <view class="rdv-head">
+          <text class="rdv-name">{{item.courseName || '课程名称'}}</text>
+          <text class="rdv-badge on">排队 {{item.position}}</text>
+        </view>
+        <view class="rdv-rows">
+          <view class="rdv-row"><text class="rdv-k">日期</text><text class="rdv-v">{{item.dateStr}}<text class="rdv-s"> {{item.weekDayStr}}</text></text></view>
+          <view class="rdv-row"><text class="rdv-k">时间</text><text class="rdv-v">{{item.startTime}} - {{item.endTime}}</text></view>
+          <view class="rdv-row"><text class="rdv-k">教练</text><text class="rdv-v">{{item.coachName || '教练'}}</text></view>
+          <view class="rdv-row"><text class="rdv-k">门店</text><text class="rdv-v">{{item.storeName || '门店'}}</text></view>
+        </view>
+        <view class="rdv-actions">
+          <view class="rdv-cancel" data-id="{{item._id}}" catchtap="onCancelWaitlistTap">取消排队</view>
+        </view>
+      </view>
+    </block>
 
     <empty-state
       wx:if="{{!loading && records.length === 0}}"

@@ -1,7 +1,7 @@
 <wxs src="../../utils/distance.wxs" module="fmt"/>
 <page-meta page-style="{{(showAnnounceModal || showAnnouncePopup) ? 'overflow: hidden;' : ''}}"/>
 <scroll-view class="page-scroll" scroll-y enhanced show-scrollbar="{{false}}">
-<view class="page">
+<view class="page skin-root skin-{{skinId}}">
   <!-- ===== 骨架屏 ===== -->
   <view class="sk-page" wx:if="{{loading}}">
     <view class="sk-banner"></view>
@@ -57,6 +57,7 @@
 
   <!-- ===== 真实内容 ===== -->
   <view wx:else>
+  <block wx:if="{{skinId === 'classic'}}">
     <view class="banner-section" wx:if="{{banners.length > 0}}">
       <!-- 轮换间隔与切换方式由管理端配置：smooth 为原生平滑滑动；其余方式切换瞬时完成、由内容动画过渡 -->
       <swiper class="banner-swiper" indicator-dots="{{false}}" autoplay circular interval="{{bannerIntervalMs}}" easing-function="easeInOutCubic" duration="{{bannerMode === 'smooth' ? 600 : 0}}" bindchange="onBannerChange">
@@ -208,12 +209,199 @@
         <view class="booking-disclaimer">成人零基础・舞蹈健身服务</view>
       </view>
     </view>
+  </block>
+
+  <!-- ===== 皮肤：纸上舞台 ===== -->
+  <block wx:if="{{skinId === 'paper'}}">
+    <view class="pi-wrap" style="padding-top: {{(statusBarHeight || 44) + 8}}px;">
+      <view class="pi-holiday" wx:if="{{activeHolidays.length > 0}}">假期提醒：{{activeHolidays[0].date}} 起的放假安排已生效，相关课程以最新课表为准</view>
+
+      <view class="pi-masthead">
+        <view class="pi-brand">
+          <view class="pi-brand-seal">栖</view>
+          <view class="pi-brand-line">
+            <text class="pi-brand-name">舞栖</text>
+            <text class="pi-brand-en">WUQI DANCE</text>
+          </view>
+        </view>
+      </view>
+
+      <view class="pi-hero">
+        <view class="pi-hero-lines"></view>
+        <text class="pi-hero-en">WUQI DANCE · MOVEMENT ARCHIVE</text>
+        <view class="pi-hero-vt">
+          <text class="pi-vt-text">以舞为栖</text>
+          <view class="pi-vt-seal">栖</view>
+        </view>
+        <view class="pi-hero-month">{{greeting.text}}</view>
+        <view class="pi-hero-sub" bindtap="onStoreTap">{{currentStore.name || '选择门店'}} · 切换</view>
+      </view>
+
+      <view class="pi-sec">
+        <view class="pi-sec-h">
+          <text class="pi-sec-no">壹</text>
+          <text class="pi-sec-t">{{t.secNotices}}</text>
+          <text class="pi-sec-en">NOTICES</text>
+        </view>
+        <view class="pi-sec-rule"></view>
+        <block wx:if="{{announces.length > 0}}">
+          <view class="pi-notice" wx:for="{{announces}}" wx:key="_id" wx:if="{{index < 3}}" bindtap="onAnnounceTap">
+            <text class="pi-n-no">0{{index + 1}}</text>
+            <text class="pi-n-t">{{item.title || item.content}}</text>
+            <text class="pi-n-tag" wx:if="{{index === 0}}">新</text>
+            <text class="pi-n-date" wx:if="{{index > 0}}">{{item.createdAtDisplay}}</text>
+          </view>
+        </block>
+        <view class="pi-empty" wx:else>近期暂无栖事</view>
+      </view>
+
+      <view class="pi-sec">
+        <view class="pi-sec-h">
+          <text class="pi-sec-no">贰</text>
+          <text class="pi-sec-t">{{t.secCoaches}}</text>
+          <text class="pi-sec-en">COACHES</text>
+        </view>
+        <view class="pi-sec-rule"></view>
+        <scroll-view class="pi-coaches" scroll-x enhanced show-scrollbar="{{false}}" wx:if="{{hotCoaches.length > 0}}">
+          <view class="pi-coaches-inner">
+          <view class="pi-coach" wx:for="{{hotCoaches}}" wx:key="_id" data-id="{{item._id}}" bindtap="onCoachTap">
+            <view class="pi-coach-ph">
+              <image class="pi-coach-img" src="{{imageErrors['coach_'+item._id] ? '/images/default-avatar.svg' : (item.avatar_url || '/images/default-avatar.svg')}}" binderror="onImgError" data-type="coach" data-id="{{item._id}}" mode="aspectFill" lazy-load decoding="async" />
+              <text class="pi-coach-idx">0{{index + 1}}</text>
+            </view>
+            <text class="pi-coach-name">{{item.name}}</text>
+            <text class="pi-coach-sty" wx:if="{{item.dance_styles.length > 0}}">{{item.dance_styles[0].name}}</text>
+          </view>
+          </view>
+        </scroll-view>
+        <view class="pi-empty" wx:else>暂无教练信息</view>
+      </view>
+
+      <view class="pi-sec">
+        <view class="pi-sec-h">
+          <text class="pi-sec-no">叁</text>
+          <text class="pi-sec-t">{{t.secCourses}}</text>
+          <text class="pi-sec-en">NEXT CLASSES</text>
+        </view>
+        <view class="pi-sec-rule"></view>
+
+      <block wx:if="{{recentCourses.length > 0}}">
+          <view class="pi-course" wx:for="{{recentCourses}}" wx:key="_id" data-id="{{item._id}}" bindtap="onCourseTap">
+            <view class="pi-c-time">
+              <text class="pi-c-time-b">{{item.timeVisible ? item.start_time : '??:??'}}</text>
+              <text class="pi-c-weekday">{{item.weekday}}</text>
+            </view>
+            <view class="pi-c-main">
+              <view class="pi-c-name"><view class="pi-c-dot" style="background: {{item.danceTagBg}};"></view><text>{{item.course_name}}</text></view>
+              <text class="pi-c-meta">{{item.coach_id.name || '教练待定'}} · {{item.dateCn}}</text>
+            </view>
+            <view class="pi-c-btn">{{t.btnBook}}</view>
+          </view>
+        </block>
+        <view class="pi-empty" wx:else>近期暂无场次</view>
+      </view>
+
+      <view class="pi-gallery" wx:if="{{images.length > 0}}" bindtap="onGalleryMore">
+        <view>
+          <text class="pi-gallery-t">此间画面</text>
+          <text class="pi-gallery-en">THE WALL · {{images.length}}</text>
+        </view>
+        <text style="font-size: 30rpx; color: #6C6353;">→</text>
+      </view>
+      <view class="pi-foot">
+        <text class="pi-foot-cn">舞栖舞蹈社</text>
+        <text class="pi-foot-en">WUQI DANCE</text>
+      </view>
+    </view>
+  </block>
+
+  <!-- ===== 皮肤：VOLT 舞力场 ===== -->
+  <block wx:if="{{skinId === 'volt'}}">
+    <view class="vi-store-row" style="top: {{statusBarHeight || 44}}px;">
+      <view class="vi-store-btn" catchtap="onStoreTap">{{currentStore.name || '选择门店'}} ›</view>
+    </view>
+    <view class="vi-marquee" style="top: {{(statusBarHeight || 44) + 44}}px;">
+      <view class="vi-mq-track">
+        <view class="vi-mq-group" wx:for="{{[1,2]}}" wx:key="*this">
+          <text class="vi-mq-item">{{currentStore.name || '舞栖舞蹈社'}}</text>
+          <text class="vi-mq-sep">✺</text>
+          <text class="vi-mq-item">近期登场 {{recentCourses.length}} 场</text>
+          <text class="vi-mq-sep">✺</text>
+          <block wx:if="{{recentCourses[0].timeVisible && recentCourses.length > 0}}">
+            <text class="vi-mq-item">{{recentCourses[0].start_time}} {{recentCourses[0].course_name}} 仅剩 {{recentCourses[0].max_bookings - recentCourses[0].current_bookings}} 席</text>
+            <text class="vi-mq-sep">✺</text>
+          </block>
+        </view>
+      </view>
+    </view>
+    <view class="vi-wrap" style="padding-top: {{(statusBarHeight || 44) + 92}}px;">
+      <view class="vi-brand">
+        <view class="vi-brand-mark">栖</view>
+        <view class="vi-brand-line">
+          <text class="vi-brand-name">舞栖</text>
+          <text class="vi-brand-en">WUQI DANCE CLUB</text>
+        </view>
+      </view>
+      <view class="vi-rhythm">
+        <view class="vi-rhythm-head">
+          <text class="vi-rhythm-t">你的节奏</text>
+          <view class="vi-rhythm-bpm"><text>128 BPM</text></view>
+        </view>
+        <view class="vi-rhythm-ecg"></view>
+        <text class="vi-rhythm-sub" wx:if="{{rhythmData.weekCount || rhythmData.totalCount}}">本周已上 {{rhythmData.weekCount}} 节 · 累计 {{rhythmData.totalCount}} 节 —— 别停，气场正热</text>
+        <text class="vi-rhythm-sub" wx:else>约课打卡，节奏自见 —— 舞社见</text>
+      </view>
+      <view class="vi-hero">
+        <text class="vi-hero-k">TODAY · {{greeting.text}}</text>
+        <view class="vi-hero-t">
+          <text class="vi-hero-cn">近期登场</text>
+          <text class="vi-hero-cnt">{{recentCourses.length < 10 ? '0' + recentCourses.length : recentCourses.length}}</text>
+        </view>
+      </view>
+      <block wx:if="{{recentCourses.length > 0}}">
+        <view class="vi-bill {{item._ongoing ? 'live' : ''}}" wx:for="{{recentCourses}}" wx:key="_id" style="animation-delay: {{(index > 5 ? 5 : index) * 70}}ms" data-id="{{item._id}}" bindtap="onCourseTap">
+          <view class="vi-bill-badge">{{item.sessionLabel}}</view>
+          <text class="vi-bill-wd">{{item.weekday}} {{item.dateCn}}</text>
+          <text class="vi-bill-time">{{item.timeVisible ? item.start_time : '??:??'}}-{{item.timeVisible ? item.end_time : '??'}}</text>
+          <text class="vi-bill-name">{{item.course_name}}</text>
+          <text class="vi-bill-spark">✺</text>
+        </view>
+      </block>
+      <view class="vi-empty" wx:else>近期暂无场次 · 舞社见</view>
+<view class="vi-coach-sec">
+        <view class="vi-sec-h">
+          <text class="vi-sec-t">{{t.secCoaches}}</text>
+          <text class="vi-sec-en" bindtap="goCoachList">{{t.btnMore}} →</text>
+        </view>
+        <scroll-view class="vi-coaches" scroll-x enhanced show-scrollbar="{{false}}" wx:if="{{hotCoaches.length > 0}}">
+          <view class="vi-coaches-inner">
+          <view class="vi-coach" wx:for="{{hotCoaches}}" wx:key="_id" data-id="{{item._id}}" bindtap="onCoachTap">
+            <view class="vi-coach-ph">
+              <image class="vi-coach-img" src="{{imageErrors['coach_'+item._id] ? '/images/default-avatar.svg' : (item.avatar_url || '/images/default-avatar.svg')}}" binderror="onImgError" data-type="coach" data-id="{{item._id}}" mode="aspectFill" lazy-load decoding="async" />
+            </view>
+            <text class="vi-coach-name">{{item.name}}</text>
+            <text class="vi-coach-sty" wx:if="{{item.dance_styles.length > 0}}">{{item.dance_styles[0].name}}</text>
+          </view>
+          </view>
+        </scroll-view>
+        <view class="vi-empty" wx:else>暂无教练信息</view>
+      </view>
+
+      <view class="vi-gallery" wx:if="{{images.length > 0}}" bindtap="onGalleryMore">
+        <text>此间画面 · THE WALL</text>
+        <text class="vi-gallery-arrow">→</text>
+      </view>
+
+      <view class="vi-foot">WUQI DANCE CLUB · 舞社见</view>
+    </view>
+  </block>
   </view>
 </view>
 </scroll-view>
 
 <!-- 弹窗统一放在 scroll-view 外层：不随内容滚动，fixed 定位更稳定 -->
-  <view class="modal-mask store-modal" wx:if="{{showStoreModal}}" bindtap="onCloseStoreModal">
+  <block wx:if="{{skinId === 'classic'}}">
+<view class="modal-mask store-modal" wx:if="{{showStoreModal}}" bindtap="onCloseStoreModal">
     <view class="modal-content" catchtap="onModalTap">
       <view class="modal-title-text">选择门店</view>
       <view class="store-list" wx:if="{{storeList.length > 0}}">
@@ -231,6 +419,30 @@
       <view class="modal-close-btn" bindtap="onCloseStoreModal">关闭</view>
     </view>
   </view>
+</block>
+
+<!-- 纸上舞台 / VOLT：门店选择器抽屉（与约课页同款） -->
+<block wx:if="{{skinId !== 'classic'}}">
+  <view class="bk-store-mask {{skinId === 'volt' ? 'bk-store-mask-volt' : ''}}" wx:if="{{showStoreModal}}" bindtap="onCloseStoreModal">
+    <view class="bk-store-sheet" catchtap="onModalTap">
+      <view class="bk-st-handle"></view>
+      <view class="bk-st-head">
+        <text class="bk-st-title">选择门店</text>
+        <text class="bk-st-sub">切换门店后将重新加载课程</text>
+      </view>
+      <view class="bk-st-list">
+        <view class="bk-st-opt {{currentStore && currentStore._id === item._id ? 'on' : ''}}" wx:for="{{storeList}}" wx:key="_id" data-store="{{item}}" bindtap="onSelectStore">
+          <view class="bk-st-opt-main">
+            <text class="bk-st-opt-name">{{item.name}}</text>
+            <text class="bk-st-opt-addr" wx:if="{{item.distance !== undefined && item.distance !== null}}">{{fmt.distance(item.distance)}}</text>
+          </view>
+          <text class="bk-st-opt-check" wx:if="{{currentStore && currentStore._id === item._id}}">{{skinId === 'paper' ? '使用中' : 'ON'}}</text>
+        </view>
+      </view>
+      <view class="bk-st-close" bindtap="onCloseStoreModal">关闭</view>
+    </view>
+  </view>
+</block>
 
   <!-- 公告弹窗 -->
   <view class="modal-mask announce-modal" wx:if="{{ showAnnounceModal }}" catchtouchmove="onPreventMove">

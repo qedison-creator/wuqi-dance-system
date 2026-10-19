@@ -24,6 +24,10 @@ const bookingSchema = new mongoose.Schema({
   checked_in_by: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   // 关联套餐
   user_package_id: { type: mongoose.Schema.Types.ObjectId, ref: 'UserPackage' },
+  // === 套餐快照（不可变，扣课溯源）===
+  // 写入时的套餐名/类型；即使套餐被作废或重命名，此记录仍可独立溯源到当时扣的是哪个套餐
+  package_name: { type: String, default: '' },
+  package_type: { type: String, default: '' },
   source: { type: String, enum: ['member', 'onsite', 'admin'], default: 'member' },
   // 是否为截止预约时间后的补约（true 时适用5分钟快速取消规则）
   is_late_booking: { type: Boolean, default: false },

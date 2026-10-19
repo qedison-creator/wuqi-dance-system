@@ -1,0 +1,59 @@
+/* 画廊页皮肤样式（纸上舞台 / VOLT）—— 由 gallery.wxss 通过 @import 引入 */
+
+/* ---------- 纸上舞台：影集档案 ---------- */
+.gp-head { position: relative; padding: 30rpx 30rpx 10rpx; }
+.gp-title {
+  font-family: var(--sk-serif);
+  font-size: 52rpx; font-weight: 900;
+  color: var(--sk-ink); letter-spacing: 0.06em;
+}
+.gp-sub-row { display: flex; justify-content: space-between; align-items: baseline; margin-top: 6rpx; }
+.gp-en { font-size: 18rpx; letter-spacing: 0.3em; color: var(--sk-hint); font-weight: 700; }
+.gp-cnt { font-size: 21rpx; color: var(--sk-sub); }
+.gp-rule { margin-top: 18rpx; border-top: 6rpx double #C9BFA8; }
+.gp-side {
+  position: absolute; right: 34rpx; bottom: 56rpx;
+  writing-mode: vertical-rl;
+  font-family: var(--sk-serif);
+  font-size: 34rpx; font-weight: 900;
+  letter-spacing: 0.3em;
+  color: rgba(34, 29, 21, 0.55);
+}
+.skin-paper .polaroid {
+  background: var(--sk-card);
+  border: 2rpx solid var(--sk-line);
+  border-radius: 6rpx;
+  padding: 10rpx;
+  box-shadow: 0 2rpx 0 rgba(34, 29, 21, 0.04);
+}
+.skin-paper .polaroid-img { border-radius: 2rpx; }
+.skin-paper .footer-text { font-family: var(--sk-serif); letter-spacing: 0.2em; }
+.skin-paper .retry-btn {
+  background: var(--sk-acc); color: var(--sk-btn-fg);
+  border-radius: var(--sk-btn-radius);
+  font-family: var(--sk-serif); font-weight: 700;
+}
+
+/* ---------- VOLT：THE WALL ---------- */
+.gv-head { padding: 30rpx 30rpx 14rpx; display: flex; align-items: baseline; gap: 20rpx; }
+.gv-title { font-size: 52rpx; font-weight: 900; color: var(--sk-ink); }
+.gv-sub { font-size: 19rpx; font-weight: 700; letter-spacing: 0.22em; color: var(--sk-sub); }
+.skin-volt .polaroid {
+  background: var(--sk-card);
+  border: 3rpx solid var(--sk-ink);
+  border-radius: 20rpx;
+  padding: 8rpx;
+  box-shadow: 5rpx 5rpx 0 var(--sk-ink);
+}
+.skin-volt .polaroid-img { border-radius: 14rpx; }
+.skin-volt .footer-text { font-weight: 700; letter-spacing: 0.2em; color: var(--sk-sub); }
+.skin-volt .retry-btn {
+  background: var(--sk-ink); color: var(--sk-acc-fg);
+  border-radius: 999rpx; font-weight: 800;
+}
+
+/* ---------- 加载态（纸上舞台 / VOLT） ---------- */
+.skin-paper .loading-wrap .loading-spinner, .skin-paper .loading-spinner { border: 4rpx solid #DFD6C2; border-top-color: #B93A26; }
+.skin-paper .loading-text { color: #A79D89; font-family: 'Noto Serif SC', serif; }
+.skin-volt .loading-wrap .loading-spinner, .skin-volt .loading-spinner { border: 4rpx solid #DCDAD0; border-top-color: #111310; }
+.skin-volt .loading-text { color: #77786F; font-weight: 700; }

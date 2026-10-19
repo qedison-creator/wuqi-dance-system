@@ -210,6 +210,95 @@ const cropImageToCircle = (filePath, outputSize = 200) => {
   });
 };
 
+// —— 课时/次数/天数口径（与后端 booking.service 保持一致）——
+function _idOf(v) {
+  if (!v) return '';
+  return String(typeof v === 'string' ? v : (v._id || v));
+}
+function _toMin(hhmm) {
+  const parts = String(hhmm || '').split(':');
+  return (parseInt(parts[0], 10) || 0) * 60 + (parseInt(parts[1], 10) || 0);
+}
+
+/**
+ * 选择本节课实际生效的套餐：门店覆盖 + 有效期内 + 舞种/星期/可用时段匹配，
+ * 口径与后端 booking.service 一致（time_card 优先于 count_card）。
+ * @param {Array} packages 用户套餐列表（/packages/my 的 history）
+ * @param {Object} course 课程对象
+ * @returns {Object|null} 生效套餐，无法判定时返回 null
+ */
+const pickEffectivePackage = (packages, course) => {
+  const list = Array.isArray(packages) ? packages : [];
+  const cStore = _idOf(course && course.store_id);
+  const cStyle = _idOf(course && (course.dance_style_id || course.danceStyleId));
+  const cDate = (course && (course.date || course.dateStr)) || '';
+  const cStart = (course && course.start_time) || '';
+  const now = new Date();
+  const valid = list.filter(pkg => {
+    const isActive = pkg.status === 'active' && !pkg.is_suspended &&
+      !(pkg.is_activated && pkg.end_date && now > new Date(pkg.end_date));
+    const isPending = pkg.status === 'pending';
+    if (!isActive && !isPending) return false;
+    if (pkg.package_type === 'count_card' && !(pkg.remaining_credits > 0)) return false;
+    const covered = _idOf(pkg.store_id) === cStore ||
+      (pkg.extra_store_ids || []).some(e => _idOf(e) === cStore);
+    if (cStore && !covered) return false;
+    if (cStyle && Array.isArray(pkg.dance_style_limit) && pkg.dance_style_limit.length > 0) {
+      if (!pkg.dance_style_limit.some(s => _idOf(s) === cStyle)) return false;
+    }
+    if (cDate && Array.isArray(pkg.weekday_limit) && pkg.weekday_limit.length > 0) {
+      const day = new Date(String(cDate).replace(/-/g, '/')).getDay();
+      if (pkg.weekday_limit.indexOf(day) === -1) return false;
+    }
+    if (cStart && (pkg.usable_before || pkg.usable_after)) {
+      const t = _toMin(cStart);
+      const b = pkg.usable_before ? _toMin(pkg.usable_before) : null;
+      const a = pkg.usable_after ? _toMin(pkg.usable_after) : null;
+      let ok = true;
+      if (b !== null && a !== null) ok = t <= b || t >= a;
+      else if (b !== null) ok = t <= b;
+      else if (a !== null) ok = t >= a;
+      if (!ok) return false;
+    }
+    return true;
+  });
+  return valid.find(p => p.package_type === 'time_card') ||
+    valid.find(p => p.package_type === 'count_card') || null;
+};
+
+/**
+ * 统一扣除/退还口径：次卡=次；时间卡(周期限制)=课时；时间卡(按天/每日1节)=天。
+ * 与后端 checkTimeCardLimit 口径一致（按天口径 N≥2 才缩期，N=1 不占用）。
+ * @param {Object|null} pkg 生效套餐
+ * @param {number} creditsCost 课程扣除课时数
+ * @returns {{unit:string, amount:number, shrinkDays:number, deductText:string, refundText:string}}
+ */
+const getCreditUnitInfo = (pkg, creditsCost) => {
+  const n = Math.max(1, Number(creditsCost) || 1);
+  if (pkg && pkg.package_type === 'time_card') {
+    const isUnlimited = !pkg.daily_limit && !pkg.weekly_limit && !pkg.monthly_limit;
+    const isDailyOne = pkg.daily_limit === 1 && !pkg.weekly_limit && !pkg.monthly_limit;
+    if (isUnlimited || isDailyOne) {
+      const shrinkDays = n >= 2 ? n : 0;
+      return {
+        unit: '天',
+        amount: shrinkDays,
+        shrinkDays,
+        deductText: shrinkDays > 0 ? `扣除 ${shrinkDays} 天有效期` : '不占用有效期',
+        refundText: shrinkDays > 0 ? `退还 ${shrinkDays} 天有效期` : '未占用有效期'
+      };
+    }
+    return {
+      unit: '课时', amount: n, shrinkDays: 0,
+      deductText: `扣除 ${n} 课时`, refundText: `退还 ${n} 课时`
+    };
+  }
+  return {
+    unit: '次', amount: n, shrinkDays: 0,
+    deductText: `扣除 ${n} 次`, refundText: `退还 ${n} 次`
+  };
+};
+
 module.exports = {
   getBeijingDate,
   formatDate,
@@ -226,5 +315,7 @@ module.exports = {
   debounce,
   throttle,
   normalizeImageUrl,
-  cropImageToCircle
+  cropImageToCircle,
+  pickEffectivePackage,
+  getCreditUnitInfo
 };

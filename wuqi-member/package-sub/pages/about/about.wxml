@@ -1,4 +1,4 @@
-<view class="page">
+<view class="page skin-root skin-{{skinId}}">
   <view class="header">
     <image class="logo" src="/images/logo.png" mode="aspectFit" />
     <view class="app-name">舞栖DANCE</view>

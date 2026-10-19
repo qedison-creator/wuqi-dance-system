@@ -697,6 +697,7 @@ Page({
           userAvatar: fixImageUrl(item.user_id?.avatar_url),
           bookingTime: item.created_at ? formatDateTime(item.created_at) : '',
           creditsDeducted: item.credits_deducted || 0,
+          creditsUnit: '课时',
           deductDays: item.deduct_days || null,
           checkInTime: item.check_in_time ? formatDateTime(item.check_in_time) : '',
           checkedIn: item.checked_in || status === 'checked_in' || status === 'completed',

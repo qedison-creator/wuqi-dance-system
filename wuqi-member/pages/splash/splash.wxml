@@ -1,6 +1,11 @@
-<view class="splash-container">
+<view class="splash-container skin-root skin-{{skinId}}" style="background: {{sp.bg}};">
   <view class="logo-wrapper {{ready ? 'logo-show' : ''}}">
-    <image src="/images/logo.png" mode="aspectFit" class="logo-img"></image>
+    <view class="sp-seal" style="background: {{sp.sealBg}}; color: {{sp.sealColor}};">栖</view>
+    <view class="sp-brand">
+      <text class="sp-name" style="color: {{sp.nameColor}};">舞栖</text>
+      <text class="sp-en" style="color: {{sp.enColor}};">{{skinId === 'volt' ? 'WUQI DANCE CLUB' : 'WUQI DANCE'}}</text>
+    </view>
+    <image src="/images/logo.png" mode="widthFix" class="logo-img {{ready ? 'logo-ready' : ''}}"></image>
   </view>
 </view>
 <update-modal />

@@ -69,6 +69,9 @@ Page({
   },
 
   onShow() {
+    // 皮肤状态（纯前端偏好，仅影响外观）
+    const skin = require('../../../utils/skin.js');
+    this.setData(skin.pageState());
     // 门店可能在外部（首页）被切换：重新按当前门店加载
     const storeId = this._currentStoreKey();
     if (this._loadedStoreId && this._loadedStoreId !== storeId) {

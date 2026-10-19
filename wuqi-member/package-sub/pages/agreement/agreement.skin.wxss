@@ -1,0 +1,9 @@
+/* agreement 皮肤覆盖（纸上舞台 / VOLT）—— 由 agreement.wxss 通过 @import 引入 */
+
+/* 协议：纸上舞台 / VOLT 完整覆盖 */
+.skin-root.skin-paper.page { background: #F5F1E8; }
+.skin-paper .privacy-title { font-family: 'Noto Serif SC', serif; color: #221D15; letter-spacing: 0.06em; }
+.skin-paper .privacy-heading { font-family: 'Noto Serif SC', serif; color: #221D15; }
+.skin-root.skin-volt.page { background: #F2F1ED; }
+.skin-volt .privacy-title { font-weight: 900; color: #111310; }
+.skin-volt .privacy-heading { font-weight: 900; color: #111310; }

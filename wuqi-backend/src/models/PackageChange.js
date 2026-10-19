@@ -44,6 +44,14 @@ const PackageChangeSchema = new mongoose.Schema({
     type: String,
     default: ''
   },
+  // ===== 撤回机制字段 =====
+  // 撤回标记：该变更被撤回的时间与操作人（防止重复撤回 + 前端展示"已撤回"）
+  undone_at: { type: Date, default: null },
+  undone_by: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+  // 本条记录本身是一次"撤回操作"（撤回记录不可再被撤回）
+  is_undo: { type: Boolean, default: false },
+  // 若 is_undo=true，指向被撤回的那条原始变更记录
+  undo_of: { type: mongoose.Schema.Types.ObjectId, ref: 'PackageChange', default: null },
   // 会员快照（防止会员删除后记录信息丢失）
   member_snapshot: {
     real_name: { type: String, default: '' },

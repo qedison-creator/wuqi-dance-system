@@ -117,3 +117,11 @@
   font-size: 26rpx;
   color: #B5A5A5;
 }
+
+/* 皮肤：纸上舞台 / VOLT */
+.update-mask.skin-paper .update-content { background: #FCFAF4; border: 2rpx solid #DFD6C2; border-radius: 10rpx; }
+.update-mask.skin-paper .update-icon-wrap { background: #B93A26; border-radius: 8rpx; }
+.update-mask.skin-paper .update-btn { background: #B93A26; border-radius: 6rpx; font-family: 'Noto Serif SC', serif; }
+.update-mask.skin-volt .update-content { background: #F2F1ED; border: 3rpx solid #111310; border-radius: 32rpx; box-shadow: 6rpx 6rpx 0 #111310; }
+.update-mask.skin-volt .update-icon-wrap { background: #111310; color: #D7FF3B; border-radius: 14rpx; }
+.update-mask.skin-volt .update-btn { background: #111310; color: #D7FF3B; border-radius: 999rpx; font-weight: 800; }

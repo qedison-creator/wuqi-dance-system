@@ -19,7 +19,8 @@
         "pages/agreement/agreement",
         "pages/about/about",
         "pages/subscribe-settings/subscribe-settings",
-        "pages/gallery/gallery"
+        "pages/gallery/gallery",
+        "pages/skin-settings/skin-settings"
       ]
     }
   ],

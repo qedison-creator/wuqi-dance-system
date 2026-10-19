@@ -85,3 +85,5 @@
   border-right: 2rpx solid #B5A5A5;
   transform: rotate(45deg);
 }
+
+@import "./about.skin.wxss";

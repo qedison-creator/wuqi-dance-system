@@ -211,3 +211,5 @@
   color: #999;
   line-height: 1.6;
 }
+
+@import "./subscribe-settings.skin.wxss";

@@ -1,4 +1,4 @@
-<view class="cl-page">
+<view class="cl-page skin-root skin-{{skinId}}">
   <view class="cl-header">
     <view class="cl-dot"></view>
     <text class="cl-title">舞栖教练</text>

@@ -190,3 +190,60 @@
   color: #D4786E;
   font-weight: 600;
 }
+
+
+/* ==================== 皮肤 TabBar：点 + 文字 ==================== */
+.tb-bar-capsule {
+  display: flex; align-items: stretch;
+  height: 108rpx; padding: 0 40rpx; box-sizing: border-box;
+  width: 100%;
+}
+.tb-item {
+  flex: 1;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 8rpx;
+  position: relative;
+}
+
+/* 纸上舞台 */
+.tb-paper .tb-dot {
+  width: 10rpx; height: 10rpx;
+  border-radius: 2rpx;
+  background: transparent;
+  transition: background 200ms;
+}
+.tb-paper .tb-item.active .tb-dot { background: #B93A26; transform: rotate(45deg); }
+.tb-paper .tb-text {
+  font-family: 'Noto Serif SC', 'Songti SC', serif;
+  font-size: 24rpx; letter-spacing: 0.2em;
+  color: #A79D89; font-weight: 500;
+  transition: color 200ms;
+}
+.tb-paper .tb-item.active .tb-text { color: #221D15; font-weight: 700; }
+.tb-paper.tb-bar-capsule { background: #FCFAF4; }
+.tab-bar.skin-paper .tb-paper { background: #FCFAF4; }
+.tab-bar.skin-paper { background: #FCFAF4; border-top: 2rpx solid #DFD6C2; }
+
+/* VOLT */
+.tb-volt .tb-item {
+  border-radius: 999rpx;
+  height: 84rpx;
+  flex-direction: row; gap: 10rpx;
+  align-self: center;
+  margin-top: 12rpx;
+  transition: background 200ms;
+}
+.tb-volt .tb-item.active { background: #111310; }
+.tb-volt .tb-dot {
+  width: 8rpx; height: 8rpx; border-radius: 2rpx;
+  background: transparent;
+}
+.tb-volt .tb-item.active .tb-dot { background: #D7FF3B; }
+.tb-volt .tb-text {
+  font-size: 24rpx; font-weight: 700; letter-spacing: 0.1em;
+  color: #77786F;
+}
+.tb-volt .tb-item.active .tb-text { color: #D7FF3B; }
+.tab-bar.skin-volt { background: #F2F1ED; border-top: 3rpx solid #111310; }
+.tab-bar.skin-volt .tb-bar-capsule { padding: 0 24rpx; }

@@ -144,7 +144,7 @@
                 <text class="b2-time">{{b.time}}</text>
                 <text class="bill-val">-{{b.credits}} 课时</text>
               </view>
-              <view class="b2-mid">{{b.course_name}}<text class="co"> · {{b.dance_name || '未分类'}} · {{b.coach_name}}</text></view>
+              <view class="b2-mid">{{b.course_name}}<text class="co"> · {{b.dance_name || '未分类'}} · {{b.coach_name}}</text><text class="co" wx:if="{{b.package_label}}"> · {{b.package_label}}</text></view>
               <view class="b2-meta"><text><text class="b2-ico">◷</text> 预约于 {{b.booked_at}}</text><text>{{b.check_in_label || '已签到'}}</text></view>
             </view>
             <view class="bill-subtotal">小计 {{item.credits}} 课时 / {{item.sessions}} 节</view>
@@ -191,7 +191,7 @@
       <view class="alert-item" wx:for="{{alertList}}" wx:key="member_id">
         <view class="alert-main">
           <text class="alert-name lnk" data-go="/package-member/pages/members/member-detail/member-detail?id={{item.member_id}}" catchtap="onGoMember">{{item.user_name}}</text>
-          <text class="alert-tip">{{item.tip}} · {{item.package_name}}</text>
+          <text class="alert-tip">{{item.tip}}{{item.package_label ? ' · ' + item.package_label : ''}}</text>
           <text class="alert-trace" wx:if="{{item.followup_info}}">已联系：{{item.followup_info.operator_name}}</text>
         </view>
         <view class="btn-done" wx:if="{{!item.followup_done}}" data-memberid="{{item.member_id}}" data-alerttype="{{item.alert_type}}" data-periodkey="{{item.period_key}}" catchtap="onMarkDone">已联系</view>

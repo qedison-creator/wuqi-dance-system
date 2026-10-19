@@ -1148,9 +1148,13 @@ exports.cancelSchedule = async (id, operatorId, reason = '', cancelType = 'admin
         ? await UserPackage.findById(booking.user_package_id)
         : await UserPackage.findOne({ user_id: booking.user_id, store_id: schedule.store_id, status: 'active' });
       if (pkg) {
-        pkg.remaining_credits += booking.credits_deducted;
-        if (pkg.status === 'exhausted') pkg.status = 'active';
-        await pkg.save();
+        // 仅次卡退还剩余次数：时间卡按天口径由 restoreTimeCardShrink 恢复有效期，
+        // 时间卡课时口径按预约记录实时计算，两者都不占用 remaining_credits，避免虚增余额
+        if (pkg.package_type === 'count_card') {
+          pkg.remaining_credits += booking.credits_deducted;
+          if (pkg.status === 'exhausted') pkg.status = 'active';
+          await pkg.save();
+        }
       }
       // 按天口径：把缩掉的有效期加回
       await restoreTimeCardShrink(booking);
@@ -1426,14 +1430,19 @@ exports.batchDeleteSchedules = async (data, operatorId) => {
         if (booking.status === 'booked') {
           const UserPackage = require('../models/UserPackage');
           const userPackage = await UserPackage.findById(booking.user_package_id);
-          if (userPackage) {
-            userPackage.remaining_credits += schedule.credits_cost || 1;
+          if (userPackage && userPackage.package_type === 'count_card') {
+            // 与扣除口径一一对应：退还该预约实际扣除的次数（而非重新按场次现价计算）
+            userPackage.remaining_credits += booking.credits_deducted;
+            if (userPackage.status === 'exhausted') userPackage.status = 'active';
             await userPackage.save();
           }
           // 按天口径：把缩掉的有效期加回
           await restoreTimeCardShrink(booking);
           booking.status = 'cancelled';
           booking.cancel_reason = '排课被批量删除';
+          booking.cancel_time = new Date();
+          // 与扣除口径一一对应：记录实际退还数量
+          booking.credits_refunded = booking.credits_deducted;
           await booking.save();
         }
       }
@@ -1534,11 +1543,16 @@ exports.getScheduleBookings = async (scheduleId) => {
     schedule_id: scheduleId,
   })
     .populate('user_id', 'real_name nick_name avatar_url phone wechat_phone reserve_phone')
+    .populate('user_package_id', 'package_type')
     .sort({ created_at: 1 });
 
   return bookings.map(b => {
     const obj = b.toObject();
     Object.assign(obj, buildDeductionInfo(b));
+    // 扣除/退还单位：按天口径=天；次卡=次；时间卡（课时口径）=课时。
+    // 与预约时的扣除口径一一对应，管理端课程日志据此显示"扣/退还 N 次/课时/天"。
+    const pkgType = b.user_package_id && b.user_package_id.package_type;
+    obj.credits_unit = b.shrink_days ? '天' : (pkgType === 'time_card' ? '课时' : '次');
     return obj;
   });
 };

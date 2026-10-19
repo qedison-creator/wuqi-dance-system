@@ -52,3 +52,5 @@
 .privacy-text text {
   display: inline;
 }
+
+@import "./privacy.skin.wxss";

@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>纸上舞台 · 舞栖会员端 UI/UE 改版方案</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@500;600;700;900&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#F5F1E8; --paper-2:#ECE5D6; --card:#FCFAF4;
+  --ink:#221D15; --ink-2:#6C6353; --ink-3:#A79D89;
+  --line:#DFD6C2; --line-strong:#C9BFA8;
+  --cinnabar:#B93A26; --cinnabar-deep:#9E3322;
+  --gold:#A0802E; --teal:#41604F; --blue:#3E5C76; --rose:#B26A64; --moss:#6E7F58;
+  --serif:"Noto Serif SC","Songti SC","STSong","SimSun",serif;
+  --sans:-apple-system,"Noto Sans SC","PingFang SC","HarmonyOS Sans SC","Microsoft YaHei",sans-serif;
+  --ease-out:cubic-bezier(.22,1,.36,1);
+  --ease-stamp:cubic-bezier(.2,1.4,.3,1);
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{background:var(--paper);color:var(--ink);font-family:var(--sans);font-size:15px;line-height:1.75;position:relative}
+/* 纸张颗粒 */
+body::before{content:"";position:fixed;inset:0;pointer-events:none;opacity:.05;z-index:999;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='.5'/%3E%3C/svg%3E")}
+.wrap{max-width:1080px;margin:0 auto;padding:64px 28px 120px}
+/* ---------- 顶部 ---------- */
+.kicker{font-size:11px;letter-spacing:.35em;color:var(--cinnabar);font-weight:700;text-transform:uppercase}
+.masthead{border-bottom:3px double var(--line-strong);padding-bottom:36px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:flex-end;gap:24px;flex-wrap:wrap}
+h1{font-family:var(--serif);font-weight:900;font-size:56px;line-height:1.2;letter-spacing:.04em;margin:14px 0 6px}
+h1 .en{display:block;font-family:var(--sans);font-size:12px;font-weight:500;letter-spacing:.5em;color:var(--ink-2);margin-top:14px}
+.intro{max-width:640px;color:var(--ink-2);margin-top:22px}
+.seal{width:58px;height:58px;background:var(--cinnabar);color:#FCF7EE;font-family:var(--serif);font-weight:700;font-size:30px;display:flex;align-items:center;justify-content:center;border-radius:4px;transform:rotate(-4deg);box-shadow:2px 2px 0 rgba(34,29,21,.15);flex-shrink:0}
+a.tolink{display:inline-block;margin-top:26px;padding:13px 30px;background:var(--cinnabar);color:#FCF7EE;text-decoration:none;font-weight:700;font-size:14px;letter-spacing:.14em;border-radius:3px;transition:transform .12s var(--ease-out),background .2s}
+a.tolink:hover{background:var(--cinnabar-deep)}
+a.tolink:active{transform:scale(.97)}
+/* ---------- 章节 ---------- */
+section{margin-top:96px}
+.sec-head{display:flex;align-items:baseline;gap:16px;border-bottom:1px solid var(--line);padding-bottom:16px;margin-bottom:34px}
+.sec-no{font-family:var(--serif);font-size:15px;color:var(--cinnabar);font-weight:700}
+.sec-title{font-family:var(--serif);font-size:28px;font-weight:700;letter-spacing:.06em}
+.sec-en{font-size:10px;letter-spacing:.3em;color:var(--ink-3);text-transform:uppercase;margin-left:auto}
+h3.sub{font-family:var(--serif);font-size:18px;margin:40px 0 18px;display:flex;align-items:center;gap:10px}
+h3.sub::before{content:"";width:7px;height:7px;background:var(--cinnabar);border-radius:1px}
+/* ---------- 理念卡 ---------- */
+.ideas{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--line);border:1px solid var(--line)}
+.idea{background:var(--card);padding:30px 26px}
+.idea .no{font-family:var(--serif);font-size:13px;color:var(--cinnabar);letter-spacing:.2em}
+.idea h4{font-family:var(--serif);font-size:21px;margin:10px 0 12px;letter-spacing:.04em}
+.idea p{font-size:13.5px;color:var(--ink-2)}
+.idea .demo{margin-top:18px}
+.vtext{writing-mode:vertical-rl;font-family:var(--serif);font-size:26px;font-weight:700;letter-spacing:.35em;color:var(--ink)}
+.dbl-rule{border-top:3px double var(--line-strong);padding-top:10px;font-size:12px;color:var(--ink-2);letter-spacing:.2em}
+/* ---------- 色板 ---------- */
+.swatches{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:14px}
+.sw{border:1px solid var(--line);background:var(--card)}
+.sw .chip{height:86px;position:relative}
+.sw .chip small{position:absolute;right:10px;bottom:8px;font-size:10px;letter-spacing:.12em;color:rgba(255,255,255,.85);font-family:var(--serif)}
+.sw .chip.dark small,.sw .chip.mid small{color:rgba(255,255,255,.9)}
+.sw .chip.light small{color:rgba(34,29,21,.5)}
+.sw .meta{padding:12px 14px;font-size:12px;line-height:1.7}
+.sw .meta b{display:block;font-size:13.5px}
+.sw .meta span{color:var(--ink-3);font-family:var(--serif)}
+.sw .meta em{font-style:normal;color:var(--ink-2);display:block}
+.dots{display:flex;gap:22px;flex-wrap:wrap;margin-top:18px;padding:18px 22px;border:1px dashed var(--line-strong);background:var(--card)}
+.dots .d{display:flex;align-items:center;gap:8px;font-size:13px}
+.dots .i{width:9px;height:9px;border-radius:50%}
+/* ---------- 字体版式 ---------- */
+.typegrid{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--line);border:1px solid var(--line)}
+.tcell{background:var(--card);padding:26px 28px}
+.tcell .tag{font-size:10px;letter-spacing:.25em;color:var(--ink-3);text-transform:uppercase}
+.t1{font-family:var(--serif);font-size:40px;font-weight:900;letter-spacing:.03em;line-height:1.3}
+.t2{font-family:var(--serif);font-size:26px;font-weight:700}
+.t3{font-size:15px;font-weight:500}
+.t4{font-size:12px;color:var(--ink-2)}
+.tnum{font-family:var(--serif);font-size:44px;font-weight:700;line-height:1.1}
+.tnum small{font-size:13px;color:var(--ink-3);font-family:var(--sans);letter-spacing:.1em;margin-left:6px}
+/* ---------- 组件 ---------- */
+.comp-row{display:flex;gap:18px;flex-wrap:wrap;align-items:flex-end}
+.btn{display:inline-flex;align-items:center;justify-content:center;height:46px;padding:0 30px;border-radius:3px;font-size:14px;font-weight:700;letter-spacing:.12em;cursor:pointer;user-select:none;border:none;transition:transform .12s var(--ease-out)}
+.btn:active{transform:scale(.96)}
+.btn-p{background:var(--cinnabar);color:#FCF7EE}
+.btn-ink{background:var(--ink);color:#FCF7EE}
+.btn-g{background:transparent;color:var(--ink);border:1px solid var(--ink)}
+.btn-t{background:transparent;color:var(--cinnabar);padding:0 6px;height:auto;letter-spacing:.1em}
+.btn-dis{background:var(--paper-2);color:var(--ink-3)}
+.note{font-size:12px;color:var(--ink-3);margin-top:8px}
+.chip{display:inline-flex;align-items:center;gap:8px;padding:7px 16px;border:1px solid var(--line-strong);border-radius:2px;font-size:13px;color:var(--ink);background:var(--card)}
+.chip .i{width:8px;height:8px;border-radius:50%}
+.chip.on{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+.tag-new{display:inline-flex;align-items:center;background:var(--cinnabar);color:#FCF7EE;font-size:10px;padding:2px 7px;border-radius:2px;letter-spacing:.15em}
+/* 课程行样例 */
+.crow{display:flex;align-items:center;gap:20px;padding:18px 4px;border-top:1px solid var(--line)}
+.crow:last-child{border-bottom:1px solid var(--line)}
+.ctime{text-align:center;width:76px;flex-shrink:0}
+.ctime b{font-family:var(--serif);font-size:26px;font-weight:700;display:block;line-height:1.1}
+.ctime span{font-size:11px;color:var(--ink-3)}
+.cmain{flex:1;min-width:0}
+.cname{font-family:var(--serif);font-size:16px;font-weight:700;display:flex;align-items:center;gap:8px}
+.cname .i{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.cmeta{font-size:12px;color:var(--ink-2);margin-top:3px}
+.cbar{height:2px;background:var(--paper-2);margin-top:9px;border-radius:1px;overflow:hidden;max-width:180px}
+.cbar i{display:block;height:100%;background:var(--ink)}
+/* ---------- 动效演示 ---------- */
+.motion-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:1px;background:var(--line);border:1px solid var(--line)}
+.mo{background:var(--card);padding:28px 26px}
+.mo .box{height:190px;border:1px dashed var(--line-strong);border-radius:3px;background:var(--paper);display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden;margin-bottom:16px}
+.mo h5{font-family:var(--serif);font-size:16px;margin-bottom:4px}
+.mo p{font-size:12.5px;color:var(--ink-2)}
+.mo .replay{position:absolute;top:10px;right:10px;font-size:11px;color:var(--ink-3);border:1px solid var(--line-strong);padding:3px 10px;border-radius:2px;cursor:pointer;background:var(--card)}
+.mo .replay:hover{color:var(--cinnabar);border-color:var(--cinnabar)}
+.seal-big{width:64px;height:64px;background:var(--cinnabar);color:#FCF7EE;font-family:var(--serif);font-size:26px;font-weight:700;display:flex;align-items:center;justify-content:center;border-radius:5px;transform:rotate(-4deg)}
+@keyframes stampIn{0%{opacity:0;transform:scale(2.4) rotate(-16deg)}55%{opacity:1;transform:scale(.9) rotate(-1deg)}100%{opacity:1;transform:scale(1) rotate(-4deg)}}
+.stamping{animation:stampIn .5s var(--ease-stamp) both}
+@keyframes riseIn{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+.rise-item{opacity:0;animation:riseIn .55s var(--ease-out) forwards}
+.demo-list{width:82%;background:var(--card);border:1px solid var(--line);border-radius:3px;padding:2px 16px}
+.demo-list .crow{padding:9px 2px}
+.demo-list .crow:nth-child(1) .cname,.demo-list .crow:nth-child(1) .cmeta{opacity:0;animation:riseIn .5s var(--ease-out) .0s forwards}
+.demo-list .crow:nth-child(2) .cname,.demo-list .crow:nth-child(2) .cmeta{opacity:0;animation:riseIn .5s var(--ease-out) .08s forwards}
+.demo-list .crow:nth-child(3) .cname,.demo-list .crow:nth-child(3) .cmeta{opacity:0;animation:riseIn .5s var(--ease-out) .16s forwards}
+.num-demo{font-family:var(--serif);font-size:52px;font-weight:700}
+.num-demo small{font-size:13px;color:var(--ink-3);font-family:var(--sans);margin-left:8px;letter-spacing:.1em}
+/* 按压演示 */
+.press-stage{display:flex;gap:16px;align-items:center}
+/* 抽屉演示 */
+.drawer-stage{position:relative}
+.drawer-dim{position:absolute;inset:0;background:rgba(34,29,21,.38);opacity:0;transition:opacity .35s;pointer-events:none;border-radius:2px}
+.drawer-dim.show{opacity:1}
+.drawer{position:absolute;left:50%;bottom:-4px;transform:translate(-50%,105%);width:82%;background:var(--card);border:1px solid var(--line);border-bottom:none;border-radius:8px 8px 0 0;padding:14px 20px 22px;transition:transform .42s var(--ease-out);z-index:2}
+.drawer.show{transform:translate(-50%,0)}
+.drawer .handle{width:30px;height:4px;border-radius:2px;background:var(--line-strong);margin:0 auto 14px}
+.drawer .d-title{font-family:var(--serif);font-size:16px;font-weight:700;margin-bottom:10px}
+.drawer .d-row{display:flex;justify-content:space-between;font-size:13px;padding:8px 0;border-top:1px solid var(--line);color:var(--ink-2)}
+/* ---------- 页面映射 ---------- */
+table.map{width:100%;border-collapse:collapse;border:1px solid var(--line);background:var(--card);font-size:13.5px}
+table.map th{font-family:var(--serif);text-align:left;padding:13px 18px;border-bottom:2px solid var(--ink);font-size:14px;letter-spacing:.08em}
+table.map td{padding:13px 18px;border-bottom:1px solid var(--line);vertical-align:top}
+table.map tr:last-child td{border-bottom:none}
+table.map td:first-child{font-weight:700;white-space:nowrap}
+table.map td .m{color:var(--ink-2)}
+footer{margin-top:110px;border-top:3px double var(--line-strong);padding-top:26px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px}
+footer .f-brand{font-family:var(--serif);font-size:16px;letter-spacing:.2em}
+footer .f-en{font-size:10px;letter-spacing:.4em;color:var(--ink-3)}
+@media (max-width:900px){.ideas,.typegrid,.motion-grid{grid-template-columns:1fr}h1{font-size:40px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="masthead">
+    <div>
+      <div class="kicker">WUQI DANCE — MEMBER APP REDESIGN</div>
+      <h1>纸上舞台<span class="en">PAPER&nbsp;STAGE · UI&nbsp;/&nbsp;UE&nbsp;PROPOSAL&nbsp;V1.0</span></h1>
+      <p class="intro">把会员端从「App 感」做成「刊物感」：纸色底、墨色字、发丝分隔线、宋体大标题、编号系统，全局只留一抹朱砂红用在「动作」上。去掉渐变按钮、玻璃拟态、糖果色大圆角卡片这类被用滥的手法——像一本安静、讲究的舞蹈志，而不是一个通用模板。</p>
+      <a class="tolink" href="screens.html">查看四大页面效果图 →</a>
+    </div>
+    <div class="seal">栖</div>
+  </div>
+
+  <!-- 01 理念 -->
+  <section>
+    <div class="sec-head"><span class="sec-no">壹 / 01</span><span class="sec-title">设计理念</span><span class="sec-en">Philosophy</span></div>
+    <div class="ideas">
+      <div class="idea">
+        <div class="no">其一</div>
+        <h4>纸上舞台</h4>
+        <p>整体材质是「纸」：暖纸色底 + 颗粒肌理，卡片靠发丝线区分而不是阴影堆砌。圆角收小（卡片 8px、按钮 3px），直角偏多的版面天然显得贵。</p>
+        <div class="demo">
+          <div class="dbl-rule">PAPER · GRAIN · HAIRLINE</div>
+        </div>
+      </div>
+      <div class="idea">
+        <div class="no">其二</div>
+        <h4>一抹朱砂</h4>
+        <p>全局只有朱砂红一个强调色，像印章一样「盖」在关键动作上：预约按钮、当前日期、新增角标。其余信息全部用墨色深浅表达，画面自然安静。</p>
+        <div class="demo" style="display:flex;gap:12px;align-items:center">
+          <button class="btn btn-p" style="height:40px">立即预约</button>
+          <button class="btn btn-g" style="height:40px">候补</button>
+          <span class="tag-new">新</span>
+        </div>
+      </div>
+      <div class="idea">
+        <div class="no">其三</div>
+        <h4>编排即节奏</h4>
+        <p>用杂志排版的节奏感呼应舞蹈：中英文双语小标、壹贰叁编号、大号宋体时间数字、竖排点题字。信息密度不变，但阅读有了主次和呼吸。</p>
+        <div class="demo" style="display:flex;gap:18px;justify-content:space-between;align-items:flex-start">
+          <div class="vtext">以舞为栖</div>
+          <div>
+            <div class="sec-no">贰 / 02</div>
+            <div style="font-family:var(--serif);font-weight:700;font-size:18px;margin-top:6px">本周课表</div>
+            <div class="dbl-rule" style="margin-top:8px">WEEKLY&nbsp;SCHEDULE</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 02 色板 -->
+  <section>
+    <div class="sec-head"><span class="sec-no">贰 / 02</span><span class="sec-title">配色</span><span class="sec-en">Palette</span></div>
+    <div class="swatches">
+      <div class="sw"><div class="chip" style="background:#F5F1E8;border-bottom:1px solid var(--line)"><small>PAPER</small></div><div class="meta"><b>宣纸 <span>#F5F1E8</span></b><em>页面底色，全局的「纸」</em></div></div>
+      <div class="sw"><div class="chip" style="background:#FCFAF4;border-bottom:1px solid var(--line)"><small>CARD</small></div><div class="meta"><b>卡片白 <span>#FCFAF4</span></b><em>卡片/弹层，比底色亮半度</em></div></div>
+      <div class="sw"><div class="chip dark" style="background:#221D15"><small>INK</small></div><div class="meta"><b>墨 <span>#221D15</span></b><em>标题与正文，替代纯黑</em></div></div>
+      <div class="sw"><div class="chip dark" style="background:#6C6353"><small>INK·2</small></div><div class="meta"><b>次级墨 <span>#6C6353</span></b><em>说明文字、次要信息</em></div></div>
+      <div class="sw"><div class="chip dark" style="background:#B93A26"><small>CINNABAR</small></div><div class="meta"><b>朱砂 <span>#B93A26</span></b><em>唯一强调色：按钮/当前项/角标</em></div></div>
+      <div class="sw"><div class="chip dark" style="background:#A0802E"><small>GOLD</small></div><div class="meta"><b>哑金 <span>#A0802E</span></b><em>点缀：课时数、荣誉类小字</em></div></div>
+      <div class="sw"><div class="chip light" style="background:#DFD6C2"><small>HAIRLINE</small></div><div class="meta"><b>发丝线 <span>#DFD6C2</span></b><em>分隔线、描边，替代阴影</em></div></div>
+      <div class="sw"><div class="chip light" style="background:#ECE5D6"><small>PAPER·2</small></div><div class="meta"><b>深一度纸 <span>#ECE5D6</span></b><em>禁用态、底纹、进度条</em></div></div>
+    </div>
+    <h3 class="sub">舞种识别点色（小圆点 + 文字，不再用整块彩色标签）</h3>
+    <div class="dots">
+      <div class="d"><span class="i" style="background:#B93A26"></span>古典舞</div>
+      <div class="d"><span class="i" style="background:#B26A64"></span>韩舞</div>
+      <div class="d"><span class="i" style="background:#3E5C76"></span>街舞</div>
+      <div class="d"><span class="i" style="background:#A0802E"></span>爵士</div>
+      <div class="d"><span class="i" style="background:#6E7F58"></span>形体 / 晨课</div>
+      <div class="d" style="color:var(--ink-3)">…新舞种在管理端配一个点色即可</div>
+    </div>
+  </section>
+
+  <!-- 03 字体版式 -->
+  <section>
+    <div class="sec-head"><span class="sec-no">叁 / 03</span><span class="sec-title">字体与版式</span><span class="sec-en">Typography</span></div>
+    <div class="typegrid">
+      <div class="tcell"><div class="tag">Display · 思源宋体 900</div><div class="t1" style="margin-top:10px">九月 · 秋序</div><p class="note">页面主标题、首页大字报、空状态点题。宋体的笔锋自带「舞」的气质。</p></div>
+      <div class="tcell"><div class="tag">Heading · 思源宋体 700</div><div class="t2" style="margin-top:10px">本周课表 / 古典舞 · 基础</div><p class="note">区块标题、课程名、教练名。</p></div>
+      <div class="tcell"><div class="tag">Body · 系统黑体 400/500</div><div class="t3" style="margin-top:10px">林晚 · A 教室 · 已约 6 / 12，开课前 2 小时停止预约。</div><p class="note">正文、说明、按钮文字都用黑体，保证小屏可读性。</p></div>
+      <div class="tcell"><div class="tag">Numerals · 宋体大数字</div><div class="tnum" style="margin-top:10px">19:30<small>21:00</small></div><p class="note">时间、课时、天数用大号宋体数字，是整个版面的「节拍器」。</p></div>
+    </div>
+    <h3 class="sub">版式规则</h3>
+    <table class="map">
+      <tr><th style="width:180px">元素</th><th>规则</th></tr>
+      <tr><td>区块标题</td><td class="m">编号（壹/贰/叁 或 01/02）+ 宋体标题 + 英文小字注脚，下压一条双细线——印刷刊头的做法</td></tr>
+      <tr><td>分隔</td><td class="m">一律用 1px 发丝线；重要分界用「双细线」；不用大色块、不用阴影堆砌</td></tr>
+      <tr><td>列表</td><td class="m">公告、记录类列表加「01 02 03」编号， magazine 目录感</td></tr>
+      <tr><td>圆角</td><td class="m">卡片 8px，按钮/输入框 3px，标签 2px，头像方形 4px（圆形头像仅保留教练/本人照片一处）</td></tr>
+      <tr><td>阴影</td><td class="m">默认无阴影；仅弹层允许「2px 实体错位影」（模拟纸张叠放），不用扩散模糊影</td></tr>
+      <tr><td>竖排点题</td><td class="m">首页与详情页留一处竖排文字（如「以舞为栖」），是版面的「气口」</td></tr>
+    </table>
+  </section>
+
+  <!-- 04 组件 -->
+  <section>
+    <div class="sec-head"><span class="sec-no">肆 / 04</span><span class="sec-title">核心组件</span><span class="sec-en">Components</span></div>
+
+    <h3 class="sub">按钮（实底无渐变，按压整体微缩）</h3>
+    <div class="comp-row">
+      <button class="btn btn-p">立即预约</button>
+      <button class="btn btn-ink">已约 ✓</button>
+      <button class="btn btn-g">加入候补</button>
+      <button class="btn btn-dis">已结束</button>
+      <button class="btn btn-t">查看完整课表 →</button>
+    </div>
+    <p class="note">朱砂=可执行的主动作（每屏至多一个）；墨色=已完成/已持有；描边=次级动作；纸灰=不可用。箭头「→」代替小图标，减少图标绘制感。</p>
+
+    <h3 class="sub">课程行（预约页 / 首页共用的原子组件）</h3>
+    <div style="background:var(--card);border:1px solid var(--line);padding:6px 22px;max-width:640px">
+      <div class="crow">
+        <div class="ctime"><b>19:30</b><span>- 21:00</span></div>
+        <div class="cmain">
+          <div class="cname"><span class="i" style="background:#B93A26"></span>古典舞 · 基础</div>
+          <div class="cmeta">林晚 · A 教室</div>
+          <div class="cbar"><i style="width:50%"></i></div>
+        </div>
+        <button class="btn btn-p" style="height:38px;padding:0 20px">预约</button>
+      </div>
+      <div class="crow">
+        <div class="ctime"><b>18:00</b><span>- 19:00</span></div>
+        <div class="cmain">
+          <div class="cname"><span class="i" style="background:#B26A64"></span>韩舞 · 框架</div>
+          <div class="cmeta">苏芮 · B 教室 · 已满</div>
+          <div class="cbar"><i style="width:100%;background:var(--line-strong)"></i></div>
+        </div>
+        <button class="btn btn-g" style="height:38px;padding:0 16px">候补</button>
+      </div>
+    </div>
+    <p class="note">时间数字是行内最大的元素——扫一眼先看到「几点」，这是约课页最重要的信息。名额用一条 2px 发丝进度线表达，不用环形进度。</p>
+
+    <h3 class="sub">标签 / 角标</h3>
+    <div class="comp-row">
+      <span class="chip"><span class="i" style="background:#3E5C76"></span>街舞</span>
+      <span class="chip on">本周</span>
+      <span class="chip" style="border-color:var(--cinnabar);color:var(--cinnabar)">已选门店：万象城店</span>
+      <span class="tag-new">新</span>
+    </div>
+  </section>
+
+  <!-- 05 动效 -->
+  <section>
+    <div class="sec-head"><span class="sec-no">伍 / 05</span><span class="sec-title">动效规范（可交互演示）</span><span class="sec-en">Motion</span></div>
+    <p class="note" style="margin-bottom:22px">动效只做三类：进入、反馈、点题。克制、短促、有物理感——像纸和印章，不像果冻。</p>
+    <div class="motion-grid">
+
+      <div class="mo">
+        <h5>签名动效 · 「盖章」</h5>
+        <p>预约成功、签到成功、审核通过——统一用一个朱砂印章「啪」地盖下来：放大落回 + 轻微斜角 + 一次微震。这是全 App 的记忆点。</p>
+        <div class="box">
+          <span class="replay" onclick="stamp(this)">重放</span>
+          <div class="seal-big" data-stamp>栖</div>
+        </div>
+        <p class="note">时长 0.5s · 曲线 cubic-bezier(.2,1.4,.3,1)（微回弹）· 落章时配一次手机短震动（wx.vibrateShort）</p>
+      </div>
+
+      <div class="mo">
+        <h5>列表浮现 · stagger</h5>
+        <p>页面进入时，课程行按 80ms 间隔依次「浮上来」，先内容后边线，页面像被逐行排版出来。</p>
+        <div class="box">
+          <span class="replay" onclick="restagger(this)">重放</span>
+          <div class="demo-list">
+            <div class="crow" style="border-top:none">
+              <div class="ctime"><b style="font-size:20px">19:30</b></div>
+              <div class="cmain"><div class="cname">古典舞 · 基础</div><div class="cmeta">林晚 · A 教室</div></div>
+            </div>
+            <div class="crow">
+              <div class="ctime"><b style="font-size:20px">18:00</b></div>
+              <div class="cmain"><div class="cname">韩舞 · 框架</div><div class="cmeta">苏芮 · B 教室</div></div>
+            </div>
+            <div class="crow">
+              <div class="ctime"><b style="font-size:20px">20:00</b></div>
+              <div class="cmain"><div class="cname">街舞 · Element</div><div class="cmeta">陈默 · A 教室</div></div>
+            </div>
+          </div>
+        </div>
+        <p class="note">单行 0.55s · 曲线 cubic-bezier(.22,1,.36,1)（快出缓停）· 位移 16px + 透明度，首屏总时长不超过 0.8s</p>
+      </div>
+
+      <div class="mo">
+        <h5>数字滚动</h5>
+        <p>剩余课时、已约人数、会员天数等关键数字，在页面进入时从 0 滚到目标值——「数」出来的仪式感。</p>
+        <div class="box">
+          <span class="replay" onclick="count(this)">重放</span>
+          <div class="num-demo"><span data-count="14">14</span><small>剩余课时</small></div>
+        </div>
+        <p class="note">0.6s · 匀减速 · 仅首次进入播放，刷新数据时只做透明度过渡</p>
+      </div>
+
+      <div class="mo">
+        <h5>按压与切换反馈</h5>
+        <p>所有可点元素按压时整体缩至 0.96（像按纸）；日期、舞种筛选切换用 0.18s 的墨色填充过渡，手感干脆。</p>
+        <div class="box press-stage">
+          <button class="btn btn-p" style="height:42px">按住试试</button>
+          <span class="chip on" onclick="toggleChip(this)" style="cursor:pointer">已选</span>
+          <span class="chip" onclick="toggleChip(this)" style="cursor:pointer">未选</span>
+        </div>
+        <p class="note">按压 0.12s scale(.96) · 填充过渡 0.18s ease-out · 无弹跳无回抖</p>
+      </div>
+
+      <div class="mo" style="grid-column:1/-1">
+        <h5>底部抽屉（会员码 / 取消确认 / 筛选）</h5>
+        <p>底部操作一律用「纸片上滑」：背景暗下去、纸片带顶部拖拽条上滑到位。不用大面积毛玻璃——模糊背景是当前最滥的手法之一。</p>
+        <div class="box drawer-stage" style="height:210px">
+          <span class="replay" onclick="drawer(this)">重放</span>
+          <div class="drawer-dim" data-dim></div>
+          <div class="drawer" data-drawer>
+            <div class="handle"></div>
+            <div class="d-title">入场券</div>
+            <div class="d-row"><span>出示给门店工作人员扫码签到</span><span style="color:var(--cinnabar)">60s 刷新</span></div>
+            <div class="d-row"><span>古典舞 · 基础 19:30</span><b style="font-family:var(--serif)">今日</b></div>
+          </div>
+        </div>
+        <p class="note">上滑 0.42s cubic-bezier(.22,1,.36,1) · 遮罩淡入 0.35s · 遮罩色 #221D15 透明度 38%（不用模糊）</p>
+      </div>
+    </div>
+    <h3 class="sub">其余动效约定</h3>
+    <table class="map">
+      <tr><th style="width:200px">场景</th><th>处理</th></tr>
+      <tr><td>下拉刷新</td><td class="m">顶部一条 2px 墨色细线随下拉「注墨」变长，松手满格收走——代替系统圆圈</td></tr>
+      <tr><td>图片载入</td><td class="m">先出纸色底 + 颗粒，再 0.4s 淡入真实图；教练照片统一方图 4px 圆角</td></tr>
+      <tr><td>首页大图</td><td class="m">进入时 1.05→1.0 极缓缩放（0.9s），营造「开幕」感，仅首次进入播放</td></tr>
+      <tr><td>骨架屏</td><td class="m">放弃闪光扫过动画，改为静态「排版占位」：灰线、灰块按真实版式摆好，不闪不跳</td></tr>
+      <tr><td>转场</td><td class="m">页面右入左出沿用系统默认（不加自定义转场），保证跟手不拖沓</td></tr>
+    </table>
+  </section>
+
+  <!-- 06 页面映射 -->
+  <section>
+    <div class="sec-head"><span class="sec-no">陆 / 06</span><span class="sec-title">页面覆盖映射</span><span class="sec-en">Coverage</span></div>
+    <p class="note" style="margin-bottom:20px">一次完整交付，覆盖会员端全部页面与状态；功能与信息结构不动，只换「皮」和「动」。确认后一次性实施，不分期。</p>
+    <table class="map">
+      <tr><th style="width:170px">现有页面</th><th>改版要点</th></tr>
+      <tr><td>首页</td><td class="m">轮播改为单幅「刊头」大图区（保留后台多图轮换）+ 竖排点题字；公告改编号目录「栖事」；教练改方形肖像 + 宋体名；近期课程复用课程行组件；假期横幅改为顶部朱砂细条</td></tr>
+      <tr><td>场次预约</td><td class="m">日期条改墨色方块选中；舞种筛选改点色胶囊；课程列表复用课程行（12 种按钮状态全部按新按钮体系落地）；候补/补约提示用朱砂细字条</td></tr>
+      <tr><td>课程详情</td><td class="m">大宋体标题 + 双细线；信息改 2×2 网格（发丝线分隔）；预约规则用大白话小字段；底部固定操作栏「消耗 N 课时 + 立即预约」</td></tr>
+      <tr><td>个人中心</td><td class="m">会员卡改「会员志」：方头像 + 宋体大名 + 印章式身份签；三数据大数字；套餐改「票根」卡（虚线撕票边 + 朱砂章）；会员码入口即「入场券」抽屉</td></tr>
+      <tr><td>我的套餐 / 我的记录 / 教练主页 / 相册 / 消息设置等</td><td class="m">全部复用上述组件（课程行、编号目录、票根、抽屉、盖章），无遗漏页面</td></tr>
+      <tr><td>全局</td><td class="m">自定义 TabBar 重绘（墨色文字 + 朱砂方点选中态）；弹窗统一纸片抽屉；成功类反馈统一「盖章」；加载统一排版占位</td></tr>
+    </table>
+  </section>
+
+  <footer>
+    <div>
+      <div class="f-brand">舞栖 DANCE · 纸上舞台</div>
+      <div class="f-en">PAPER STAGE DESIGN PROPOSAL · FOR REVIEW ONLY</div>
+    </div>
+    <a class="tolink" style="margin-top:0" href="screens.html">下一步：查看页面效果图 →</a>
+  </footer>
+</div>
+
+<script>
+function stamp(btn){
+  const el=btn.parentElement.querySelector('[data-stamp]');
+  el.classList.remove('stamping');void el.offsetWidth;el.classList.add('stamping');
+}
+function restagger(btn){
+  const box=btn.parentElement.querySelector('.demo-list');
+  box.style.display='none';void box.offsetWidth;box.style.display='block';
+}
+function count(btn){
+  const el=btn.parentElement.querySelector('[data-count]');
+  const target=+el.dataset.count,t0=performance.now(),D=600;
+  function step(t){const p=Math.min(1,(t-t0)/D),e=1-Math.pow(1-p,3);
+    el.textContent=Math.round(target*e);if(p<1)requestAnimationFrame(step)}
+  requestAnimationFrame(step);
+}
+function toggleChip(el){
+  const row=el.parentElement;
+  row.querySelectorAll('.chip').forEach(c=>c.classList.remove('on'));
+  el.classList.add('on');
+}
+function drawer(btn){
+  const stage=btn.parentElement;
+  const d=stage.querySelector('[data-drawer]'),m=stage.querySelector('[data-dim]');
+  d.classList.remove('show');m.classList.remove('show');void d.offsetWidth;
+  requestAnimationFrame(()=>{d.classList.add('show');m.classList.add('show')});
+}
+/* 进页自动播一遍 */
+window.addEventListener('load',()=>{
+  const s=document.querySelector('[data-stamp]');if(s)s.classList.add('stamping');
+  const c=document.querySelector('[data-count]');if(c){const target=+c.dataset.count,t0=performance.now(),D=600;
+    (function step(t){const p=Math.min(1,(t-t0)/D),e=1-Math.pow(1-p,3);c.textContent=Math.round(target*e);
+      if(p<1)requestAnimationFrame(step)})(t0)}
+  setTimeout(()=>{const d=document.querySelector('[data-drawer]'),m=document.querySelector('[data-dim]');
+    if(d){d.classList.add('show');m.classList.add('show')}},600);
+});
+</script>
+</body>
+</html>

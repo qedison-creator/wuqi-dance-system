@@ -46,6 +46,166 @@ function normalizeTimeLimit(before, after) {
 
 exports.normalizeTimeLimit = normalizeTimeLimit;
 
+// ========== 赠送课时/赠送有效期 辅助 ==========
+
+// 按自然月顺延日期（北京时间口径），返回 Date
+function addNaturalMonths(date, months) {
+  return dayjs(date).tz(BEIJING_TZ).add(Number(months), 'month').toDate();
+}
+exports.addNaturalMonths = addNaturalMonths;
+
+/**
+ * 为主卡创建赠课卡（方案B独立赠送卡：固定 count_card、限制/门店快照自主卡、预约时先扣赠送）
+ * @param {Object} mainPkg 主卡 doc（需已落库）
+ * @param {Object} opts { bonusCredits, bonusExpireMode('follow_main'|'months'), bonusMonths, operatorId, pending, monthsFrom('main_start'|'now') }
+ * @returns {Object|null} 赠课卡（bonusCredits<=0 时返回 null）
+ */
+async function createBonusCardForMain(mainPkg, opts = {}) {
+  const bonusCredits = Number(opts.bonusCredits || 0);
+  if (!(bonusCredits > 0)) return null;
+  const mode = opts.bonusExpireMode === 'months' ? 'months' : 'follow_main';
+  const bonusMonths = Number(opts.bonusMonths || 0);
+  const pending = !!opts.pending;
+  const now = new Date();
+  const mainName = (mainPkg.package_snapshot && mainPkg.package_snapshot.name) || '';
+
+  const record = {
+    user_id: mainPkg.user_id,
+    package_id: null,  // 赠课卡不挂套餐模板，避免污染套餐录入/模板统计
+    store_id: mainPkg.store_id,
+    extra_store_ids: mainPkg.extra_store_ids || [],
+    package_type: 'count_card',
+    total_credits: bonusCredits,
+    original_total_credits: bonusCredits,
+    remaining_credits: bonusCredits,
+    is_bonus: true,
+    bonus_source_id: mainPkg._id,
+    bonus_expire_mode: mode,
+    dance_style_limit: mainPkg.dance_style_limit || [],
+    weekday_limit: mainPkg.weekday_limit || [],
+    usable_before: mainPkg.usable_before || '',
+    usable_after: mainPkg.usable_after || '',
+    created_by: opts.operatorId || mainPkg.created_by,
+    remark: mainName ? `购买${mainName}套餐赠送` : '购买套餐赠送',
+    member_snapshot: mainPkg.member_snapshot && typeof mainPkg.member_snapshot.toObject === 'function' ? mainPkg.member_snapshot.toObject() : (mainPkg.member_snapshot || {}),
+    package_snapshot: { name: '赠送课时' },
+  };
+
+  if (pending) {
+    // 待激活：随主套餐联动激活（首约激活/手动激活/定时自动激活共用联动 helper）
+    record.is_activated = false;
+    record.activated_at = null;
+    record.status = 'pending';
+    record.auto_activate_at = mainPkg.auto_activate_at || null;
+    record.start_date = null;
+    record.end_date = null;
+    if (mode === 'months' && bonusMonths > 0) {
+      record.duration_value = bonusMonths;
+      record.duration_unit = 'month';
+    } else {
+      // 随主套餐：展示时长与主卡一致，激活时复制主卡起止
+      record.duration_value = mainPkg.duration_value || null;
+      record.duration_unit = mainPkg.duration_unit || 'month';
+    }
+  } else {
+    const startMoment = dayjs(mainPkg.start_date || now).tz(BEIJING_TZ);
+    record.is_activated = true;
+    record.activated_at = now;
+    record.status = 'active';
+    record.start_date = startMoment.startOf('day').toDate();
+    record.auto_activate_at = null;
+    if (mode === 'months' && bonusMonths > 0) {
+      // 生效后X个月：主卡起始日（或赠送时刻）+ X 自然月
+      const baseMoment = opts.monthsFrom === 'now' ? dayjs(now).tz(BEIJING_TZ) : startMoment;
+      const { end_date } = calculateValidityDates(baseMoment, bonusMonths, 'month');
+      record.end_date = end_date;
+      record.original_end_date = new Date(end_date);
+      record.duration_value = bonusMonths;
+      record.duration_unit = 'month';
+    } else {
+      // 随主套餐：复制主卡当前起止（含历史延长/放假顺延结果）
+      record.end_date = mainPkg.end_date || null;
+      record.original_end_date = mainPkg.original_end_date || mainPkg.end_date || null;
+      record.duration_value = mainPkg.duration_value || null;
+      record.duration_unit = mainPkg.duration_unit || 'month';
+    }
+  }
+
+  const bonus = await UserPackage.create(record);
+  console.log(`[Package] 赠课卡已创建: 主卡=${mainPkg._id}, 赠课卡=${bonus._id}, ${bonusCredits}节, 模式=${mode}${mode === 'months' ? `(${bonusMonths}个月)` : ''}, 状态=${bonus.status}`);
+  return bonus;
+}
+exports.createBonusCardForMain = createBonusCardForMain;
+
+/**
+ * 主卡激活后联动激活其 pending 赠课卡（首约/手动/定时自动激活共用）
+ * 赠课卡不单独发微信通知（会员只收主卡一条）
+ */
+async function activateLinkedBonusCards(mainPkg, options = {}) {
+  const bonusCards = await UserPackage.find({
+    is_bonus: true,
+    bonus_source_id: mainPkg._id,
+    status: 'pending',
+  }).sort({ created_at: 1 });
+  if (bonusCards.length === 0) return [];
+
+  const activated = [];
+  for (const bonus of bonusCards) {
+    const now = new Date();
+    bonus.is_activated = true;
+    bonus.activated_at = now;
+    bonus.status = 'active';
+    if (bonus.bonus_expire_mode === 'months' && bonus.duration_value) {
+      // 激活时刻 + X 自然月
+      const startMoment = dayjs(now).tz(BEIJING_TZ);
+      bonus.start_date = startMoment.startOf('day').toDate();
+      const { end_date } = calculateValidityDates(startMoment, bonus.duration_value, 'month');
+      bonus.end_date = end_date;
+      bonus.original_end_date = new Date(end_date);
+    } else {
+      // 随主套餐：复制主卡起止
+      bonus.start_date = mainPkg.start_date || null;
+      bonus.end_date = mainPkg.end_date || null;
+      bonus.original_end_date = mainPkg.original_end_date || mainPkg.end_date || null;
+    }
+    bonus.auto_activate_at = null;
+    await bonus.save();
+    activated.push(bonus);
+
+    try {
+      await PackageActivation.create({
+        user_package_id: bonus._id,
+        user_id: bonus.user_id,
+        package_id: null,
+        store_id: bonus.store_id || null,
+        activation_type: options.activation_type || 'manual_force',
+        booking_id: options.booking_id || null,
+        activated_by: options.activated_by || null,
+        activated_at: now,
+        remark: '随主套餐联动激活',
+        member_snapshot: bonus.member_snapshot || {},
+        package_snapshot: { name: '赠送课时' },
+      });
+    } catch (actErr) {
+      console.error('[Package] 赠课卡激活记录失败:', actErr.message);
+    }
+
+    try {
+      await logService.createLog({
+        operator_id: options.activated_by || null,
+        action: 'activate',
+        module: 'package',
+        target_id: bonus._id,
+        detail: `赠课卡(${bonus._id})随主套餐(${mainPkg._id})联动激活, ${bonus.total_credits}节, 有效期至: ${bonus.end_date ? bonus.end_date.toISOString().split('T')[0] : '长期'}`,
+      });
+    } catch (logErr) {
+      console.error('[Package] 赠课卡激活日志失败:', logErr.message);
+    }
+  }
+  console.log(`[Package] 主卡(${mainPkg._id})联动激活赠课卡 ${activated.length} 张`);
+  return activated;
+}
+
 // ========== 套餐变更明细值展示格式化 ==========
 // PackageChange.changes 写入时保存的是原始字符串值（ObjectId/英文时间串/null/数字星期），
 // 查询展示时统一转为可读文案，存量历史数据同样生效。
@@ -234,10 +394,12 @@ exports.getMyPackage = async (userId) => {
   // 先刷新套餐状态（将已过期的 active 标记为 expired）
   await exports.refreshPackageStatus(userId);
 
-  let packages = await UserPackage.find({ user_id: userId })
+  // 作废套餐（voided）不在会员端展示，仅在后台"套餐记录查询"可查
+  let packages = await UserPackage.find({ user_id: userId, status: { $ne: 'voided' } })
     .populate('store_id', 'name')
     .populate('extra_store_ids', 'name')
     .populate('dance_style_limit', 'name')
+    .populate('bonus_source_id', 'package_snapshot status is_activated is_suspended end_date package_type total_credits daily_limit weekly_limit monthly_limit')
     .sort({ created_at: 1 });
 
   // 强制修正：已激活且过期的 active 套餐必须标记为 expired，避免前端/后端状态不同步
@@ -274,7 +436,7 @@ exports.getMyPackage = async (userId) => {
     await Promise.all(toSave);
   }
 
-  const activePackage = packages.find(p => p.status === 'active' && !p.is_suspended);
+  const activePackage = packages.find(p => p.status === 'active' && !p.is_suspended && !p.is_bonus);  // 看板主卡不含赠课卡
   const pendingPackages = packages.filter(p => p.status === 'pending');
   const suspendedPackages = packages.filter(p => p.status === 'active' && p.is_suspended);
 
@@ -285,15 +447,18 @@ exports.getMyPackage = async (userId) => {
 
   // 为所有 active 且未停卡的套餐构建统计信息（支持次卡+时间卡同时展示）
   const activePackages = packages.filter(p => p.status === 'active' && !p.is_suspended);
+  // 看板排序：时间卡 → 普通次卡 → 赠课卡（三卡并存时赠课卡排最后）
+  const statOrder = (pkg) => (pkg.is_bonus ? 2 : (pkg.package_type === 'time_card' ? 0 : 1));
+  activePackages.sort((a, b) => statOrder(a) - statOrder(b));
   const activeStats = await Promise.all(activePackages.map(async (pkg) => {
     const stat = {
       _id: pkg._id,
       package_type: pkg.package_type,
-      package_name: pkg.remark || (pkg.package_type === 'count_card' ? '次卡' : '时间卡'),
+      package_name: pkg.is_bonus ? '赠送课时' : (pkg.remark || (pkg.package_type === 'count_card' ? '次卡' : '时间卡')),
     };
     if (pkg.package_type === 'count_card') {
       stat.remaining = pkg.remaining_credits || 0;
-      stat.label = '次卡剩余';
+      stat.label = pkg.is_bonus ? '赠课剩余' : '次卡剩余';
       stat.isUnlimited = false;
     } else if (pkg.package_type === 'time_card') {
       const usage = await calcTimeCardUsage(pkg);
@@ -329,6 +494,22 @@ exports.getMyPackage = async (userId) => {
       } else {
         obj.timeCardUsage = await calcTimeCardUsage(obj);
       }
+    }
+    // 赠课卡：附加来源主套餐文本（会员端来源行展示）
+    if (obj.is_bonus) {
+      const src = obj.bonus_source_id && typeof obj.bonus_source_id === 'object' ? obj.bonus_source_id : null;
+      // 主套餐名兜底：快照名缺失（录入套餐不挂模板时快照 name 为空）→ 用类型+规格描述
+      const srcTypeText = (s) => {
+        if (!s) return '';
+        if (s.package_type === 'time_card') {
+          const limit = s.daily_limit ? `每日${s.daily_limit}次` : s.weekly_limit ? `每周${s.weekly_limit}次` : s.monthly_limit ? `每月${s.monthly_limit}次` : '不限次数';
+          return `时间卡·${limit}`;
+        }
+        return `次卡·${(s.total_credits || 0)}次`;
+      };
+      const srcName = (src && src.package_snapshot && src.package_snapshot.name) || (src ? srcTypeText(src) : '');
+      // 仅当关联丢失（赠课卡无主卡引用）才显示"主套餐已删除"
+      obj._sourceText = src ? `主套餐：${srcName || '主套餐'}` : '主套餐已删除';
     }
   }));
 
@@ -549,7 +730,7 @@ exports._recordPackageChange = async (userPackage, changes, operatorId, remark =
 };
 
 exports.createPackage = async (data, operatorId) => {
-  const { user_id, package_id, store_id, extra_store_ids, package_type, total_credits, duration_value, duration_unit, daily_limit, weekly_limit, monthly_limit, dance_style_limit, weekday_limit, usable_before, usable_after, remark, activate_mode } = data;
+  const { user_id, package_id, store_id, extra_store_ids, package_type, total_credits, duration_value, duration_unit, daily_limit, weekly_limit, monthly_limit, dance_style_limit, weekday_limit, usable_before, usable_after, remark, activate_mode, bonus_credits, bonus_expire_mode, bonus_months, gift_validity_months } = data;
 
   if (!user_id) throw new Error('用户ID不能为空');
   if (!package_type) throw new Error('套餐类型不能为空');
@@ -600,6 +781,23 @@ exports.createPackage = async (data, operatorId) => {
     package_snapshot: packageSnapshot,
   });
 
+  // 赠送课时：创建独立赠课卡（pending，随主套餐联动激活）
+  const bonusCredits = Number(bonus_credits || 0);
+  if (bonusCredits > 0) {
+    await createBonusCardForMain(userPackage, {
+      bonusCredits,
+      bonusExpireMode: bonus_expire_mode === 'months' ? 'months' : 'follow_main',
+      bonusMonths: Number(bonus_months || 0),
+      operatorId,
+      pending: true,
+    });
+  }
+  // 赠送有效期：暂存到主卡，激活时按自然月并入 end_date
+  if (Number(gift_validity_months || 0) > 0) {
+    userPackage.bonus_validity_months = Number(gift_validity_months);
+    await userPackage.save();
+  }
+
   // 记录操作日志
   const durationText = package_type === 'time_card'
     ? `${duration_value}${duration_unit === 'month' ? '个月' : '天'}`
@@ -647,6 +845,8 @@ exports.activatePackageById = async (packageId, userId, options = {}) => {
     const pkg = await UserPackage.findById(packageId);
     if (!pkg) throw new Error('套餐不存在');
     if (pkg.status !== 'pending') throw new Error('该套餐状态不可激活');
+    // 入口防护：赠课卡只随主套餐联动激活，不可单独激活
+    if (pkg.is_bonus) throw new Error('赠送课时需随主套餐激活，不可单独激活');
     if (pkg.user_id.toString() !== userId.toString()) throw new Error('无权操作');
 
     const now = new Date();
@@ -665,6 +865,12 @@ exports.activatePackageById = async (packageId, userId, options = {}) => {
       const { end_date } = calculateValidityDates(startMoment, 1, 'year');
       pkg.end_date = end_date;
       pkg.original_end_date = new Date(end_date);
+    }
+
+    // 赠送有效期：按自然月并入主卡有效期（录入时暂存 bonus_validity_months，激活时生效）
+    if (Number(pkg.bonus_validity_months || 0) > 0) {
+      pkg.end_date = addNaturalMonths(pkg.end_date, pkg.bonus_validity_months);
+      pkg.original_end_date = new Date(pkg.end_date);
     }
 
     await pkg.save();
@@ -718,6 +924,17 @@ exports.activatePackageById = async (packageId, userId, options = {}) => {
 
     console.log('[Package] 套餐激活成功');
 
+    // 赠送课时联动：主卡激活后同步激活其 pending 赠课卡
+    try {
+      await activateLinkedBonusCards(pkg, {
+        activation_type: options.activation_type || options.activationType || 'manual_force',
+        booking_id: options.booking_id || null,
+        activated_by: options.activated_by || userId,
+      });
+    } catch (linkErr) {
+      console.error('[Package] 赠课卡联动激活失败:', linkErr.message);
+    }
+
     // 推送套餐变更事件给会员端，即时刷新套餐数据
     try {
       sendToUser(userId, 'package_update', { action: 'activate', package_id: String(pkg._id) });
@@ -738,6 +955,7 @@ exports.activateNextPackage = async (userId) => {
   const pkg = await UserPackage.findOne({
     user_id: userId,
     status: 'pending',
+    is_bonus: { $ne: true },  // 赠课卡随主套餐联动激活，不可单独激活
   }).sort({ created_at: 1 });
 
   if (!pkg) return null;
@@ -751,6 +969,7 @@ exports.checkAutoActivation = async () => {
     is_activated: false,
     auto_activate_at: { $lte: now },
     status: 'pending',
+    is_bonus: { $ne: true },  // 赠课卡随主套餐联动激活，不单独自动激活
   });
 
   for (const pkg of packages) {
@@ -758,6 +977,7 @@ exports.checkAutoActivation = async () => {
     const hasActive = await UserPackage.findOne({
       user_id: pkg.user_id,
       status: 'active',
+      is_bonus: { $ne: true },
     });
     if (hasActive) continue; // 有active套餐，跳过自动激活
 
@@ -776,6 +996,12 @@ exports.checkAutoActivation = async () => {
       const { end_date } = calculateValidityDates(startMoment, 1, 'year');
       pkg.end_date = end_date;
       pkg.original_end_date = new Date(end_date);
+    }
+
+    // 赠送有效期：按自然月并入主卡有效期
+    if (Number(pkg.bonus_validity_months || 0) > 0) {
+      pkg.end_date = addNaturalMonths(pkg.end_date, pkg.bonus_validity_months);
+      pkg.original_end_date = new Date(pkg.end_date);
     }
 
     await pkg.save();
@@ -830,6 +1056,16 @@ exports.checkAutoActivation = async () => {
     } catch (notifyErr) {
       console.error('[Package] 发送自动激活通知失败:', notifyErr.message);
     }
+
+    // 赠送课时联动：定时自动激活主卡后同步激活其 pending 赠课卡
+    try {
+      await activateLinkedBonusCards(pkg, {
+        activation_type: 'manual_force',
+        activated_by: null,
+      });
+    } catch (linkErr) {
+      console.error('[Package] 赠课卡联动激活失败:', linkErr.message);
+    }
   }
 
   return { activated_count: packages.length };
@@ -846,9 +1082,21 @@ exports.updatePackage = async (id, data, operatorId = null) => {
   //   - 同步传递 remaining_credits 保持已消耗次数不变（消耗 = 旧total - 旧remaining + 校验）
   //   - 实际消耗次数 = 旧 total_credits - 旧 remaining_credits，新 remaining_credits = 新 total_credits - 已消耗次数
   const isActivated = userPackage.is_activated;
-  const allowedFields = isActivated
-    ? ['total_credits', 'remaining_credits', 'start_date', 'end_date', 'daily_limit', 'weekly_limit', 'monthly_limit', 'dance_style_limit', 'weekday_limit', 'usable_before', 'usable_after', 'status', 'remark', 'extra_store_ids']
-    : ['package_type', 'total_credits', 'remaining_credits', 'duration_value', 'duration_unit', 'daily_limit', 'weekly_limit', 'monthly_limit', 'dance_style_limit', 'weekday_limit', 'usable_before', 'usable_after', 'status', 'remark', 'extra_store_ids'];
+  // 赠课卡（is_bonus）：附属卡，门店/舞种/时段限制跟随主套餐，不允许单独修改；
+  // 仅允许纠错类字段：总次数/剩余次数/状态/备注；到期日仅"自定义月数"模式可改（随主套餐模式跟随主卡顺延）
+  let allowedFields;
+  if (userPackage.is_bonus) {
+    allowedFields = ['total_credits', 'remaining_credits', 'status', 'remark'];
+    if (userPackage.bonus_expire_mode === 'months') {
+      allowedFields.push('end_date');
+      // 未激活的赠课卡：有效期以"月数"录入，激活时自激活日起算
+      if (!isActivated) allowedFields.push('duration_value');
+    }
+  } else if (isActivated) {
+    allowedFields = ['total_credits', 'remaining_credits', 'start_date', 'end_date', 'daily_limit', 'weekly_limit', 'monthly_limit', 'dance_style_limit', 'weekday_limit', 'usable_before', 'usable_after', 'status', 'remark', 'extra_store_ids'];
+  } else {
+    allowedFields = ['package_type', 'total_credits', 'remaining_credits', 'duration_value', 'duration_unit', 'daily_limit', 'weekly_limit', 'monthly_limit', 'dance_style_limit', 'weekday_limit', 'usable_before', 'usable_after', 'status', 'remark', 'extra_store_ids'];
+  }
 
   // 可用时段规范化（双边界；同开且 after>=before 抛错）
   if (data.usable_before !== undefined || data.usable_after !== undefined) {
@@ -1025,37 +1273,147 @@ exports.updatePackage = async (id, data, operatorId = null) => {
   return userPackage;
 };
 
-// 删除用户套餐
-exports.deleteUserPackage = async (id, operatorId) => {
+// 删除/作废用户套餐
+// 分级策略（权益溯源铁律）：
+//   - 未激活且从未被使用（无预约/激活/延长引用）的录入错误套餐 → 物理删除
+//   - 其余一律作废（status='voided'），保留记录用于会员权益溯源
+exports.deleteUserPackage = async (id, operatorId, reason = '', options = {}) => {
   const userPackage = await UserPackage.findById(id);
   if (!userPackage) throw new Error('套餐记录不存在');
 
-  // 记录套餐变更记录（删除前记录，保留原始快照）
+  const [bookingCount, activationCount, extensionCount] = await Promise.all([
+    Booking.countDocuments({ user_package_id: id }),
+    PackageActivation.countDocuments({ user_package_id: id }),
+    PackageExtension.countDocuments({ user_package_id: id }),
+  ]);
+  const neverUsed = bookingCount === 0 && activationCount === 0 && extensionCount === 0;
+  const canPhysicallyDelete = !userPackage.is_activated && userPackage.status === 'pending' && neverUsed;
+  const typeLabel = userPackage.package_type === 'count_card' ? '次卡' : '时间卡';
+
+  if (canPhysicallyDelete) {
+    // 物理删除：录入错误的一次性纠错，不涉权益溯源
+    await exports._recordPackageChange(userPackage, [{
+      field: 'status',
+      field_label: '状态',
+      old_value: userPackage.status || 'pending',
+      new_value: '已删除'
+    }], operatorId, '管理员删除未激活套餐（录入错误）');
+
+    await logService.createLog({
+      operator_id: operatorId,
+      action: 'delete',
+      module: 'package',
+      target_id: userPackage._id,
+      detail: `物理删除用户(${userPackage.user_id})未激活的${typeLabel}套餐（录入错误）`,
+    });
+
+    try {
+      sendToUser(userPackage.user_id, 'package_update', { action: 'delete', package_id: String(userPackage._id) });
+    } catch (e) {
+      console.error('[Package] 推送套餐更新事件失败:', e.message);
+    }
+
+    await UserPackage.findByIdAndDelete(id);
+    // 主卡物理删除：赠课卡同条件（未激活未使用）一并物理删除
+    const deletedBonuses = await UserPackage.deleteMany({
+      is_bonus: true,
+      bonus_source_id: userPackage._id,
+      is_activated: false,
+      status: 'pending',
+    });
+    if (deletedBonuses.deletedCount > 0) {
+      console.log(`[Package] 主卡(${id})物理删除，联动删除赠课卡 ${deletedBonuses.deletedCount} 张`);
+    }
+    return { success: true, mode: 'deleted' };
+  }
+
+  // 作废：保留记录（member_snapshot/package_snapshot + PackageChange 变更记录），仅标记 voided
+  const oldStatus = userPackage.status;
+  userPackage.status = 'voided';
+  userPackage.voided_at = new Date();
+  userPackage.voided_by = operatorId;
+  userPackage.voided_reason = reason || '管理员作废套餐';
+  await userPackage.save();
+
   await exports._recordPackageChange(userPackage, [{
     field: 'status',
     field_label: '状态',
-    old_value: userPackage.status || 'active',
-    new_value: '已删除'
-  }], operatorId, '管理员删除套餐');
+    old_value: oldStatus || 'active',
+    new_value: '已作废'
+  }], operatorId, reason ? `管理员作废套餐：${reason}` : '管理员作废套餐（保留记录用于权益溯源）');
 
-  // 记录日志
   await logService.createLog({
     operator_id: operatorId,
-    action: 'delete',
+    action: 'void',
     module: 'package',
     target_id: userPackage._id,
-    detail: `删除用户(${userPackage.user_id})的${userPackage.package_type === 'count_card' ? '次卡' : '时间卡'}套餐`,
+    detail: `作废用户(${userPackage.user_id})的${typeLabel}套餐${reason ? '（' + reason + '）' : ''}`,
   });
 
-  // 推送套餐变更事件给会员端，即时刷新套餐数据
   try {
-    sendToUser(userPackage.user_id, 'package_update', { action: 'delete', package_id: String(userPackage._id) });
+    sendToUser(userPackage.user_id, 'package_update', { action: 'void', package_id: String(userPackage._id) });
   } catch (e) {
     console.error('[Package] 推送套餐更新事件失败:', e.message);
   }
 
-  await UserPackage.findByIdAndDelete(id);
-  return { success: true };
+  // 赠课卡强制联动作废：主套餐作废时其名下所有赠课卡一并作废（业务规则：赠课随主套餐存在，不可独立保留）
+  const linkedBonuses = await UserPackage.find({
+    is_bonus: true,
+    bonus_source_id: userPackage._id,
+    status: { $ne: 'voided' },
+  });
+  for (const bonus of linkedBonuses) {
+    bonus.status = 'voided';
+    bonus.voided_at = new Date();
+    bonus.voided_by = operatorId;
+    bonus.voided_reason = `随主套餐作废${reason ? `（${reason}）` : ''}`;
+    await bonus.save();
+  }
+  if (linkedBonuses.length > 0) {
+    console.log(`[Package] 主卡(${id})作废，联动作废赠课卡 ${linkedBonuses.length} 张`);
+  }
+
+  return { success: true, mode: 'voided' };
+};
+
+// 追加赠送：为使用中的主卡追加独立赠课卡（不入2小时撤回、不进数据中心提醒）
+// follow_main=复制主卡当前end_date（含历史延长/顺延）；months=赠送时刻+X自然月
+exports.addBonusToPackage = async (mainId, data, operatorId) => {
+  const mainPkg = await UserPackage.findById(mainId);
+  if (!mainPkg) throw new Error('套餐不存在');
+  if (mainPkg.is_bonus) throw new Error('赠课卡不支持追加赠送');
+  if (mainPkg.status !== 'active') throw new Error('仅使用中的套餐可追加赠送');
+
+  const bonusCredits = Number(data.bonus_credits || 0);
+  if (!(bonusCredits >= 1 && bonusCredits <= 99)) throw new Error('赠送课时数需在1-99之间');
+  const mode = data.bonus_expire_mode === 'months' ? 'months' : 'follow_main';
+  const bonusMonths = Number(data.bonus_months || 0);
+  if (mode === 'months' && !(bonusMonths >= 1 && bonusMonths <= 36)) throw new Error('赠送月数需在1-36之间');
+
+  const bonus = await createBonusCardForMain(mainPkg, {
+    bonusCredits,
+    bonusExpireMode: mode,
+    bonusMonths,
+    operatorId,
+    pending: false,
+    monthsFrom: 'now',  // 追加赠送的X个月模式自赠送之日起算
+  });
+
+  await logService.createLog({
+    operator_id: operatorId,
+    action: 'create',
+    module: 'package',
+    target_id: mainPkg._id,
+    detail: `为套餐(${mainPkg._id})追加赠送${bonusCredits}节${mode === 'months' ? `，有效期自赠送之日起${bonusMonths}个月` : '，随主套餐有效期'}`,
+  });
+
+  try {
+    sendToUser(mainPkg.user_id, 'package_update', { action: 'bonus', package_id: String(bonus._id) });
+  } catch (e) {
+    console.error('[Package] 推送追加赠送事件失败:', e.message);
+  }
+
+  return bonus;
 };
 
 // 获取套餐列表(管理端 - 套餐模板)
@@ -1309,16 +1667,24 @@ exports.getActivationRecords = async (query) => {
 };
 
 exports.getExtensionRecords = async (query) => {
-  const { page = 1, pageSize = 20, store_id, keyword, month } = query;
+  const { page = 1, pageSize = 20, store_id, keyword, month, user_id } = query;
+
+  // 从会员详情页「查看完整变更记录」钻取时按会员 ID 精确过滤：
+  // 会员可能跨门店持有套餐、也可能存在同名会员，按门店/姓名模糊过滤会漏记录，
+  // 故有此参数时不再叠加 store_id 与 keyword 条件。
+  const drillUserId = (user_id && mongoose.isValidObjectId(user_id))
+    ? new mongoose.Types.ObjectId(user_id)
+    : null;
 
   // 为支持 keyword 会员搜索：先按 keyword 在 User 表中查到匹配的 user_id 列表
   let matchedUserIds = null;
-  if (keyword) {
+  if (keyword && !drillUserId) {
     const escaped = keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const users = await User.find({
       $or: [
         { real_name: { $regex: escaped, $options: 'i' } },
         { nick_name: { $regex: escaped, $options: 'i' } },
+        { phone: { $regex: escaped, $options: 'i' } },
         { reserve_phone: { $regex: escaped, $options: 'i' } },
         { wechat_phone: { $regex: escaped, $options: 'i' } }
       ]
@@ -1328,26 +1694,34 @@ exports.getExtensionRecords = async (query) => {
 
   // 延长记录筛选条件（PackageExtension）
   const extFilter = { operation_type: 'extend' };
-  if (store_id) extFilter.store_id = mongoose.isValidObjectId(store_id) ? new mongoose.Types.ObjectId(store_id) : store_id;
-  if (keyword) {
-    extFilter.$or = [
-      { user_id: { $in: matchedUserIds } },
-      { 'member_snapshot.real_name': { $regex: keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), $options: 'i' } },
-      { 'member_snapshot.phone': { $regex: keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), $options: 'i' } }
-    ];
-  }
-
   // 变更记录筛选条件（PackageChange）
   const pcFilter = {};
-  if (store_id) {
-    pcFilter.store_id = mongoose.isValidObjectId(store_id) ? new mongoose.Types.ObjectId(store_id) : store_id;
-  }
-  if (keyword) {
-    pcFilter.$or = [
-      { user_id: { $in: matchedUserIds } },
-      { 'member_snapshot.real_name': { $regex: keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), $options: 'i' } },
-      { 'member_snapshot.phone': { $regex: keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), $options: 'i' } }
-    ];
+
+  if (drillUserId) {
+    extFilter.user_id = drillUserId;
+    pcFilter.user_id = drillUserId;
+  } else {
+    if (store_id) extFilter.store_id = mongoose.isValidObjectId(store_id) ? new mongoose.Types.ObjectId(store_id) : store_id;
+    if (keyword) {
+      const escaped = keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      extFilter.$or = [
+        { user_id: { $in: matchedUserIds } },
+        { 'member_snapshot.real_name': { $regex: escaped, $options: 'i' } },
+        { 'member_snapshot.phone': { $regex: escaped, $options: 'i' } }
+      ];
+    }
+
+    if (store_id) {
+      pcFilter.store_id = mongoose.isValidObjectId(store_id) ? new mongoose.Types.ObjectId(store_id) : store_id;
+    }
+    if (keyword) {
+      const escaped = keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      pcFilter.$or = [
+        { user_id: { $in: matchedUserIds } },
+        { 'member_snapshot.real_name': { $regex: escaped, $options: 'i' } },
+        { 'member_snapshot.phone': { $regex: escaped, $options: 'i' } }
+      ];
+    }
   }
 
   // 年/月分组统计：全量口径（不带月份过滤，延长记录 + 字段变更记录）
@@ -1405,10 +1779,11 @@ exports.getExtensionRecords = async (query) => {
   const userIds = pagedUsers.map(u => u._id);
 
   // 拉取这些 user_id 的全部记录（延长 + 变更），不再分页
+  // 钻取模式（drillUserId）下与上面的筛选保持一致：不再按门店过滤
   const extFetchFilter = { operation_type: 'extend', user_id: { $in: userIds } };
-  if (store_id) extFetchFilter.store_id = mongoose.isValidObjectId(store_id) ? new mongoose.Types.ObjectId(store_id) : store_id;
+  if (store_id && !drillUserId) extFetchFilter.store_id = mongoose.isValidObjectId(store_id) ? new mongoose.Types.ObjectId(store_id) : store_id;
   const pcFetchFilter = { user_id: { $in: userIds } };
-  if (store_id) pcFetchFilter.store_id = mongoose.isValidObjectId(store_id) ? new mongoose.Types.ObjectId(store_id) : store_id;
+  if (store_id && !drillUserId) pcFetchFilter.store_id = mongoose.isValidObjectId(store_id) ? new mongoose.Types.ObjectId(store_id) : store_id;
   // month 筛选时仅返回该月发生的记录（前端按月展开查看）
   if (monthRange) {
     const createdRange = { $gte: monthRange.start, $lt: monthRange.end };
@@ -1434,6 +1809,13 @@ exports.getExtensionRecords = async (query) => {
       .sort({ created_at: -1 })
       .lean()
   ]);
+
+  // 已被撤销的延长记录 ID 集合（revoke 记录的 revoked_extension_id 指向原记录）
+  const revokeMarks = await PackageExtension.find({
+    user_package_id: { $in: userIds },
+    revoked_extension_id: { $ne: null },
+  }).select('revoked_extension_id').lean();
+  const revokedExtIdSet = new Set(revokeMarks.map(m => String(m.revoked_extension_id)));
 
   // 转换延长记录
   const extRecords = extList.map(r => {
@@ -1487,6 +1869,8 @@ exports.getExtensionRecords = async (query) => {
       created_at: r.created_at,
       operator_name: operator.nick_name || operator.username || '',
       remark: r.remark || r.reason || '',
+      // 撤回状态（前端只读展示"已撤回"标签；撤销延长记录本身也标记，避免误读）
+      undone: (revokedExtIdSet && revokedExtIdSet.has(String(r._id))) || !!r.undone_at,
     };
   });
 
@@ -1559,6 +1943,9 @@ exports.getExtensionRecords = async (query) => {
       created_at: pc.created_at,
       operator_name: operator.real_name || operator.nick_name || operator.username || pc.operator_name || '',
       remark: pc.remark || '',
+      // 撤回状态：撤回记录（is_undo）与被撤回的原记录都展示"已撤回"标记
+      undone: !!pc.undone_at,
+      is_undo: !!pc.is_undo,
       changes: (pc.changes || []).map(ch => ({
         field: ch.field,
         field_label: ch.field_label,
@@ -1595,8 +1982,14 @@ exports.extendPackage = async (packageId, extendDays, operatorId, operatorName, 
   if (!userPackage.is_activated) throw new Error('未激活的套餐不能延长');
   if (userPackage.status === 'expired' || userPackage.status === 'exhausted') throw new Error('已过期或已用完的套餐不能延长');
 
+  // 延长单位与数值：month 按自然月相加（如 3/15 → 4/15），day 按自然日相加。
+  // 不能把「1个月」折算成 30 天，否则跨月会少算天数（3/15 + 30天 = 4/14，正确应为 4/15）。
+  const extendUnit = options.extend_unit === 'month' ? 'month' : 'day';
+  const extendValue = Number(options.extend_value) || Number(extendDays) || 0;
   const originalEnd = userPackage.end_date || new Date();
-  const newEnd = new Date(originalEnd.getTime() + extendDays * 24 * 60 * 60 * 1000);
+  const newEnd = dayjs(originalEnd).tz(BEIJING_TZ).add(extendValue, extendUnit).toDate();
+  // 实际顺延的自然天数：写入记录，撤销延长时按其精确回退
+  const actualDays = Math.round((newEnd.getTime() - originalEnd.getTime()) / 86400000);
 
   userPackage.end_date = newEnd;
   if (userPackage.original_end_date) {
@@ -1607,17 +2000,13 @@ exports.extendPackage = async (packageId, extendDays, operatorId, operatorName, 
   // 构建延长记录快照
   const extendSnapshot = await exports._buildActivationSnapshot(userPackage);
 
-  // 延长原始输入值与单位（day/month），便于前端准确还原显示
-  const extendValue = Number(options.extend_value) || extendDays;
-  const extendUnit = options.extend_unit === 'month' ? 'month' : 'day';
-
   await PackageExtension.create({
     user_package_id: packageId,
     user_id: userPackage.user_id,
     package_id: userPackage.package_id || userPackage._id,
     store_id: userPackage.store_id || options.store_id,
     operation_type: 'extend',
-    extend_days: extendDays,
+    extend_days: actualDays,
     extend_value: extendValue,
     extend_unit: extendUnit,
     original_expire_at: originalEnd,
@@ -1640,7 +2029,7 @@ exports.extendPackage = async (packageId, extendDays, operatorId, operatorName, 
     action: 'extend',
     module: 'package',
     target_id: packageId,
-    detail: `延长用户(${userPackage.user_id})套餐${extendDays}天, ${originalEnd.toISOString().split('T')[0]} → ${newEnd.toISOString().split('T')[0]}`,
+    detail: `延长用户(${userPackage.user_id})套餐${extendValue}${extendUnit === 'month' ? '个月' : '天'}, ${originalEnd.toISOString().split('T')[0]} → ${newEnd.toISOString().split('T')[0]}`,
   });
 
   // 推送套餐变更事件给会员端，即时刷新套餐数据
@@ -1653,21 +2042,68 @@ exports.extendPackage = async (packageId, extendDays, operatorId, operatorName, 
   return userPackage;
 };
 
+// 撤回操作时间窗口：操作后 2 小时内可一键撤回
+exports.UNDO_WINDOW_MS = 2 * 60 * 60 * 1000;
+
 exports.revokePackageExtension = async (extensionId, operatorId, operatorName, reason, options = {}) => {
   const ext = await PackageExtension.findById(extensionId);
   if (!ext) throw new Error('延长记录不存在');
   if (ext.operation_type !== 'extend') throw new Error('只能撤销延长操作');
 
+  // 2小时撤回窗口：超时后请通过"修改套餐"手动调整有效期
+  if (Date.now() - new Date(ext.created_at).getTime() > exports.UNDO_WINDOW_MS) {
+    throw new Error('已超过2小时撤回时限，请通过修改套餐有效期手动调整');
+  }
+
+  // 重复撤回防护：已存在指向本记录的撤销记录，或原记录已打撤回标记
+  const alreadyRevoked = await PackageExtension.exists({ revoked_extension_id: ext._id });
+  if (alreadyRevoked || ext.undone_at) {
+    throw new Error('该延长已被撤销过，请勿重复操作');
+  }
+
   const userPackage = await UserPackage.findById(ext.user_package_id);
   if (!userPackage) throw new Error('关联套餐不存在');
 
   const currentEnd = userPackage.end_date;
-  const newEnd = new Date(currentEnd.getTime() - ext.extend_days * 24 * 60 * 60 * 1000);
-  userPackage.end_date = newEnd;
-  if (userPackage.original_end_date) {
-    userPackage.original_end_date = new Date(newEnd);
+  // 到期日当前值必须仍等于延长后的值：若期间又被其他管理员改过到期日，自动撤回会破坏那次修改
+  if (!currentEnd || new Date(currentEnd).getTime() !== new Date(ext.new_expire_at).getTime()) {
+    throw new Error('该套餐在此次延长后又被修改过到期日，无法自动撤回，请手动调整');
   }
-  await userPackage.save();
+
+  // 回退后的到期日（extend_days 为延长时记录的实际自然天数，精确回退）
+  const newEnd = new Date(currentEnd.getTime() - ext.extend_days * 24 * 60 * 60 * 1000);
+
+  // 使用冲突检测：会员在"将被撤回的有效期"内已有预约/上课 → 阻止撤回
+  // （撤回会使这些预约落到有效期之外，必须先通过取消预约流程处理）
+  const rollbackEndDay = dayjs(newEnd).tz(BEIJING_TZ).format('YYYY-MM-DD');
+  const conflictCount = await Booking.countDocuments({
+    user_package_id: userPackage._id,
+    booking_date: { $gt: rollbackEndDay },
+    status: { $in: ['booked', 'completed'] },
+  });
+  if (conflictCount > 0) {
+    throw new Error(`会员在撤回的有效期内已有 ${conflictCount} 条预约/上课记录，请先取消这些预约再撤回`);
+  }
+
+  // 原子更新（乐观锁）：到期日仍为延长后的值才允许回退，防止与并发修改/预约扣课竞争
+  const updateSet = { end_date: newEnd };
+  if (userPackage.original_end_date) {
+    updateSet.original_end_date = newEnd;
+  }
+  const updated = await UserPackage.findOneAndUpdate(
+    { _id: userPackage._id, end_date: currentEnd },
+    { $set: updateSet },
+    { new: true }
+  );
+  if (!updated) {
+    throw new Error('套餐状态刚刚发生了变化，请刷新后重试');
+  }
+
+  // 标记原延长记录已撤回（防重复 + 前端展示）
+  await PackageExtension.updateOne(
+    { _id: ext._id },
+    { $set: { undone_at: new Date(), undone_by: operatorId } }
+  );
 
   await PackageExtension.create({
     user_package_id: ext.user_package_id,
@@ -1676,6 +2112,8 @@ exports.revokePackageExtension = async (extensionId, operatorId, operatorName, r
     store_id: ext.store_id,
     operation_type: 'revoke',
     extend_days: ext.extend_days,
+    extend_value: ext.extend_value,
+    extend_unit: ext.extend_unit,
     original_expire_at: currentEnd,
     new_expire_at: newEnd,
     holiday_id: options.holiday_id || null,
@@ -1690,12 +2128,241 @@ exports.revokePackageExtension = async (extensionId, operatorId, operatorName, r
     action: 'revoke_extension',
     module: 'package',
     target_id: ext.user_package_id,
-    detail: `撤销用户(${ext.user_id})套餐延长${ext.extend_days}天`,
+    detail: `撤回用户(${ext.user_id})套餐延长${ext.extend_days}天`,
   });
 
   // 推送套餐变更事件给会员端，即时刷新套餐数据
   try {
     sendToUser(ext.user_id, 'package_update', { action: 'revoke_extend', package_id: String(ext.user_package_id) });
+  } catch (e) {
+    console.error('[Package] 推送套餐更新事件失败:', e.message);
+  }
+
+  return updated;
+};
+
+// ===== 撤回套餐字段变更 =====
+// 字段分类：
+//   - 增量型数值：total_credits / remaining_credits（remaining 会被会员消费自然改变，
+//     撤回用"反向增量"应用到当前状态，而非还原快照 —— 会员已用掉的部分自动保持）
+//   - 设置型：其余字段（仅管理员会改；当前值必须仍等于记录的 new_value 才允许还原 old_value）
+//   - 不支持自动撤回：package_type（次卡↔时间卡影响面大）
+const CHANGE_END_DATE_FIELDS = { start_date: false, end_date: true }; // value=是否为到期日（还原时取当日 23:59:59.999）
+const CHANGE_ARRAY_FIELDS = ['dance_style_limit', 'extra_store_ids', 'weekday_limit'];
+const CHANGE_NUMERIC_SET_FIELDS = ['daily_limit', 'weekly_limit', 'monthly_limit', 'duration_value'];
+
+// 解析记录中的日期字符串 → 北京日期 YYYY-MM-DD（兼容 "2027-04-15" 与 Date.toString() 两种存储格式）
+const parseBjDay = (raw) => {
+  if (raw === undefined || raw === null || raw === '') return null;
+  const m = String(raw).match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if (m) {
+    const d = dayjs.tz(`${m[1]}-${String(m[2]).padStart(2, '0')}-${String(m[3]).padStart(2, '0')}`, BEIJING_TZ);
+    return d.isValid() ? d.format('YYYY-MM-DD') : null;
+  }
+  const parsed = new Date(raw);
+  if (isNaN(parsed.getTime())) return null;
+  return dayjs(parsed).tz(BEIJING_TZ).format('YYYY-MM-DD');
+};
+
+// 数组当前值 → 记录中的字符串口径（与 updatePackage 写入格式一致：排序后逗号连接，空为 '无'）
+const arrayToLogValue = (arr) => {
+  const list = Array.isArray(arr) ? arr.map(v => String(v)).sort() : [];
+  return list.length > 0 ? list.join(',') : '无';
+};
+
+const normLogValue = (v) => (v === undefined || v === null || v === 'null' || v === 'undefined') ? '' : String(v);
+
+// 校验一条变更记录能否撤回；通过时返回待执行的字段赋值计划
+// 返回 { ok, reason, assignments: [{key, value}], preview: [{label, from, to}] }
+const checkChangeUndo = async (userPackage, changeDoc) => {
+  const changes = changeDoc.changes || [];
+  if (changes.length === 0) return { ok: false, reason: '该记录没有可撤回的字段变更' };
+  const blocked = [];
+  const assignments = [];
+  const preview = [];
+  const hasTotal = changes.some(c => c.field === 'total_credits');
+  let newTotal = null;
+
+  for (const c of changes) {
+    const label = c.field_label || c.field;
+    const oldRaw = normLogValue(c.old_value);
+    const newRaw = normLogValue(c.new_value);
+
+    if (c.field === 'package_type') { blocked.push(`${label}不支持自动撤回`); continue; }
+
+    // ---- 增量型数值：总次数（剩余次数在循环后统一处理，避免双重扣减）----
+    if (c.field === 'total_credits') {
+      const oldN = Number(oldRaw), newN = Number(newRaw);
+      if (isNaN(oldN) || isNaN(newN)) { blocked.push(`${label}的值无法解析`); continue; }
+      newTotal = Number(userPackage.total_credits || 0) + (oldN - newN);
+      if (newTotal < 0) { blocked.push(`${label}撤回后不能小于0`); continue; }
+      continue;
+    }
+    // ---- 增量型数值：单独修改剩余次数（会员消费会自然改变当前值，反向增量）----
+    if (c.field === 'remaining_credits') {
+      if (hasTotal) continue;
+      const oldN = Number(oldRaw), newN = Number(newRaw);
+      if (isNaN(oldN) || isNaN(newN)) { blocked.push(`${label}的值无法解析`); continue; }
+      const newRemaining = Number(userPackage.remaining_credits || 0) + (oldN - newN);
+      if (newRemaining < 0) { blocked.push(`会员已使用超出撤回后的剩余次数（撤回后为 ${newRemaining} 次），请先手动调整`); continue; }
+      assignments.push({ key: 'remaining_credits', value: newRemaining });
+      preview.push({ label, from: String(userPackage.remaining_credits), to: String(newRemaining) });
+      continue;
+    }
+
+    // ---- 数组型（当前值一致才整体还原）----
+    if (CHANGE_ARRAY_FIELDS.includes(c.field)) {
+      const curLog = arrayToLogValue(userPackage[c.field]);
+      if (curLog !== newRaw) { blocked.push(`${label}在此之后又被修改过，无法自动撤回`); continue; }
+      const restored = (oldRaw === '无' || oldRaw === '') ? [] : oldRaw.split(',').map(s => s.trim()).filter(Boolean);
+      assignments.push({ key: c.field, value: restored });
+      preview.push({ label, from: curLog, to: oldRaw });
+      continue;
+    }
+
+    // ---- 日期型（按北京日期部分比较，避免 Date.toString() 格式差异误判）----
+    if (c.field in CHANGE_END_DATE_FIELDS) {
+      const curDay = parseBjDay(userPackage[c.field]);
+      const newDay = parseBjDay(newRaw);
+      if (!newDay || curDay !== newDay) { blocked.push(`${label}在此之后又被修改过，无法自动撤回`); continue; }
+      const oldDay = parseBjDay(oldRaw);
+      if (!oldDay) { blocked.push(`${label}的原值无法解析`); continue; }
+      const base = dayjs.tz(oldDay, BEIJING_TZ);
+      const restored = (CHANGE_END_DATE_FIELDS[c.field] ? base.endOf('day') : base.startOf('day')).toDate();
+      assignments.push({ key: c.field, value: restored });
+      preview.push({ label, from: curDay, to: oldDay });
+      continue;
+    }
+
+    // ---- 数值设置型 ----
+    if (CHANGE_NUMERIC_SET_FIELDS.includes(c.field)) {
+      if (Number(userPackage[c.field]) !== Number(newRaw)) { blocked.push(`${label}在此之后又被修改过，无法自动撤回`); continue; }
+      const oldN = Number(oldRaw);
+      if (isNaN(oldN)) { blocked.push(`${label}的原值无法解析`); continue; }
+      assignments.push({ key: c.field, value: oldN });
+      preview.push({ label, from: String(userPackage[c.field]), to: String(oldN) });
+      continue;
+    }
+
+    // ---- 普通字符串设置型（status、remark、usable_before/after、duration_unit 等）----
+    if (normLogValue(userPackage[c.field]) !== newRaw) {
+      blocked.push(`${label}在此之后又被修改过，无法自动撤回`);
+      continue;
+    }
+    assignments.push({ key: c.field, value: oldRaw });
+    preview.push({ label, from: newRaw, to: oldRaw });
+  }
+
+  // 有总次数变更：次卡按"新total - 实际消耗"重算剩余（与修改套餐同一公式，会员已用次数自动保留）；
+  // 其余类型（时间卡哨兵值）按增量还原
+  if (newTotal !== null && blocked.length === 0) {
+    if (userPackage.package_type === 'count_card') {
+      const bookings = await Booking.find({ user_package_id: userPackage._id }).select('credits_deducted credits_refunded');
+      const consumed = bookings.reduce((sum, b) => sum + Math.max(0, (Number(b.credits_deducted) || 0) - (Number(b.credits_refunded) || 0)), 0);
+      if (consumed > newTotal) {
+        blocked.push(`会员已消耗 ${consumed} 次，超过撤回后的总次数 ${newTotal} 次，请先手动调整`);
+      } else {
+        assignments.push({ key: 'total_credits', value: newTotal });
+        assignments.push({ key: 'remaining_credits', value: newTotal - consumed });
+        preview.push({ label: '总次数', from: String(userPackage.total_credits), to: String(newTotal) });
+        preview.push({ label: '剩余次数', from: String(userPackage.remaining_credits), to: String(newTotal - consumed) });
+      }
+    } else {
+      assignments.push({ key: 'total_credits', value: newTotal });
+      preview.push({ label: '总次数', from: String(userPackage.total_credits), to: String(newTotal) });
+      const remChange = changes.find(c => c.field === 'remaining_credits');
+      if (remChange) {
+        const oldN = Number(normLogValue(remChange.old_value)), newN = Number(normLogValue(remChange.new_value));
+        if (!isNaN(oldN) && !isNaN(newN)) {
+          const newRemaining = Number(userPackage.remaining_credits || 0) + (oldN - newN);
+          if (newRemaining < 0) {
+            blocked.push('会员已使用超出撤回后的剩余次数，请先手动调整');
+          } else {
+            assignments.push({ key: 'remaining_credits', value: newRemaining });
+            preview.push({ label: '剩余次数', from: String(userPackage.remaining_credits), to: String(newRemaining) });
+          }
+        }
+      }
+    }
+  }
+
+  if (blocked.length > 0) return { ok: false, reason: blocked.join('；') };
+  return { ok: true, assignments, preview };
+};
+
+// 撤回预览（供会员详情列表接口附加 undoable 信息；执行时 revokePackageChange 内部会重新校验）
+exports.previewChangeUndo = async (userPackage, changeDoc) => {
+  const createdAt = changeDoc.created_at ? new Date(changeDoc.created_at) : null;
+  if (changeDoc.is_undo) return { undoable: false, blocked_reason: '撤回记录不可再撤回' };
+  if (changeDoc.undone_at) return { undoable: false, blocked_reason: '该变更已撤回' };
+  if (!createdAt || Date.now() - createdAt.getTime() > exports.UNDO_WINDOW_MS) {
+    return { undoable: false, blocked_reason: '已超过2小时撤回时限' };
+  }
+  const result = await checkChangeUndo(userPackage, changeDoc);
+  return { undoable: result.ok, blocked_reason: result.ok ? '' : result.reason, preview: result.preview || [] };
+};
+
+// 执行撤回套餐字段变更
+exports.revokePackageChange = async (changeId, operatorId, operatorName, reason) => {
+  const changeDoc = await PackageChange.findById(changeId);
+  if (!changeDoc) throw new Error('变更记录不存在');
+  if (changeDoc.is_undo) throw new Error('撤回记录不可再撤回');
+  if (changeDoc.undone_at) throw new Error('该变更已被撤回过，请勿重复操作');
+  if (Date.now() - new Date(changeDoc.created_at).getTime() > exports.UNDO_WINDOW_MS) {
+    throw new Error('已超过2小时撤回时限，请通过修改套餐手动调整');
+  }
+
+  const userPackage = await UserPackage.findById(changeDoc.user_package_id);
+  if (!userPackage) throw new Error('关联套餐不存在');
+
+  const result = await checkChangeUndo(userPackage, changeDoc);
+  if (!result.ok) throw new Error(result.reason);
+
+  // 应用字段赋值计划
+  for (const a of result.assignments) {
+    userPackage[a.key] = a.value;
+    if (Array.isArray(a.value) || (a.value !== null && typeof a.value === 'object' && !(a.value instanceof Date))) {
+      userPackage.markModified(a.key);
+    }
+  }
+  // 到期日被还原时同步 original_end_date（与 updatePackage 口径一致）
+  if (result.assignments.some(a => a.key === 'end_date')) {
+    userPackage.original_end_date = userPackage.end_date;
+  }
+  await userPackage.save();
+
+  // 原记录打撤回标记（防重复 + 前端展示）
+  await PackageChange.updateOne(
+    { _id: changeDoc._id },
+    { $set: { undone_at: new Date(), undone_by: operatorId } }
+  );
+
+  // 写一条撤回记录（审计链完整，不物理删除任何记录；撤回记录本身不可再撤回）
+  await PackageChange.create({
+    user_package_id: changeDoc.user_package_id,
+    user_id: changeDoc.user_id,
+    store_id: changeDoc.store_id,
+    operator_id: operatorId,
+    operator_name: operatorName || '管理员',
+    changes: changeDoc.changes || [],
+    remark: reason || '撤回变更',
+    is_undo: true,
+    undo_of: changeDoc._id,
+    member_snapshot: changeDoc.member_snapshot,
+    package_snapshot: changeDoc.package_snapshot,
+  });
+
+  await logService.createLog({
+    operator_id: operatorId,
+    action: 'revoke_package_change',
+    module: 'package',
+    target_id: changeDoc.user_package_id,
+    detail: `撤回用户(${changeDoc.user_id})的套餐字段变更`,
+  });
+
+  // 推送套餐变更事件给会员端，即时刷新套餐数据
+  try {
+    sendToUser(changeDoc.user_id, 'package_update', { action: 'revoke_change', package_id: String(changeDoc.user_package_id) });
   } catch (e) {
     console.error('[Package] 推送套餐更新事件失败:', e.message);
   }

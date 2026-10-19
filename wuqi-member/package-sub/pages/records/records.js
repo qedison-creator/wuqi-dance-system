@@ -83,6 +83,9 @@ Page({
   },
 
   onShow() {
+    // 皮肤状态（纯前端偏好，仅影响外观）
+    const skin = require('../../../utils/skin.js');
+    this.setData(skin.pageState());
     if (!checkLogin()) return;
     const userInfo = app.globalData.userInfo || {};
     if (userInfo.member_status !== 'official') return;
@@ -127,7 +130,9 @@ Page({
           startTime: schedule ? (schedule.start_time || '') : (item.start_time || ''),
           endTime: schedule ? (schedule.end_time || '') : (item.end_time || ''),
           coachName: schedule && schedule.coach_id && schedule.coach_id.name ? schedule.coach_id.name : (item.coach_name || (item.coach_id && item.coach_id.name ? item.coach_id.name : '教练')),
-          storeName: schedule && schedule.store_id && schedule.store_id.name ? schedule.store_id.name : (item.store_name || (item.store_id && item.store_id.name ? item.store_id.name : ''))
+          storeName: schedule && schedule.store_id && schedule.store_id.name ? schedule.store_id.name : (item.store_name || (item.store_id && item.store_id.name ? item.store_id.name : '')),
+          // 扣课溯源后缀（如「次卡」「时间卡」；同类套餐≥2张时为具体套餐名）：拿不到时为空，绝不出现「已删除」
+          packageLabel: item.package_label || ''
         };
 
         if (isAttendanceTab) {
@@ -137,9 +142,8 @@ Page({
           base.creditsCost = item.credits_cost || 0;
           // 按天口径（不限次卡/每日1节卡）：显示占天而不是扣课时
           base.deductDays = item.deduct_days || null;
-          // 签到后取消的记录：课时已退还，不显示消耗课时，显示管理员勾选的取消原因
+          // 签到后取消的记录：课时虽已退还，但仍保留原消耗数值（由 isCancelledAfterCheckin 控制显示为"退还"文案）
           if (base.checkInMethod === 'cancelled_after_checkin') {
-            base.creditsCost = 0;
             base.isCancelledAfterCheckin = true;
             // 显示"课程中因XX原因取消"（XX为管理员勾选的具体原因）
             // 后端将取消原因存储在 attendance.remark 字段中
@@ -153,6 +157,8 @@ Page({
           base.statusLabel = BOOKING_STATUS_LABEL_MAP[item.status] || item.status || '';
           // 按天口径（不限次卡/每日1节卡）：显示缩短的有效期天数
           base.deductDays = item.deduct_days || null;
+          // 次卡/周期限制卡：显示扣减的课时数（取消后退还，文案改为"退还"）
+          base.creditsCost = item.credits_deducted || 0;
           if (item.status === 'cancelled') {
             // 签到后取消：显示管理员勾选的具体原因 + "（签到后取消）"
             if (item.cancel_type === 'after_checkin_cancel') {
@@ -240,7 +246,7 @@ Page({
     wx.showModal({
       title: '取消候补',
       content: '确认取消排队？取消后将失去当前位置。',
-      confirmColor: '#D4786E',
+      confirmColor: require('../../../utils/skin.js').confirmColor(),
       success: (res) => {
         if (res.confirm) {
           request({

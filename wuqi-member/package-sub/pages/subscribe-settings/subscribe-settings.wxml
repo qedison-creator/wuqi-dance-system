@@ -1,4 +1,4 @@
-<view class="page">
+<view class="page skin-root skin-{{skinId}}">
   <view class="header-section">
     <view class="header-icon-wrap">
       <text class="header-icon-text">🔔</text>

@@ -3,8 +3,9 @@ const { request } = require('../../../utils/request');
 const { checkLogin } = require('../../../utils/auth');
 const auth = require('../../../utils/auth');
 const config = require('../../../config/index.js');
-const { normalizeImageUrl } = require('../../../utils/util');
+const { normalizeImageUrl, pickEffectivePackage, getCreditUnitInfo } = require('../../../utils/util');
 const wsClient = require('../../../utils/websocket-client');
+const skinUtil = require('../../../utils/skin.js');
 
 const WEEKDAYS = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
 
@@ -60,12 +61,15 @@ Page({
   data: {
     coachId: '',
     coach: null,
+    storeName: '',
     danceStyleText: '',
     courses: [],
     loading: true,
     isOfficial: false,
     showBookingModal: false,
     bookingModalText: '',
+    // 皮肤确认弹窗票面（paper/volt 用，与场次预约页 bk-cfm 同版式）
+    cfmInfo: null,
     bookingModalCourse: null,
     isLoggedInShowing: false,
     imageErrors: {},
@@ -106,10 +110,19 @@ Page({
   },
 
   onShow() {
+    // 皮肤状态（纯前端偏好，仅影响外观）
+    const skin = require('../../../utils/skin.js');
+    this.setData(skin.pageState());
     // 预加载消息模板（网络请求），确保点击预约时 requestBookingSubscribe 使用缓存模板
     // 避免点击时的网络请求破坏微信 tap gesture 上下文导致授权弹窗静默失败
     const { fetchTemplates } = require('../../../utils/subscribe-message');
     fetchTemplates(true).catch(() => {});
+
+    // 纸上舞台人物志：题头「COACH · 门店」取当前门店名（仅外观，无额外请求）
+    const store = app.globalData.currentStore;
+    if (store && store.name && store.name !== this.data.storeName) {
+      this.setData({ storeName: store.name });
+    }
 
     if (this.data.coach && this.data.coach.name) {
       wx.setNavigationBarTitle({ title: this.data.coach.name });
@@ -151,6 +164,8 @@ Page({
       request({ url: '/auth/me', silent: true })
     ]).then(([pkgRes, authRes]) => {
       const data = pkgRes.data || {};
+      // 缓存套餐数据：预约确认弹窗需按本节课实际生效套餐计算扣除口径（次/课时/天）
+      this._packagesData = data;
       const hasActive = data.current;
       const hasPending = data.pending && data.pending.length > 0;
       const isSuspended = data.hasSuspended && !hasActive;
@@ -431,10 +446,13 @@ Page({
 
       // 教练相册：使用后端在 /coaches/:id 返回的 images 字段（Image 模型，通过 coach_ids 关联）
       const rawImages = Array.isArray(coachData.images) ? coachData.images : [];
-      const images = rawImages.map(img => ({
+      // 纸上舞台影集：编入册号「影一 / 影二 …」（预览 SCREEN 07）
+      const CN_NUM = ['一', '二', '三', '四', '五', '六', '七', '八', '九', '十'];
+      const images = rawImages.map((img, i) => ({
         _id: img._id ? String(img._id) : `img_${Math.random()}`,
         image_url: normalizeImageUrl(img.image_url, SERVER_BASE),
-        thumbnail_url: normalizeImageUrl(img.thumbnail_url || img.image_url, SERVER_BASE)
+        thumbnail_url: normalizeImageUrl(img.thumbnail_url || img.image_url, SERVER_BASE),
+        noCn: '影' + (CN_NUM[i] || (i + 1))
       })).filter(img => img.image_url);
 
       this.setData({ coach, danceStyleText, images, imageUrls: images.map(i => i.image_url) });
@@ -527,14 +545,33 @@ Page({
           user_id: String(u.user_id || u._id || ''),
           avatar_url: u.avatar_url ? normalizeImageUrl(u.avatar_url, SERVER_BASE) : '/images/default-avatar.svg'
         }));
+        // 是否处于预约开放窗口内（在场次日期 − (窗口天数−1) 起开放）
+        const bookingOpen = diffDays >= 0 && diffDays < bookingWindowDays;
+        // 未开放场次的开抢日（课程日期 − (窗口天数−1)，M/DD）
+        const winParts = schedule.date ? schedule.date.split('-') : null;
+        let openGrab = '';
+        if (!bookingOpen && winParts && winParts.length === 3) {
+          const og = new Date(parseInt(winParts[0], 10), parseInt(winParts[1], 10) - 1, parseInt(winParts[2], 10) - ((parseInt(bookingWindowDays, 10) || 7) - 1));
+          openGrab = (og.getMonth() + 1) + '/' + String(og.getDate()).padStart(2, '0');
+        }
+        // 截止预约提示（人数不足自动取消口径）
+        const bdMin = parseInt(schedule.booking_deadline, 10) || 0;
+        let autoCancelText = '';
+        if (bdMin > 0) {
+          const bh = Math.floor(bdMin / 60), bm = bdMin % 60;
+          autoCancelText = '开场前' + (bh ? bh + '小时' : '') + (bm ? bm + '分钟' : '') + '人数不足自动取消';
+        }
         return {
           ...schedule,
           _id: String(schedule._id),
+          autoCancelText: autoCancelText,
+          openGrab: openGrab,
           danceStyleName,
           danceStyleId,
           danceTagBg: tagColor.bg,
           danceTagText: tagColor.text,
           weekday,
+          dateCn: parseInt(scheduleParts[1], 10) + '/' + String(parseInt(scheduleParts[2], 10)).padStart(2, '0'),
           bookingOpen: diffDays >= 0 && diffDays < bookingWindowDays,
           _started,
           _ended,
@@ -599,7 +636,7 @@ Page({
         content: this.data.restrictedReason,
         showCancel: false,
         confirmText: '知道了',
-        confirmColor: '#D4786E'
+        confirmColor: skinUtil.confirmColor()
       });
       return;
     }
@@ -616,7 +653,7 @@ Page({
           content: '您的套餐暂停使用中，不能进行预约课程操作。',
           showCancel: false,
           confirmText: '知道了',
-          confirmColor: '#D4786E'
+          confirmColor: skinUtil.confirmColor()
         });
         return;
       }
@@ -628,7 +665,7 @@ Page({
           content: '您未办理该门店的套餐，无法预约此课程。',
           showCancel: false,
           confirmText: '知道了',
-          confirmColor: '#D4786E'
+          confirmColor: skinUtil.confirmColor()
         });
         return;
       }
@@ -640,7 +677,7 @@ Page({
           content: `您的套餐仅限预约指定舞种的课程，该课程不在可预约范围内。`,
           showCancel: false,
           confirmText: '知道了',
-          confirmColor: '#D4786E'
+          confirmColor: skinUtil.confirmColor()
         });
         return;
       }
@@ -654,7 +691,7 @@ Page({
           content: '您的套餐仅可预约' + windowsText + '开课的课程，该课程（' + (course.start_time || '') + '开课）不可预约，请选择其他时段的课程。',
           showCancel: false,
           confirmText: '知道了',
-          confirmColor: '#D4786E'
+          confirmColor: skinUtil.confirmColor()
         });
         return;
       }
@@ -671,7 +708,7 @@ Page({
           content: `您的套餐仅可在${allowedText}预约课程，该课程${dayText}不可预约，请选择其他日期的课程。`,
           showCancel: false,
           confirmText: '知道了',
-          confirmColor: '#D4786E'
+          confirmColor: skinUtil.confirmColor()
         });
         return;
       }
@@ -705,10 +742,29 @@ Page({
           lateBookingTip = '\n\n本课程已过预约截止时间，属补约。预约后5分钟内可取消（退课时），超时需使用豁免权取消。';
         }
       }
+      // 统一扣除口径：挑选本节课实际生效的套餐，判定扣「次 / 课时 / 天」
+      const pkgData = this._packagesData || {};
+      const pkgList = pkgData.history || pkgData.packages || [];
+      const unitInfo = getCreditUnitInfo(pickEffectivePackage(pkgList, course), course.credits_cost || 1);
+      // 皮肤确认弹窗票面（与场次预约页/课程详情页 bk-cfm 同版式）
+      const cfDate = course.date || '';
+      const cfD = cfDate ? new Date(String(cfDate).replace(/-/g, '/')) : null;
+      const cfWd = course.weekday || (cfD ? WEEKDAYS[cfD.getDay()] : '');
       this.setData({
         showBookingModal: true,
         bookingModalCourse: course,
-        bookingModalText: `确认预约「${course.course_name}」？\n时间：${course.date} ${course.start_time} - ${course.end_time}\n教练：${course.coach_id ? course.coach_id.name : '待定'}${lateBookingTip}`
+        bookingModalText: `确认预约「${course.course_name}」？\n时间：${course.date} ${course.start_time} - ${course.end_time}\n教练：${course.coach_id ? course.coach_id.name : '待定'}${lateBookingTip}\n\n本次消耗：${unitInfo.deductText}`,
+        cfmInfo: {
+          name: course.course_name || '课程',
+          date: cfDate,
+          weekDay: cfWd,
+          time: (course.start_time || '') + '-' + (course.end_time || ''),
+          coach: course.coach_id && course.coach_id.name ? course.coach_id.name : '待定',
+          credits: unitInfo.amount,
+          unit: unitInfo.unit,
+          deductText: unitInfo.deductText,
+          shrinkDays: unitInfo.shrinkDays
+        }
       });
     });
   },
@@ -745,14 +801,14 @@ Page({
 
   onConfirmBookingModal() {
     const course = this.data.bookingModalCourse;
-    this.setData({ showBookingModal: false, bookingModalCourse: null, bookingModalText: '' });
+    this.setData({ showBookingModal: false, bookingModalCourse: null, bookingModalText: '', cfmInfo: null });
     if (course && course._id) {
       this.doBook(course._id);
     }
   },
 
   onCancelBookingModal() {
-    this.setData({ showBookingModal: false, bookingModalCourse: null, bookingModalText: '' });
+    this.setData({ showBookingModal: false, bookingModalCourse: null, bookingModalText: '', cfmInfo: null });
   },
 
   onModalTap() {},
@@ -812,10 +868,27 @@ Page({
           content: '已为您开启上课提醒，课程开始前将收到通知',
           showCancel: false,
           confirmText: '知道了',
-          confirmColor: '#D4786E'
+          confirmColor: skinUtil.confirmColor()
         });
       } else {
+        const skinUtil = require('../../../utils/skin.js');
+      const ccDateParts = course.date ? String(course.date).split('-') : [];
+      const ccStaleRemain = (course.max_bookings && course.current_bookings !== undefined && course.current_bookings !== null) ? Math.max(0, course.max_bookings - course.current_bookings) : null;
+      const skinSuccess = skinUtil.successState('success', '课程开始前将收到上课提醒', {
+        name: course.course_name || '',
+        date: ccDateParts.length === 3 ? parseInt(ccDateParts[1], 10) + '/' + String(parseInt(ccDateParts[2], 10)).padStart(2, '0') : '',
+        weekDay: course.weekday || '',
+        time: course.start_time || '',
+        room: course.classroom || '',
+        credits: course.credits_cost || 1,
+        remain: ccStaleRemain === null ? null : Math.max(0, ccStaleRemain - 1)
+      });
+      if (skinSuccess) {
+        this.setData({ skinSuccess });
+        try { wx.vibrateShort({ type: 'heavy', fail: function () {} }); } catch (e) { /* 忽略 */ }
+      } else {
         wx.showToast({ title: '预约成功', icon: 'success' });
+      }
       }
     } catch (err) {
       wx.showToast({ title: err.message || '预约失败', icon: 'none' });
@@ -888,6 +961,34 @@ Page({
             return true;
           });
         }
+        // 逐课按"有效套餐是否覆盖课程门店"判断人数/时间可见性（与后端脱敏口径一致）
+        const capacityVisible = !!this.data.canViewCapacity &&
+          (this.data.validPackageStoreIds || []).indexOf(String(courseStoreId)) !== -1 &&
+          schedule.current_bookings !== undefined;
+        // 预约开放窗口（课程日期 − (窗口天数−1) 起开放）
+        const scheduleParts = schedule.date ? schedule.date.split('-') : [];
+        let diffDays = 0;
+        if (scheduleParts.length === 3) {
+          const target = new Date(parseInt(scheduleParts[0], 10), parseInt(scheduleParts[1], 10) - 1, parseInt(scheduleParts[2], 10));
+          const tp = today.split('-');
+          const todayDate = new Date(parseInt(tp[0], 10), parseInt(tp[1], 10) - 1, parseInt(tp[2], 10));
+          diffDays = Math.floor((target - todayDate) / (1000 * 60 * 60 * 24));
+        }
+        const bookingWindowDays = parseInt(this.data.bookingWindowDays, 10) || 7;
+        const bookingOpen = diffDays >= 0 && diffDays < bookingWindowDays;
+        // 人数不足自动取消口径（开场前X小时/分钟）
+        const bdMin = parseInt(schedule.booking_deadline, 10) || 0;
+        let autoCancelText = '';
+        if (bdMin > 0) {
+          const bh = Math.floor(bdMin / 60), bm = bdMin % 60;
+          autoCancelText = '开场前' + (bh ? bh + '小时' : '') + (bm ? bm + '分钟' : '') + '人数不足自动取消';
+        }
+        // 归一化已预约会员头像 URL
+        const rawBookedUsers = Array.isArray(schedule.booked_users) ? schedule.booked_users : [];
+        const booked_users = rawBookedUsers.map(u => ({
+          user_id: String(u.user_id || u._id || ''),
+          avatar_url: u.avatar_url ? normalizeImageUrl(u.avatar_url, SERVER_BASE) : '/images/default-avatar.svg'
+        }));
         return {
           ...schedule,
           _id: String(schedule._id),
@@ -896,6 +997,10 @@ Page({
           danceTagBg: tagColor.bg,
           danceTagText: tagColor.text,
           weekday,
+          dateCn: scheduleParts.length === 3 ? parseInt(scheduleParts[1], 10) + '/' + String(parseInt(scheduleParts[2], 10)).padStart(2, '0') : '',
+          autoCancelText,
+          bookingOpen,
+          capacityVisible,
           _started,
           _ended,
           _ongoing,
@@ -903,7 +1008,8 @@ Page({
           courseStyleMatched,
           weekdayMatched,
           timeMatched,
-          exemptLockTag: !!schedule.exempt_cancel_locked && !_started && !_ended
+          exemptLockTag: !!schedule.exempt_cancel_locked && !_started && !_ended,
+          booked_users
         };
       });
       this.setData({ courses });

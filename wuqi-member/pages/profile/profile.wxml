@@ -1,6 +1,13 @@
 <view class="page-scroll">
-<view class="profile-page">
+<!-- 自绘标题栏：结构与样式与场次预约页（pages/booking classic）完全一致，保证两页标题大小/字体/渲染方式一模一样 -->
+<view class="cl-navbar pf-navbar-{{skinId}}" style="padding-top: {{(statusBarHeight || 44) + 6}}px;">
+  <text class="cl-navbar-title">个人中心</text>
+</view>
+<!-- 顶部占位：替代原系统导航栏高度（状态栏 + 44px），使内容位置与切换前一致 -->
+<view class="pf-nav-spacer pf-sp-{{skinId}}" style="height: {{(statusBarHeight || 44) + 44}}px;"></view>
+<view class="profile-page skin-root skin-{{skinId}}">
   <block wx:if="{{isLoggedIn}}">
+    <block wx:if="{{skinId === 'classic'}}">
     <view class="hero-card">
       <view class="hero-top">
         <view class="hero-avatar-wrap" bindtap="onHeroAvatarTap">
@@ -35,12 +42,52 @@
           <text>{{memberStatusText}}</text>
         </view>
         <text class="status-sub" wx:if="{{currentPackageType}}">当前套餐：{{currentPackageType}}</text>
-        <view class="hero-exemption" wx:if="{{userInfo.exemption_count > 0}}" bindtap="onToggleExemptionTip">
+        <view class="hero-exemption exemption-anchor" wx:if="{{userInfo.exemption_count > 0}}" bindtap="onToggleExemptionTip">
           <text>豁免取消剩余{{userInfo.exemption_count}}次</text>
           <text class="hero-exemption-q">?</text>
         </view>
       </view>
     </view>
+    </block>
+
+    <!-- 纸上舞台：会员志（纸底直排） -->
+    <block wx:if="{{skinId === 'paper' && isOfficialMember}}">
+      <view class="pf-hero-paper">
+        <view class="pfp-row">
+          <view class="pfp-ava">
+            <image class="pfp-ava-img" src="{{avatarSrc}}" binderror="onImgError" data-type="avatar" data-id="user" mode="aspectFill" />
+          </view>
+          <view class="pfp-info">
+            <view class="pfp-nm-row">
+              <text class="pfp-name">{{userInfo.real_name || userInfo.nickname || '舞栖会员'}}</text>
+              <view class="pfp-seal">正</view>
+              <text class="pfp-exempt exemption-anchor" wx:if="{{userInfo.exemption_count > 0}}" bindtap="onToggleExemptionTip">豁免取消剩余{{userInfo.exemption_count}}次</text>
+            </view>
+            <text class="pfp-sub" wx:if="{{userInfo.member_code}}">会员编号 {{userInfo.member_code}} · 与舞栖同行 {{memberSinceDays}} 天</text>
+            <text class="pfp-sub" wx:else>与舞栖同行 {{memberSinceDays}} 天</text>
+          </view>
+        </view>
+      </view>
+    </block>
+
+    <!-- VOLT：护照名片 -->
+    <block wx:if="{{skinId === 'volt' && isOfficialMember}}">
+      <view class="pf-hero-volt">
+        <view class="pfv-row">
+          <view class="pfv-ava">
+            <image class="pfv-ava-img" src="{{avatarSrc}}" binderror="onImgError" data-type="avatar" data-id="user" mode="aspectFill" />
+          </view>
+          <view class="pfv-info">
+            <text class="pfv-name">{{userInfo.real_name || userInfo.nickname || '舞栖会员'}}</text>
+            <text class="pfv-sub" wx:if="{{userInfo.member_code}}">NO. {{userInfo.member_code}} · DANCE PASSPORT</text>
+          </view>
+        </view>
+        <view class="pfv-status-row">
+          <view class="pfv-chip">{{memberStatusText}}</view>
+          <text class="pfv-exempt exemption-anchor" wx:if="{{userInfo.exemption_count > 0}}" bindtap="onToggleExemptionTip">豁免 {{userInfo.exemption_count}} 次</text>
+        </view>
+      </view>
+    </block>
 
     <view class="pending-section" wx:if="{{userInfo.member_status === 'registered'}}">
       <view class="pending-card">
@@ -69,6 +116,7 @@
       </view>
     </view>
 
+    <block wx:if="{{skinId === 'classic'}}">
     <view class="stats-section" wx:if="{{userInfo.member_status === 'official'}}">
       <view class="stats-row {{showExtraStat ? 'stats-row-4' : ''}}">
         <view class="stat-card stat-clickable" bindtap="onStatTap" data-tab="booking">
@@ -122,6 +170,68 @@
       </view>
     </view>
 
+    </block>
+
+    <!-- 纸上舞台：三数据（同时持有次卡+时间卡时扩展为四数据） -->
+    <block wx:if="{{skinId === 'paper' && userInfo.member_status === 'official'}}">
+      <view class="pf-stats-paper {{showExtraStat ? 'pf-stats-4' : ''}}">
+        <view class="pf-st" bindtap="onStatTap" data-tab="booking">
+          <text class="pf-st-n">{{statsReady ? stats.totalBookings : '--'}}</text>
+          <text class="pf-st-l">待上课</text>
+        </view>
+        <view class="pf-st" bindtap="onStatTap" data-tab="attendance">
+          <text class="pf-st-n">{{statsReady ? stats.completedClasses : '--'}}</text>
+          <text class="pf-st-l">已上课</text>
+        </view>
+        <view class="pf-st">
+          <text class="pf-st-n pf-st-gold">{{statsReady ? (activeStats.length > 0 ? (activeStats[0].isUnlimited ? '∞' : activeStats[0].remaining) : '--') : '--'}}</text>
+          <text class="pf-st-l">{{activeStats.length > 0 ? activeStats[0].label : '剩余课时'}}</text>
+        </view>
+        <view class="pf-st" wx:if="{{showExtraStat}}">
+          <text class="pf-st-n pf-st-gold">{{statsReady ? (activeStats.length > 1 ? (activeStats[1].isUnlimited ? '∞' : activeStats[1].remaining) : '--') : '--'}}</text>
+          <text class="pf-st-l">{{activeStats.length > 1 ? activeStats[1].label : '剩余'}}</text>
+        </view>
+      </view>
+    </block>
+
+    <!-- VOLT：三数据（同时持有次卡+时间卡时扩展为四数据） -->
+    <block wx:if="{{skinId === 'volt' && userInfo.member_status === 'official'}}">
+      <view class="pf-stats-volt {{showExtraStat ? 'pf-stats-4' : ''}}">
+        <view class="pv-st" bindtap="onStatTap" data-tab="booking">
+          <text class="pv-st-n">{{statsReady ? stats.totalBookings : '--'}}</text>
+          <text class="pv-st-l">待上课</text>
+        </view>
+        <view class="pv-st" bindtap="onStatTap" data-tab="attendance">
+          <text class="pv-st-n">{{statsReady ? stats.completedClasses : '--'}}</text>
+          <text class="pv-st-l">已上课</text>
+        </view>
+        <view class="pv-st pv-st-hot">
+          <text class="pv-st-n">{{statsReady ? (activeStats.length > 0 ? (activeStats[0].isUnlimited ? '∞' : activeStats[0].remaining) : '--') : '--'}}</text>
+          <text class="pv-st-l">{{activeStats.length > 0 ? activeStats[0].label : '课时'}}</text>
+        </view>
+        <view class="pv-st pv-st-hot" wx:if="{{showExtraStat}}">
+          <text class="pv-st-n">{{statsReady ? (activeStats.length > 1 ? (activeStats[1].isUnlimited ? '∞' : activeStats[1].remaining) : '--') : '--'}}</text>
+          <text class="pv-st-l">{{activeStats.length > 1 ? activeStats[1].label : '剩余'}}</text>
+        </view>
+      </view>
+    </block>
+
+    <!-- VOLT：最近一课（真实上课记录的快捷呈现；纸上舞台无此模块） -->
+    <block wx:if="{{skinId === 'volt' && isOfficialMember && lastSession}}">
+      <view class="pf-last-sec">
+        <view class="pf-last-head"><text class="pf-last-t">最近一课</text><text class="pf-last-en">LAST SESSION</text></view>
+        <view class="pf-last-card">
+          <view class="pfl-mark">✓</view>
+          <view class="pfl-main">
+            <text class="pfl-name">{{lastSession.name}}</text>
+            <text class="pfl-meta">{{lastSession.meta}}</text>
+          </view>
+          <view class="pfl-k">已上课 第 {{lastSession.index}} 节</view>
+        </view>
+      </view>
+    </block>
+
+    <block wx:if="{{skinId === 'classic' && userInfo.member_status === 'official'}}">
     <view class="package-section" wx:if="{{userInfo.member_status === 'official'}}">
       <block wx:if="{{allPackages.length > 0}}">
         <view class="section-header">
@@ -143,10 +253,11 @@
               <view class="pkg-tag pkg-tag-cross-store" wx:if="{{item._crossStore}}">
                 <text class="pkg-tag-text">可跨店</text>
               </view>
-              <view class="pkg-tag pkg-tag-type-{{item.package_type}}" wx:if="{{item._typeLabel}}">
+              <view class="pkg-tag pkg-tag-type-{{item.package_type}} {{item._isBonus ? 'pkg-tag-bonus' : ''}}" wx:if="{{item._typeLabel}}">
                 <text class="pkg-tag-text">{{item._typeLabel}}</text>
               </view>
             </view>
+            <text class="pkg-source" wx:if="{{item._isBonus && item._sourceText}}">{{item._sourceText}}</text>
             <!-- 可用星期/可用时段：独立整行展示，门店/类型标签下方 -->
             <view class="pkg-new-weekday-row {{item._timeLimitBoth ? 'pkg-new-time-both' : ''}}" wx:if="{{item._weekdayLimitText || item._timeLimitText}}">
               <view class="pkg-tag pkg-tag-weekday" wx:if="{{item._weekdayLimitText}}">
@@ -255,10 +366,11 @@
               <view class="pkg-tag pkg-tag-cross-store" wx:if="{{item._crossStore}}">
                 <text class="pkg-tag-text">可跨店</text>
               </view>
-              <view class="pkg-tag pkg-tag-type-{{item.package_type}}" wx:if="{{item._typeLabel}}">
+              <view class="pkg-tag pkg-tag-type-{{item.package_type}} {{item._isBonus ? 'pkg-tag-bonus' : ''}}" wx:if="{{item._typeLabel}}">
                 <text class="pkg-tag-text">{{item._typeLabel}}</text>
               </view>
             </view>
+            <text class="pkg-source" wx:if="{{item._isBonus && item._sourceText}}">{{item._sourceText}}</text>
             <!-- 可用星期/可用时段：独立整行展示，门店/类型标签下方 -->
             <view class="pkg-new-weekday-row {{item._timeLimitBoth ? 'pkg-new-time-both' : ''}}" wx:if="{{item._weekdayLimitText || item._timeLimitText}}">
               <view class="pkg-tag pkg-tag-weekday" wx:if="{{item._weekdayLimitText}}">
@@ -278,6 +390,7 @@
                   <view class="pkg-new-status-dot"></view>
                   <text class="pkg-new-status-label">静待开启</text>
                 </view>
+                <text class="pkg-new-pending-hint" wx:if="{{item._pendingHint}}">{{item._pendingHint}}</text>
               </view>
               <view class="pkg-new-main-right">
                 <view class="pkg-new-info-capsule" wx:if="{{item.package_type === 'count_card'}}">
@@ -398,6 +511,54 @@
       </view>
     </view>
 
+    </block>
+
+    <!-- 纸上舞台 / VOLT：套餐票根 -->
+    <block wx:if="{{skinId !== 'classic' && userInfo.member_status === 'official'}}">
+      <view class="pkg-skin-sec" wx:if="{{activePackages.length > 0}}">
+        <view class="pkg-sk-head">
+          <text class="pkg-sk-title">{{skinId === 'paper' ? '我的套餐' : 'MEMBERSHIP'}}</text>
+          <text class="pkg-sk-en">{{skinId === 'paper' ? 'PACKAGES' : '套餐'}}</text>
+        </view>
+        <view class="pkg-ticket {{skinId === 'paper' ? 'pt' : 'vt'}}" wx:for="{{activePackages}}" wx:key="_id">
+          <view class="pkt-left">
+            <block wx:if="{{skinId === 'paper'}}">
+              <text class="pkt-k">MEMBERSHIP · {{item._typeLabel || '套餐'}}</text>
+              <text class="pkt-name">{{item._isBonus ? '赠送课时' : (item.package_type === 'time_card' ? (item.daily_limit ? '时间卡 · 每日' + (item.daily_limit === 1 ? '一' : item.daily_limit) + '节' : (item.weekly_limit ? '时间卡 · 每周至多' + (item.weekly_limit === 1 ? '一' : item.weekly_limit === 2 ? '两' : item.weekly_limit) + '节' : (item.monthly_limit ? '时间卡 · 每月至多' + (item.monthly_limit === 1 ? '一' : item.monthly_limit) + '节' : '时间卡 · 不限次'))) : '次卡')}}</text>
+              <text class="pkt-source" wx:if="{{item._isBonus && item._sourceText}}">{{item._sourceText}}</text>
+              <text class="pkt-meta">有效期至 {{item.end_date_display || '-'}}</text>
+              <view class="pkt-stores">
+                <view class="pkt-store"><view class="pkt-store-dot"></view><text>{{item._storeName || '舞栖'}}</text></view>
+                <view class="pkt-store" wx:if="{{item._crossStore}}"><view class="pkt-store-dot pkt-store-dot-2"></view><text>跨店通用</text></view>
+              </view>
+            </block>
+            <block wx:else>
+              <text class="pkt-k">MEMBERSHIP · {{item._typeLabel || '套餐'}}</text>
+              <text class="pkt-name">{{item._isBonus ? '赠送课时' : (item.package_type === 'time_card' ? '时间卡' : '次卡')}}</text>
+              <text class="pkt-source" wx:if="{{item._isBonus && item._sourceText}}">{{item._sourceText}}</text>
+              <text class="pkt-meta">有效期至 {{item.end_date_display || '-'}}</text>
+            </block>
+          </view>
+          <view class="pkt-right">
+            <block wx:if="{{item.package_type === 'count_card'}}">
+              <text class="pkt-big">{{item.remaining_credits}}</text>
+              <text class="pkt-lab">剩余次数</text>
+            </block>
+            <block wx:else>
+              <text class="pkt-big">{{item.remaining_days}}</text>
+              <text class="pkt-lab">剩余天数</text>
+            </block>
+            <view class="pkt-seal" wx:if="{{skinId === 'paper' && !item._isBonus}}">栖</view>
+            <view class="pkt-seal pkt-seal-bonus" wx:if="{{skinId === 'paper' && item._isBonus}}">赠</view>
+          </view>
+          <view class="pkt-barcode" wx:if="{{skinId === 'volt'}}"><view class="pkb-bar"></view><view class="pkb-bar pkb-w2"></view><view class="pkb-bar pkb-w3"></view><view class="pkb-bar"></view><view class="pkb-bar pkb-w2"></view><view class="pkb-bar"></view><view class="pkb-bar pkb-w3"></view><view class="pkb-bar pkb-w2"></view><view class="pkb-bar"></view><view class="pkb-bar pkb-w3"></view><view class="pkb-bar"></view><view class="pkb-bar pkb-w2"></view><view class="pkb-bar pkb-w3"></view><view class="pkb-bar"></view><view class="pkb-bar pkb-w2"></view><view class="pkb-bar"></view><view class="pkb-bar pkb-w3"></view><view class="pkb-bar pkb-w2"></view><view class="pkb-bar"></view><view class="pkb-bar pkb-w3"></view></view>
+        </view>
+      </view>
+      <view class="pkg-skin-empty" wx:if="{{activePackages.length === 0}}">
+        <text>暂无使用中的套餐 · 请联系门店录入</text>
+      </view>
+    </block>
+
     <view class="package-section" wx:if="{{userInfo.member_status !== 'official'}}">
       <view class="section-header">
         <view class="section-header-left">
@@ -417,7 +578,19 @@
           <text class="section-title">功能</text>
         </view>
       </view>
+      <block wx:if="{{skinId === 'classic'}}">
       <view class="menu-card">
+        <view class="menu-item" bindtap="onSkinSettings">
+          <view class="menu-icon-wrap gold">
+            <view class="skin-dots-icon">
+              <view class="sd-dot" style="background:#D4786E;"></view>
+              <view class="sd-dot" style="background:#B93A26;"></view>
+              <view class="sd-dot" style="background:#111310;"></view>
+            </view>
+          </view>
+          <text class="menu-item-title">皮肤外观</text>
+          <view class="menu-item-arrow"></view>
+        </view>
         <view class="menu-item" bindtap="onMyBookings">
           <view class="menu-icon-wrap teal">
             <image class="menu-icon" src="/images/icons/calendar.svg" mode="aspectFit"></image>
@@ -447,7 +620,130 @@
           <view class="menu-item-arrow"></view>
         </view>
       </view>
+    </block>
     </view>
+
+    <block wx:if="{{skinId === 'paper' && userInfo.member_status === 'official'}}">
+      <view class="pf-menu">
+        <view class="pf-mi" bindtap="onShowQRCode">
+          <view class="pf-mi-ico pf-mi-ico-txt">码</view>
+          <text class="pf-mi-name">入场券 · 到店出示签到</text>
+          <text class="pf-mi-en">PASS</text>
+          <text class="pf-mi-arr">→</text>
+        </view>
+        <view class="pf-mi" bindtap="onMyBookings">
+          <view class="pf-mi-ico"></view>
+          <text class="pf-mi-name">我的记录</text>
+          <text class="pf-mi-en">RECORDS</text>
+          <text class="pf-mi-arr">→</text>
+        </view>
+        <view class="pf-mi" bindtap="onGoPackages">
+          <view class="pf-mi-ico"></view>
+          <text class="pf-mi-name">我的套餐</text>
+          <text class="pf-mi-en">PACKAGES</text>
+          <text class="pf-mi-arr">→</text>
+        </view>
+        <view class="pf-mi" bindtap="onSubscribeSettings">
+          <view class="pf-mi-ico"></view>
+          <text class="pf-mi-name">消息推送设置</text>
+          <text class="pf-mi-en">ALERTS</text>
+          <text class="pf-mi-arr">→</text>
+        </view>
+        <view class="pf-mi" bindtap="onMemberInfo">
+          <view class="pf-mi-ico"></view>
+          <text class="pf-mi-name">个人信息</text>
+          <text class="pf-mi-en">PROFILE</text>
+          <text class="pf-mi-arr">→</text>
+        </view>
+        <view class="pf-mi" bindtap="onSkinSettings">
+          <view class="pf-mi-ico"></view>
+          <text class="pf-mi-name">皮肤外观</text>
+          <text class="pf-mi-en">SKIN</text>
+          <text class="pf-mi-arr">→</text>
+        </view>
+        <view class="pf-mi" bindtap="onGoGallery">
+          <view class="pf-mi-ico"></view>
+          <text class="pf-mi-name">此间画面 · 画廊</text>
+          <text class="pf-mi-en">GALLERY</text>
+          <text class="pf-mi-arr">→</text>
+        </view>
+        <view class="pf-mi" bindtap="onContactStore">
+          <view class="pf-mi-ico"></view>
+          <text class="pf-mi-name">联系门店</text>
+          <text class="pf-mi-en">CONTACT</text>
+          <text class="pf-mi-arr">→</text>
+        </view>
+      </view>
+      <view class="pf-legal">
+        <text bindtap="onPrivacy">隐私保护指引</text>
+        <text class="pf-legal-sep">·</text>
+        <text bindtap="onAgreement">用户协议</text>
+        <text class="pf-legal-sep">·</text>
+        <text bindtap="onAbout">关于舞栖</text>
+      </view>
+      <view class="pf-logout" bindtap="onLogout">退 出 登 录</view>
+    </block>
+
+    <block wx:if="{{skinId === 'volt' && userInfo.member_status === 'official'}}">
+      <view class="pf-menu">
+        <view class="pf-mi" bindtap="onShowQRCode">
+          <view class="pf-mi-ico pf-mi-ico-txt">码</view>
+          <text class="pf-mi-name">入场 PASS · 到店出示</text>
+          <text class="pf-mi-en">PASS</text>
+          <text class="pf-mi-arr">→</text>
+        </view>
+        <view class="pf-mi" bindtap="onMyBookings">
+          <view class="pf-mi-ico"></view>
+          <text class="pf-mi-name">我的记录</text>
+          <text class="pf-mi-en">RECORDS</text>
+          <text class="pf-mi-arr">→</text>
+        </view>
+        <view class="pf-mi" bindtap="onGoPackages">
+          <view class="pf-mi-ico"></view>
+          <text class="pf-mi-name">我的套餐</text>
+          <text class="pf-mi-en">PACKAGES</text>
+          <text class="pf-mi-arr">→</text>
+        </view>
+        <view class="pf-mi" bindtap="onSubscribeSettings">
+          <view class="pf-mi-ico"></view>
+          <text class="pf-mi-name">消息推送设置</text>
+          <text class="pf-mi-en">ALERTS</text>
+          <text class="pf-mi-arr">→</text>
+        </view>
+        <view class="pf-mi" bindtap="onMemberInfo">
+          <view class="pf-mi-ico"></view>
+          <text class="pf-mi-name">个人信息</text>
+          <text class="pf-mi-en">PROFILE</text>
+          <text class="pf-mi-arr">→</text>
+        </view>
+        <view class="pf-mi" bindtap="onSkinSettings">
+          <view class="pf-mi-ico"></view>
+          <text class="pf-mi-name">皮肤外观</text>
+          <text class="pf-mi-en">SKIN</text>
+          <text class="pf-mi-arr">→</text>
+        </view>
+        <view class="pf-mi" bindtap="onGoGallery">
+          <view class="pf-mi-ico"></view>
+          <text class="pf-mi-name">此间画面 · 画廊</text>
+          <text class="pf-mi-en">GALLERY</text>
+          <text class="pf-mi-arr">→</text>
+        </view>
+        <view class="pf-mi" bindtap="onContactStore">
+          <view class="pf-mi-ico"></view>
+          <text class="pf-mi-name">联系门店</text>
+          <text class="pf-mi-en">CONTACT</text>
+          <text class="pf-mi-arr">→</text>
+        </view>
+      </view>
+      <view class="pf-legal">
+        <text bindtap="onPrivacy">隐私保护指引</text>
+        <text class="pf-legal-sep">·</text>
+        <text bindtap="onAgreement">用户协议</text>
+        <text class="pf-legal-sep">·</text>
+        <text bindtap="onAbout">关于舞栖</text>
+      </view>
+      <view class="pf-logout" bindtap="onLogout">退 出 登 录</view>
+    </block>
 
     <view class="menu-section" wx:if="{{userInfo.member_status !== 'official'}}">
       <view class="section-header">
@@ -481,6 +777,7 @@
       </view>
     </view>
 
+    <block wx:if="{{skinId === 'classic'}}">
     <view class="menu-section menu-section-other" wx:if="{{isLoggedIn}}">
       <view class="section-header">
         <view class="section-header-left">
@@ -515,6 +812,7 @@
         <view class="menu-logout" bindtap="onLogout">退出登录</view>
       </view>
     </view>
+    </block>
   </block>
 
   <block wx:else>
@@ -744,6 +1042,7 @@
     </view>
   </view>
 
+  <block wx:if="{{skinId === 'classic'}}">
   <view class="modal-mask qr-modal" wx:if="{{showQRModal}}" bindtap="onCloseQRModal">
     <view class="modal-content qr" catchtap="onModalTap">
       <view class="modal-title-text">会员码</view>
@@ -768,6 +1067,81 @@
       </view>
     </view>
   </view>
+  </block>
+
+  <!-- 纸上舞台：入场券 -->
+  <block wx:if="{{skinId === 'paper'}}">
+    <view class="ssq-mask" wx:if="{{showQRModal}}" bindtap="onCloseQRModal">
+      <view class="ssq-paper" catchtap="onModalTap">
+        <view class="ssq-head">
+          <text class="ssq-title">入 场 券</text>
+          <text class="ssq-en">ADMIT ONE</text>
+        </view>
+        <view class="ssq-body">
+          <view class="ssq-qr">
+            <image class="qr-canvas ssq-canvas" src="{{qrTempImage}}" mode="aspectFit" wx:if="{{qrTempImage}}"></image>
+            <image class="qr-canvas ssq-canvas" src="{{qrCodeUrl}}" mode="aspectFit" decoding="async" wx:elif="{{qrCodeUrl && !qrCodeToken}}"></image>
+            <view class="qr-loading" wx:else>
+              <view class="loading-spinner"></view>
+              <text class="loading-text">加载中...</text>
+            </view>
+          </view>
+          <view class="ssq-meta">
+            <text class="ssq-name">{{userInfo.real_name || userInfo.nickname || '会员'}}</text>
+            <text class="ssq-code" wx:if="{{userInfo.member_code}}">{{userInfo.member_code}}</text>
+            <text class="ssq-refresh">{{qrCountdown}} 秒后自动刷新</text>
+          </view>
+        </view>
+        <view class="ssq-note-row">
+          <text>出示给门店工作人员扫码签到</text>
+          <text>动态码 · 截图无效</text>
+        </view>
+        <view class="ssq-status" wx:if="{{checkInStatusText}}">
+          <text class="qr-status-text {{checkInStatusType}}">{{checkInStatusText}}</text>
+        </view>
+      </view>
+    </view>
+  </block>
+
+  <!-- VOLT：PASS -->
+  <block wx:if="{{skinId === 'volt'}}">
+    <view class="svq-mask" wx:if="{{showQRModal}}" bindtap="onCloseQRModal">
+      <view class="svq-card" catchtap="onModalTap">
+        <view class="svq-head">
+          <text class="svq-title">ADMIT ONE</text>
+          <text class="svq-en">入场 PASS</text>
+        </view>
+        <view class="svq-ticket">
+          <view class="svq-ticket-top">
+            <text class="svq-t-name">舞栖 DANCE CLUB</text>
+          </view>
+          <view class="svq-body">
+            <view class="svq-qr">
+              <image class="qr-canvas svq-canvas" src="{{qrTempImage}}" mode="aspectFit" wx:if="{{qrTempImage}}"></image>
+              <image class="qr-canvas svq-canvas" src="{{qrCodeUrl}}" mode="aspectFit" decoding="async" wx:elif="{{qrCodeUrl && !qrCodeToken}}"></image>
+              <view class="qr-loading" wx:else>
+                <view class="loading-spinner"></view>
+                <text class="loading-text">加载中...</text>
+              </view>
+            </view>
+            <view class="svq-meta">
+              <text class="svq-name">{{userInfo.real_name || userInfo.nickname || '会员'}}</text>
+              <text class="svq-code" wx:if="{{userInfo.member_code}}">{{userInfo.member_code}}</text>
+              <text class="svq-refresh">{{qrCountdown}}s 刷新 · 截图无效</text>
+            </view>
+          </view>
+        </view>
+        <view class="svq-eq"><view class="svq-eq-b" style="animation-delay:0s"></view><view class="svq-eq-b" style="animation-delay:.15s"></view><view class="svq-eq-b" style="animation-delay:.3s"></view><view class="svq-eq-b" style="animation-delay:.05s"></view><view class="svq-eq-b" style="animation-delay:.22s"></view><view class="svq-eq-b" style="animation-delay:.38s"></view><view class="svq-eq-b" style="animation-delay:.1s"></view><view class="svq-eq-b" style="animation-delay:.28s"></view><view class="svq-eq-b" style="animation-delay:.12s"></view></view>
+        <view class="svq-bpm">YOUR RHYTHM · <text class="svq-bpm-v">128 BPM</text></view>
+        <view class="svq-note-row">
+          <text>出示给门店工作人员扫码签到</text>
+        </view>
+        <view class="svq-status" wx:if="{{checkInStatusText}}">
+          <text class="qr-status-text {{checkInStatusType}}">{{checkInStatusText}}</text>
+        </view>
+      </view>
+    </view>
+  </block>
 
   <!-- 签到成功弹窗（结果类强弹窗，3秒自动关闭） -->
   <view class="modal-mask success" wx:if="{{showCheckInSuccess}}">
@@ -863,3 +1237,4 @@
   <view class="exemption-tip-item">4. 以下情况无法使用豁免取消：① 课程有效人数未超过最低成班人数，取消会影响开班；② 管理员将该节课设置为不可豁免取消</view>
 </view>
 <update-modal />
+<canvas type="2d" id="qrCheckInCanvas" class="qr-offscreen" wx:if="{{showQRModal && qrCodeToken && skinId !== 'classic'}}"></canvas>

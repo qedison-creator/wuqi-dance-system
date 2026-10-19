@@ -1,4 +1,4 @@
-<page-meta page-style="{{showDeleteModal || showDeletePackageModal || showStoreModal || showAddPackageModal || showPackageEditModal || showEditNameModal || showSuspendModal || showExtendModal || showDanceStylePicker ? 'overflow: hidden;' : ''}}"/>
+<page-meta page-style="{{showDeleteModal || showDeletePackageModal || showStoreModal || showAddPackageModal || showPackageEditModal || showEditNameModal || showSuspendModal || showExtendModal || showDanceStylePicker || showBonusModal || showBonusEditModal ? 'overflow: hidden;' : ''}}"/>
 
 <!-- WXS：WXML 绑定不支持方法调用（indexOf），数组包含判断必须走 WXS -->
 <wxs module="wArr">
@@ -98,26 +98,19 @@ module.exports = {
     </view>
     <view class="package-list" wx:if="{{packages.length > 0}}">
       <view class="package-item card" wx:for="{{packages}}" wx:key="_id">
+        <!-- 标签行：套餐类型/门店/跨店/状态 徽章，放不下自动换行 -->
         <view class="package-header">
           <view class="package-badges">
+            <text class="package-type-badge" wx:if="{{item.is_bonus}}">赠课</text>
             <text class="package-type-badge">{{item.package_type === 'time_card' ? '时间卡' : '次卡'}}</text>
             <text class="package-store-badge" wx:if="{{item.store_id && item.store_id.name}}">{{item.store_id.name}}</text>
             <text class="package-cross-store-badge" wx:if="{{item.extra_store_ids && item.extra_store_ids.length > 0}}">可跨店</text>
             <text class="package-status-badge {{item.is_suspended ? 'suspended' : (item.is_activated ? (item._displayStatus || item.status) : 'pending')}}">{{item.is_suspended ? '已停用' : (item.is_activated ? ((item._displayStatus || item.status) === 'active' ? '使用中' : ((item._displayStatus || item.status) === 'expired' ? '已过期' : '已用完')) : '待激活')}}</text>
           </view>
-          <view class="package-actions">
-            <view class="package-edit-btn" wx:if="{{item.canOperate}}" data-id="{{item._id}}" bindtap="onEditPackage">
-              <text>变更</text>
-            </view>
-            <view class="package-extend-btn" wx:if="{{item.canOperate && item.is_activated && (item._displayStatus || item.status) === 'active'}}" data-id="{{item._id}}" data-end="{{item.end_date_display}}" catchtap="onExtendPackage">
-              <text>延长</text>
-            </view>
-            <view class="package-delete-btn" wx:if="{{item.canOperate}}" data-id="{{item._id}}" bindtap="onDeletePackage">
-              <text>删除</text>
-            </view>
-          </view>
         </view>
         <view class="package-info">
+          <!-- 赠课卡：来源主套餐 -->
+          <text class="package-source" wx:if="{{item.is_bonus && item._sourceText}}">{{item._sourceText}}</text>
           <!-- 时间卡 -->
           <block wx:if="{{item.package_type === 'time_card'}}">
             <!-- 限制规则 + 当前周期剩余次数 -->
@@ -154,13 +147,15 @@ module.exports = {
             </block>
           </block>
 
-          <!-- 变更记录列表（新在上，旧在下） -->
-          <view class="package-extensions package-change-summary" wx:if="{{item.extensions && item.extensions.length > 0}}" catchtap="onViewPackageChanges" data-user-id="{{memberId}}" data-user-name="{{member.real_name || member.nick_name}}">
-            <view class="extension-item" wx:for="{{item.extensions}}" wx:for-item="ext" wx:key="_id">
-              <text class="extension-text">{{ext.summary_text}}</text>
+          <!-- 变更记录摘要（最新3条 + 仍可撤回的记录，新在上旧在下；完整记录走底部入口） -->
+          <view class="package-extensions package-change-summary" wx:if="{{item._visibleExtensions && item._visibleExtensions.length > 0}}" catchtap="onViewPackageChanges" data-user-id="{{memberId}}" data-user-name="{{member.real_name || member.nick_name}}">
+            <view class="extension-item" wx:for="{{item._visibleExtensions}}" wx:for-item="ext" wx:for-index="extIdx" wx:key="_id">
+              <text class="extension-text {{ext.undone ? 'ext-undone-text' : ''}}">{{ext.summary_text}}</text>
+              <text class="ext-undone-tag" wx:if="{{ext.undone}}">已撤回</text>
+              <view class="ext-undo-btn" wx:if="{{ext.undoable}}" catchtap="onUndoLog" data-pidx="{{index}}" data-eidx="{{ext._extIdx}}">撤回 {{ext.undo_countdown}}</view>
             </view>
-            <view class="extension-footer">
-              <text class="extension-footer-text">查看完整变更记录 ></text>
+            <view class="extension-footer" wx:if="{{item._hiddenCount > 0}}">
+              <text class="extension-footer-text">查看全部 {{item._extensionsTotal}} 条变更记录 ></text>
             </view>
           </view>
 
@@ -175,6 +170,14 @@ module.exports = {
 
           <!-- 未激活：待激活倒计时 -->
           <text class="package-expire package-pending" wx:if="{{!item.is_activated && item.auto_activate_at_display}}">待激活 · {{item.auto_activate_at_display}} 自动激活</text>
+        </view>
+
+        <!-- 底部操作栏：功能按钮（描边按钮风格，与标签胶囊区分） -->
+        <view class="package-actions" wx:if="{{item.canOperate}}">
+          <view class="package-action-btn" wx:if="{{!item.is_bonus && item.is_activated && (item._displayStatus || item.status) === 'active'}}" data-id="{{item._id}}" catchtap="onOpenBonusModal"><text>课时赠送</text></view>
+          <view class="package-action-btn" data-id="{{item._id}}" bindtap="onEditPackage"><text>变更</text></view>
+          <view class="package-action-btn" wx:if="{{item.canOperate && item.is_activated && (item._displayStatus || item.status) === 'active' && (!item.is_bonus || item.bonus_expire_mode === 'months')}}" data-id="{{item._id}}" data-end="{{item.end_date_display}}" catchtap="onExtendPackage"><text>延长</text></view>
+          <view class="package-action-btn danger" data-id="{{item._id}}" bindtap="onDeletePackage"><text>删除</text></view>
         </view>
       </view>
     </view>
@@ -248,6 +251,16 @@ module.exports = {
                         <text class="detail-label">预约时间</text>
                         <text class="detail-value booking-time-text">{{booking.created_at_display}}</text>
                       </view>
+                      <view class="booking-detail-row" wx:if="{{booking.status !== 'cancelled' && (booking.deduct_days || booking.credits_deducted > 0)}}">
+                        <text class="detail-icon"></text>
+                        <text class="detail-label">扣课</text>
+                        <text class="detail-value highlight">{{booking.deduct_days ? '有效期减' + booking.deduct_days + '天' : '扣除 ' + booking.credits_deducted + ' 课时'}}{{booking.packageLabel ? ' · ' + booking.packageLabel : ''}}</text>
+                      </view>
+                      <view class="booking-detail-row" wx:if="{{booking.status === 'cancelled' && (booking.deduct_days || booking.credits_deducted > 0)}}">
+                        <text class="detail-icon"></text>
+                        <text class="detail-label">退还</text>
+                        <text class="detail-value">{{booking.deduct_days ? '退还有效期' + booking.deduct_days + '天' : '退还 ' + booking.credits_deducted + ' 课时'}}{{booking.packageLabel ? ' · ' + booking.packageLabel : ''}}</text>
+                      </view>
                     </view>
                   </view>
                 </view>
@@ -313,17 +326,17 @@ module.exports = {
                       <view class="booking-detail-row" wx:if="{{att.deduct_days}}">
                         <text class="detail-icon"></text>
                         <text class="detail-label">消耗课时</text>
-                        <text class="detail-value highlight">有效期减{{att.deduct_days}}天</text>
+                        <text class="detail-value highlight">有效期减{{att.deduct_days}}天{{att.packageLabel ? ' · ' + att.packageLabel : ''}}</text>
                       </view>
                       <view class="booking-detail-row" wx:elif="{{att.credits_cost > 0}}">
                         <text class="detail-icon"></text>
                         <text class="detail-label">消耗课时</text>
-                        <text class="detail-value highlight">{{att.credits_cost}}课时</text>
+                        <text class="detail-value highlight">扣除{{att.credits_cost}}课时{{att.packageLabel ? ' · ' + att.packageLabel : ''}}</text>
                       </view>
                       <view class="booking-detail-row" wx:if="{{att.isCancelledAfterCheckin}}">
                         <text class="detail-icon"></text>
                         <text class="detail-label">课时状态</text>
-                        <text class="detail-value">{{att.deduct_days ? '有效期已恢复' : '已退还'}}</text>
+                        <text class="detail-value">{{att.deduct_days ? '退还有效期' + att.deduct_days + '天' : '退还 ' + att.credits_cost + ' 课时'}}{{att.packageLabel ? ' · ' + att.packageLabel : ''}}</text>
                       </view>
                       <view class="booking-detail-row" wx:if="{{att.cancelReasonText}}">
                         <text class="detail-icon"></text>
@@ -352,23 +365,23 @@ module.exports = {
   <!-- 危险操作区域（页面底部，与内容有间距） -->
   <view class="danger-zone" wx:if="{{canDeleteMember}}">
     <view class="danger-zone-title">危险操作</view>
-    <view class="danger-zone-desc">删除后该会员的所有数据将无法恢复</view>
+    <view class="danger-zone-desc">注销后该会员无法登录，但全部记录会保留以便溯源</view>
     <view class="delete-member-btn" bindtap="onDeleteMember">
-      <text>删除此会员</text>
+      <text>注销此会员</text>
     </view>
   </view>
 
-  <!-- 删除会员确认弹窗 -->
+  <!-- 注销会员确认弹窗 -->
   <view class="modal-mask" wx:if="{{showDeleteModal}}" bindtap="onCloseDeleteModal">
     <view class="delete-modal-content" catchtap="onModalTap">
       <view class="modal-header">
-        <text class="modal-title delete-modal-title">确认删除会员</text>
+        <text class="modal-title delete-modal-title">确认注销会员</text>
         <text class="modal-close" bindtap="onCloseDeleteModal">×</text>
       </view>
 
       <view class="delete-warning-box">
         <text class="delete-warning-icon">!</text>
-        <text class="delete-warning-text">此操作不可恢复，删除后该会员的以下数据将被永久清除：</text>
+        <text class="delete-warning-text">注销后该会员将无法登录、不再出现在会员列表，但以下记录会完整保留以便权益溯源：</text>
       </view>
 
       <view class="delete-data-list">
@@ -378,22 +391,22 @@ module.exports = {
         </view>
         <view class="delete-data-item">
           <text class="delete-data-dot">•</text>
-          <text class="delete-data-text">所有套餐记录（{{packages.length}}个）</text>
+          <text class="delete-data-text">所有套餐记录（{{packages.length}}个）保留并自动标记为已过期</text>
         </view>
         <view class="delete-data-item">
           <text class="delete-data-dot">•</text>
-          <text class="delete-data-text">所有预约记录（{{bookings.length}}条）</text>
+          <text class="delete-data-text">所有预约记录（{{bookings.length}}条）与上课/签到记录均完整保留</text>
         </view>
       </view>
 
       <view class="form-group">
-        <text class="form-label">请输入会员姓名确认删除</text>
+        <text class="form-label">请输入会员姓名确认注销</text>
         <input class="input-field delete-confirm-input" placeholder="{{member.real_name || member.nick_name || '未知用户'}}" value="{{deleteConfirmName}}" bindinput="onDeleteConfirmInput" />
       </view>
 
       <view class="modal-actions">
         <view class="btn-secondary" bindtap="onCloseDeleteModal"><text>取消</text></view>
-        <view class="btn-primary btn-danger {{deleteConfirmName !== (member.real_name || member.nick_name) ? 'disabled' : ''}}" bindtap="onConfirmDeleteMember"><text>确认删除</text></view>
+        <view class="btn-primary btn-danger {{deleteConfirmName !== (member.real_name || member.nick_name) ? 'disabled' : ''}}" bindtap="onConfirmDeleteMember"><text>确认注销</text></view>
       </view>
     </view>
   </view>
@@ -408,7 +421,7 @@ module.exports = {
 
       <view class="delete-warning-box">
         <text class="delete-warning-icon">!</text>
-        <text class="delete-warning-text">删除后该套餐数据将无法恢复：</text>
+        <text class="delete-warning-text">仅"未激活且从未使用"的录入错误套餐会被彻底删除；已激活或已产生记录（预约/扣课/延长）的套餐将作废，记录保留以便权益溯源：</text>
       </view>
 
       <view class="delete-data-list" wx:if="{{deletingPackage}}">
@@ -424,6 +437,19 @@ module.exports = {
           <text class="delete-data-dot">•</text>
           <text class="delete-data-text">有效期至：{{deletingPackage.end_date_display}}</text>
         </view>
+      </view>
+
+      <!-- 赠课卡联动：主卡作废时其赠课卡强制一并作废 -->
+      <view class="form-group" wx:if="{{deletingPackageBonusLinks.length > 0}}">
+        <view class="bonus-link-list">
+          <view class="bonus-link-item" wx:for="{{deletingPackageBonusLinks}}" wx:key="_id">
+            <view class="bonus-link-info">
+              <text class="bonus-link-name">赠送课时 · {{item.total_credits}}节{{item.used > 0 ? '（已用' + item.used + '节）' : ''}}</text>
+              <text class="bonus-link-date" wx:if="{{item.end_date_display}}">有效期至：{{item.end_date_display}}</text>
+            </view>
+          </view>
+        </view>
+        <text class="bonus-link-warning">以上赠课卡将随本套餐一并作废</text>
       </view>
 
       <view class="form-group">
@@ -454,6 +480,114 @@ module.exports = {
         </view>
       </view>
       <button class="btn-primary store-modal-confirm" bindtap="onConfirmStoreChange" disabled="{{!selectedStoreId}}">确认修改</button>
+    </view>
+  </view>
+
+  <!-- 追加赠送弹窗（仅使用中的主套餐） -->
+  <view class="modal-mask" wx:if="{{showBonusModal}}" bindtap="onCloseBonusModal">
+    <view class="suspend-modal-content" catchtap="onModalTap">
+      <view class="modal-header">
+        <text class="modal-title">追加赠送</text>
+        <text class="modal-close" bindtap="onCloseBonusModal">×</text>
+      </view>
+
+      <view class="suspend-rules">
+        <view class="suspend-rule-item">
+          <text class="rule-dot">•</text>
+          <text class="rule-text">赠课为独立次卡，预约时优先扣赠课</text>
+        </view>
+        <view class="suspend-rule-item">
+          <text class="rule-dot">•</text>
+          <text class="rule-text">追加赠送立即生效，不受2小时撤回限制</text>
+        </view>
+      </view>
+
+      <view class="form-group">
+        <text class="form-label">赠送课时 *</text>
+        <input class="input-field" type="number" placeholder="1-99" value="{{bonusForm.bonus_credits}}" data-field="bonus_credits" bindinput="onBonusFormInput" />
+      </view>
+
+      <view class="form-group">
+        <text class="form-label">赠课有效期 *</text>
+        <!-- 单选卡片式：标题+副说明，避免长文字挤压 -->
+        <view class="bonus-mode-list">
+          <view class="bonus-mode-option {{bonusForm.bonus_expire_mode !== 'months' ? 'active' : ''}}" data-mode="follow_main" bindtap="onBonusModeChange">
+            <view class="bonus-mode-radio"></view>
+            <view class="bonus-mode-texts">
+              <text class="bonus-mode-title">随主套餐到期</text>
+              <text class="bonus-mode-desc">与主套餐同天到期（至 {{bonusForm.main_end_display}}）</text>
+            </view>
+          </view>
+          <view class="bonus-mode-option {{bonusForm.bonus_expire_mode === 'months' ? 'active' : ''}}" data-mode="months" bindtap="onBonusModeChange">
+            <view class="bonus-mode-radio"></view>
+            <view class="bonus-mode-texts">
+              <text class="bonus-mode-title">自定义月数</text>
+              <text class="bonus-mode-desc">自赠送之日起 N 个月后到期（1-36 个月）</text>
+            </view>
+          </view>
+        </view>
+      </view>
+
+      <view class="form-group" wx:if="{{bonusForm.bonus_expire_mode === 'months'}}">
+        <text class="form-label">赠课月数 *</text>
+        <input class="input-field" type="number" placeholder="1-36" value="{{bonusForm.bonus_months}}" data-field="bonus_months" bindinput="onBonusFormInput" />
+      </view>
+
+      <view class="modal-actions">
+        <view class="btn-secondary" bindtap="onCloseBonusModal"><text>取消</text></view>
+        <view class="btn-primary" bindtap="onConfirmBonus"><text>确认赠送</text></view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 编辑赠课弹窗（赠课卡专属：限制跟随主套餐，仅可纠错总次数/自定义月数模式的到期日） -->
+  <view class="modal-mask" wx:if="{{showBonusEditModal}}" bindtap="onCloseBonusEditModal">
+    <view class="suspend-modal-content" catchtap="onModalTap">
+      <view class="modal-header">
+        <text class="modal-title">编辑赠课</text>
+        <text class="modal-close" bindtap="onCloseBonusEditModal">×</text>
+      </view>
+
+      <view class="bonus-edit-tip">
+        <text class="bonus-edit-tip-text">门店/舞种/时段限制跟随主套餐，无需单独设置</text>
+      </view>
+
+      <view class="form-group">
+        <text class="form-label">总次数 *</text>
+        <input class="input-field" type="number" placeholder="0-999" value="{{bonusEditForm.total_credits}}" data-field="total_credits" bindinput="onBonusEditInput" />
+        <text class="bonus-edit-hint">已用 {{bonusEditInfo.used}} 次，修改后剩余次数自动重算</text>
+      </view>
+
+      <!-- 随主套餐模式：有效期只读展示 -->
+      <view class="form-group" wx:if="{{bonusEditInfo.mode === 'follow_main'}}">
+        <text class="form-label">到期日期</text>
+        <view class="bonus-edit-readonly">随主套餐到期（{{bonusEditInfo.main_end}}），主套餐顺延自动同步</view>
+      </view>
+
+      <!-- 自定义月数模式·已激活：直接改到期日 -->
+      <view class="form-group" wx:if="{{bonusEditInfo.mode === 'months' && bonusEditInfo.is_activated}}">
+        <text class="form-label">到期日期 *</text>
+        <picker mode="date" value="{{bonusEditForm.end_date}}" bindchange="onBonusEditEndDate">
+          <view class="input-field">{{bonusEditForm.end_date || '请选择日期'}}</view>
+        </picker>
+      </view>
+
+      <!-- 自定义月数模式·未激活：改月数，激活时自激活日起算 -->
+      <view class="form-group" wx:if="{{bonusEditInfo.mode === 'months' && !bonusEditInfo.is_activated}}">
+        <text class="form-label">赠课月数 *</text>
+        <input class="input-field" type="number" placeholder="1-36" value="{{bonusEditForm.duration_value}}" data-field="duration_value" bindinput="onBonusEditInput" />
+        <text class="bonus-edit-hint">激活时自激活日起算 N 个月</text>
+      </view>
+
+      <view class="form-group">
+        <text class="form-label">变更原因</text>
+        <input class="input-field" placeholder="选填，记录到变更日志" value="{{bonusEditForm.reason}}" data-field="reason" bindinput="onBonusEditInput" />
+      </view>
+
+      <view class="modal-actions">
+        <view class="btn-secondary" bindtap="onCloseBonusEditModal"><text>取消</text></view>
+        <view class="btn-primary" bindtap="onConfirmBonusEdit"><text>确认变更</text></view>
+      </view>
     </view>
   </view>
 
@@ -617,6 +751,44 @@ module.exports = {
           </picker>
         </view>
         <text class="weekday-chip-tip">两个都开启时，时段前之前、时段后之后的课可用，介于两者之间的课不可用</text>
+      </view>
+
+      <!-- 赠送（选填）折叠区：与预建档一致 -->
+      <view class="form-group" wx:if="{{addPackageForm.package_type}}">
+        <view class="bonus-toggle" bindtap="onToggleAddBonusSection">
+          <text class="form-label bonus-toggle-label">赠送（选填）</text>
+          <view class="bonus-toggle-right">
+            <text class="bonus-toggle-summary" wx:if="{{addPackageForm.bonus_credits > 0 || addPackageForm.gift_validity_months > 0}}">{{addPackageForm.bonus_credits > 0 ? '赠' + addPackageForm.bonus_credits + '节' : ''}}{{addPackageForm.bonus_credits > 0 && addPackageForm.gift_validity_months > 0 ? ' · ' : ''}}{{addPackageForm.gift_validity_months > 0 ? '有效期+' + addPackageForm.gift_validity_months + '个月' : ''}}</text>
+            <text class="bonus-toggle-summary bonus-toggle-empty" wx:else>不赠送</text>
+            <text class="bonus-toggle-arrow {{showAddBonusSection ? 'open' : ''}}">›</text>
+          </view>
+        </view>
+        <view class="bonus-section" wx:if="{{showAddBonusSection}}">
+          <view class="bonus-field-row">
+            <text class="bonus-field-label">赠送课时</text>
+            <input class="input-field bonus-input" type="number" placeholder="0" placeholder-class="input-placeholder" value="{{addPackageForm.bonus_credits}}" data-field="bonus_credits" bindinput="onAddPackageInput" />
+            <text class="bonus-field-unit">节（1-99，0=不赠送）</text>
+          </view>
+          <block wx:if="{{addPackageForm.bonus_credits > 0}}">
+            <view class="bonus-field-row">
+              <text class="bonus-field-label">赠课有效期</text>
+              <view class="package-type-selector bonus-mode-picker">
+                <view class="type-option {{addPackageForm.bonus_expire_mode !== 'months' ? 'active' : ''}}" data-mode="follow_main" bindtap="onAddBonusModeChange">随主套餐</view>
+                <view class="type-option {{addPackageForm.bonus_expire_mode === 'months' ? 'active' : ''}}" data-mode="months" bindtap="onAddBonusModeChange">{{addPackageForm.activate_mode !== 'active' ? '激活后' : '生效后'}}N个月</view>
+              </view>
+            </view>
+            <view class="bonus-field-row" wx:if="{{addPackageForm.bonus_expire_mode === 'months'}}">
+              <text class="bonus-field-label">赠课月数</text>
+              <input class="input-field bonus-input" type="number" placeholder="0" placeholder-class="input-placeholder" value="{{addPackageForm.bonus_months}}" data-field="bonus_months" bindinput="onAddPackageInput" />
+              <text class="bonus-field-unit">个月（1-36）</text>
+            </view>
+          </block>
+          <view class="bonus-field-row">
+            <text class="bonus-field-label">赠送有效期</text>
+            <input class="input-field bonus-input" type="number" placeholder="0" placeholder-class="input-placeholder" value="{{addPackageForm.gift_validity_months}}" data-field="gift_validity_months" bindinput="onAddPackageInput" />
+            <text class="bonus-field-unit">个月（主卡按自然月顺延，0=不赠送）</text>
+          </view>
+        </view>
       </view>
 
       <view class="form-group">
@@ -889,12 +1061,52 @@ module.exports = {
 
       <view class="form-group">
         <text class="form-label">延长原因</text>
+        <view class="reason-preset-row">
+          <view class="reason-preset {{extendForm.reason === '赠送有效期' ? 'active' : ''}}" data-reason="赠送有效期" bindtap="onExtendReasonPreset"><text>赠送有效期</text></view>
+          <view class="reason-preset {{extendForm.reason === '请假顺延' ? 'active' : ''}}" data-reason="请假顺延" bindtap="onExtendReasonPreset"><text>请假顺延</text></view>
+          <view class="reason-preset {{extendForm.reason === '门店放假' ? 'active' : ''}}" data-reason="门店放假" bindtap="onExtendReasonPreset"><text>门店放假</text></view>
+        </view>
         <input class="input-field" placeholder="选填，如：请假、补偿等" value="{{extendForm.reason}}" data-field="reason" bindinput="onExtendFormInput" />
       </view>
 
       <view class="modal-actions">
         <view class="btn-secondary" bindtap="onCloseExtendModal"><text>取消</text></view>
         <view class="btn-primary" bindtap="onConfirmExtendPackage"><text>确认延长</text></view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 撤回变更弹窗（2小时内） -->
+  <view class="modal-mask" wx:if="{{showUndoModal}}" bindtap="onCloseUndoModal">
+    <view class="suspend-modal-content" catchtap="onModalTap">
+      <view class="modal-header">
+        <text class="modal-title">撤回操作</text>
+        <text class="modal-close" bindtap="onCloseUndoModal">×</text>
+      </view>
+
+      <view class="suspend-rules">
+        <view class="suspend-rule-item">
+          <text class="rule-dot">•</text>
+          <text class="rule-text">{{undoTargetInfo.event_name}}（{{undoTargetInfo.operator_name}}，{{undoTargetInfo.created_at_display}}）</text>
+        </view>
+        <view class="suspend-rule-item" wx:if="{{undoTargetInfo.countdown}}">
+          <text class="rule-dot">•</text>
+          <text class="rule-text">剩余可撤回时间：{{undoTargetInfo.countdown}}</text>
+        </view>
+        <view class="suspend-rule-item" wx:for="{{undoTargetInfo.preview}}" wx:for-item="pv" wx:key="label">
+          <text class="rule-dot">•</text>
+          <text class="rule-text">撤回后 {{pv.label}}：{{pv.from}} → {{pv.to}}</text>
+        </view>
+      </view>
+
+      <view class="form-group">
+        <text class="form-label">撤回原因</text>
+        <input class="input-field" placeholder="选填" value="{{undoForm.reason}}" bindinput="onUndoReasonInput" />
+      </view>
+
+      <view class="modal-actions">
+        <view class="btn-secondary" bindtap="onCloseUndoModal"><text>取消</text></view>
+        <view class="btn-primary" bindtap="onConfirmUndo"><text>确认撤回</text></view>
       </view>
     </view>
   </view>

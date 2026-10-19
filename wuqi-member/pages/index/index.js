@@ -90,14 +90,19 @@ Page({
   },
 
   onShow() {
+    // 皮肤状态（纯前端偏好，仅影响外观）
+    const skin = require('../../utils/skin.js');
     if (typeof this.getTabBar === 'function' && this.getTabBar()) {
-      this.getTabBar().setData({ selected: 0, active: 'index' });
+      this.getTabBar().setData({ selected: 0, active: 'index', skinId: skin.getSkinId() });
     }
+    this.setData(skin.pageState({ nav: false }));
     // 更新正式会员状态（控制课程时间等敏感信息显示）
     const userInfo = app.globalData.userInfo || {};
     this.setData({
       isOfficial: userInfo.member_status === 'official'
     });
+    // VOLT 皮肤：你的节奏（真实出勤统计，纯展示）
+    this._loadRhythm();
 
     // 同步读取门店数据：真机冷启动时 getStoreList 可能尚未返回，下方会异步兜底
     let storeList = app.globalData.storeList || [];
@@ -288,8 +293,10 @@ Page({
     return Promise.all([
       request({ url: '/home/banners', data: { store_id: storeId }, silent: true }),
       request({ url: '/home/coaches', data: { store_id: storeId, limit: 6 }, silent: true }),
-      request({ url: '/schedules', data: { store_id: storeId, limit: 10 }, silent: true })
-    ]).then(([bannerRes, coachRes, scheduleRes]) => {
+      request({ url: '/schedules', data: { store_id: storeId, limit: 10 }, silent: true }),
+      // 预约窗口配置（与场次预约页同源）：窗口外的未开放场次不在首页展示
+      request({ url: storeId ? `/config/public/booking-window?store_id=${storeId}` : '/config/public/booking-window', silent: true }).catch(() => null)
+    ]).then(([bannerRes, coachRes, scheduleRes, windowRes]) => {
       // 【门店数据隔离校验】如果当前门店已变化（如 selectNearestStore 异步更新），
       // 丢弃本次响应数据，避免"货不对板"显示其他门店数据
       const currentStoreId = this.data.currentStore ? this.data.currentStore._id : '';
@@ -325,30 +332,43 @@ Page({
 
       const scheduleData = scheduleRes.data || {};
       const courses = Array.isArray(scheduleData) ? scheduleData : (scheduleData.data || scheduleData.list || []);
+      // 预约窗口（天数，默认 7）：窗口外场次未开放预约，首页直接不展示
+      const windowDays = (windowRes && windowRes.data && windowRes.data.booking_window_days) ? (parseInt(windowRes.data.booking_window_days, 10) || 7) : 7;
+      const winEnd = new Date(today);
+      winEnd.setDate(winEnd.getDate() + (windowDays - 1));
+      const winEndStr = `${winEnd.getFullYear()}-${String(winEnd.getMonth() + 1).padStart(2, '0')}-${String(winEnd.getDate()).padStart(2, '0')}`;
+      const CN_SEATS = ['一', '二', '三', '四', '五', '六', '七', '八', '九', '十'];
       const recentCourses = courses
         .filter(course => {
           if (!course.date) return false;
           if (course.status === 'cancelled' || course.status === 'offline') return false;
           const d = typeof course.date === 'string' ? course.date.substring(0, 10) : course.date;
-          return d >= todayStr && d <= endStr;
+          return d >= todayStr && d <= endStr && d <= winEndStr;
         })
         .slice(0, 10)
-        .map(course => {
+        .map((course, index) => {
           let weekday = '';
+          let dateCn = '';
           if (course.date) {
             const d = getBeijingDate(course.date);
             weekday = weekdays[d.getDay()];
+            dateCn = `${d.getMonth() + 1}/${String(d.getDate()).padStart(2, '0')}`;
           }
           const danceStyleName = course.dance_style_id && course.dance_style_id.name ? course.dance_style_id.name : '舞蹈';
           const tagColor = getDanceTagColor(danceStyleName);
+          // 时间可见性：正式会员且后端未脱敏该场次（无门店套餐覆盖时后端删除 current_bookings）
+          const timeVisible = this.data.isOfficial && course.current_bookings !== undefined;
           return {
             ...course,
             weekday,
+            dateCn,
+            sessionLabel: '第' + (CN_SEATS[index] || (index + 1)) + '场',
             danceStyleName,
             danceTagBg: tagColor.bg,
             danceTagText: tagColor.text,
             cover: normalizeImageUrl(course.cover, SERVER_BASE) || '',
-            timeDisplay: this.data.isOfficial
+            timeVisible,
+            timeDisplay: timeVisible
               ? `${course.start_time || ''} - ${course.end_time || ''}`
               : '??:?? - ??:??'
           };
@@ -715,6 +735,24 @@ Page({
     }
   },
 
+  // VOLT 皮肤：你的节奏数据（复用我的记录统计接口，仅展示）
+  _loadRhythm() {
+    if (!this.data.isOfficial) return;
+    const request = require('../../utils/request.js').request;
+    request({ url: '/bookings/my?type=completed&pageSize=50', silent: true }).then(res => {
+      const list = res.data && res.data.list ? res.data.list : [];
+      // 本周一 0 点
+      const now = new Date();
+      const monday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - ((now.getDay() + 6) % 7));
+      let weekCount = 0;
+      list.forEach(b => {
+        const d = b.date || (b.schedule_id && b.schedule_id.date) || '';
+        if (d && new Date(d.replace(/-/g, '/')) >= monday) weekCount += 1;
+      });
+      this.setData({ rhythmData: { weekCount: weekCount, totalCount: list.length } });
+    }).catch(() => { /* 静默：节奏卡退化为通用文案 */ });
+  },
+
   goCoachList() {
     wx.navigateTo({
       url: '/package-sub/pages/coach-list/coach-list'
@@ -986,8 +1024,12 @@ Page({
   onShareAppMessage() {
     const store = this.data.currentStore;
     const storeName = store ? store.name : '';
+    const skin = require('../../utils/skin.js');
+    const sid = skin.getSkinId();
+    const baseTitle = storeName ? `舞栖舞蹈社 - ${storeName}` : '舞栖舞蹈社 - 专业舞蹈培训';
+    const title = sid === 'volt' ? `近期登场 SHOWTIME · 舞栖舞蹈社` : (sid === 'paper' ? `舞栖 · 以舞为栖` : baseTitle);
     return {
-      title: storeName ? `舞栖舞蹈社 - ${storeName}` : '舞栖舞蹈社 - 专业舞蹈培训',
+      title,
       path: '/pages/index/index',
       imageUrl: ''
     };

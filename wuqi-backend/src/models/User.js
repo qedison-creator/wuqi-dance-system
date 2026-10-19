@@ -38,6 +38,10 @@ const userSchema = new mongoose.Schema({
     reviewed_at: { type: Date },
     reject_reason: { type: String }
   },
+  // 注销（软删除）标记：会员不可物理删除，注销后保留全部溯源信息
+  is_deleted: { type: Boolean, default: false },
+  deleted_at: { type: Date },
+  deleted_by: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
 }, { timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' } });
 
 // 索引（openid/member_code/username 的唯一索引已在 Schema 字段定义中声明，此处无需重复）

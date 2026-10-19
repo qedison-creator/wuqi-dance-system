@@ -9,6 +9,7 @@ const utc = require('dayjs/plugin/utc');
 const timezone = require('dayjs/plugin/timezone');
 dayjs.extend(utc);
 dayjs.extend(timezone);
+const timeUtil = require('../utils/time');
 const BEIJING_TZ = 'Asia/Shanghai';
 
 // ===== 会员套餐状态提醒阈值配置 =====
@@ -369,7 +370,6 @@ exports.getDashboardData = async (storeId) => {
     .populate('user_id', 'real_name nick_name')
     .lean();
   
-  const now = dayjs().tz(BEIJING_TZ);
   // 提醒阈值从配置读取（会员套餐状态管理页设置，首页待办同步服从）
   const remindCfg = await this.getPackageStatusRemindConfig();
   const timeCardCfg = remindCfg.time_card_expire;
@@ -378,8 +378,9 @@ exports.getDashboardData = async (storeId) => {
       const endDate = dayjs(pkg.end_date);
       const startDate = dayjs(pkg.start_date);
       const totalDays = endDate.diff(startDate, 'day');
-      // 剩余天数统一用 Math.ceil（与会员详情页 member-detail 的剩余天数算法一致），避免 floor/ceil 差1天
-      const remainingDays = Math.ceil((endDate.valueOf() - now.valueOf()) / (1000 * 60 * 60 * 24));
+      // 剩余天数统一按北京自然日求差（与会员详情页 member-detail 口径一致），
+      // 避免 end_date 的 23:59:59.999 时刻被 ceil 向上取整多算一天
+      const remainingDays = timeUtil.diffDays(pkg.end_date);
       const remainingPercent = totalDays > 0 ? (remainingDays / totalDays) * 100 : 0;
 
       // 阈值规则（二选一，由 mode 决定）：'days'=到期前X天；'percent'=剩余时长占比低于X%
@@ -418,8 +419,9 @@ exports.getDashboardData = async (storeId) => {
       const endDate = pkg.end_date ? dayjs(pkg.end_date) : null;
       const startDate = pkg.start_date ? dayjs(pkg.start_date) : null;
       const totalDays = endDate && startDate ? endDate.diff(startDate, 'day') : 0;
-      // 剩余天数统一用 Math.ceil（与会员详情页 member-detail 的剩余天数算法一致），避免 floor/ceil 差1天
-      const remainingDays = endDate ? Math.ceil((endDate.valueOf() - now.valueOf()) / (1000 * 60 * 60 * 24)) : 999;
+      // 剩余天数统一按北京自然日求差（与会员详情页 member-detail 口径一致），
+      // 避免 end_date 的 23:59:59.999 时刻被 ceil 向上取整多算一天
+      const remainingDays = endDate ? timeUtil.diffDays(pkg.end_date) : 999;
       const remainingPercent = totalDays > 0 ? (remainingDays / totalDays) * 100 : 100;
 
       // 次卡阈值规则（二选一，由 mode 决定）：
@@ -611,10 +613,14 @@ exports.getPackageStatusList = async function (storeId) {
 
   packages.forEach(pkg => {
     if (!pkg.user_id) return;
+    // 赠课卡不进数据中心三类提醒（到期/低次数/沉默）——有效期跟主套餐走、次数为赠送性质（决策4）
+    if (pkg.is_bonus) return;
     const endDate = pkg.end_date ? dayjs(pkg.end_date) : null;
     const startDate = pkg.start_date ? dayjs(pkg.start_date) : null;
     const totalDays = endDate && startDate ? endDate.diff(startDate, 'day') : 0;
-    const remainingDays = endDate ? Math.ceil((endDate.valueOf() - now.valueOf()) / (1000 * 60 * 60 * 24)) : 999;
+    // 剩余天数统一按北京自然日求差（与会员详情页 member-detail 口径一致），
+    // 避免 end_date 的 23:59:59.999 时刻被 ceil 向上取整多算一天
+    const remainingDays = endDate ? timeUtil.diffDays(pkg.end_date) : 999;
     const remainingPercent = totalDays > 0 ? (remainingDays / totalDays) * 100 : 100;
     const base = {
       user_id: pkg.user_id._id,

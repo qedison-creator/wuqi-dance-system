@@ -1,11 +1,12 @@
 const app = getApp();
 const { request } = require('../../utils/request');
 const { getBeijingDate } = require('../../utils/helpers');
-const { normalizeImageUrl } = require('../../utils/util');
+const { normalizeImageUrl, pickEffectivePackage, getCreditUnitInfo } = require('../../utils/util');
 const config = require('../../config/index.js');
 const SERVER_BASE = config.serverBase;
 const auth = require('../../utils/auth');
 const wsClient = require('../../utils/websocket-client');
+const skinUtil = require('../../utils/skin.js');
 
 const WEEK_DAYS = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
 
@@ -28,6 +29,7 @@ function getNextDays(count = 7, holidays = []) {
       date: dateStr,
       day: dayNum,
       weekDay,
+      weekDayShort: weekDay.replace('周', ''),
       displayDay: i === 0 ? '今天' : (i === 1 ? '明天' : weekDay),
       isToday: i === 0,
       isHoliday
@@ -43,7 +45,6 @@ Page({
     currentStore: null,
     dates: [],
     selectedDate: '',
-    danceStyles: [],
     courses: [],
     loading: false,
     showStoreModal: false,
@@ -74,6 +75,7 @@ Page({
     holidays: [],
     selectedDateItem: null,
     weekDays: [],
+    statusBarHeight: 44,
     weekDaysIndex: 0,
     courseCount: 0,
     sectionTitle: '今天场次',
@@ -94,13 +96,21 @@ Page({
   },
 
   onShow() {
+    // 皮肤状态（纯前端偏好，仅影响外观）
+    const skin = require('../../utils/skin.js');
+    this.setData(skin.pageState());
+    // 自定义导航：状态栏高度（门店选择器与胶囊水平对齐用）
+    // 注意：不能以 data 默认值 44 判断是否已取值，否则真机状态栏高度（如 47/54）永远取不到，
+    // 会导致门店选择器垂直位置与首页不一致。每次 onShow 都取真实值。
+    const win = wx.getWindowInfo();
+    this.setData({ statusBarHeight: win.statusBarHeight || 44 });
     // 预加载消息模板（网络请求），确保点击预约时 requestBookingSubscribe 使用缓存模板
     // 避免点击时的网络请求破坏微信 tap gesture 上下文导致授权弹窗静默失败
     const { fetchTemplates } = require('../../utils/subscribe-message');
     fetchTemplates(true).catch(() => {});
 
     if (typeof this.getTabBar === 'function' && this.getTabBar()) {
-      this.getTabBar().setData({ selected: 1, active: 'booking' });
+      this.getTabBar().setData({ selected: 1, active: 'booking', skinId: skin.getSkinId() });
     }
     const storeList = app.globalData.storeList || [];
     const currentStore = app.globalData.currentStore || (storeList.length > 0 ? storeList[0] : null);
@@ -479,7 +489,6 @@ Page({
       this.loadStoreList();
     }
 
-    this.loadDanceStyles();
     this.loadHolidays();
     this.loadBookingWindowDays();
     this.loadCourses();
@@ -571,15 +580,6 @@ Page({
       }
     }).catch((err) => {
       console.error('加载门店列表失败:', err);
-    });
-  },
-
-  loadDanceStyles() {
-    request({ url: '/dance-styles' }).then(res => {
-      const danceStyles = Array.isArray(res.data) ? res.data : [];
-      this.setData({ danceStyles });
-    }).catch((err) => {
-      console.error('加载舞种列表失败:', err);
     });
   },
 
@@ -691,9 +691,50 @@ Page({
       });
       this.loadMyBookings();
       this.loadMyWaitlists();
+      // paper 皮肤：明日戏单预览（只读公开接口，仅展示用）
+      this._loadTomorrowPreview();
     }).catch((err) => {
       console.error('加载课程列表失败:', err);
       this.setData({ loading: false, courseCount: 0 });
+    });
+  },
+
+  // 纸上舞台皮肤：明日戏单（纯展示，只读 /schedules，不影响任何业务逻辑）
+  _loadTomorrowPreview() {
+    if (this.data.skinId !== 'paper') return;
+    const storeId = this.data.currentStore ? this.data.currentStore._id : '';
+    if (!storeId || !this.data.selectedDate) {
+      this.setData({ tomorrowShows: null });
+      return;
+    }
+    const parts = String(this.data.selectedDate).split('-').map(n => parseInt(n, 10));
+    if (parts.length !== 3) { this.setData({ tomorrowShows: null }); return; }
+    const d = new Date(parts[0], parts[1] - 1, parts[2]);
+    d.setDate(d.getDate() + 1);
+    const pad = n => (n < 10 ? '0' + n : '' + n);
+    const tomorrow = d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+    request({ url: '/schedules', data: { store_id: storeId, date: tomorrow }, silent: true }).then(res => {
+      const list = res.data && res.data.list ? res.data.list : (Array.isArray(res.data) ? res.data : []);
+      const names = [];
+      list.forEach(c => {
+        const n = c.dance_style_id && c.dance_style_id.name ? c.dance_style_id.name : (c.course_name || '');
+        if (n && names.indexOf(n) === -1 && names.length < 3) names.push(n);
+      });
+      this.setData({
+        tomorrowShows: { count: list.length, names: names.join(' / '), date: tomorrow }
+      });
+    }).catch(() => {
+      this.setData({ tomorrowShows: null });
+    });
+  },
+
+  // 明日戏单点击：跳到明天
+  onGoTomorrow() {
+    const t = this.data.tomorrowShows;
+    if (!t || !t.date) return;
+    const idx = (this.data.weekDays || []).findIndex(d => d.date === t.date);
+    this.onSelectDate({
+      currentTarget: { dataset: { date: t.date, index: idx > -1 ? idx : 0 } }
     });
   },
 
@@ -796,7 +837,6 @@ Page({
         showStoreModal: false
       }, () => {
         this._updateCanBookForStore();
-        this.loadDanceStyles();
         this.loadBookingWindowDays();
         this.loadHolidays();
         this.loadCourses();
@@ -823,7 +863,6 @@ Page({
       showStoreModal: false
     }, () => {
       this._updateCanBookForStore();
-      this.loadDanceStyles();
       this.loadBookingWindowDays();
       this.loadHolidays();
       this.loadCourses();
@@ -877,14 +916,31 @@ Page({
         this.loadCourses(true);
       }, 300);
 
-      // 最后弹成功提示
-      if (acceptedTemplates.length > 0) {
+      // 最后弹成功提示（paper/volt 皮肤用盖章/拳入动效层，classic 保持原提示）
+      const skinUtil = require('../../utils/skin.js');
+      const bkCf = this.data.cfmInfo || {};
+      const bkCourse = this._ticketCourse || {};
+      const bkStaleRemain = (bkCourse.max_bookings && bkCourse.current_bookings !== undefined && bkCourse.current_bookings !== null) ? Math.max(0, bkCourse.max_bookings - bkCourse.current_bookings) : null;
+      const skinSuccess = skinUtil.successState('success', '课程开始前将收到上课提醒', {
+        name: bkCf.name || bkCourse.course_name || '',
+        date: bkCf.date ? String(bkCf.date).slice(5).replace('-', '/') : '',
+        weekDay: bkCf.weekDay || '',
+        time: bkCourse.start_time || '',
+        room: bkCourse.classroom || '',
+        credits: bkCf.credits || 1,
+        unit: bkCf.unit || '课时',
+        remain: bkStaleRemain === null ? null : Math.max(0, bkStaleRemain - 1)
+      });
+      if (skinSuccess) {
+        this.setData({ skinSuccess });
+        try { wx.vibrateShort({ type: 'heavy', fail: function () {} }); } catch (e) { /* 忽略 */ }
+      } else if (acceptedTemplates.length > 0) {
         wx.showModal({
           title: '预约成功',
           content: '已为您开启上课提醒，课程开始前将收到通知',
           showCancel: false,
           confirmText: '知道了',
-          confirmColor: '#D4786E'
+          confirmColor: skinUtil.confirmColor()
         });
       } else {
         wx.showToast({ title: '预约成功', icon: 'success' });
@@ -919,7 +975,7 @@ Page({
           title: '提示',
           content: errMsg,
           confirmText: '去完善',
-          confirmColor: '#D4786E',
+          confirmColor: skinUtil.confirmColor(),
           success: (res) => {
             if (res.confirm) {
               wx.navigateTo({ url: '/pages/profile/profile' });
@@ -1046,6 +1102,7 @@ Page({
 
   onConfirmBookingModal() {
     const course = this.data.bookingModalCourse;
+    this._ticketCourse = course || null; // 快照：供预约成功票面用（data 里的会被立即清空）
     this.setData({ showBookingModal: false, bookingModalCourse: null, bookingModalText: '' });
     if (course && course._id) {
       this.doBook(course._id);
@@ -1118,6 +1175,11 @@ Page({
 
 
 
+  // 关闭皮肤成功动效层
+  onSkinSuccessOk() {
+    require('../../utils/skin.js').closeSuccess(this);
+  },
+
   onBookCourse(e) {
     // 未登录用户：先弹引导登录弹窗，用户点"去登录"后再弹授权弹窗
     if (!this.data.isLoggedIn) {
@@ -1139,7 +1201,7 @@ Page({
         content: this.data.restrictedReason,
         showCancel: false,
         confirmText: '知道了',
-        confirmColor: '#D4786E'
+        confirmColor: skinUtil.confirmColor()
       });
       return;
     }
@@ -1151,7 +1213,7 @@ Page({
         content: '您的套餐暂停使用中，不能进行预约课程操作。',
         showCancel: false,
         confirmText: '知道了',
-        confirmColor: '#D4786E'
+        confirmColor: skinUtil.confirmColor()
       });
       return;
     }
@@ -1166,7 +1228,7 @@ Page({
         content: `您的套餐只能在${packageStoreNames || '对应'}门店进行预约课程，请选择在该门店进行预约。`,
         showCancel: false,
         confirmText: '知道了',
-        confirmColor: '#D4786E'
+        confirmColor: skinUtil.confirmColor()
       });
       return;
     }
@@ -1189,7 +1251,7 @@ Page({
           content: `您的套餐仅限预约${allowedStyleNames || '指定'}舞种的课程，该课程不在可预约范围内。`,
           showCancel: false,
           confirmText: '知道了',
-          confirmColor: '#D4786E'
+          confirmColor: skinUtil.confirmColor()
         });
         return;
       }
@@ -1206,7 +1268,7 @@ Page({
           content: `您的套餐仅可在${allowedText}预约课程，该课程（${course.date} ${weekdayNames[courseWeekday]}）不可预约，请选择其他日期的课程。`,
           showCancel: false,
           confirmText: '知道了',
-          confirmColor: '#D4786E'
+          confirmColor: skinUtil.confirmColor()
         });
         return;
       }
@@ -1232,7 +1294,7 @@ Page({
           content: `您的套餐仅可预约${windowsText}开课的课程，该课程（${course.start_time}开课）不可预约，请选择其他时段的课程。`,
           showCancel: false,
           confirmText: '知道了',
-          confirmColor: '#D4786E'
+          confirmColor: skinUtil.confirmColor()
         });
         return;
       }
@@ -1243,6 +1305,11 @@ Page({
     const action = e.currentTarget.dataset.action;
     const btnType = course.r && course.r.bookBtnType;
     if (action !== 'waitlist' && ['ended', 'cancelled', 'done', 'ongoing', 'not_open', 'waitlisted', 'full'].indexOf(btnType) !== -1) {
+      // 未开放场次按钮仍显示「立即锁定」，点击给出开抢时间提示（不静默）
+      if (btnType === 'not_open') {
+        const grab = course.r && course.r.openGrab;
+        wx.showToast({ title: grab ? `该场次 ${grab} 开抢` : '该场次暂未开放预约', icon: 'none' });
+      }
       return;
     }
 
@@ -1313,15 +1380,39 @@ Page({
       // 通过已有的 packages 数据判断（避免重复请求）
       const pkgData = this.data._packagesData || {};
       const pending = pkgData.pending || [];
-      const active = pkgData.active || [];
-      if (pending.length > 0 && active.length === 0) {
+      const act = pkgData.history || pkgData.packages || [];
+      const hasActivePkg = act.some(p => p.status === 'active' && !p.is_suspended);
+      if (pending.length > 0 && !hasActivePkg) {
         const pkgName = pending[0].package_name || '套餐';
         modalText += `\n\n预约将激活您的「${pkgName}」，服务有效期从激活日开始计算。`;
       }
+      // 统一扣除口径：挑选本节课实际生效的套餐，判定扣「次 / 课时 / 天」
+      const effPkg = pickEffectivePackage(act, course);
+      const unitInfo = getCreditUnitInfo(effPkg, course.credits_cost || 1);
+      modalText += `\n\n本次消耗：${unitInfo.deductText}`;
+      // 确认弹窗票面（对齐预览 LOCKED 版式：日期 星期 时间 · 教室 / 扣课时 · 剩余）
+      const cfDate = course.date || '';
+      const cfD = cfDate ? new Date(String(cfDate).replace(/-/g, '/')) : null;
+      const cfWd = cfD ? '周' + '日一二三四五六'.charAt(cfD.getDay()) : '';
+      const cfRemain = course.max_bookings && course.current_bookings !== undefined && course.current_bookings !== null ? Math.max(0, course.max_bookings - course.current_bookings) : null;
+      const cfCoach = course.coach_id && course.coach_id.name ? course.coach_id.name : '待定';
       this.setData({
         showBookingModal: true,
         bookingModalCourse: course,
-        bookingModalText: modalText
+        bookingModalText: modalText,
+        cfmInfo: {
+          name: course.course_name || '课程',
+          date: cfDate,
+          weekDay: cfWd,
+          time: (course.start_time || '') + '-' + (course.end_time || ''),
+          room: course.classroom || '教室待定',
+          credits: unitInfo.amount,
+          unit: unitInfo.unit,
+          deductText: unitInfo.deductText,
+          remain: cfRemain,
+          coach: cfCoach,
+          shrinkDays: unitInfo.shrinkDays
+        }
       });
     });
   },
@@ -1533,6 +1624,34 @@ Page({
     }
 
     const bookedUsers = course.booked_users || [];
+    // 卡头周X/日期（VOLT 卡版式：周X 在时间前，日期在开始时间下方、与幽灵编号底边对齐）
+    let cardWd = '', cardDateCn = '';
+    // 截止预约提示（人数不足自动取消口径）：开场前X小时/分钟
+    let autoCancelText = '';
+    if (isOfficial && course.booking_deadline) {
+      const bd = parseInt(course.booking_deadline, 10) || 0;
+      if (bd > 0) {
+        const bh = Math.floor(bd / 60), bm = bd % 60;
+        autoCancelText = '开场前' + (bh ? bh + '小时' : '') + (bm ? bm + '分钟' : '') + '人数不足自动取消';
+      }
+    }
+    if (course.date) {
+      const cd = new Date(String(course.date).replace(/-/g, '/'));
+      if (!isNaN(cd.getTime())) {
+        cardWd = '周' + '日一二三四五六'.charAt(cd.getDay());
+        cardDateCn = (cd.getMonth() + 1) + '/' + String(cd.getDate()).padStart(2, '0');
+      }
+    }
+    // 未开放预约（课程日期在预约窗口外）：推算开抢日 = 课程日期 - (窗口天数-1)，供 VOLT 卡「MM/DD 开抢」展示
+    let openGrab = '';
+    if (bookBtnType === 'not_open' && course.date) {
+      const win = parseInt(this.data.bookingWindowDays, 10) || 7;
+      const dp = String(course.date).split('-');
+      if (dp.length === 3) {
+        const d = new Date(parseInt(dp[0], 10), parseInt(dp[1], 10) - 1, parseInt(dp[2], 10) - (win - 1));
+        openGrab = `${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}`;
+      }
+    }
     // 双保险：后端对无覆盖查看者不下发 current_bookings（字段缺失即代表已脱敏），
     // 即使前端 canViewCapacity 状态与后端不一致，也强制显示"已约?/?"
     const capacityVisible = canViewCapacity && course.current_bookings !== undefined;
@@ -1556,14 +1675,19 @@ Page({
         bookBtnText,
         bookBtnClass,
         showWaitlistBtn,
+        openGrab,
+        weekday: cardWd,
+        dateCn: cardDateCn,
+        autoCancelText: autoCancelText,
         showAvatars: capacityVisible && bookedUsers.length > 0,
         avatarList: bookedUsers.slice(0, 10),
         avatarMore: Math.max(0, bookedUsers.length - 10),
         deadlineText: course.booking_deadline_text || '',
         cancelDeadlineText: course.cancel_deadline_text || '',
         showDeadline: isOfficial && !!course.booking_deadline_text,
-        showTime: isOfficial,
-        showMinCapacity: isOfficial,
+        // 时间/最低成班人数仅对"有该门店套餐覆盖"的查看者可见（无覆盖会员与游客一致，显示 ?? 占位）
+        showTime: capacityVisible,
+        showMinCapacity: capacityVisible,
         showRoom: !!(course.room || course.classroom)
       }
     };

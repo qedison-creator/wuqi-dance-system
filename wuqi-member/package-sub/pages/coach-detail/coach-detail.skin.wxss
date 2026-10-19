@@ -1,0 +1,258 @@
+/* 教练详情页皮肤样式（纸上舞台 / VOLT）—— 由 coach-detail.wxss 通过 @import 引入 */
+
+/* ---------- 纸上舞台：人物志头 ---------- */
+.chp-head { padding: 30rpx 30rpx 6rpx; }
+.chp-row { display: flex; gap: 30rpx; align-items: flex-start; }
+/* 肖像：3:4 方版（预览 104×132px ≈ 208×264rpx） */
+.chp-ava {
+  position: relative;
+  width: 208rpx; height: 264rpx;
+  border: 2rpx solid var(--sk-line);
+  border-radius: 8rpx;
+  background: #ECE5D6;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.chp-ava-img { width: 100%; height: 100%; }
+.chp-ava-k {
+  position: absolute; right: 12rpx; bottom: 10rpx;
+  font-size: 18rpx; letter-spacing: 0.2em;
+  color: #FCFAF4;
+  text-shadow: 0 2rpx 6rpx rgba(34, 29, 21, 0.55);
+}
+.chp-id { flex: 1; min-width: 0; padding-top: 10rpx; }
+.chp-k { font-size: 18rpx; letter-spacing: 0.3em; color: var(--sk-hint); font-weight: 700; }
+.chp-nm-row { display: flex; align-items: center; gap: 18rpx; margin: 12rpx 0 14rpx; }
+.chp-name {
+  font-family: var(--sk-serif);
+  font-size: 66rpx; font-weight: 900;
+  color: var(--sk-ink); letter-spacing: 0.06em;
+}
+.chp-seal {
+  width: 50rpx; height: 50rpx;
+  background: var(--sk-acc); color: #FCF7EE;
+  font-size: 23rpx; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 6rpx; transform: rotate(-4deg);
+  flex-shrink: 0;
+}
+/* 预览：舞种行 = 点色圆点 + 文字 */
+.chp-sty { display: flex; align-items: center; gap: 12rpx; font-size: 24rpx; color: var(--sk-sub); }
+.chp-sty-dot { width: 14rpx; height: 14rpx; border-radius: 50%; background: var(--sk-acc); flex-shrink: 0; }
+.chp-sty-t { font-size: 24rpx; color: var(--sk-sub); }
+.chp-rule { margin-top: 24rpx; border-top: 6rpx double #C9BFA8; }
+
+/* ---------- 纸上舞台：小节头（壹/贰 + 中文 + 英文右对齐，与首页同款） ---------- */
+.chp-sec-h { display: flex; align-items: baseline; gap: 16rpx; margin-bottom: 8rpx; }
+.chp-sec-no { font-family: var(--sk-serif); font-size: 22rpx; color: #B93A26; letter-spacing: 0.2em; font-weight: 700; }
+.chp-sec-t { font-family: var(--sk-serif); font-size: 34rpx; font-weight: 700; color: #221D15; letter-spacing: 0.06em; }
+.chp-sec-en { margin-left: auto; font-size: 17rpx; letter-spacing: 0.28em; color: #A79D89; }
+.chp-sec-rule { border-top: 6rpx double #C9BFA8; margin-bottom: 6rpx; }
+
+/* ---------- 纸上舞台：影集（三列小版 + 「影N」编号） ---------- */
+.cd-photo-section-h { padding: 0 30rpx; }
+.chp-plates { display: flex; flex-wrap: wrap; gap: 24rpx; padding: 16rpx 30rpx 0; }
+.chp-plate { width: calc((100% - 48rpx) / 3); }
+.chp-plate-img {
+  display: block; width: 100%; height: 286rpx;
+  border: 2rpx solid var(--sk-line); border-radius: 6rpx;
+  background: #ECE5D6;
+}
+.chp-plate-cap { display: block; margin-top: 10rpx; font-size: 19rpx; color: #A79D89; letter-spacing: 0.06em; }
+
+/* ---------- 纸上舞台：课程行（预览 SCREEN 07：时间列 + 课程主体 + 朱砂按钮） ---------- */
+.skin-paper .cd-course-section { padding: 0 30rpx; }
+.chp-c-row {
+  display: flex; align-items: center; gap: 24rpx;
+  padding: 26rpx 4rpx;
+  border-bottom: 2rpx solid var(--sk-line);
+}
+.chp-c-time { width: 136rpx; text-align: center; flex-shrink: 0; }
+.chp-c-time-b {
+  display: block; font-family: var(--sk-serif); font-size: 32rpx; font-weight: 700;
+  color: #221D15; line-height: 1.2; letter-spacing: 0.02em;
+}
+.chp-c-time-e { font-size: 19rpx; color: #A79D89; }
+.chp-c-main { flex: 1; min-width: 0; }
+.chp-c-name {
+  display: flex; align-items: center; gap: 12rpx;
+  font-family: var(--sk-serif); font-size: 28rpx; font-weight: 700; color: #221D15;
+}
+.chp-c-dot { width: 12rpx; height: 12rpx; border-radius: 50%; flex-shrink: 0; }
+.chp-c-meta { display: flex; flex-wrap: wrap; gap: 0 8rpx; margin-top: 6rpx; font-size: 21rpx; color: #6C6353; }
+.chp-c-note { display: block; margin-top: 4rpx; font-size: 19rpx; color: #A79D89; line-height: 1.4; }
+.chp-c-tag {
+  display: inline-block; margin-top: 8rpx; padding: 2rpx 10rpx;
+  border: 2rpx solid #C9BFA8; border-radius: 4rpx;
+  font-size: 18rpx; color: #A0802E;
+}
+/* 席位数进度线（预览 .cbar：2px 纸灰底 + 墨色实心） */
+.chp-c-bar {
+  max-width: 300rpx; height: 4rpx; margin-top: 12rpx;
+  background: #ECE5D6; border-radius: 2rpx; overflow: hidden;
+}
+.chp-c-bar-fill { display: block; height: 100%; background: #221D15; }
+.chp-c-row .cd-course-action { margin-left: 0; }
+/* 预约按钮（预览 .cbtn：34px 高 / 16px 内边距 / 12px 字） */
+.chp-c-row .cd-book-btn { height: 68rpx; padding: 0 32rpx; }
+.chp-c-row .cd-book-btn text { font-size: 24rpx; }
+
+/* ---------- 纸上舞台：页脚 ---------- */
+.chp-foot { padding: 60rpx 0 10rpx; text-align: center; }
+.chp-foot-cn { font-family: var(--sk-serif); font-size: 22rpx; letter-spacing: 0.4em; color: #A79D89; }
+
+/* ---------- 皮肤统一确认弹窗（paper / volt，票面样式在 app.wxss 全局） ---------- */
+
+/* 纸上舞台：简介/相册/课程卡覆盖 */
+.skin-paper .cd-section-title { font-family: var(--sk-serif); letter-spacing: 0.08em; }
+.skin-paper .cd-section-dot { background: var(--sk-acc); border-radius: 2rpx; }
+.skin-paper .cd-section-dot.accent { background: var(--sk-gold); }
+/* 简介：预览为纯引文块（去卡片底、去小节标题，左侧发丝粗线） */
+.skin-paper .cd-bio-section {
+  background: transparent;
+  border-radius: 0;
+  box-shadow: none;
+  padding: 0;
+  margin: 36rpx 30rpx 0;
+}
+.skin-paper .cd-bio {
+  border-left: 6rpx solid #C9BFA8;
+  padding: 12rpx 0 12rpx 32rpx;
+  font-family: var(--sk-serif);
+  font-size: 26rpx;
+  color: var(--sk-sub);
+  line-height: 2.1;
+}
+.skin-paper .cd-photo { border-radius: 4rpx; border: 2rpx solid var(--sk-line); }
+.skin-paper .cd-course-card {
+  background: var(--sk-card);
+  border: 2rpx solid var(--sk-line);
+  border-radius: 8rpx;
+  box-shadow: none;
+}
+.skin-paper .cd-course-name { font-family: var(--sk-serif); }
+.skin-paper .cd-book-btn {
+  background: var(--sk-acc); color: var(--sk-btn-fg);
+  border-radius: var(--sk-btn-radius);
+  font-family: var(--sk-serif); font-weight: 700;
+  box-shadow: 2rpx 3rpx 0 rgba(34, 29, 21, 0.18);
+}
+.skin-paper .cd-book-btn.booked { background: var(--sk-ink); }
+.skin-paper .cd-book-btn.disabled,
+.skin-paper .cd-book-btn.disabled-clickable { background: #ECE5D6; color: var(--sk-hint); box-shadow: none; }
+.skin-paper .cd-book-btn.waitlist-btn,
+.skin-paper .cd-book-btn.waitlisted { background: transparent; border: 2rpx solid var(--sk-ink); color: var(--sk-ink); }
+/* 按钮文字统一用纸面奶油色（覆盖经典的白色），描边/灰底按钮另行覆盖为墨色/纸灰 */
+.skin-paper .cd-book-btn text { color: var(--sk-btn-fg); }
+/* 描边/灰底按钮的内部文字色（否则继承白色，在纸底上不可见） */
+.skin-paper .cd-book-btn.waitlist-btn text,
+.skin-paper .cd-book-btn.waitlisted text,
+.skin-paper .cd-book-btn.state-done text { color: var(--sk-ink); }
+.skin-paper .cd-book-btn.disabled text,
+.skin-paper .cd-book-btn.disabled-clickable text { color: var(--sk-hint); }
+/* 状态色（原为经典绿/红渐变，纸上舞台统一为墨/描边/纸灰三档） */
+.skin-paper .cd-book-btn.state-ongoing {
+  background: var(--sk-ink); color: var(--sk-btn-fg);
+  box-shadow: 2rpx 3rpx 0 rgba(34, 29, 21, 0.18);
+}
+.skin-paper .cd-book-btn.state-ongoing text { color: var(--sk-btn-fg); }
+.skin-paper .cd-book-btn.state-done {
+  background: transparent; border: 2rpx solid var(--sk-ink);
+  box-shadow: none;
+}
+.skin-paper .cd-book-btn.state-full { background: #ECE5D6; box-shadow: none; }
+.skin-paper .cd-book-btn.state-full text { color: var(--sk-hint); }
+
+/* ---------- VOLT：主理人头 ---------- */
+.chv-head { padding: 30rpx 30rpx 6rpx; }
+.chv-kicker {
+  font-size: 19rpx; letter-spacing: 0.28em;
+  color: var(--sk-sub); font-weight: 700;
+}
+.chv-nm-row { display: flex; align-items: center; gap: 20rpx; margin: 10rpx 0 14rpx; }
+.chv-name { font-size: 64rpx; font-weight: 900; color: var(--sk-ink); }
+.chv-today {
+  font-size: 20rpx; font-weight: 900; letter-spacing: 0.08em;
+  background: var(--sk-ink); color: var(--sk-acc-fg);
+  padding: 6rpx 18rpx; border-radius: 12rpx;
+}
+.chv-meta-row { display: flex; align-items: center; gap: 16rpx; }
+.chv-ava-s {
+  width: 56rpx; height: 56rpx;
+  border: 3rpx solid var(--sk-ink); border-radius: 16rpx;
+  overflow: hidden; flex-shrink: 0;
+  background: #FFFFFF;
+}
+.chv-ava-img { width: 100%; height: 100%; }
+.chv-sty { font-size: 23rpx; color: var(--sk-sub); font-weight: 700; }
+
+/* VOLT：简介/相册/课程卡覆盖 */
+.skin-volt .cd-section-title { font-weight: 900; }
+.skin-volt .cd-section-dot {
+  background: var(--sk-volt);
+  border-radius: 4rpx;
+  box-shadow: 2rpx 2rpx 0 var(--sk-ink);
+}
+.skin-volt .cd-section-dot.accent { background: var(--sk-volt); }
+.skin-volt .cd-bio {
+  background: var(--sk-card);
+  border: 3rpx solid var(--sk-ink);
+  border-radius: 24rpx;
+  padding: 26rpx 30rpx;
+  box-shadow: 5rpx 5rpx 0 var(--sk-ink);
+  font-weight: 500;
+}
+.skin-volt .cd-photo {
+  border: 3rpx solid var(--sk-ink);
+  border-radius: 20rpx;
+  box-shadow: 4rpx 4rpx 0 var(--sk-ink);
+}
+.skin-volt .cd-course-card {
+  background: var(--sk-card);
+  border: 3rpx solid var(--sk-ink);
+  border-radius: 28rpx;
+  box-shadow: 6rpx 6rpx 0 var(--sk-ink);
+}
+.skin-volt .cd-book-btn {
+  background: var(--sk-ink); color: var(--sk-acc-fg);
+  border-radius: 999rpx; font-weight: 800;
+  border: 3rpx solid var(--sk-ink);
+}
+.skin-volt .cd-book-btn.booked { background: var(--sk-volt); color: var(--sk-ink); }
+.skin-volt .cd-book-btn.disabled,
+.skin-volt .cd-book-btn.disabled-clickable { background: transparent; color: var(--sk-hint); border-color: var(--sk-line); }
+.skin-volt .cd-book-btn.waitlist-btn,
+.skin-volt .cd-book-btn.waitlisted { background: transparent; color: var(--sk-ink); }
+
+/* ---------- 骨架屏（纸上舞台 / VOLT） ---------- */
+.skin-paper .loading-skeleton .sk-avatar, .skin-paper .loading-skeleton .sk-photo,
+.skin-paper .loading-skeleton .sk-name, .skin-paper .loading-skeleton .sk-line,
+.skin-paper .loading-skeleton .sk-tag, .skin-paper .loading-skeleton .sk-tag-short,
+.skin-paper .loading-skeleton .sk-section-title, .skin-paper .loading-skeleton .sk-photo,
+.skin-paper .loading-skeleton .sk-course-card { background: #ECE5D6; }
+/* 纸上舞台骨架：肖像改 3:4 方版、影集改三列小版（与正式内容一致） */
+.skin-paper .loading-skeleton .sk-avatar { width: 208rpx; height: 264rpx; border-radius: 8rpx; align-self: flex-start; margin-left: 30rpx; margin-right: 30rpx; }
+.skin-paper .loading-skeleton .sk-name { align-self: flex-start; margin-left: 268rpx; }
+.skin-paper .loading-skeleton .sk-photo-row { display: flex; gap: 24rpx; width: 100%; }
+.skin-paper .loading-skeleton .sk-photo { width: calc((100% - 48rpx) / 3); height: 286rpx; margin-right: 0; border-radius: 6rpx; }
+.skin-paper .loading-skeleton .sk-section-title { align-self: flex-start; }
+.skin-paper .loading-skeleton .sk-course-card { height: 120rpx; border-radius: 8rpx; }
+.skin-volt .loading-skeleton .sk-avatar, .skin-volt .loading-skeleton .sk-photo,
+.skin-volt .loading-skeleton .sk-name, .skin-volt .loading-skeleton .sk-line,
+.skin-volt .loading-skeleton .sk-tag, .skin-volt .loading-skeleton .sk-tag-short,
+.skin-volt .loading-skeleton .sk-section-title, .skin-volt .loading-skeleton .sk-course-card { background: #ECEAE2; }
+.skin-volt .loading-skeleton .sk-avatar { border: 3rpx solid #111310; border-radius: 18rpx; }
+.skin-volt .loading-skeleton .sk-course-card { border: 3rpx solid #111310; border-radius: 24rpx; box-shadow: 5rpx 5rpx 0 #111310; }
+
+/* ---------- VOLT：席位「仅剩 X / XX 席」青柠色块（对齐首页/预约页） ---------- */
+.skin-volt .cdc-low {
+  display: inline-block;
+  background: #D7FF3B; color: #111310;
+  padding: 0 8rpx; border-radius: 6rpx;
+  font-weight: 900;
+  font-family: 'GroteskV', sans-serif;
+}
+.skin-volt .cdc-low.zero { background: #DCDAD0; color: #77786F; }
+
+/* ---------- 卡宽与首页一致：抵消 cd-course-section 的 28rpx 内边距（30-28=2） ---------- */
+.skin-volt .bk-volt-card { margin-left: 2rpx; margin-right: 2rpx; }

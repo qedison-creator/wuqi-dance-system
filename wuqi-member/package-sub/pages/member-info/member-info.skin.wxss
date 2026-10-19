@@ -1,0 +1,15 @@
+/* member-info 皮肤覆盖（纸上舞台 / VOLT）—— 由 member-info.wxss 通过 @import 引入 */
+
+/* 会员信息：纸上舞台 / VOLT 完整覆盖 */
+.skin-root.skin-paper.page { background: #F5F1E8; }
+.skin-paper .ic-edit { color: #B93A26; }
+.skin-paper .ic-val-new { color: #B93A26; }
+.skin-paper .gender-segment-opt.active { background: #B93A26; border-color: #B93A26; }
+.skin-paper .fa-submit { background: #B93A26; color: #FCF7EE; border-radius: 6rpx; font-family: 'Noto Serif SC', serif; letter-spacing: 0.15em; box-shadow: 2rpx 3rpx 0 rgba(34, 29, 21, 0.18); }
+.skin-paper .fa-submit.disabled { background: #C9C0B0; box-shadow: none; }
+.skin-root.skin-volt.page { background: #F2F1ED; }
+.skin-volt .ic-edit { color: #111310; font-weight: 800; }
+.skin-volt .ic-val-new { color: #111310; font-weight: 800; }
+.skin-volt .gender-segment-opt.active { background: #111310; border-color: #111310; color: #D7FF3B; }
+.skin-volt .fa-submit { background: #111310; color: #D7FF3B; border-radius: 999rpx; font-weight: 800; box-shadow: none; }
+.skin-volt .fa-submit.disabled { background: #DCDAD0; color: #77786F; }

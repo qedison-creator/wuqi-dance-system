@@ -8,6 +8,7 @@ const PendingTask = require('../models/PendingTask');
 const logService = require('./log.service');
 const memberService = require('./member.service');
 const packageService = require('./package.service');
+const packageLabel = require('../utils/packageLabel');
 const wechatMessageService = require('./wechat-message.service');
 const { broadcastToAdmins, sendToUser } = require('./websocket.service');
 const { CANCEL_TYPE, TIME_RULES, SCHEDULE_STATUS } = require('../constants/scheduleStatus.constants');
@@ -615,8 +616,8 @@ exports.createBooking = async (userId, scheduleId) => {
     }
 
     if (storeActivePackages.length === 0 && storePendingPackages.length > 0) {
-      // 按舞种限制 + 可用星期 + 可用时段过滤待激活套餐
-      const matchingPending = storePendingPackages.filter(p => packageMatchesDanceStyle(p, scheduleDanceStyleId) && packageMatchesWeekday(p, schedule.date) && packageMatchesTimeWindow(p, schedule.start_time));
+      // 按舞种限制 + 可用星期 + 可用时段过滤待激活套餐（排除赠课卡：随主套餐联动激活，不可单独激活）
+      const matchingPending = storePendingPackages.filter(p => !p.is_bonus && packageMatchesDanceStyle(p, scheduleDanceStyleId) && packageMatchesWeekday(p, schedule.date) && packageMatchesTimeWindow(p, schedule.start_time));
       if (matchingPending.length > 0) {
         const pendingPkg = matchingPending[0];
         activationNotice = '您的套餐已自动激活';
@@ -638,7 +639,17 @@ exports.createBooking = async (userId, scheduleId) => {
 
     let currentPackage = null;
     const timeCard = storeActivePackages.find(p => p.package_type === 'time_card' && (!p.end_date || new Date() <= p.end_date) && packageMatchesDanceStyle(p, scheduleDanceStyleId) && packageMatchesWeekday(p, schedule.date) && packageMatchesTimeWindow(p, schedule.start_time));
-    const countCard = storeActivePackages.find(p => p.package_type === 'count_card' && p.remaining_credits > 0 && (!p.end_date || new Date() <= p.end_date) && packageMatchesDanceStyle(p, scheduleDanceStyleId) && packageMatchesWeekday(p, schedule.date) && packageMatchesTimeWindow(p, schedule.start_time));
+    // 次卡选卡：赠课卡优先（先扣赠送/临期先用），多张按到期近优先，再按录入先后
+    const matchedCountCards = storeActivePackages
+      .filter(p => p.package_type === 'count_card' && p.remaining_credits > 0 && (!p.end_date || new Date() <= p.end_date) && packageMatchesDanceStyle(p, scheduleDanceStyleId) && packageMatchesWeekday(p, schedule.date) && packageMatchesTimeWindow(p, schedule.start_time))
+      .sort((a, b) => {
+        if (!!a.is_bonus !== !!b.is_bonus) return a.is_bonus ? -1 : 1;
+        const ae = a.end_date ? new Date(a.end_date).getTime() : Infinity;
+        const be = b.end_date ? new Date(b.end_date).getTime() : Infinity;
+        if (ae !== be) return ae - be;
+        return new Date(a.created_at) - new Date(b.created_at);
+      });
+    const countCard = matchedCountCards[0] || null;
 
     if (timeCard) {
       currentPackage = timeCard;
@@ -665,8 +676,8 @@ exports.createBooking = async (userId, scheduleId) => {
       }).sort({ created_at: 1 });
 
       if (storePendingPackages.length > 0) {
-        // 按舞种限制 + 可用星期 + 可用时段过滤待激活套餐
-        const matchingPending = storePendingPackages.filter(p => packageMatchesDanceStyle(p, scheduleDanceStyleId) && packageMatchesWeekday(p, schedule.date) && packageMatchesTimeWindow(p, schedule.start_time));
+        // 按舞种限制 + 可用星期 + 可用时段过滤待激活套餐（排除赠课卡：随主套餐联动激活）
+        const matchingPending = storePendingPackages.filter(p => !p.is_bonus && packageMatchesDanceStyle(p, scheduleDanceStyleId) && packageMatchesWeekday(p, schedule.date) && packageMatchesTimeWindow(p, schedule.start_time));
         if (matchingPending.length > 0) {
           activationNotice = '您的套餐已自动激活';
           currentPackage = await packageService.activatePackageById(matchingPending[0]._id, userId, {
@@ -711,6 +722,7 @@ exports.createBooking = async (userId, scheduleId) => {
       const limitCheck = await checkTimeCardLimit(currentPackage, schedule.date, creditsCost);
       if (!limitCheck.allowed) {
         // 时间卡限额已满，查找同门店可用次卡（pending 或 active），按舞种限制 + 可用星期过滤
+        // 兜底选卡：赠课卡优先（先扣赠送），多张按到期近优先，再按录入先后
         const availableCountCards = (await UserPackage.find({
           user_id: userId,
           $or: [{ store_id: scheduleStoreId }, { extra_store_ids: scheduleStoreId }],
@@ -718,7 +730,14 @@ exports.createBooking = async (userId, scheduleId) => {
           status: 'active',
           is_suspended: false,
           remaining_credits: { $gt: 0 },
-        }).sort({ created_at: 1 })).filter(p => packageMatchesDanceStyle(p, scheduleDanceStyleId) && packageMatchesWeekday(p, schedule.date) && packageMatchesTimeWindow(p, schedule.start_time));
+        }).sort({ end_date: 1, created_at: 1 })).filter(p => packageMatchesDanceStyle(p, scheduleDanceStyleId) && packageMatchesWeekday(p, schedule.date) && packageMatchesTimeWindow(p, schedule.start_time))
+          .sort((a, b) => {
+            if (!!a.is_bonus !== !!b.is_bonus) return a.is_bonus ? -1 : 1;
+            const ae = a.end_date ? new Date(a.end_date).getTime() : Infinity;
+            const be = b.end_date ? new Date(b.end_date).getTime() : Infinity;
+            if (ae !== be) return ae - be;
+            return new Date(a.created_at) - new Date(b.created_at);
+          });
 
         const pendingCountCards = (await UserPackage.find({
           user_id: userId,
@@ -726,6 +745,7 @@ exports.createBooking = async (userId, scheduleId) => {
           package_type: 'count_card',
           status: 'pending',
           is_suspended: false,
+          is_bonus: { $ne: true },  // 赠课卡随主套餐联动激活，不参与兜底激活
         }).sort({ created_at: 1 })).filter(p => packageMatchesDanceStyle(p, scheduleDanceStyleId) && packageMatchesWeekday(p, schedule.date) && packageMatchesTimeWindow(p, schedule.start_time));
 
         if (availableCountCards.length > 0) {
@@ -733,6 +753,13 @@ exports.createBooking = async (userId, scheduleId) => {
           currentPackage = availableCountCards[0];
           currentPackage._fallbackFromTimeCard = true;
           currentPackage._limitCheck = limitCheck;
+          // 限额兜底扣到赠课卡时，通过 activationNotice 通道提示会员
+          if (currentPackage.is_bonus) {
+            const limitLabel = limitCheck.limitType === 'weekly' ? '本周' : (limitCheck.limitType === 'monthly' ? '本月' : (limitCheck.limitType === 'occupied' ? '' : '今日'));
+            activationNotice = limitCheck.limitType === 'occupied'
+              ? '本次使用赠送课时'
+              : `时间卡${limitLabel}次数已用完，本次使用赠送课时`;
+          }
         } else if (pendingCountCards.length > 0) {
           // 有未激活的次卡，抛出特殊错误让前端弹窗确认
           const limitLabel = limitCheck.limitType === 'weekly' ? '本周' : (limitCheck.limitType === 'monthly' ? '本月' : (limitCheck.limitType === 'occupied' ? '上课权限' : '今日'));
@@ -805,6 +832,7 @@ exports.createBooking = async (userId, scheduleId) => {
       status: 'booked',
       credits_deducted: creditsCost,
       user_package_id: currentPackage._id,
+      ...packageLabel.buildPackageFields(currentPackage),  // 套餐快照（扣课溯源）
       member_snapshot: Booking.buildMemberSnapshot(member),
       is_late_booking: isLateBooking,  // 标记是否为补约
       ...(timeCardShrinkDays > 0 ? { shrink_days: timeCardShrinkDays } : {}),  // 按天口径缩期天数（创建后立即缩短end_date）
@@ -970,9 +998,13 @@ exports.cancelBooking = async (userId, bookingId) => {
       // 恢复课时
       const pkg = booking.user_package_id ? await UserPackage.findById(booking.user_package_id) : await UserPackage.findOne({ user_id: userId, status: 'active' });
       if (pkg) {
-        pkg.remaining_credits += booking.credits_deducted;
-        if (pkg.status === 'exhausted') pkg.status = 'active';
-        await pkg.save();
+        // 仅次卡退还剩余次数：时间卡按天口径由 restoreTimeCardShrink 恢复有效期，
+        // 时间卡课时口径按预约记录实时计算，两者都不占用 remaining_credits，避免无中生有地增加余额
+        if (pkg.package_type === 'count_card') {
+          pkg.remaining_credits += booking.credits_deducted;
+          if (pkg.status === 'exhausted') pkg.status = 'active';
+          await pkg.save();
+        }
       }
       // 按天口径：把缩掉的有效期加回
       await restoreTimeCardShrink(booking);
@@ -998,9 +1030,10 @@ exports.cancelBooking = async (userId, bookingId) => {
     booking.credits_refunded = booking.credits_deducted;
     await booking.save();
 
-    // 恢复课时
+    // 恢复课时（仅次卡退还剩余次数；时间卡按天口径由 restoreTimeCardShrink 恢复有效期，
+    // 时间卡课时口径按预约记录实时计算，两者都不占用 remaining_credits，避免虚增余额）
     const pkg = booking.user_package_id ? await UserPackage.findById(booking.user_package_id) : await UserPackage.findOne({ user_id: userId, status: 'active' });
-    if (pkg) {
+    if (pkg && pkg.package_type === 'count_card') {
       pkg.remaining_credits += booking.credits_deducted;
       if (pkg.status === 'exhausted') pkg.status = 'active';
       await pkg.save();
@@ -1047,9 +1080,13 @@ exports.cancelBooking = async (userId, bookingId) => {
       // 恢复课时
       const pkg = booking.user_package_id ? await UserPackage.findById(booking.user_package_id) : await UserPackage.findOne({ user_id: userId, status: 'active' });
       if (pkg) {
-        pkg.remaining_credits += booking.credits_deducted;
-        if (pkg.status === 'exhausted') pkg.status = 'active';
-        await pkg.save();
+        // 仅次卡退还剩余次数：时间卡按天口径由 restoreTimeCardShrink 恢复有效期，
+        // 时间卡课时口径按预约记录实时计算，两者都不占用 remaining_credits，避免无中生有地增加余额
+        if (pkg.package_type === 'count_card') {
+          pkg.remaining_credits += booking.credits_deducted;
+          if (pkg.status === 'exhausted') pkg.status = 'active';
+          await pkg.save();
+        }
       }
       // 按天口径：把缩掉的有效期加回
       await restoreTimeCardShrink(booking);
@@ -1159,6 +1196,10 @@ exports.getMyBookings = async (userId, type, page, pageSize, storeId) => {
     filter.schedule_id = { $in: scheduleIds };
   }
 
+  // 现场签到（source='onsite'）自动生成的记录不是预约，不应出现在"预约记录"。
+  // 这些记录仍保留在库中作为扣课凭证，并在"上课记录"中展示。
+  filter.source = { $ne: 'onsite' };
+
   const list = await Booking.find(filter)
     .populate({
       path: 'schedule_id',
@@ -1182,9 +1223,17 @@ exports.getMyBookings = async (userId, type, page, pageSize, storeId) => {
   if (hasBooked) {
     userDoc = await User.findById(userId).select('exemption_count');
   }
+  // 该会员各类型未作废套餐张数（用于判定后缀用套餐名还是类型词）
+  const memberTypeCounts = (await packageLabel.getMemberTypeCounts([userId]))[String(userId)] || {};
   const resultList = await Promise.all(list.map(async b => {
     const obj = b.toObject();
     Object.assign(obj, buildDeductionInfo(b));
+    // 扣课溯源后缀：同类套餐≥2张用具体套餐名，否则用类型词（如「次卡」）
+    obj.package_label = packageLabel.resolvePackageSuffix(
+      b.package_name,
+      b.package_type,
+      memberTypeCounts[b.package_type] || 0
+    );
     if (b.status === 'booked') {
       obj.can_cancel = false;
       obj.cancel_phase = 'locked';
@@ -1436,9 +1485,12 @@ exports.adminCancelBooking = async (bookingId, reason, operatorId) => {
   // 恢复课时
   const pkg = booking.user_package_id ? await UserPackage.findById(booking.user_package_id) : await UserPackage.findOne({ user_id: booking.user_id, status: 'active' });
   if (pkg) {
-    pkg.remaining_credits += booking.credits_deducted;
-    if (pkg.status === 'exhausted') pkg.status = 'active';
-    await pkg.save();
+    // 仅次卡退还剩余次数（时间卡不占用 remaining_credits）
+    if (pkg.package_type === 'count_card') {
+      pkg.remaining_credits += booking.credits_deducted;
+      if (pkg.status === 'exhausted') pkg.status = 'active';
+      await pkg.save();
+    }
   }
   // 按天口径：把缩掉的有效期加回
   await restoreTimeCardShrink(booking);
@@ -1886,6 +1938,7 @@ exports.promoteWaitlist = async (waitlistId, operatorId) => {
     status: 'booked',
     credits_deducted: creditsCost,
     user_package_id: currentPackage._id,
+    ...packageLabel.buildPackageFields(currentPackage),  // 套餐快照（扣课溯源）
     member_snapshot: Booking.buildMemberSnapshot(promotedUser),
     ...(timeCardShrinkDays > 0 ? { shrink_days: timeCardShrinkDays } : {}),  // 按天口径缩期天数（创建后立即缩短end_date）
     ...buildBookingSnapshot(schedule),  // 课程快照
@@ -2115,6 +2168,7 @@ exports.notifyWaitlistUsers = async (scheduleId) => {
         status: 'booked',
         credits_deducted: creditsCost,
         user_package_id: currentPackage._id,
+        ...packageLabel.buildPackageFields(currentPackage),  // 套餐快照（扣课溯源）
         member_snapshot: Booking.buildMemberSnapshot(user),
         ...(timeCardShrinkDays > 0 ? { shrink_days: timeCardShrinkDays } : {}),  // 按天口径缩期天数（创建后立即缩短end_date）
         ...buildBookingSnapshot(schedule),  // 课程快照
@@ -2314,6 +2368,7 @@ exports.confirmWaitlistBooking = async (userId, waitlistId) => {
     status: 'booked',
     credits_deducted: creditsCost,
     user_package_id: currentPackage._id,
+    ...packageLabel.buildPackageFields(currentPackage),  // 套餐快照（扣课溯源）
     member_snapshot: Booking.buildMemberSnapshot(confirmedUser),
     ...(timeCardShrinkDays > 0 ? { shrink_days: timeCardShrinkDays } : {}),  // 按天口径缩期天数（创建后立即缩短end_date）
     ...buildBookingSnapshot(schedule),  // 课程快照
@@ -2390,6 +2445,11 @@ exports.batchCheckLowAttendance = async (hoursBefore = 2) => {
 
 // 扫码签到
 exports.checkIn = async (scheduleId, userId, operatorId = null, isOnsite = false, checkInMethod = 'scan') => {
+  // 已注销会员不可再签到（batchCheckIn 等直接调用服务层的入口一并拦截）
+  const checkInMember = await User.findById(userId).select('is_deleted').lean();
+  if (checkInMember && checkInMember.is_deleted) {
+    throw new Error('该会员已注销，无法签到');
+  }
   const schedule = await Schedule.findById(scheduleId)
     .populate('coach_id', 'name')
     .populate('dance_style_id', 'name')
@@ -2478,6 +2538,8 @@ exports.checkIn = async (scheduleId, userId, operatorId = null, isOnsite = false
         if (userPackage) {
           // 关联套餐到 booking，便于后续用量统计按套餐维度进行
           booking.user_package_id = userPackage._id;
+          // 套餐快照（扣课溯源）：即使日后套餐被作废/改名，此记录仍可溯源
+          Object.assign(booking, packageLabel.buildPackageFields(userPackage));
           await booking.save();
 
           // 时间卡签到前校验周期限制（日/周/月），与 onsiteCheckIn 保持一致
@@ -2520,7 +2582,9 @@ exports.checkIn = async (scheduleId, userId, operatorId = null, isOnsite = false
             }
           }
 
-          if (userPackage.remaining_credits >= booking.credits_deducted) {
+          // 仅次卡扣减剩余次数；时间卡按天口径已缩期、课时口径按预约记录实时统计，
+          // 均不占用 remaining_credits，避免统一口径外重复扣减
+          if (userPackage.package_type === 'count_card' && userPackage.remaining_credits >= booking.credits_deducted) {
             userPackage.remaining_credits -= booking.credits_deducted;
             if (userPackage.used_credits !== undefined) {
               userPackage.used_credits = (userPackage.used_credits || 0) + booking.credits_deducted;
@@ -2725,6 +2789,11 @@ exports.batchCheckIn = async (scheduleId, userIds, operatorId) => {
 // 签到时即时扣课时（次卡扣1 credit，时间卡占1次日/周名额）
 // 拦截条件：次卡次数不够/时间卡超限/套餐过期/无可用套餐/停卡会员（签到后恢复）
 exports.onsiteCheckIn = async (scheduleId, userId, operatorId = null, userPackageId = null) => {
+  // 已注销会员不可再签到
+  const onsiteMember = await User.findById(userId).select('is_deleted').lean();
+  if (onsiteMember && onsiteMember.is_deleted) {
+    throw new Error('该会员已注销，无法签到');
+  }
   const schedule = await Schedule.findById(scheduleId)
     .populate('coach_id', 'name')
     .populate('store_id', 'name')
@@ -2908,6 +2977,7 @@ exports.onsiteCheckIn = async (scheduleId, userId, operatorId = null, userPackag
       checked_in_by: operatorId,
       credits_deducted: creditsDeducted,
       user_package_id: pkg._id,
+      ...packageLabel.buildPackageFields(pkg),  // 套餐快照（扣课溯源）
       member_snapshot: Booking.buildMemberSnapshot(user),
       ...(timeCardShrinkDays > 0 ? { shrink_days: timeCardShrinkDays } : {}),  // 按天口径缩期天数（创建后立即缩短end_date）
       source: 'onsite',

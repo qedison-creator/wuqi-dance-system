@@ -105,6 +105,20 @@ exports.isExpired = (date) => {
 };
 
 /**
+ * 计算剩余天数（北京自然日差，与前端会员详情页口径一致）
+ * 取两端日期的北京日期部分求差，避免 end_date 的 23:59:59.999 时刻
+ * （最后一天全天有效）被向上取整多算一天。
+ * @param {Date|string|number} endDate 到期日
+ * @returns {number|null} 自然日差（可负，表示已过期）；无到期日返回 null
+ */
+exports.diffDays = (endDate) => {
+  if (!endDate) return null;
+  const end = dayjs(endDate).tz(BEIJING_TIMEZONE).startOf('day');
+  const today = dayjs().tz(BEIJING_TIMEZONE).add(serverTimeOffset, 'millisecond').startOf('day');
+  return end.diff(today, 'day');
+};
+
+/**
  * 获取指定天数后的日期（北京时间）
  * @param {number} days 天数
  * @returns {Date} 日期对象

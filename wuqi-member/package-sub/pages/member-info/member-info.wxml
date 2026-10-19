@@ -1,4 +1,4 @@
-<view class="page">
+<view class="page skin-root skin-{{skinId}}">
   <view class="info-card" wx:if="{{userInfo && !editing}}">
     <view class="ic-header">
       <text class="ic-title">个人信息</text>

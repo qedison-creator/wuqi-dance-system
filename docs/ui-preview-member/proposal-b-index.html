@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VOLT 舞力场 · 舞栖会员端 UI/UE 方案 B</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bone:#F2F1ED; --card:#FFFFFF; --ink:#111310; --mute:#77786F;
+  --line:#DCDAD0; --volt:#D7FF3B; --volt-deep:#B8E01F;
+  --anton:"Anton","Arial Black",sans-serif;
+  --grot:"Space Grotesk","PingFang SC",sans-serif;
+  --cn:-apple-system,"PingFang SC","HarmonyOS Sans SC","Microsoft YaHei",sans-serif;
+  --spring:cubic-bezier(.34,1.56,.64,1);
+  --snap:cubic-bezier(.22,1,.36,1);
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bone);color:var(--ink);font-family:var(--cn);font-size:15px;line-height:1.75}
+.wrap{max-width:1080px;margin:0 auto;padding:56px 28px 120px}
+.kicker{font-family:var(--grot);font-size:11px;letter-spacing:.35em;font-weight:700;text-transform:uppercase}
+.kicker b{color:var(--ink);background:var(--volt);padding:2px 8px;border-radius:3px;margin-right:10px}
+.masthead{border-bottom:3px solid var(--ink);padding-bottom:34px;display:flex;justify-content:space-between;align-items:flex-end;gap:24px;flex-wrap:wrap}
+h1{font-size:54px;font-weight:900;letter-spacing:-.01em;line-height:1.15;margin:16px 0 8px}
+h1 .en{font-family:var(--anton);font-weight:400;color:var(--ink);letter-spacing:.02em}
+h1 .volt-txt{background:var(--volt);padding:0 14px;display:inline-block;transform:rotate(-1.5deg)}
+.intro{max-width:660px;color:var(--mute);margin-top:18px}
+.intro b{color:var(--ink)}
+a.tolink{display:inline-block;margin-top:24px;padding:14px 32px;background:var(--ink);color:var(--volt);text-decoration:none;font-weight:800;font-size:14px;letter-spacing:.12em;border-radius:999px;transition:transform .15s var(--spring)}
+a.tolink:hover{transform:translateY(-2px)}
+a.tolink:active{transform:scale(.96)}
+.badge-volt{display:inline-flex;align-items:center;gap:8px;font-family:var(--grot);font-weight:700;font-size:12px;letter-spacing:.2em;background:var(--ink);color:var(--volt);padding:10px 18px;border-radius:999px}
+.badge-volt i{width:8px;height:8px;border-radius:50%;background:var(--volt);animation:blink 1.6s infinite}
+@keyframes blink{50%{opacity:.25}}
+section{margin-top:96px}
+.sec-head{display:flex;align-items:baseline;gap:16px;border-bottom:3px solid var(--ink);padding-bottom:14px;margin-bottom:34px}
+.sec-no{font-family:var(--grot);font-size:13px;font-weight:700;letter-spacing:.15em}
+.sec-title{font-size:26px;font-weight:900;letter-spacing:.02em}
+.sec-en{font-family:var(--grot);font-size:10px;letter-spacing:.3em;color:var(--mute);text-transform:uppercase;margin-left:auto}
+h3.sub{font-size:17px;font-weight:900;margin:40px 0 16px;display:flex;align-items:center;gap:10px}
+h3.sub::before{content:"";width:10px;height:10px;background:var(--volt);border-radius:3px;transform:rotate(45deg)}
+/* 理念 */
+.ideas{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+.idea{background:var(--card);border:2px solid var(--ink);border-radius:18px;padding:26px 24px;box-shadow:5px 5px 0 var(--ink);min-width:0}
+.idea .no{font-family:var(--anton);font-size:15px;letter-spacing:.1em;color:var(--mute)}
+.idea h4{font-size:20px;font-weight:900;margin:8px 0 10px}
+.idea p{font-size:13.5px;color:var(--mute)}
+.idea p b{color:var(--ink)}
+.idea .demo{margin-top:16px;overflow:hidden;border-radius:8px}
+/* 跑马灯 */
+.marquee{overflow:hidden;background:var(--ink);border-radius:10px;margin-top:14px;max-width:100%}
+.mq-track{display:inline-flex;white-space:nowrap;animation:mq 14s linear infinite;will-change:transform;max-width:none}
+.mq-track span{font-family:var(--grot);font-weight:700;font-size:13px;letter-spacing:.22em;color:var(--bone);padding:12px 0}
+.mq-track em{font-style:normal;color:var(--volt);padding:0 14px}
+@keyframes mq{to{transform:translateX(-50%)}}
+/* 大卡原则 */
+.focus-callout{background:var(--ink);color:var(--bone);border-radius:18px;padding:28px 30px;display:flex;gap:28px;align-items:center;flex-wrap:wrap}
+.focus-callout .big{font-family:var(--anton);font-size:44px;color:var(--volt);line-height:1;letter-spacing:.02em}
+.focus-callout p{flex:1;min-width:280px;font-size:13.5px;color:#CFCEC6}
+.focus-callout p b{color:var(--bone)}
+/* 色板 */
+.swatches{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:14px}
+.sw{border:2px solid var(--ink);border-radius:16px;overflow:hidden;background:var(--card);box-shadow:4px 4px 0 var(--ink)}
+.sw .chip{height:84px;position:relative}
+.sw .chip small{position:absolute;right:10px;bottom:8px;font-family:var(--grot);font-size:10px;letter-spacing:.15em}
+.sw .meta{padding:12px 14px;font-size:12px;line-height:1.7}
+.sw .meta b{display:block;font-size:13.5px}
+.sw .meta span{font-family:var(--grot);color:var(--mute)}
+.sw .meta em{font-style:normal;color:var(--mute);display:block}
+/* 字体 */
+.typegrid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.tcell{background:var(--card);border:2px solid var(--ink);border-radius:16px;padding:24px 26px;box-shadow:4px 4px 0 var(--ink)}
+.tcell .tag{font-family:var(--grot);font-size:10px;letter-spacing:.25em;color:var(--mute);text-transform:uppercase}
+.t1{font-size:40px;font-weight:900;letter-spacing:-.01em;line-height:1.25;margin-top:8px}
+.t-anton{font-family:var(--anton);font-weight:400;font-size:44px;letter-spacing:.02em;line-height:1.1;margin-top:8px;text-transform:uppercase}
+.t-anton .hl{background:var(--volt);padding:0 10px}
+.t3{font-size:15px;font-weight:500;margin-top:8px}
+.tnum{font-family:var(--grot);font-weight:700;font-size:46px;letter-spacing:-.02em;margin-top:8px}
+.tnum small{font-size:13px;color:var(--mute);font-family:var(--cn);font-weight:500;margin-left:6px;letter-spacing:0}
+/* 组件 */
+.comp-row{display:flex;gap:16px;flex-wrap:wrap;align-items:center}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:48px;padding:0 30px;border-radius:999px;font-size:14px;font-weight:800;letter-spacing:.1em;cursor:pointer;border:2px solid var(--ink);transition:transform .15s var(--spring)}
+.btn:active{transform:scale(.94)}
+.btn-p{background:var(--ink);color:var(--volt)}
+.btn-v{background:var(--volt);color:var(--ink)}
+.btn-g{background:transparent;color:var(--ink)}
+.btn-dis{background:var(--bone);color:var(--mute);border-color:var(--line)}
+.tagpill{display:inline-flex;align-items:center;gap:7px;padding:6px 14px;border:1.5px solid var(--ink);border-radius:999px;font-size:12px;font-weight:700;background:var(--card)}
+.tagpill .live{width:7px;height:7px;border-radius:50%;background:var(--ink);animation:blink 1.2s infinite}
+.tagpill.live-tag{background:var(--ink);color:var(--volt)}
+.tagpill.live-tag .live{background:var(--volt)}
+.tagpill.full{border-color:var(--line);color:var(--mute)}
+.note{font-size:12px;color:var(--mute);margin-top:10px}
+/* 课程大卡样例 */
+.drop{background:var(--card);border:2px solid var(--ink);border-radius:18px;max-width:560px;overflow:hidden;position:relative;box-shadow:6px 6px 0 var(--ink);transition:transform .18s var(--spring)}
+.drop:active{transform:scale(.98) rotate(-.5deg)}
+.drop .ghost{position:absolute;top:2px;right:14px;font-family:var(--anton);font-size:64px;line-height:1;color:transparent;-webkit-text-stroke:1.5px #D9D7CC;pointer-events:none}
+.drop-top{display:flex;justify-content:space-between;align-items:center;padding:16px 20px;border-bottom:1.5px dashed var(--line)}
+.drop-top .tm{font-family:var(--grot);font-weight:700;font-size:24px;letter-spacing:-.01em}
+.drop-top .tm small{font-size:12px;color:var(--mute);font-weight:500;margin-left:6px}
+.drop-body{padding:18px 20px 8px}
+.drop-name{font-size:25px;font-weight:900;letter-spacing:.01em}
+.drop-meta{font-size:13px;color:var(--mute);margin-top:4px}
+.drop-foot{display:flex;align-items:center;gap:14px;padding:14px 20px 18px}
+.seat{flex:1}
+.seat .seat-txt{font-family:var(--grot);font-weight:700;font-size:13px}
+.seat .seat-txt b{color:var(--ink)}
+.seat .seat-txt .low{color:var(--ink);background:var(--volt);padding:0 6px;border-radius:4px}
+.seat .bar{height:5px;background:var(--bone);border:1px solid var(--line);border-radius:99px;margin-top:6px;overflow:hidden}
+.seat .bar i{display:block;height:100%;background:var(--ink)}
+/* 动效演示 */
+.motion-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px}
+.mo{background:var(--card);border:2px solid var(--ink);border-radius:18px;padding:26px;box-shadow:4px 4px 0 var(--ink)}
+.mo .box{height:180px;border:1.5px dashed var(--line);border-radius:14px;background:var(--bone);display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden;margin-bottom:16px}
+.mo h5{font-size:16px;font-weight:900;margin-bottom:4px}
+.mo p{font-size:12.5px;color:var(--mute)}
+.mo .replay{position:absolute;top:10px;right:10px;font-size:11px;font-weight:700;color:var(--mute);border:1.5px solid var(--line);padding:4px 12px;border-radius:99px;cursor:pointer;background:var(--card)}
+.mo .replay:hover{color:var(--ink);border-color:var(--ink)}
+/* LOCKED */
+.locked-stage{width:86%;background:var(--bone);border:1.5px dashed var(--line);border-radius:14px;padding:20px 14px;text-align:center;position:relative}
+.locked-word{font-family:var(--anton);font-size:42px;letter-spacing:.02em;color:var(--ink);line-height:1;transform:rotate(-3deg)}
+.locked-word .hl{background:var(--volt);padding:0 10px;display:inline-block}
+.punching{animation:punch .55s var(--spring) both}
+@keyframes punch{0%{transform:scale(2.8) rotate(-8deg);opacity:0;filter:blur(8px)}60%{filter:blur(0)}100%{transform:scale(1) rotate(-3deg);opacity:1}}
+.shaking{animation:shake .4s linear .1s}
+@keyframes shake{0%,100%{transform:translate(0,0)}25%{transform:translate(2px,-2px)}50%{transform:translate(-2px,2px)}75%{transform:translate(2px,2px)}}
+.confetti{position:absolute;width:8px;height:14px;top:-10px;border-radius:2px;pointer-events:none}
+@keyframes fall{0%{transform:translateY(0) rotate(0);opacity:1}100%{transform:translateY(200px) rotate(260deg);opacity:0}}
+/* 心电图 */
+.ecg-svg{width:86%;display:block}
+.ecg-run{stroke-dasharray:26 240;animation:ecg 2.2s linear infinite}
+@keyframes ecg{from{stroke-dashoffset:0}to{stroke-dashoffset:-266}}
+/* 均衡器 */
+.eq{display:flex;align-items:flex-end;gap:5px;height:34px}
+.eq i{width:5px;border-radius:3px;background:var(--ink);animation:eq 0.9s ease-in-out infinite alternate}
+.eq i:nth-child(1){animation-delay:0s}.eq i:nth-child(2){animation-delay:.15s}.eq i:nth-child(3){animation-delay:.3s}.eq i:nth-child(4){animation-delay:.05s}.eq i:nth-child(5){animation-delay:.22s}.eq i:nth-child(6){animation-delay:.38s}.eq i:nth-child(7){animation-delay:.1s}
+@keyframes eq{from{height:7px}to{height:32px}}
+/* 日期弹跳 */
+.date-demo{display:flex;gap:8px}
+.dchip{min-width:52px;padding:9px 0 7px;text-align:center;border:1.5px solid var(--line);border-radius:14px;cursor:pointer;background:var(--card);transition:border-color .15s}
+.dchip .wd{font-size:10px;color:var(--mute)}
+.dchip .dn{font-family:var(--grot);font-weight:700;font-size:18px;margin-top:1px}
+.dchip.on{background:var(--ink);border-color:var(--ink);color:var(--bone)}
+.dchip.on .wd{color:var(--volt);font-weight:700}
+.dchip.on .dn{color:var(--volt)}
+.bouncing{animation:pop .35s var(--spring)}
+@keyframes pop{0%{transform:scale(.85)}60%{transform:scale(1.08)}100%{transform:scale(1)}}
+/* 依次登台 */
+.drop-demo{display:flex;flex-direction:column;gap:9px;width:72%}
+.drop-demo .dd{border:2px solid var(--ink);border-radius:12px;background:var(--card);box-shadow:3px 3px 0 var(--ink);font-family:var(--grot);font-weight:700;font-size:13px;color:var(--mute);display:flex;align-items:center;justify-content:center;height:36px;opacity:0;animation:ddIn .5s var(--spring) forwards}
+.drop-demo .dd:nth-child(2){animation-delay:.07s}
+.drop-demo .dd:nth-child(3){animation-delay:.14s}
+@keyframes ddIn{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:translateY(0)}}
+/* 情绪价值表 */
+table.map{width:100%;border-collapse:collapse;border:2px solid var(--ink);border-radius:16px;overflow:hidden;background:var(--card);font-size:13.5px;box-shadow:5px 5px 0 var(--ink)}
+table.map th{font-size:13px;font-weight:900;text-align:left;padding:13px 18px;border-bottom:2px solid var(--ink);letter-spacing:.05em;background:var(--volt)}
+table.map td{padding:13px 18px;border-bottom:1px solid var(--line);vertical-align:top}
+table.map tr:last-child td{border-bottom:none}
+table.map td:first-child{font-weight:800;white-space:nowrap}
+table.map td .m{color:var(--mute)}
+/* 对比 */
+.vs{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.vs .v{border:2px solid var(--ink);border-radius:18px;padding:24px;background:var(--card);box-shadow:4px 4px 0 var(--ink)}
+.vs .v h4{font-size:18px;font-weight:900;margin-bottom:8px}
+.vs .v p{font-size:13px;color:var(--mute)}
+.vs .v .k{font-family:var(--grot);font-size:10px;letter-spacing:.25em;color:var(--mute);text-transform:uppercase}
+.vs .v.hl{background:var(--ink);color:var(--bone)}
+.vs .v.hl p{color:#CFCEC6}
+.vs .v.hl .k{color:var(--volt)}
+.vs .v.hl h4{color:var(--volt)}
+footer{margin-top:110px;border-top:3px solid var(--ink);padding-top:26px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px}
+footer .f-cn{font-size:16px;font-weight:900;letter-spacing:.1em}
+footer .f-en{font-family:var(--grot);font-size:10px;letter-spacing:.4em;color:var(--mute)}
+@media (max-width:900px){.ideas,.typegrid,.motion-grid,.vs{grid-template-columns:1fr}h1{font-size:40px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="masthead">
+    <div>
+      <div class="kicker"><b>方案 B</b>WUQI DANCE — MEMBER APP · CONCEPT 02</div>
+      <h1><span class="volt-txt">VOLT</span> <span class="en">舞力场</span></h1>
+      <p class="intro">把会员端做成一间<b>年轻人的舞蹈俱乐部</b>：黑 + 骨白 + 酸性青柠三色到底，海报级大字与「今日登场 SHOWTIME」的课程语言，动效全是「能量」——心电图、均衡器、LOCKED 拳入。全程零渐变、零毛玻璃、零彩虹标签；每天最多 4 节课，所以<b>每节课都是一张大海报</b>，一屏一课，越少越贵。</p>
+      <a class="tolink" href="proposal-b-screens.html">查看六屏效果图 →</a>
+    </div>
+    <div class="badge-volt"><i></i>DANCE CLUB MODE</div>
+  </div>
+
+  <!-- 01 理念 -->
+  <section>
+    <div class="sec-head"><span class="sec-no">01</span><span class="sec-title">设计理念</span><span class="sec-en">Concept</span></div>
+    <div class="ideas">
+      <div class="idea">
+        <div class="no">A</div>
+        <h4>课程即「登场」</h4>
+        <p>借演出的<b>场次制</b>讲约课：课程像每天公演的新场次——名额是座位，预约是「锁定」，开课前倒计时像「即将开演」。稀缺感本身就是年轻人的语言——<b>手慢无</b>。</p>
+        <div class="demo"><div class="marquee"><div class="mq-track"><span>今日登场 4 场<em>✺</em>19:30 古典舞 仅剩 6 席<em>✺</em>DANCE CLUB<em>✺</em>手慢无<em>✺</em></span><span aria-hidden="true">今日登场 4 场<em>✺</em>19:30 古典舞 仅剩 6 席<em>✺</em>DANCE CLUB<em>✺</em>手慢无<em>✺</em></span></div></div></div>
+      </div>
+      <div class="idea">
+        <div class="no">B</div>
+        <h4>三色到底</h4>
+        <p>全局只有<b>黑、骨白、酸性青柠</b>三个颜色：黑承载信息，青柠只属于「能量」——按钮、当前项、剩席告警、成就。没有第四种颜色，就没有廉价感。</p>
+        <div class="demo comp-row">
+          <button class="btn btn-p" style="height:42px">立即锁定</button>
+          <span class="tagpill live-tag"><span class="live"></span>LIVE</span>
+          <span class="tagpill full">FULL</span>
+        </div>
+      </div>
+      <div class="idea">
+        <div class="no">C</div>
+        <h4>能量可感知</h4>
+        <p>把「上课」翻译成身体反馈：<b>心电图下拉刷新、会员码底部均衡器、LOCKED 拳入 + 屏幕轻震</b>。动效都有物理感，像音乐在心里过拍。</p>
+        <div class="demo" style="display:flex;justify-content:center;padding:6px 0">
+          <div class="eq"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 02 大卡原则 -->
+  <section>
+    <div class="sec-head"><span class="sec-no">02</span><span class="sec-title">焦点原则：一屏一大</span><span class="sec-en">Focus Rule</span></div>
+    <div class="focus-callout">
+      <div class="big">≤4 / DAY</div>
+      <p>门店每天课程不超过 4 节——这是优势不是局限。<b>预约页放弃小列表，改用「海报级大卡」：每张卡约占屏高 1/4～1/3，一屏只重点讲一节课。</b>4 张大卡铺出从容的节奏，比 8 张小卡显得课程更值钱、门店更有人气；库存（剩席）用大数字 + 青柠告警，紧张感直接拉满。</p>
+    </div>
+    <h3 class="sub">课程大卡 · 结构样例</h3>
+    <div class="drop">
+      <div class="ghost">01</div>
+      <div class="drop-top">
+        <span class="tagpill">古典舞</span>
+        <span class="tm">19:30<small>- 21:00</small></span>
+      </div>
+      <div class="drop-body">
+        <div class="drop-name">古典舞 · 基础</div>
+        <div class="drop-meta">林晚 · A 教室 · 万象城店</div>
+      </div>
+      <div class="drop-foot">
+        <div class="seat">
+          <div class="seat-txt">仅剩 <b class="low">6</b> / 12 席</div>
+          <div class="bar"><i style="width:50%"></i></div>
+        </div>
+        <button class="btn btn-p" style="height:42px;padding:0 22px">立即锁定</button>
+      </div>
+    </div>
+    <p class="note">卡片描边 + 硬错位影（无模糊），按压时整卡微缩带 0.5° 旋转——像把海报从墙上揭下来。右上角幽灵编号是版面的「海报位」。</p>
+  </section>
+
+  <!-- 03 配色 -->
+  <section>
+    <div class="sec-head"><span class="sec-no">03</span><span class="sec-title">配色</span><span class="sec-en">Palette</span></div>
+    <div class="swatches">
+      <div class="sw"><div class="chip" style="background:#111310"><small style="color:#D7FF3B">INK</small></div><div class="meta"><b>墨黑 <span>#111310</span></b><em>文字、主按钮、卡片描边</em></div></div>
+      <div class="sw"><div class="chip" style="background:#F2F1ED;border-bottom:2px solid var(--line)"><small style="color:#77786F">BONE</small></div><div class="meta"><b>骨白 <span>#F2F1ED</span></b><em>页面底色，暖而不甜</em></div></div>
+      <div class="sw"><div class="chip" style="background:#D7FF3B"><small style="color:#111310">VOLT</small></div><div class="meta"><b>酸性青柠 <span>#D7FF3B</span></b><em>唯一能量色：CTA/当前态/告警/成就</em></div></div>
+      <div class="sw"><div class="chip" style="background:#FFFFFF;border-bottom:2px solid var(--line)"><small style="color:#77786F">CARD</small></div><div class="meta"><b>卡片白 <span>#FFFFFF</span></b><em>海报卡、弹层</em></div></div>
+      <div class="sw"><div class="chip" style="background:#77786F"><small>CLOUD</small></div><div class="meta"><b>云灰 <span>#77786F</span></b><em>次要文字、禁用态</em></div></div>
+      <div class="sw"><div class="chip" style="background:#DCDAD0"><small style="color:#77786F">LINE</small></div><div class="meta"><b>线灰 <span>#DCDAD0</span></b><em>虚线、进度槽、描边弱化</em></div></div>
+    </div>
+    <p class="note">舞种不做彩色区分——用「标签胶囊 + 教练照片 + 课程名」识别。颜色纪律是这套方案高级感的根基：见过青柠就算见过这个品牌。</p>
+  </section>
+
+  <!-- 04 字体 -->
+  <section>
+    <div class="sec-head"><span class="sec-no">04</span><span class="sec-title">字体与版式</span><span class="sec-en">Type</span></div>
+    <div class="typegrid">
+      <div class="tcell"><div class="tag">CN Display · 重黑体 900</div><div class="t1">今日登场 / 古典舞·基础</div><p class="note">课程名、区块标题用超重黑体 + 微收紧字距，能量感来自「粗」，不来自颜色。</p></div>
+      <div class="tcell"><div class="tag">EN Poster · Anton</div><div class="t-anton">TODAY'S <span class="hl">SHOWTIME</span></div><p class="note">英文海报字只做点缀：SHOWTIME / LOCKED / LIVE / PASS——出现即焦点，是整套设计的「潮牌标」。</p></div>
+      <div class="tcell"><div class="tag">Numerals · Space Grotesk</div><div class="tnum">19:30<small>- 21:00</small></div><p class="note">时间、席位数、课时全部用 Grotesk 数字，略收紧、机械感，运动表盘的气质。</p></div>
+      <div class="tcell"><div class="tag">Body · 常规黑体 400/500</div><div class="t3">林晚 · A 教室 · 开课前 2 小时停止预约。</div><p class="note">正文保持安静小字，让大字更「响」。文案口语化：开抢、登场、锁定、教室见。</p></div>
+    </div>
+    <h3 class="sub">版式规则</h3>
+    <table class="map">
+      <tr><th style="width:170px">元素</th><th>规则</th></tr>
+      <tr><td>卡片</td><td class="m">白底 + 2px 墨黑描边 + 硬错位影（offset 实体影，禁模糊影）+ 18px 圆角——「贴纸/球鞋盒」的物理感</td></tr>
+      <tr><td>按钮</td><td class="m">全胶囊形：主按钮墨黑底青柠字；已持有态反转成青柠底黑字（拥有的东西是「亮」的）</td></tr>
+      <tr><td>分隔</td><td class="m">卡片内用虚线（票据打孔联想），卡片间用留白，页面分区用 3px 实线</td></tr>
+      <tr><td>幽灵编号</td><td class="m">课程卡右上角 Anton 描边大数字（01/02…），海报位 + 顺序感，纯装饰零颜色</td></tr>
+      <tr><td>跑马灯</td><td class="m">首页顶部黑底滚动条（店铺动态/剩余席位），14s 匀速循环，是页面的「能量条」</td></tr>
+      <tr><td>圆角</td><td class="m">卡片 18px、按钮/标签全圆、弹层 22px——软外形包硬描边，时尚而不冷</td></tr>
+    </table>
+  </section>
+
+  <!-- 05 动效 -->
+  <section>
+    <div class="sec-head"><span class="sec-no">05</span><span class="sec-title">动效规范（可交互演示）</span><span class="sec-en">Motion</span></div>
+    <p class="note" style="margin-bottom:22px">动效五件套全部围绕「能量/节奏」：能互动、有反馈、带情绪。克制处像运动手表，释放处像现场演出。</p>
+    <div class="motion-grid">
+
+      <div class="mo">
+        <h5>签名动效 · LOCKED 拳入</h5>
+        <p>预约成功：巨字「LOCKED!」从模糊远处一拳打进 + 票根信息浮现 + 屏幕轻震 + 青柠/黑双色纸屑。抢到课的爽感，一次性给足。</p>
+        <div class="box">
+          <span class="replay" onclick="locked(this)">重放</span>
+          <div class="locked-stage" data-stage>
+            <div class="locked-word" data-locked>LOCKED<span class="hl">!</span></div>
+          </div>
+        </div>
+        <p class="note">0.55s spring 弹性曲线 · blur 8→0（动感模糊，非毛玻璃）· 配 wx.vibrateShort 双击震动 · 取消预约则显示灰色「RELEASED」</p>
+      </div>
+
+      <div class="mo">
+        <h5>下拉刷新 · 心电图</h5>
+        <p>下拉时顶部画出一条心电图，青柠光点沿线跑一圈再平复——「课程有心跳，门店活着」。比转圈圈有生命感。</p>
+        <div class="box">
+          <span class="replay" onclick="ecg(this)">重放</span>
+          <svg class="ecg-svg" viewBox="0 0 300 40">
+            <path d="M0 20 H60 L70 20 L78 6 L88 36 L98 12 L106 20 H160 L170 20 L178 6 L188 36 L198 12 L206 20 H300" fill="none" stroke="#C9C7BD" stroke-width="2"/>
+            <path class="ecg-run" d="M0 20 H60 L70 20 L78 6 L88 36 L98 12 L106 20 H160 L170 20 L178 6 L188 36 L198 12 L206 20 H300" fill="none" stroke="#111310" stroke-width="2.5" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <p class="note">光点行程 2.2s 循环 · 松手后整线淡出 · 刷新完成时心率数字「72→128 BPM」快闪一下</p>
+      </div>
+
+      <div class="mo">
+        <h5>日期选择 · Q 弹</h5>
+        <p>选日期时选中块 Q 弹一下（缩小回弹），像按下鼓机的一个 pad——约课的开始就有「打节奏」的手感。</p>
+        <div class="box">
+          <span class="replay" style="display:none"></span>
+          <div class="date-demo" onclick="pickDate(event)">
+            <div class="dchip"><div class="wd">一</div><div class="dn">22</div></div>
+            <div class="dchip on"><div class="wd">三</div><div class="dn">24</div></div>
+            <div class="dchip"><div class="wd">四</div><div class="dn">25</div></div>
+            <div class="dchip"><div class="wd">五</div><div class="dn">26</div></div>
+            <div class="dchip"><div class="wd">六</div><div class="dn">27</div></div>
+          </div>
+        </div>
+        <p class="note">0.35s spring（0.85→1.08→1）· 选中态墨黑底 + 青柠数字 · 无位移只有缩放，干脆利落</p>
+      </div>
+
+      <div class="mo">
+        <h5>按压反馈 · 揭海报</h5>
+        <p>所有卡片按压时微缩并带 0.5° 倾斜（试按下面这张卡的按钮区域），像把贴纸从墙面揭起的瞬间。</p>
+        <div class="box" style="display:flex;align-items:center;justify-content:center">
+          <div class="drop" style="max-width:86%;box-shadow:4px 4px 0 var(--ink)">
+            <div class="drop-top" style="padding:10px 16px"><span class="tagpill">爵士</span><span class="tm" style="font-size:18px">20:00</span></div>
+            <div class="drop-body" style="padding:12px 16px 4px"><div class="drop-name" style="font-size:18px">爵士 · solo 拆解</div></div>
+            <div class="drop-foot" style="padding:10px 16px 14px"><div class="seat"><div class="seat-txt">仅剩 <b class="low">3</b> / 10 席</div><div class="bar"><i style="width:70%"></i></div></div><button class="btn btn-p" style="height:38px;padding:0 18px">立即锁定</button></div>
+          </div>
+        </div>
+        <p class="note">按压 0.15s scale(.97)+rotate(-.5deg) · 松手 spring 回弹 · 仅卡片与按钮有此反馈，列表行不做</p>
+      </div>
+
+      <div class="mo">
+        <h5>会员码 · 均衡器</h5>
+        <p>入场 PASS 底部一排跳动的均衡器条——「这是你的节奏」。到店出示的一刻不再是白框二维码，而是一张活着的车票。</p>
+        <div class="box" style="flex-direction:column;gap:14px">
+          <div class="eq" style="height:40px"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+          <div style="font-family:var(--grot);font-weight:700;font-size:13px;letter-spacing:.15em">YOUR RHYTHM · <span style="background:var(--volt);padding:0 6px">128 BPM</span></div>
+        </div>
+        <p class="note">9 条杆交替往复 0.9s · 扫码成功瞬间全部齐高定格后淡出 · 纯装饰动画，耗电极低</p>
+      </div>
+
+      <div class="mo">
+        <h5>依次登台 · stagger</h5>
+        <p>约课页的场次大卡进入时从下方 24px 依次登台（70ms 间隔、轻微过冲）——像报幕员逐一念到场次。每天课越少，登场越郑重。</p>
+        <div class="box">
+          <span class="replay" onclick="redrop(this)">重放</span>
+          <div class="drop-demo" data-dropdemo>
+            <div class="dd">第一场 · 19:30 古典舞 · 基础</div>
+            <div class="dd">第二场 · 20:00 爵士 · solo 拆解</div>
+            <div class="dd">第三场 · 21:00 街舞 · Element</div>
+          </div>
+        </div>
+        <p class="note">0.5s spring · 位移 24px · 70ms 间隔 · 首屏总时长不超过 0.9s；切日期时整列重新登台</p>
+      </div>
+    </div>
+
+    <h3 class="sub">其余动效约定</h3>
+    <table class="map">
+      <tr><th style="width:200px">场景</th><th>处理</th></tr>
+      <tr><td>列表进入</td><td class="m">大卡从下方 24px 依次登台（spring，间隔 70ms），带轻微过冲——像演员逐一上场</td></tr>
+      <tr><td>进行中课程</td><td class="m">LIVE 标签黑点呼吸闪烁 + 卡片描边静态（不加发光），进入详情有心跳进度条</td></tr>
+      <tr><td>席位告警</td><td class="m">剩席 ≤3 时数字块青柠高亮 + 首次出现时轻微抖动一次，之后保持静态（不打扰）</td></tr>
+      <tr><td>跑马灯</td><td class="m">14s 匀速循环；内容 = 门店公告 + 今日席位余量，后台公告数据驱动</td></tr>
+      <tr><td>页面转场</td><td class="m">沿用系统默认转场；弹层一律底部圆角抽屉上滑（spring），遮罩纯黑 40% 不加模糊</td></tr>
+      <tr><td>骨架屏</td><td class="m">按真实卡片版式摆「线框海报」，无闪光扫动；加载完成卡片弹入接管</td></tr>
+    </table>
+  </section>
+
+  <!-- 06 情绪价值 -->
+  <section>
+    <div class="sec-head"><span class="sec-no">06</span><span class="sec-title">情绪价值设计</span><span class="sec-en">Emotional Value</span></div>
+    <table class="map">
+      <tr><th style="width:150px">触点</th><th>情绪</th><th>实现依据</th></tr>
+      <tr><td>今日登场 + 手慢无</td><td class="m">稀缺感、抢到即赢</td><td class="m">现有排课与剩席数据，纯文案+视觉重塑</td></tr>
+      <tr><td>LOCKED 拳入 + 纸屑</td><td class="m">占位的爽感、确定性</td><td class="m">现有预约成功流程，加前端动效</td></tr>
+      <tr><td>上课节奏（本周已上 N 节）</td><td class="m">坚持被看见、不想停</td><td class="m">现有上课记录的前端统计展示，不新增功能</td></tr>
+      <tr><td>最近一课</td><td class="m">翻开 App 先看到自己的进步</td><td class="m">现有「我的记录」最近一条的快捷呈现</td></tr>
+      <tr><td>入场 PASS 均衡器</td><td class="m">仪式感、「这是我的节奏」</td><td class="m">现有会员码，加装饰动画</td></tr>
+      <tr><td>口语化文案体系</td><td class="m">年轻、像朋友在喊你</td><td class="m">开抢/登场/锁定/教室见，全量文案替换</td></tr>
+    </table>
+    <p class="note">纪律：所有展示均基于现有功能与数据（套餐/课时/约课/签到/记录），不新增业务功能、不虚构概念；情绪设计只做「重新呈现」。</p>
+    <p class="note">以上全部基于现有后端数据 + 前端呈现，不新增后端功能、不影响约课/扣课时/签到/薪资任何链路。</p>
+  </section>
+
+  <!-- 07 与方案A对比 -->
+  <section>
+    <div class="sec-head"><span class="sec-no">07</span><span class="sec-title">两案如何选</span><span class="sec-en">A vs B</span></div>
+    <div class="vs">
+      <div class="v">
+        <div class="k">Proposal A</div>
+        <h4>纸上舞台（已保留）</h4>
+        <p>刊物纸感 · 宋体 · 朱砂印章。安静、雅致、东方，像一本舞蹈志。适合想突出「专业教学、长久陪伴」的品牌气质。</p>
+      </div>
+      <div class="v hl">
+        <div class="k">Proposal B</div>
+        <h4>VOLT 舞力场（本方案）</h4>
+        <p>运动时尚 · 三色纪律 · 登场文化。张扬、有趣、能量感，像一间年轻人的潮流俱乐部。适合拉新、传播、让会员愿意截图分享。</p>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <div>
+      <div class="f-cn">VOLT 舞力场 · 待确认后实施</div>
+      <div class="f-en">MOCKUPS ONLY — IMPLEMENTATION AFTER APPROVAL</div>
+    </div>
+    <a class="tolink" style="margin-top:0" href="proposal-b-screens.html">下一步：查看六屏效果图 →</a>
+  </footer>
+</div>
+
+<script>
+function locked(btn){
+  const stage=btn.parentElement.querySelector('[data-stage]');
+  const word=stage.querySelector('[data-locked]');
+  stage.querySelectorAll('.confetti').forEach(c=>c.remove());
+  word.classList.remove('punching');stage.classList.remove('shaking');
+  void word.offsetWidth;
+  word.classList.add('punching');stage.classList.add('shaking');
+  for(let i=0;i<12;i++){
+    const c=document.createElement('i');
+    c.className='confetti';
+    c.style.left=(8+Math.random()*84)+'%';
+    c.style.background=Math.random()>.4?'#D7FF3B':'#111310';
+    c.style.animation=`fall ${.7+Math.random()*.5}s linear ${Math.random()*.25}s both`;
+    stage.appendChild(c);
+  }
+}
+function ecg(btn){const p=btn.parentElement.querySelector('.ecg-run');p.style.animation='none';void p.getBoundingClientRect();p.style.animation='';}
+function pickDate(e){
+  const chip=e.target.closest('.dchip');if(!chip)return;
+  const row=chip.parentElement;
+  row.querySelectorAll('.dchip').forEach(c=>c.classList.remove('on','bouncing'));
+  chip.classList.add('on','bouncing');
+}
+function redrop(btn){
+  const box=btn.parentElement.querySelector('[data-dropdemo]');
+  box.style.display='none';void box.offsetWidth;box.style.display='flex';
+}
+window.addEventListener('load',()=>{
+  const w=document.querySelector('[data-locked]');if(w)w.classList.add('punching');
+});
+</script>
+</body>
+</html>

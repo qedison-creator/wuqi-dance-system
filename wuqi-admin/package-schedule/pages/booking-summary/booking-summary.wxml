@@ -131,7 +131,7 @@
                                 </view>
                                 <view class="mc-checkin-info">
                                   <text class="mc-credits" wx:if="{{mg._checkInDeductDays}}">缩有效期{{mg._checkInDeductDays}}天</text>
-                                  <text class="mc-credits" wx:else>扣{{mg._checkInCredits || 0}}次</text>
+                                  <text class="mc-credits" wx:else>扣{{mg._checkInCredits || 0}}课时</text>
                                   <text class="mc-method">{{mg._checkInMethodText || '已签到'}}</text>
                                 </view>
                                 <view class="mc-expand {{mg._expanded ? 'expanded' : ''}}" catchtap="onToggleMember" data-year-index="{{yearIndex}}" data-month-index="{{monthIndex}}" data-date-index="{{dateIndex}}" data-course-index="{{courseIndex}}" data-user-id="{{mg.user_id}}">

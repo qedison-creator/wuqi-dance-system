@@ -33,6 +33,15 @@ admin-test.js
 cleanup-custom-templates.js
 check-templates.js
 process.exit(0)
+_tmp_*.js
+**/_tmp_*.js
+
+# 部署打包产物
+backend-deploy.tar.gz
+commit_msg.txt
+
+# IDE 本地配置
+.zcode/
 
 # 临时文件
 wuqi-admin/**/schedule_full.txt

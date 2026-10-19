@@ -25,6 +25,8 @@ App({
     loginStateToken: 0
   },
   onLaunch(options) {
+    // VOLT 皮肤字体全局加载（base64 内嵌，失败静默）
+    require('./utils/skin.js').ensureVoltFonts();
     this.silenceUnsupportedApi();
     this.registerPrivacyHandler();
     this.registerNetworkListener();

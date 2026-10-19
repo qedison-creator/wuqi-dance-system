@@ -52,3 +52,17 @@
   font-size: 26rpx;
   color: #D4786E;
 }
+
+/* 皮肤：纸上舞台 / VOLT（组件根挂 skin-root skin-*） */
+.empty-state.skin-paper .empty-icon { border-color: #C9BFA8; }
+.empty-state.skin-paper .empty-icon-inner { background: #ECE5D6; }
+.empty-state.skin-paper .empty-text { font-family: 'Noto Serif SC', serif; }
+.empty-state.skin-paper .empty-hint { color: #A79D89; }
+.empty-state.skin-paper .empty-action { border: 2rpx solid #221D15; border-radius: 6rpx; }
+.empty-state.skin-paper .action-text { color: #221D15; font-family: 'Noto Serif SC', serif; }
+.empty-state.skin-volt .empty-icon { border-color: #DCDAD0; }
+.empty-state.skin-volt .empty-icon-inner { background: #ECEAE2; }
+.empty-state.skin-volt .empty-text { font-weight: 900; color: #111310; }
+.empty-state.skin-volt .empty-hint { color: #9C9D93; }
+.empty-state.skin-volt .empty-action { background: #111310; border-radius: 999rpx; }
+.empty-state.skin-volt .action-text { color: #D7FF3B; font-weight: 800; }

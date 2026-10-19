@@ -1,0 +1,46 @@
+<view class="ss-root" wx:if="{{props.visible}}">
+  <block wx:if="{{props.skin === 'paper'}}">
+  <view class="ss-mask" catchtouchmove="noop">
+    <view class="ss-paper-card" catchtap="noop">
+      <view class="ss-seal {{props.kind === 'cancel' ? 'ss-seal-cancel' : ''}}">{{props.kind === 'cancel' ? '止' : props.seal}}</view>
+      <text class="ss-paper-kicker">{{props.kind === 'cancel' ? 'BOOKING CANCELLED' : 'BOOKING CONFIRMED'}}</text>
+      <text class="ss-paper-title">{{props.word}}</text>
+      <block wx:if="{{props.info}}">
+        <text class="ss-paper-info"><text>{{props.kind === 'cancel' ? '已取消 ' : '已预约 '}}</text><text class="ss-paper-info-strong">{{props.info.name}}</text></text>
+        <text class="ss-paper-info">{{props.info.date}} {{props.info.weekDay}} {{props.info.time}}{{props.info.room ? ' · ' + props.info.room : ''}}</text>
+        <text class="ss-paper-info"><text>{{props.kind === 'cancel' ? '退还 ' : '消耗 '}}{{props.info.credits}} {{props.info.unit || '课时'}}</text><text wx:if="{{props.info.remain !== null}}"> · 剩余 {{props.info.remain}}</text></text>
+      </block>
+      <text class="ss-paper-desc" wx:elif="{{props.desc}}">{{props.desc}}</text>
+      <view class="ss-paper-line"></view>
+      <view class="ss-paper-btn" catchtap="onOk"><text>{{props.okText || '好的'}}</text></view>
+    </view>
+  </view>
+</block>
+
+  <block wx:if="{{props.skin === 'volt'}}">
+  <view class="ss-mask ss-mask-volt" catchtouchmove="noop">
+    <view class="ss-volt-card {{props.kind === 'cancel' ? '' : 'ss-shaking'}}" catchtap="noop">
+      <view class="ss-confetti-row" wx:if="{{props.kind !== 'cancel'}}">
+        <view class="ss-cf ss-cf-{{index}}" wx:for="{{[0,1,2,3,4,5,6,7,8,9,10,11]}}" wx:key="*this"></view>
+      </view>
+      <view class="ss-volt-word-row">
+        <text class="ss-volt-word {{props.kind === 'cancel' ? 'ss-volt-word-cancel' : ''}}">{{props.word}}</text>
+        <view class="ss-volt-ex" wx:if="{{props.kind !== 'cancel'}}">!</view>
+      </view>
+      <view class="ss-volt-dash" wx:if="{{props.info && props.kind === 'success'}}"></view>
+      <block wx:if="{{props.info && props.kind === 'success'}}">
+        <view class="ss-volt-line"><text class="ss-volt-line-k">已锁定 </text><text class="ss-volt-line-name">{{props.info.name}}</text></view>
+        <view class="ss-volt-line"><text>{{props.info.date}} {{props.info.weekDay}} {{props.info.time}}{{props.info.room ? ' · ' + props.info.room : ''}}</text></view>
+        <view class="ss-volt-line">
+          <text>扣 {{props.info.credits}} {{props.info.unit || '课时'}}</text>
+          <text wx:if="{{props.info.remain !== null}}"> · 剩 </text>
+          <text class="ss-volt-remain" wx:if="{{props.info.remain !== null}}">{{props.info.remain}}</text>
+          <text> · 舞社见</text>
+        </view>
+      </block>
+      <text class="ss-volt-desc" wx:if="{{props.desc && !props.info}}">{{props.desc}}</text>
+      <view class="ss-volt-btn" catchtap="onOk"><text>{{props.okText || '好的'}}</text></view>
+    </view>
+  </view>
+  </block>
+</view>

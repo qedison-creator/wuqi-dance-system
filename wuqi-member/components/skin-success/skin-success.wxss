@@ -1,0 +1,149 @@
+/* 皮肤成功反馈组件 */
+.ss-mask {
+  position: fixed;
+  left: 0; top: 0; right: 0; bottom: 0;
+  z-index: 99990;
+  background: rgba(34, 29, 21, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.ss-mask-volt { background: rgba(17, 19, 16, 0.55); }
+
+/* ---------- 纸上舞台：盖章 ---------- */
+.ss-paper-card {
+  width: 560rpx;
+  background: #FCFAF4;
+  border: 2rpx solid #DFD6C2;
+  border-radius: 10rpx;
+  padding: 90rpx 40rpx 40rpx;
+  text-align: center;
+  box-sizing: border-box;
+  animation: sk-rise-in 400ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  position: relative;
+}
+.ss-seal {
+  position: absolute;
+  top: -46rpx; left: 50%;
+  margin-left: -88rpx;
+  width: 132rpx; height: 132rpx;
+  background: #B93A26; color: #FCF7EE;
+  font-size: 56rpx; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 12rpx;
+  box-shadow: 3rpx 5rpx 0 rgba(34, 29, 21, 0.2);
+  animation: sk-stamp-in 550ms cubic-bezier(0.2, 1.4, 0.3, 1) 100ms both;
+}
+.ss-seal-cancel { background: #6C6353; }
+.ss-paper-kicker {
+  display: block;
+  margin-bottom: 14rpx;
+  font-size: 17rpx; letter-spacing: 0.35em;
+  color: #A79D89; font-weight: 700;
+}
+.ss-paper-info {
+  display: block; margin-top: 10rpx;
+  font-size: 24rpx; color: #6C6353; line-height: 1.9;
+}
+.ss-paper-info-strong { color: #221D15; font-weight: 700; }
+.ss-paper-title {
+  display: block;
+  font-family: "Noto Serif SC", "Songti SC", serif;
+  font-size: 44rpx; font-weight: 900;
+  color: #221D15; letter-spacing: 0.1em;
+}
+.ss-paper-desc {
+  display: block; margin-top: 16rpx;
+  font-size: 24rpx; color: #6C6353; line-height: 1.8;
+}
+.ss-paper-line { border-top: 2rpx dashed #DFD6C2; margin: 30rpx 0 26rpx; }
+.ss-paper-btn {
+  height: 84rpx;
+  background: #221D15; color: #FCF7EE;
+  border-radius: 6rpx;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 28rpx; font-weight: 700;
+  font-family: "Noto Serif SC", "Songti SC", serif;
+  letter-spacing: 0.15em;
+}
+.ss-paper-btn:active { transform: scale(0.97); }
+
+/* ---------- VOLT：拳入 ---------- */
+.ss-volt-card {
+  position: relative;
+  width: 580rpx;
+  max-width: 86vw;
+  background: #F2F1ED;
+  border: 3rpx solid #111310;
+  border-radius: 36rpx;
+  padding: 60rpx 40rpx 40rpx;
+  text-align: center;
+  box-sizing: border-box;
+  box-shadow: 8rpx 8rpx 0 rgba(17, 19, 16, 0.35);
+  overflow: hidden;
+  animation: sk-rise-in 400ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.ss-shaking { animation: sk-rise-in 400ms cubic-bezier(0.22, 1, 0.36, 1) both, sk-shake 400ms linear 200ms; }
+.ss-volt-word {
+  display: inline-block;
+  font-family: 'AntonV', 'Anton', sans-serif;
+  font-size: 88rpx; font-weight: 900;
+  color: #111310;
+  letter-spacing: 0.02em;
+  transform: rotate(-3deg);
+  animation: sk-punch-in 550ms cubic-bezier(0.2, 1.4, 0.3, 1) both;
+}
+.ss-volt-word-cancel { color: #77786F; }
+.ss-volt-desc {
+  display: block; margin-top: 20rpx;
+  font-size: 24rpx; color: #77786F; line-height: 1.8;
+}
+.ss-volt-btn {
+  margin-top: 34rpx;
+  height: 88rpx;
+  background: #111310; color: #D7FF3B;
+  border-radius: 999rpx;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 28rpx; font-weight: 800; letter-spacing: 0.1em;
+}
+.ss-volt-btn:active { transform: scale(0.96); }
+
+/* 双色纸屑（青柠 / 墨） */
+.ss-confetti-row { position: absolute; left: 0; top: 0; right: 0; height: 0; }
+.ss-cf {
+  position: absolute;
+  top: -16rpx;
+  width: 14rpx; height: 24rpx;
+  border-radius: 4rpx;
+  animation: sk-confetti-fall 900ms linear both;
+}
+.ss-cf-0 { left: 8%;  background: #D7FF3B; animation-delay: 0.05s; }
+.ss-cf-1 { left: 16%; background: #111310; animation-delay: 0.15s; }
+.ss-cf-2 { left: 24%; background: #D7FF3B; animation-delay: 0.02s; }
+.ss-cf-3 { left: 32%; background: #111310; animation-delay: 0.22s; }
+.ss-cf-4 { left: 40%; background: #D7FF3B; animation-delay: 0.1s; }
+.ss-cf-5 { left: 48%; background: #111310; animation-delay: 0.05s; }
+.ss-cf-6 { left: 56%; background: #D7FF3B; animation-delay: 0.18s; }
+.ss-cf-7 { left: 64%; background: #111310; animation-delay: 0.08s; }
+.ss-cf-8 { left: 72%; background: #D7FF3B; animation-delay: 0.25s; }
+.ss-cf-9 { left: 80%; background: #111310; animation-delay: 0.12s; }
+.ss-cf-10 { left: 88%; background: #D7FF3B; animation-delay: 0.03s; }
+.ss-cf-11 { left: 94%; background: #111310; animation-delay: 0.2s; }
+
+/* ---------- VOLT 成功票面（LOCKED + ! 块 + 三行票面） ---------- */
+.ss-volt-word-row { display: flex; align-items: flex-start; justify-content: center; gap: 8rpx; }
+.ss-volt-ex {
+  width: 52rpx; height: 64rpx;
+  background: #D7FF3B; color: #111310;
+  border-radius: 8rpx;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 60rpx; font-weight: 900; line-height: 1;
+  font-family: 'AntonV', 'Anton', sans-serif;
+  transform: rotate(8deg);
+  animation: sk-punch-in 550ms cubic-bezier(0.2, 1.4, 0.3, 1) 150ms both;
+}
+.ss-volt-dash { border-top: 2rpx dashed #C9C0B0; margin: 26rpx 0 14rpx; }
+.ss-volt-line { font-size: 24rpx; color: #77786F; line-height: 2; }
+.ss-volt-line-k { color: #77786F; }
+.ss-volt-line-name { font-weight: 900; color: #111310; }
+.ss-volt-remain { display: inline-block; background: #D7FF3B; color: #111310; padding: 0 10rpx; border-radius: 6rpx; font-weight: 900; }

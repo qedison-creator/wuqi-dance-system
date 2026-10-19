@@ -6,9 +6,38 @@ page {
   min-height: 100vh;
 }
 
+/* 自绘标题栏（navigationStyle: custom）：与 pages/booking 的 .cl-navbar / .cl-navbar-title 完全相同 */
+.cl-navbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 200;
+  height: 80rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #FBFAF8;
+  box-sizing: content-box;
+}
+
+.cl-navbar-title {
+  font-size: 17px;
+  font-weight: 400;
+  color: #000000;
+  letter-spacing: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Helvetica Neue', sans-serif;
+}
+
+/* 顶部占位与标题栏底色：按皮肤取色，替代原系统导航栏 */
+.pf-sp-classic { background: #FBFAF8; }
+.pf-sp-paper { background: #F5F1E8; }
+.pf-sp-volt { background: #F2F1ED; }
+.pf-navbar-paper { background: #F5F1E8; }
+.pf-navbar-volt { background: #F2F1ED; }
+
 .profile-page {
-  padding: calc(32rpx + constant(safe-area-inset-top)) 28rpx 200rpx;
-  padding: calc(32rpx + env(safe-area-inset-top)) 28rpx 200rpx;
+  padding: 32rpx 28rpx 200rpx;
   background: #FBFAF8;
   box-sizing: border-box;
 }
@@ -2220,4 +2249,51 @@ page {
 
 .pkg-new-time-both .pkg-tag-time {
   margin-left: 0;
+}
+
+/* 皮肤外观入口图标（三色小方块） */
+.skin-dots-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5rpx;
+}
+.sd-dot {
+  width: 16rpx;
+  height: 16rpx;
+  border-radius: 5rpx;
+  border: 1rpx solid rgba(42, 33, 34, 0.15);
+}
+
+@import "./profile.skin.wxss";
+
+/* 二维码离屏画布：VOLT/PAPER 弹窗不内嵌 canvas，屏外绘制后转图片显示（原生画布在弹窗布局跑偏） */
+.qr-offscreen {
+  position: fixed;
+  left: -9999rpx;
+  top: 0;
+  width: 210rpx;
+  height: 210rpx;
+}
+
+/* ==================== 赠课卡徽章（classic） ==================== */
+.pkg-tag-bonus .pkg-tag-text {
+  color: #B8860B;
+}
+.pkg-tag-bonus {
+  background: #FFF4DC !important;
+  border: 1rpx solid #EAD199;
+}
+/* 赠课卡来源主套餐行（classic/volt 皮肤卡片） */
+.pkg-source {
+  display: block;
+  margin-top: 8rpx;
+  font-size: 22rpx;
+  color: #A08450;
+}
+/* 待激活赠课卡提示行 */
+.pkg-new-pending-hint {
+  margin-top: 8rpx;
+  font-size: 22rpx;
+  color: #A0956C;
 }

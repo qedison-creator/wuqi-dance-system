@@ -386,3 +386,5 @@
 .as-cancel:active {
   background: rgba(181, 165, 165, 0.12);
 }
+
+@import "./member-info.skin.wxss";

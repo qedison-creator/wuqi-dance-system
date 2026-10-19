@@ -1,6 +1,8 @@
-<view class="page">
+<view class="page skin-root skin-{{skinId}}">
 
   <!-- 标题区：与首页此间画面标题风格一致 -->
+  <!-- 经典标题 -->
+  <block wx:if="{{skinId === 'classic'}}">
   <view class="gallery-header">
     <view class="title-row">
       <view class="title-line"></view>
@@ -9,6 +11,28 @@
     </view>
     <text class="title-sub">舞栖瞬间 · 光影留存</text>
   </view>
+  </block>
+
+  <!-- 纸上舞台：影集档案 -->
+  <block wx:if="{{skinId === 'paper'}}">
+    <view class="gp-head">
+      <text class="gp-title">此间画面</text>
+      <view class="gp-sub-row">
+        <text class="gp-en">MOMENTS ARCHIVE</text>
+        <text class="gp-cnt" wx:if="{{colA.length + colB.length > 0}}">共 {{colA.length + colB.length}} 幅</text>
+      </view>
+      <view class="gp-rule"></view>
+      <view class="gp-side">此间画面</view>
+    </view>
+  </block>
+
+  <!-- VOLT：THE WALL -->
+  <block wx:if="{{skinId === 'volt'}}">
+    <view class="gv-head">
+      <text class="gv-title">画面墙</text>
+      <text class="gv-sub" wx:if="{{colA.length + colB.length > 0}}">THE WALL · {{colA.length + colB.length}} SHOTS</text>
+    </view>
+  </block>
 
   <!-- 加载态 -->
   <view wx:if="{{loading && !fromCache}}" class="loading-wrap">

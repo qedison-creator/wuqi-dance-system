@@ -1,6 +1,7 @@
 <wxs src="../../../utils/compare.wxs" module="cmp" />
+<wxs src="../../../utils/date-format.wxs" module="df" />
 
-<view class="cd-page">
+<view class="cd-page skin-root skin-{{skinId}}">
   <view class="loading-skeleton" wx:if="{{loading}}">
     <view class="sk-avatar"></view>
     <view class="sk-name"></view>
@@ -24,6 +25,8 @@
   </view>
 
   <view wx:if="{{!loading && coach && coach._id}}">
+    <!-- 经典 hero -->
+    <block wx:if="{{skinId === 'classic'}}">
     <view class="cd-hero">
       <view class="cd-hero-bg"></view>
       <view class="cd-hero-content">
@@ -37,15 +40,81 @@
         </view>
       </view>
     </view>
+    </block>
+
+    <!-- 纸上舞台：人物志 -->
+    <block wx:if="{{skinId === 'paper'}}">
+      <view class="chp-head">
+        <view class="chp-row">
+          <view class="chp-ava">
+            <image class="chp-ava-img" src="{{imageErrors['coach_'+coach._id] ? '/images/default-avatar.svg' : (coach.avatar_url || '/images/default-avatar.svg')}}" binderror="onImgError" data-type="coach" data-id="{{coach._id}}" mode="aspectFill" />
+            <text class="chp-ava-k">PHOTO</text>
+          </view>
+          <view class="chp-id">
+            <text class="chp-k">COACH · {{storeName || 'WUQI'}}</text>
+            <view class="chp-nm-row">
+              <text class="chp-name">{{coach.name}}</text>
+              <view class="chp-seal">执教</view>
+            </view>
+            <!-- 预览：舞种前带点色圆点 -->
+            <view class="chp-sty" wx:if="{{danceStyleText}}">
+              <view class="chp-sty-dot"></view>
+              <text class="chp-sty-t">{{danceStyleText}}</text>
+            </view>
+          </view>
+        </view>
+        <view class="chp-rule"></view>
+      </view>
+    </block>
+
+    <!-- VOLT：主理人 -->
+    <block wx:if="{{skinId === 'volt'}}">
+      <view class="chv-head">
+        <text class="chv-kicker">COACH · {{danceStyleText || 'DANCE'}} · WUQI DANCE CLUB</text>
+        <view class="chv-nm-row">
+          <text class="chv-name">{{coach.name}}</text>
+          <view class="chv-today" wx:if="{{courses.length > 0}}">TODAY</view>
+        </view>
+        <view class="chv-meta-row">
+          <view class="chv-ava-s">
+            <image class="chv-ava-img" src="{{imageErrors['coach_'+coach._id] ? '/images/default-avatar.svg' : (coach.avatar_url || '/images/default-avatar.svg')}}" binderror="onImgError" data-type="coach" data-id="{{coach._id}}" mode="aspectFill" />
+          </view>
+          <text class="chv-sty" wx:if="{{danceStyleText}}">{{danceStyleText}}</text>
+        </view>
+      </view>
+    </block>
 
     <view class="cd-bio-section" wx:if="{{coach.introduction}}">
-      <view class="cd-section-header">
+      <!-- 纸上舞台：简介按预览为纯引文块，不设小节标题 -->
+      <view class="cd-section-header" wx:if="{{skinId !== 'paper'}}">
         <view class="cd-section-dot"></view>
         <text class="cd-section-title">个人简介</text>
       </view>
-      <text class="cd-bio">{{coach.introduction}}</text>
+      <text class="cd-bio" wx:if="{{skinId === 'paper'}}">「{{coach.introduction}}」</text>
+      <text class="cd-bio" wx:else>{{coach.introduction}}</text>
     </view>
 
+    <!-- 纸上舞台：影集（壹 · 三列小版 + 影N 编号） -->
+    <block wx:if="{{skinId === 'paper'}}">
+      <view class="cd-photo-section" wx:if="{{images.length > 0}}">
+        <view class="cd-photo-section-h">
+          <view class="chp-sec-h">
+            <text class="chp-sec-no">壹</text>
+            <text class="chp-sec-t">影集</text>
+            <text class="chp-sec-en">PORTFOLIO</text>
+          </view>
+          <view class="chp-sec-rule"></view>
+        </view>
+        <view class="chp-plates">
+          <view class="chp-plate" wx:for="{{images}}" wx:key="_id" data-index="{{index}}" bindtap="onPhotoTap">
+            <image class="chp-plate-img" src="{{imageErrors['img_'+index] ? '/images/default-course.svg' : (item.thumbnail_url || item.image_url)}}" binderror="onImgError" data-type="img" data-id="{{index}}" mode="aspectFill" />
+            <text class="chp-plate-cap">{{item.noCn}}</text>
+          </view>
+        </view>
+      </view>
+    </block>
+
+    <block wx:else>
     <view class="cd-photo-section" wx:if="{{images.length > 0}}">
       <view class="cd-section-header">
         <view class="cd-section-dot accent"></view>
@@ -56,32 +125,202 @@
         <image class="cd-photo" wx:for="{{images}}" wx:key="_id" src="{{imageErrors['img_'+index] ? '/images/default-course.svg' : (item.thumbnail_url || item.image_url)}}" binderror="onImgError" data-type="img" data-id="{{index}}" mode="aspectFill" bindtap="onPhotoTap" data-index="{{index}}" />
       </scroll-view>
     </view>
+    </block>
 
     <view class="cd-course-section">
-      <view class="cd-section-header">
+      <!-- 纸上舞台：贰 · 近期课程 / CLASSES（预览小节头） -->
+      <block wx:if="{{skinId === 'paper'}}">
+        <view class="chp-sec-h">
+          <text class="chp-sec-no">贰</text>
+          <text class="chp-sec-t">近期课程</text>
+          <text class="chp-sec-en">CLASSES</text>
+        </view>
+        <view class="chp-sec-rule"></view>
+      </block>
+      <view class="cd-section-header" wx:else>
         <view class="cd-section-dot"></view>
         <text class="cd-section-title">相关场次</text>
       </view>
       <view wx:if="{{courses.length > 0}}">
-        <view class="cd-course-card" wx:for="{{courses}}" wx:key="_id" data-id="{{item._id}}" bindtap="onCourseTap">
+        <block wx:for="{{courses}}" wx:key="_id">
+        <!-- VOLT：与场次预约页同款课程卡 -->
+        <view class="bk-volt-card" wx:if="{{skinId === 'volt'}}" data-id="{{item._id}}" bindtap="onCourseTap">
+          <view class="bk-v-locked" wx:if="{{cmp.contains(bookedScheduleIds, item._id)}}">LOCKED</view>
+          <text class="bk-ghost">{{index < 9 ? '0' + (index + 1) : index + 1}}</text>
+          <view class="bk-v-top">
+            <view class="bk-v-tag bk-v-live" wx:if="{{item._ongoing}}"><view class="bk-v-live-dot"></view>LIVE</view>
+            <view class="bk-v-tag" wx:elif="{{item.danceStyleName}}">{{item.danceStyleName}}</view>
+            <view class="bk-v-time"><text class="bk-v-wd" wx:if="{{item.weekday}}">{{item.weekday}}</text>{{item.capacityVisible ? item.start_time : '??:??'}}<text class="bk-v-time-end">- {{item.capacityVisible ? item.end_time : '??'}}</text></view>
+          </view>
+          <view class="bk-v-body">
+            <text class="bk-v-name">{{item.course_name || '课程'}}</text>
+            <view class="bk-v-meta-row">
+              <view class="bk-v-meta-left">
+                <text class="bk-v-meta">{{item.dateCn}}{{item.classroom ? ' · ' + item.classroom : ''}}</text>
+                <text class="bk-v-deadline bk-v-deadline-first" wx:if="{{isOfficial && item.autoCancelText}}">{{item.autoCancelText}}</text>
+                <text class="bk-v-deadline" wx:if="{{isOfficial && item.cancel_deadline_text}}">截止取消：{{item.cancel_deadline_text}}</text>
+              </view>
+            </view>
+          </view>
+          <view class="bk-v-foot">
+            <view class="bk-v-seat">
+              <block wx:if="{{cmp.contains(bookedScheduleIds, item._id) && item.capacityVisible && item.max_bookings > 0}}">
+                <view class="bk-v-seat-tt">
+                  <text class="bk-v-seat-txt">你已锁定 · {{item.current_bookings}} / {{item.max_bookings}} 席</text>
+                  <text class="bk-v-min-cap" wx:if="{{item.min_bookings}}">最低{{item.min_bookings}}人成班</text>
+                </view>
+                <view class="bk-v-seat-bar"><view class="bk-v-seat-bar-fill" style="width: {{item.current_bookings / item.max_bookings * 100 > 100 ? 100 : item.current_bookings / item.max_bookings * 100}}%;"></view></view>
+              </block>
+              <block wx:elif="{{item.status === 'full' && item.capacityVisible && item.max_bookings > 0}}">
+                <view class="bk-v-seat-tt">
+                  <text class="bk-v-seat-txt">已满 {{item.current_bookings}} / {{item.max_bookings}} 席</text>
+                  <text class="bk-v-min-cap" wx:if="{{item.min_bookings}}">最低{{item.min_bookings}}人成班</text>
+                </view>
+                <view class="bk-v-seat-bar"><view class="bk-v-seat-bar-fill full" style="width: 100%;"></view></view>
+              </block>
+              <block wx:elif="{{item.capacityVisible && item.max_bookings > 0}}">
+                <view class="bk-v-seat-tt">
+                  <text class="bk-v-seat-txt">仅剩 <text class="bk-v-seat-low {{item.max_bookings - (item.current_bookings || 0) <= 0 ? 'zero' : ''}}">{{item.max_bookings - (item.current_bookings || 0)}}</text> / {{item.max_bookings}} 席</text>
+                  <text class="bk-v-min-cap" wx:if="{{item.min_bookings}}">最低{{item.min_bookings}}人成班</text>
+                </view>
+                <view class="bk-v-seat-bar"><view class="bk-v-seat-bar-fill" style="width: {{(item.current_bookings || 0) / item.max_bookings * 100 > 100 ? 100 : (item.current_bookings || 0) / item.max_bookings * 100}}%;"></view></view>
+              </block>
+            </view>
+            <view class="bk-v-btn cancelled" wx:if="{{item.status === 'cancelled'}}"><text>已取消</text></view>
+            <view class="bk-v-btn done" wx:elif="{{item._ended && cmp.contains(completedScheduleIds, item._id)}}"><text>已登场</text></view>
+            <view class="bk-v-btn ended" wx:elif="{{item._ended || item._ongoing}}"><text>NEXT TIME</text></view>
+            <view class="bk-v-btn booked" wx:elif="{{cmp.contains(bookedScheduleIds, item._id)}}" data-course="{{item}}" catchtap="onBookTap"><text>舞社见</text></view>
+            <view class="bk-v-btn waitlisted" wx:elif="{{cmp.contains(waitlistedScheduleIds, item._id)}}"><text>排队中</text></view>
+            <view class="bk-v-btn full" wx:elif="{{item.status === 'full'}}" data-course="{{item}}" catchtap="onBookTap"><text>候补排队</text></view>
+            <view class="bk-v-btn not_open" wx:elif="{{!item.bookingOpen}}" data-course="{{item}}" catchtap="onBookTap"><text>未开放预约</text></view>
+            <view class="bk-v-btn cannot_book" wx:elif="{{item.courseStoreMatched === false || item.courseStyleMatched === false || item.weekdayMatched === false || item.timeMatched === false}}"><text>不可预约</text></view>
+            <view class="bk-v-btn book" wx:else data-course="{{item}}" catchtap="onBookTap"><text>立即锁定</text></view>
+          </view>
+        </view>
+        <!-- 纸上舞台：课程行（严格对齐预览 SCREEN 07：时间列 + 课程主体 + 朱砂按钮） -->
+        <view class="chp-c-row" wx:elif="{{skinId === 'paper'}}" data-id="{{item._id}}" bindtap="onCourseTap">
+          <view class="chp-c-time">
+            <text class="chp-c-time-b">{{item.capacityVisible ? item.start_time : '??:??'}}</text>
+            <text class="chp-c-time-e">- {{item.capacityVisible ? item.end_time : '??'}}</text>
+          </view>
+          <view class="chp-c-main">
+            <view class="chp-c-name">
+              <view class="chp-c-dot" style="background: {{item.danceTagBg}};"></view>
+              <text>{{item.danceStyleName ? item.danceStyleName + ' · ' : ''}}{{item.course_name || '课程'}}</text>
+            </view>
+            <view class="chp-c-meta">
+              <text>{{item.weekday}} {{df.formatMD(item.date)}}</text>
+              <text wx:if="{{item.classroom}}">· {{item.classroom}}</text>
+              <text wx:if="{{isOfficial && item.capacityVisible}}">· {{item.status === 'full' ? '已满' : '已约'}} {{item.current_bookings || 0}}/{{item.max_bookings || 20}}</text>
+              <text wx:if="{{isOfficial && !item.capacityVisible}}">· 已约 ?/?</text>
+              <text wx:if="{{isOfficial && item.capacityVisible && item.min_bookings}}">· 最低{{item.min_bookings}}人成班</text>
+            </view>
+            <text class="chp-c-note" wx:if="{{isOfficial && item.autoCancelText}}">{{item.autoCancelText}}</text>
+            <text class="chp-c-note" wx:if="{{isOfficial && item.booking_deadline_text && !item.autoCancelText}}">{{item.booking_deadline_text}}，人数不足自动取消</text>
+            <text class="chp-c-note" wx:if="{{isOfficial && item.cancel_deadline_text}}">截止取消：{{item.cancel_deadline_text}}</text>
+            <view class="chp-c-tag" wx:if="{{item.exemptLockTag}}">不可豁免取消</view>
+            <!-- 预览：席位数进度线 -->
+            <view class="chp-c-bar" wx:if="{{isOfficial && item.capacityVisible && item.max_bookings > 0}}">
+              <view class="chp-c-bar-fill" style="width: {{(item.current_bookings || 0) / item.max_bookings * 100 > 100 ? 100 : (item.current_bookings || 0) / item.max_bookings * 100}}%;"></view>
+            </view>
+          </view>
+          <view class="cd-course-action">
+            <!-- 受限用户：已结束 / 未开放预约 / 已预约（可取消）/ 不可预约 -->
+            <block wx:if="{{isRestrictedUser}}">
+              <view class="cd-book-btn disabled" wx:if="{{item._ended}}">
+                <text>已结束</text>
+              </view>
+              <view class="cd-book-btn disabled-clickable" wx:elif="{{!item.bookingOpen}}">
+                <text>未开放预约</text>
+              </view>
+              <view class="cd-book-btn booked" wx:elif="{{cmp.contains(bookedScheduleIds, item._id)}}" data-course="{{item}}" catchtap="onBookTap">
+                <text>已预约</text>
+              </view>
+              <view class="cd-book-btn disabled-clickable" wx:else data-course="{{item}}" catchtap="onBookTap">
+                <text>不可预约</text>
+              </view>
+            </block>
+            <!-- 正式会员：显示完整状态 -->
+            <block wx:else>
+              <view class="cd-book-btn disabled" wx:if="{{item.status === 'cancelled'}}">
+                <text>已取消</text>
+              </view>
+              <view class="cd-book-btn state-done" wx:elif="{{item._ended && cmp.contains(completedScheduleIds, item._id)}}">
+                <text>已完成</text>
+              </view>
+              <view class="cd-book-btn disabled" wx:elif="{{item._ended}}">
+                <text>已结束</text>
+              </view>
+              <view class="cd-book-btn state-ongoing" wx:elif="{{item._ongoing}}">
+                <text>进行中</text>
+              </view>
+              <view class="cd-book-btn booked" wx:elif="{{cmp.contains(bookedScheduleIds, item._id)}}" data-course="{{item}}" catchtap="onBookTap">
+                <text>已预约</text>
+              </view>
+              <view class="cd-book-btn waitlist-btn waitlisted" wx:elif="{{cmp.contains(waitlistedScheduleIds, item._id)}}">
+                <text>候补中</text>
+              </view>
+              <block wx:elif="{{item.status === 'full'}}">
+                <view class="cd-book-btn state-full">
+                  <text>已满</text>
+                </view>
+                <view class="cd-book-btn waitlist-btn" wx:if="{{!cmp.contains(waitlistedScheduleIds, item._id)}}" data-course="{{item}}" catchtap="onBookTap">
+                  <text>加入候补</text>
+                </view>
+              </block>
+              <view class="cd-book-btn disabled-clickable" wx:elif="{{!item.bookingOpen}}">
+                <text>未开放预约</text>
+              </view>
+              <view class="cd-book-btn disabled-clickable" wx:elif="{{item.courseStoreMatched === false}}" data-course="{{item}}" catchtap="onBookTap">
+                <text>不可预约</text>
+              </view>
+              <view class="cd-book-btn disabled-clickable" wx:elif="{{item.courseStyleMatched === false}}" data-course="{{item}}" catchtap="onBookTap">
+                <text>不可预约</text>
+              </view>
+              <view class="cd-book-btn disabled-clickable" wx:elif="{{item.weekdayMatched === false}}" data-course="{{item}}" catchtap="onBookTap">
+                <text>不可预约</text>
+              </view>
+              <view class="cd-book-btn disabled-clickable" wx:elif="{{item.timeMatched === false}}" data-course="{{item}}" catchtap="onBookTap">
+                <text>不可预约</text>
+              </view>
+              <view class="cd-book-btn" wx:else data-course="{{item}}" catchtap="onBookTap">
+                <text>预约</text>
+              </view>
+            </block>
+          </view>
+        </view>
+        <!-- classic：原课程卡 -->
+        <view class="cd-course-card" wx:else data-id="{{item._id}}" bindtap="onCourseTap">
           <view class="cd-course-body">
             <text class="cd-course-name">{{item.course_name || '课程名称'}}</text>
             <view class="cd-course-tag" wx:if="{{item.danceStyleName}}" style="background: {{item.danceTagBg}}; color: {{item.danceTagText}}">{{item.danceStyleName}}</view>
             <view class="cd-course-tag exempt-lock-tag" wx:if="{{item.exemptLockTag}}">不可豁免取消</view>
             <view class="cd-course-meta">
               <view class="cd-course-meta-dot"></view>
-              <text>{{item.date}} {{item.weekday}} {{item.start_time}}-{{item.end_time}}</text>
+              <text>{{item.date}} {{item.weekday}} {{item.capacityVisible ? item.start_time : '??:??'}}-{{item.capacityVisible ? item.end_time : '??'}}</text>
             </view>
             <view class="cd-course-meta" wx:if="{{item.classroom}}">
               <view class="cd-course-meta-dot room"></view>
               <text>{{item.classroom}}</text>
             </view>
-            <view class="cd-course-deadline" wx:if="{{isOfficial && item.booking_deadline_text}}">
-              <text class="cd-deadline-text">截止预约：{{item.booking_deadline_text}}</text>
-              <text class="cd-deadline-text cancel">截止取消：{{item.cancel_deadline_text}}</text>
+            <view class="cd-course-deadline" wx:if="{{isOfficial && (item.booking_deadline_text || item.autoCancelText || item.cancel_deadline_text)}}">
+              <text class="cd-deadline-text" wx:if="{{item.autoCancelText}}">{{item.autoCancelText}}</text>
+              <text class="cd-deadline-text" wx:if="{{item.booking_deadline_text && !item.autoCancelText}}">{{item.booking_deadline_text}}，人数不足自动取消</text>
+              <text class="cd-deadline-text cancel" wx:if="{{item.cancel_deadline_text}}">截止取消：{{item.cancel_deadline_text}}</text>
             </view>
             <view class="cd-card-meta-row">
-              <view class="cd-course-count" wx:if="{{isOfficial && item.capacityVisible}}">
+              <!-- VOLT：仅剩 X / XX 席（对齐预览表述） -->
+              <view class="cd-course-count" wx:if="{{isOfficial && skinId === 'volt' && item.capacityVisible && item.status === 'full'}}">
+                <text class="cdc-label">已满</text>
+                <text class="cdc-num">{{item.current_bookings || 0}}</text>
+                <text class="cdc-total">/{{item.max_bookings || 20}} 席</text>
+              </view>
+              <view class="cd-course-count" wx:elif="{{isOfficial && skinId === 'volt' && item.capacityVisible}}">
+                <text class="cdc-label">仅剩</text>
+                <text class="cdc-num cdc-low {{item.max_bookings - (item.current_bookings || 0) <= 0 ? 'zero' : ''}}">{{item.max_bookings - (item.current_bookings || 0)}}</text>
+                <text class="cdc-total">/{{item.max_bookings || 20}} 席</text>
+              </view>
+              <view class="cd-course-count" wx:elif="{{isOfficial && item.capacityVisible}}">
                 <text class="cdc-label">已约</text>
                 <text class="cdc-num">{{item.current_bookings || 0}}</text>
                 <text class="cdc-total">/{{item.max_bookings || 20}}人</text>
@@ -91,7 +330,7 @@
                 <text class="cdc-num">?</text>
                 <text class="cdc-total">/?人</text>
               </view>
-              <text class="cdc-min-capacity" wx:if="{{item.min_bookings}}">最低{{item.min_bookings}}人成班</text>
+              <text class="cdc-min-capacity" wx:if="{{item.capacityVisible && item.min_bookings}}">最低{{item.min_bookings}}人成班</text>
               <view class="cd-booked-avatars" wx:if="{{item.capacityVisible && item.booked_users && item.booked_users.length > 0}}">
                 <block wx:for="{{item.booked_users}}" wx:for-item="bu" wx:for-index="bui" wx:key="user_id" wx:if="{{bui < 10}}">
                   <image class="cd-booked-avatar" src="{{bu.avatar_url}}" mode="aspectFill" style="z-index: {{bui + 1}};" />
@@ -167,14 +406,21 @@
             </block>
           </view>
         </view>
+        </block>
       </view>
       <empty-state wx:else text="暂无未来课程"></empty-state>
+    </view>
+
+    <!-- 纸上舞台：页脚（预览 SCREEN 07 收尾行） -->
+    <view class="chp-foot" wx:if="{{skinId === 'paper'}}">
+      <text class="chp-foot-cn">舞 栖 · 以 舞 为 栖</text>
     </view>
   </view>
 
   <empty-state wx:if="{{!loading && !coach}}" text="教练信息不存在" hint="请检查后重试"></empty-state>
 
-  <view class="modal-mask" wx:if="{{showBookingModal}}" bindtap="onCancelBookingModal">
+  <!-- 确认预约：classic 走原弹窗 -->
+  <view class="modal-mask" wx:if="{{showBookingModal && skinId === 'classic'}}" bindtap="onCancelBookingModal">
     <view class="modal-content" catchtap="onModalTap">
       <view class="mc-title">确认预约</view>
       <view class="mc-body">{{bookingModalText}}</view>
@@ -185,7 +431,30 @@
     </view>
   </view>
 
-  <view class="modal-mask" wx:if="{{showWaitlistModal}}" bindtap="onCancelWaitlist">
+  <!-- 确认预约（paper / volt）：与场次预约页、课程详情页同款皮肤统一弹窗 -->
+  <view class="bk-cfm-mask {{skinId === 'volt' ? 'bk-cfm-mask-volt' : ''}}" wx:if="{{showBookingModal && skinId !== 'classic'}}" bindtap="onCancelBookingModal">
+    <view class="bk-cfm-card" catchtap="onModalTap">
+      <view class="bk-cfm-handle" wx:if="{{skinId === 'volt'}}"></view>
+      <view class="bk-cfm-seal" wx:if="{{skinId === 'paper'}}">栖</view>
+      <text class="bk-cfm-kicker" wx:if="{{skinId === 'paper'}}">BOOKING CONFIRMED</text>
+      <text class="bk-cfm-title">确认预约<text class="bk-cfm-q" wx:if="{{skinId === 'volt'}}">?</text></text>
+      <view class="bk-cfm-line"></view>
+      <block wx:if="{{cfmInfo}}">
+        <view class="bk-cfm-row"><text>确认预约</text><text class="bk-cfm-strong">「{{cfmInfo.name}}」</text></view>
+        <view class="bk-cfm-row"><text>教练：{{cfmInfo.coach}}</text></view>
+        <view class="bk-cfm-row"><text>{{cfmInfo.date}} {{cfmInfo.weekDay}} {{cfmInfo.time}}</text></view>
+        <view class="bk-cfm-row"><text class="bk-cfm-hl">{{cfmInfo.deductText}}</text></view>
+      </block>
+      <text class="bk-cfm-body" wx:else>{{bookingModalText}}</text>
+      <view class="bk-cfm-actions">
+        <view class="bk-cfm-cancel" bindtap="onCancelBookingModal">取消</view>
+        <view class="bk-cfm-ok" bindtap="onConfirmBookingModal">{{skinId === 'paper' ? '确认预约' : '立即锁定'}}</view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 加入候补：classic 走原弹窗 -->
+  <view class="modal-mask" wx:if="{{showWaitlistModal && skinId === 'classic'}}" bindtap="onCancelWaitlist">
     <view class="modal-content" catchtap="onModalTap">
       <view class="mc-title">加入候补</view>
       <text class="mc-body">{{waitlistModalText}}</text>
@@ -196,7 +465,24 @@
     </view>
   </view>
 
-  <view class="modal-mask" wx:if="{{isLoggedInShowing}}" bindtap="onCancelLoginModal">
+  <!-- 加入候补（paper / volt）：与课程详情页同款皮肤统一弹窗 -->
+  <view class="bk-cfm-mask {{skinId === 'volt' ? 'bk-cfm-mask-volt' : ''}}" wx:if="{{showWaitlistModal && skinId !== 'classic'}}" bindtap="onCancelWaitlist">
+    <view class="bk-cfm-card" catchtap="onModalTap">
+      <view class="bk-cfm-handle" wx:if="{{skinId === 'volt'}}"></view>
+      <view class="bk-cfm-seal" wx:if="{{skinId === 'paper'}}">栖</view>
+      <text class="bk-cfm-kicker" wx:if="{{skinId === 'paper'}}">BOOKING NOTICE</text>
+      <text class="bk-cfm-title">加入候补</text>
+      <view class="bk-cfm-line"></view>
+      <text class="bk-cfm-body">{{waitlistModalText}}</text>
+      <view class="bk-cfm-actions">
+        <view class="bk-cfm-cancel" bindtap="onCancelWaitlist">取消</view>
+        <view class="bk-cfm-ok" bindtap="onConfirmWaitlist">确定</view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 登录提示：classic 走原弹窗 -->
+  <view class="modal-mask" wx:if="{{isLoggedInShowing && skinId === 'classic'}}" bindtap="onCancelLoginModal">
     <view class="modal-content" catchtap="onModalTap">
       <view class="mc-title">登录提示</view>
       <view class="mc-body">请先登录后再进行预约操作</view>
@@ -206,5 +492,22 @@
       </view>
     </view>
   </view>
+
+  <!-- 登录提示（paper / volt）：皮肤统一票面 -->
+  <view class="bk-cfm-mask {{skinId === 'volt' ? 'bk-cfm-mask-volt' : ''}}" wx:if="{{isLoggedInShowing && skinId !== 'classic'}}" bindtap="onCancelLoginModal">
+    <view class="bk-cfm-card" catchtap="onModalTap">
+      <view class="bk-cfm-handle" wx:if="{{skinId === 'volt'}}"></view>
+      <view class="bk-cfm-seal" wx:if="{{skinId === 'paper'}}">栖</view>
+      <text class="bk-cfm-kicker" wx:if="{{skinId === 'paper'}}">SIGN IN</text>
+      <text class="bk-cfm-title">登录提示</text>
+      <view class="bk-cfm-line"></view>
+      <text class="bk-cfm-body">请先登录后再进行预约操作</text>
+      <view class="bk-cfm-actions">
+        <view class="bk-cfm-cancel" bindtap="onCancelLoginModal">取消</view>
+        <view class="bk-cfm-ok" bindtap="onGoLogin">去登录</view>
+      </view>
+    </view>
+  </view>
 </view>
 <update-modal />
+<skin-success props="{{skinSuccess}}" bind:ok="onSkinSuccessOk" />

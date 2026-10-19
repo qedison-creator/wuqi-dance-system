@@ -1,4 +1,4 @@
-<view class="mask" wx:if="{{visible && announce}}" catchtouchmove="onPreventMove">
+<view class="mask skin-root skin-{{skinId}}" wx:if="{{visible && announce}}" catchtouchmove="onPreventMove">
   <view class="card">
     <view class="top-row">
       <view class="badge {{announce.popup_type === 'important' ? 'important' : 'normal'}}">{{announce.popup_type === 'important' ? '重要通知' : '公告'}}</view>

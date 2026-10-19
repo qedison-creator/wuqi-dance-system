@@ -1,0 +1,751 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>页面效果图 · 纸上舞台 — 舞栖会员端</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@500;600;700;900&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#F5F1E8; --paper-2:#ECE5D6; --card:#FCFAF4;
+  --ink:#221D15; --ink-2:#6C6353; --ink-3:#A79D89;
+  --line:#DFD6C2; --line-strong:#C9BFA8;
+  --cinnabar:#B93A26; --gold:#A0802E;
+  --serif:"Noto Serif SC","Songti SC","STSong","SimSun",serif;
+  --sans:-apple-system,"Noto Sans SC","PingFang SC","HarmonyOS Sans SC","Microsoft YaHei",sans-serif;
+  --ease-out:cubic-bezier(.22,1,.36,1);
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--paper);color:var(--ink);font-family:var(--sans);font-size:15px;line-height:1.75}
+body::before{content:"";position:fixed;inset:0;pointer-events:none;opacity:.05;z-index:999;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='.5'/%3E%3C/svg%3E")}
+.wrap{max-width:1160px;margin:0 auto;padding:52px 28px 120px}
+.back{font-size:12px;letter-spacing:.2em;color:var(--ink-2);text-decoration:none;border-bottom:1px solid var(--line-strong);padding-bottom:3px}
+.back:hover{color:var(--cinnabar);border-color:var(--cinnabar)}
+.mast{border-bottom:3px double var(--line-strong);padding-bottom:26px;margin:20px 0 10px;display:flex;justify-content:space-between;align-items:flex-end;gap:20px;flex-wrap:wrap}
+h1{font-family:var(--serif);font-weight:900;font-size:38px;letter-spacing:.04em;line-height:1.25}
+.mast p{max-width:560px;color:var(--ink-2);font-size:14px}
+.mast .seal{width:52px;height:52px;background:var(--cinnabar);color:#FCF7EE;font-family:var(--serif);font-weight:700;font-size:26px;display:flex;align-items:center;justify-content:center;border-radius:4px;transform:rotate(-4deg);box-shadow:2px 2px 0 rgba(34,29,21,.15)}
+
+/* ====== 屏区块 ====== */
+.screen{display:flex;gap:44px;margin-top:84px;align-items:flex-start}
+.screen .info{flex:1;min-width:280px;max-width:400px;position:sticky;top:40px}
+.sc-no{font-family:var(--serif);font-size:14px;color:var(--cinnabar);letter-spacing:.25em}
+.sc-title{font-family:var(--serif);font-size:30px;font-weight:900;letter-spacing:.05em;margin:8px 0 4px}
+.sc-en{font-size:10px;letter-spacing:.35em;color:var(--ink-3);text-transform:uppercase}
+.sc-desc{font-size:13.5px;color:var(--ink-2);margin:18px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line);padding:16px 0}
+.notes{list-style:none}
+.notes li{display:flex;gap:12px;padding:9px 0;border-bottom:1px dashed var(--line);font-size:13px;color:var(--ink-2)}
+.notes li b{color:var(--ink);font-weight:700;flex-shrink:0}
+.notes li::before{content:"—";color:var(--cinnabar);flex-shrink:0}
+
+/* ====== 手机框 ====== */
+.phone{width:392px;height:848px;background:var(--paper);border:1px solid #CFC7B4;border-radius:46px;box-shadow:0 30px 70px rgba(34,29,21,.16),inset 0 0 0 6px #171310,inset 0 0 0 7px rgba(255,255,255,.06);padding:8px;flex-shrink:0;overflow:hidden;position:relative}
+.ph-inner{width:100%;height:100%;border-radius:38px;overflow:hidden;background:var(--paper);display:flex;flex-direction:column;position:relative}
+.statusbar{height:38px;display:flex;justify-content:space-between;align-items:center;padding:0 24px;font-size:12px;font-weight:700;color:var(--ink);flex-shrink:0}
+.statusbar .sig{letter-spacing:2px;font-size:10px}
+.scroll{flex:1;overflow-y:auto;scrollbar-width:none}
+.scroll::-webkit-scrollbar{display:none}
+/* TabBar */
+.tabbar{height:64px;border-top:1px solid var(--line);background:var(--card);display:flex;align-items:stretch;flex-shrink:0}
+.tab{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font-size:10.5px;letter-spacing:.15em;color:var(--ink-3);position:relative}
+.tab .dot{width:5px;height:5px;border-radius:1px;background:transparent;transition:background .18s}
+.tab.on{color:var(--ink)}
+.tab.on .dot{background:var(--cinnabar)}
+/* 通用 */
+.hairline{height:1px;background:var(--line)}
+.double-rule{border-top:3px double var(--line-strong)}
+.btn{display:inline-flex;align-items:center;justify-content:center;height:40px;padding:0 22px;border-radius:3px;font-size:13px;font-weight:700;letter-spacing:.1em;border:none;cursor:pointer;transition:transform .12s var(--ease-out);flex-shrink:0}
+.btn:active{transform:scale(.96)}
+.btn-p{background:var(--cinnabar);color:#FCF7EE}
+.btn-ink{background:var(--ink);color:#FCF7EE}
+.btn-g{background:transparent;color:var(--ink);border:1px solid var(--ink)}
+.btn-dis{background:var(--paper-2);color:var(--ink-3)}
+.serif{font-family:var(--serif)}
+.mono-sec{padding:0 22px}
+
+/* ---------- 首页 ---------- */
+.mast-head{display:flex;justify-content:space-between;align-items:center;padding:14px 22px 12px}
+.brand{display:flex;align-items:center;gap:9px}
+.brand .b-seal{width:30px;height:30px;background:var(--cinnabar);color:#FCF7EE;font-family:var(--serif);font-weight:700;font-size:17px;display:flex;align-items:center;justify-content:center;border-radius:3px;transform:rotate(-4deg)}
+.brand .b-name{font-family:var(--serif);font-weight:900;font-size:19px;letter-spacing:.08em}
+.brand .b-en{font-size:8px;letter-spacing:.34em;color:var(--ink-3)}
+.brand-line{display:flex;flex-direction:column;line-height:1.2}
+.store-btn{font-size:11.5px;color:var(--ink-2);display:flex;align-items:center;gap:5px;border:1px solid var(--line-strong);padding:5px 10px;border-radius:2px}
+.store-btn::after{content:"▾";font-size:9px}
+.holiday{margin:0 22px;background:transparent;border-left:3px solid var(--cinnabar);padding:8px 12px;font-size:11.5px;color:var(--cinnabar);letter-spacing:.05em}
+.hero{margin:14px 22px 0;position:relative;background:var(--paper-2);border:1px solid var(--line);height:250px;overflow:hidden}
+.hero .v-title{position:absolute;top:16px;right:18px;writing-mode:vertical-rl;font-family:var(--serif);font-size:30px;font-weight:900;letter-spacing:.22em;color:var(--ink);display:flex;align-items:center;flex-direction:column}
+.hero .v-seal{writing-mode:horizontal-tb;width:26px;height:26px;background:var(--cinnabar);color:#FCF7EE;font-family:var(--serif);font-size:14px;font-weight:700;display:flex;align-items:center;justify-content:center;border-radius:3px;margin-top:14px;transform:rotate(-4deg);flex-shrink:0}
+.hero .hero-en{position:absolute;left:16px;top:14px;font-size:8.5px;letter-spacing:.3em;color:var(--ink-3)}
+.hero .hero-month{position:absolute;left:16px;bottom:44px;font-family:var(--serif);font-size:30px;font-weight:900}
+.hero .hero-sub{position:absolute;left:16px;bottom:22px;font-size:11px;color:var(--ink-2)}
+.hero .hero-lines{position:absolute;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 26px,rgba(34,29,21,.045) 26px,rgba(34,29,21,.045) 27px)}
+.sec{padding:30px 22px 6px}
+.sec-h{display:flex;align-items:baseline;gap:10px;margin-bottom:4px}
+.sec-h .no{font-family:var(--serif);font-size:11px;color:var(--cinnabar);letter-spacing:.2em}
+.sec-h .t{font-family:var(--serif);font-size:19px;font-weight:700;letter-spacing:.06em}
+.sec-h .en{margin-left:auto;font-size:8.5px;letter-spacing:.28em;color:var(--ink-3)}
+.sec-rule{border-top:3px double var(--line-strong);margin-bottom:6px}
+/* 栖事 */
+.notice{display:flex;gap:14px;padding:13px 2px;border-bottom:1px solid var(--line);font-size:13px;align-items:baseline}
+.notice .n-no{font-family:var(--serif);font-size:11px;color:var(--ink-3);width:22px;flex-shrink:0}
+.notice .n-t{flex:1;color:var(--ink)}
+.notice .n-tag{background:var(--cinnabar);color:#FCF7EE;font-size:9px;padding:1.5px 6px;border-radius:2px;letter-spacing:.12em;flex-shrink:0}
+.notice .n-date{font-size:10.5px;color:var(--ink-3);flex-shrink:0}
+/* 教练 */
+.coaches{display:flex;gap:16px;overflow:hidden;padding:10px 2px 6px}
+.coach{width:72px;flex-shrink:0;text-align:center}
+.coach .ph{width:72px;height:88px;border:1px solid var(--line);background:var(--paper-2);border-radius:4px;display:flex;align-items:center;justify-content:center;font-family:var(--serif);font-size:30px;font-weight:700;color:var(--ink-2);position:relative}
+.coach .ph i{position:absolute;bottom:4px;right:5px;font-style:normal;font-family:var(--serif);font-size:8.5px;color:var(--ink-3);letter-spacing:.1em}
+.coach .nm{font-family:var(--serif);font-size:13px;font-weight:700;margin-top:8px}
+.coach .st{display:flex;align-items:center;justify-content:center;gap:4px;font-size:9.5px;color:var(--ink-2);margin-top:2px}
+.coach .st i{width:5px;height:5px;border-radius:50%;font-style:normal}
+/* 课程行 */
+.crow{display:flex;align-items:center;gap:16px;padding:15px 2px;border-bottom:1px solid var(--line)}
+.ctime{text-align:center;width:66px;flex-shrink:0}
+.ctime b{font-family:var(--serif);font-size:23px;font-weight:700;display:block;line-height:1.1;letter-spacing:.02em}
+.ctime span{font-size:10px;color:var(--ink-3)}
+.cmain{flex:1;min-width:0}
+.cname{font-family:var(--serif);font-size:15px;font-weight:700;display:flex;align-items:center;gap:7px}
+.cname i{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.cmeta{font-size:11px;color:var(--ink-2);margin-top:2px}
+.cbar{height:2px;background:var(--paper-2);margin-top:8px;border-radius:1px;overflow:hidden;max-width:150px}
+.cbar i{display:block;height:100%;background:var(--ink)}
+.cbtn{height:34px;padding:0 16px;font-size:12px}
+.foot-brand{text-align:center;padding:34px 0 26px;color:var(--ink-3)}
+.foot-brand .fb-cn{font-family:var(--serif);font-size:12px;letter-spacing:.4em}
+.foot-brand .fb-en{font-size:8px;letter-spacing:.4em;margin-top:4px}
+
+/* ---------- 预约页 ---------- */
+.pg-head{padding:14px 22px 0}
+.pg-title{font-family:var(--serif);font-size:26px;font-weight:900;letter-spacing:.05em}
+.pg-sub{display:flex;justify-content:space-between;align-items:center;margin-top:2px}
+.pg-sub .en{font-size:8.5px;letter-spacing:.3em;color:var(--ink-3)}
+.pg-sub .cnt{font-size:11px;color:var(--ink-2)}
+.week{display:flex;gap:6px;padding:16px 22px 4px}
+.day{flex:1;text-align:center;padding:9px 0 7px;border-radius:3px;cursor:pointer;transition:background .18s,color .18s}
+.day .wd{font-size:10px;color:var(--ink-2)}
+.day .dn{font-family:var(--serif);font-size:19px;font-weight:700;margin-top:2px}
+.day .mk{height:4px;margin-top:4px}
+.day.sel{background:var(--ink);color:var(--paper)}
+.day.sel .wd{color:rgba(245,241,232,.75)}
+.day .mk.rest{color:var(--ink-3);font-size:8px;letter-spacing:.05em;line-height:1}
+.day.today:not(.sel) .mk{background:var(--cinnabar);width:5px;border-radius:1px;margin:4px auto 0}
+.filters{display:flex;gap:8px;padding:12px 22px;flex-wrap:wrap}
+.f-chip{font-size:11.5px;padding:6px 13px;border:1px solid var(--line-strong);border-radius:2px;color:var(--ink-2);display:inline-flex;gap:6px;align-items:center;cursor:pointer;transition:all .18s}
+.f-chip i{width:6px;height:6px;border-radius:50%}
+.f-chip.on{background:var(--ink);border-color:var(--ink);color:var(--paper)}
+.crow-grp{padding:0 22px}
+.crow .time-note{font-size:9.5px;color:var(--cinnabar)}
+.waitlist-note{margin:14px 22px 0;font-size:11px;color:var(--cinnabar);border:1px dashed rgba(185,58,38,.4);padding:9px 12px;border-radius:2px;line-height:1.6}
+/* 今日戏单大卡：每天课程一般 1-2 节（最多 4 节），一场课一张节目单 */
+.show-card{border:1px solid var(--line);background:var(--card);border-radius:8px;padding:18px 20px 16px;margin-top:14px;box-shadow:0 1px 0 rgba(34,29,21,.03)}
+.show-card .sc-head{display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:12px;border-bottom:1px solid var(--line)}
+.show-card .sc-no2{font-family:var(--serif);font-size:12px;color:var(--cinnabar);letter-spacing:.3em;display:flex;align-items:center;gap:8px;font-weight:700}
+.show-card .sc-no2 i{width:7px;height:7px;border-radius:50%;font-style:normal;flex-shrink:0}
+.show-card .sc-time{font-family:var(--serif);font-size:27px;font-weight:900;line-height:1;letter-spacing:.02em}
+.show-card .sc-time small{font-size:12px;color:var(--ink-3);font-weight:500;margin-left:6px;letter-spacing:0}
+.show-card .sc-name{font-family:var(--serif);font-size:23px;font-weight:900;letter-spacing:.05em;margin-top:13px}
+.show-card .sc-meta{font-size:12px;color:var(--ink-2);margin-top:4px}
+.show-card .sc-foot{display:flex;align-items:flex-end;gap:16px;margin-top:15px;padding-top:13px;border-top:1px dashed var(--line)}
+.show-card .sc-seat{flex:1;font-size:11.5px;color:var(--ink-2)}
+.show-card .sc-seat .cbar{margin-top:7px}
+.tomorrow-hint{margin-top:16px;font-size:11px;color:var(--ink-3);text-align:center;letter-spacing:.08em}
+
+/* ---------- 课程详情 ---------- */
+.cd-head{padding:18px 22px 0}
+.cd-kicker{font-size:9px;letter-spacing:.3em;color:var(--ink-3)}
+.cd-title{font-family:var(--serif);font-size:30px;font-weight:900;margin:6px 0 2px;letter-spacing:.03em}
+.cd-coachline{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--ink-2)}
+.cd-coachline b{color:var(--ink);font-family:var(--serif);font-size:14px}
+.cd-arrow{color:var(--cinnabar);font-size:12px}
+.meta-grid{display:grid;grid-template-columns:1fr 1fr;margin:18px 22px 0;border-top:1px solid var(--line)}
+.mg{padding:14px 4px;border-bottom:1px solid var(--line)}
+.mg:nth-child(odd){border-right:1px solid var(--line);padding-right:16px}
+.mg:nth-child(even){padding-left:16px}
+.mg .k{font-size:10px;letter-spacing:.2em;color:var(--ink-3)}
+.mg .v{font-family:var(--serif);font-size:20px;font-weight:700;margin-top:3px}
+.mg .v small{font-size:11px;color:var(--ink-2);font-family:var(--sans);margin-left:5px}
+.rule-box{margin:18px 22px 0;border:1px dashed var(--line-strong);padding:13px 15px;font-size:11.5px;color:var(--ink-2);line-height:1.8;border-radius:2px}
+.rule-box b{color:var(--ink)}
+.rule-box .rb-t{font-family:var(--serif);font-weight:700;color:var(--ink);font-size:12.5px;letter-spacing:.1em;margin-bottom:4px}
+.cd-bar{border-top:1px solid var(--line);background:var(--card);padding:12px 20px;display:flex;align-items:center;gap:14px;flex-shrink:0}
+.cd-cost .c-num{font-family:var(--serif);font-size:24px;font-weight:700;line-height:1}
+.cd-cost .c-lab{font-size:9.5px;color:var(--ink-3);letter-spacing:.15em;margin-top:2px}
+.cd-bar .btn{flex:1;height:44px;font-size:14px}
+
+/* ---------- 个人中心 ---------- */
+.me-hero{display:flex;gap:16px;padding:22px 22px 18px;align-items:center}
+.me-ava{width:64px;height:64px;border-radius:4px;background:var(--paper-2);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-family:var(--serif);font-size:28px;font-weight:700;color:var(--ink-2);flex-shrink:0}
+.me-info{flex:1}
+.me-name{display:flex;align-items:center;gap:9px}
+.me-name b{font-family:var(--serif);font-size:23px;font-weight:900;letter-spacing:.04em}
+.me-tag{width:22px;height:22px;background:var(--cinnabar);color:#FCF7EE;font-family:var(--serif);font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;border-radius:2px;transform:rotate(-4deg)}
+.me-sub{font-size:10.5px;color:var(--ink-3);letter-spacing:.08em;margin-top:4px}
+.me-stats{display:flex;border-top:1px solid var(--line);border-bottom:1px solid var(--line);margin:0 22px}
+.mst{flex:1;text-align:center;padding:15px 0 13px}
+.mst+.mst{border-left:1px solid var(--line)}
+.mst .n{font-family:var(--serif);font-size:25px;font-weight:700;line-height:1.1}
+.mst .n.gold{color:var(--gold)}
+.mst .l{font-size:9.5px;letter-spacing:.2em;color:var(--ink-3);margin-top:3px}
+.ticket{margin:22px 22px 0;border:1px solid var(--line);background:var(--card);border-radius:6px;position:relative;display:flex;box-shadow:2px 2px 0 rgba(34,29,21,.06)}
+.tk-left{flex:1;padding:15px 16px}
+.tk-k{font-size:9px;letter-spacing:.25em;color:var(--ink-3)}
+.tk-name{font-family:var(--serif);font-size:18px;font-weight:900;margin:4px 0 2px}
+.tk-meta{font-size:10.5px;color:var(--ink-2);line-height:1.7}
+.tk-meta .st-dot{display:inline-flex;align-items:center;gap:4px;margin-right:8px}
+.tk-meta .st-dot i{width:5px;height:5px;border-radius:50%}
+.tk-right{width:88px;border-left:1px dashed var(--line-strong);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:12px 6px;position:relative}
+.tk-right::before,.tk-right::after{content:"";position:absolute;left:-6px;width:11px;height:11px;border-radius:50%;background:var(--paper);border:1px solid var(--line)}
+.tk-right::before{top:-6px}.tk-right::after{bottom:-6px}
+.tk-big{font-family:var(--serif);font-size:30px;font-weight:900;line-height:1}
+.tk-lab{font-size:8.5px;letter-spacing:.2em;color:var(--ink-3);margin-top:4px}
+.tk-seal{position:absolute;bottom:8px;right:8px;width:20px;height:20px;background:var(--cinnabar);color:#FCF7EE;font-size:11px;font-family:var(--serif);font-weight:700;display:flex;align-items:center;justify-content:center;border-radius:2px;transform:rotate(-6deg);opacity:.85}
+.menu{margin:24px 22px 0;border-top:1px solid var(--line)}
+.mi{display:flex;align-items:center;gap:12px;padding:15px 2px;border-bottom:1px solid var(--line);font-size:13.5px}
+.mi .m-en{font-size:8px;letter-spacing:.2em;color:var(--ink-3);margin-left:auto;margin-right:2px}
+.mi .arr{color:var(--ink-3);font-size:13px}
+.mi .mi-ico{width:16px;height:16px;border:1px solid var(--ink-2);border-radius:2px;position:relative;flex-shrink:0;opacity:.75}
+.mi .mi-ico.qr{display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700}
+.logout{text-align:center;font-size:11px;color:var(--ink-3);letter-spacing:.3em;padding:24px 0 18px}
+
+/* ---------- 抽屉 / 盖章覆盖层 ---------- */
+.ovl{position:absolute;inset:0;z-index:20;display:flex;align-items:flex-end}
+.ovl .dim{position:absolute;inset:0;background:rgba(23,19,16,.45)}
+.sheet{position:relative;width:100%;background:var(--card);border-top:1px solid var(--line);border-radius:10px 10px 0 0;padding:14px 22px 26px;animation:sheetUp .45s var(--ease-out) both}
+@keyframes sheetUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+.sheet .handle{width:30px;height:4px;border-radius:2px;background:var(--line-strong);margin:0 auto 16px}
+.tk-title{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:4px}
+.tk-title b{font-family:var(--serif);font-size:19px;font-weight:900;letter-spacing:.1em}
+.tk-title span{font-size:10px;color:var(--cinnabar);letter-spacing:.1em}
+.qr-stage{display:flex;align-items:center;gap:18px;margin-top:14px}
+.qr{width:118px;height:118px;border:1px solid var(--line);padding:9px;background:#fff;flex-shrink:0}
+.qr svg{width:100%;height:100%;display:block}
+.qr-meta{font-size:12px;color:var(--ink-2);line-height:2}
+.qr-meta b{font-family:var(--serif);font-size:15px;color:var(--ink);letter-spacing:.05em}
+.qr-meta .cd{font-family:var(--serif);font-size:20px;letter-spacing:.14em;color:var(--ink)}
+.qr-meta .ref{color:var(--cinnabar);font-size:10.5px}
+.sheet-note{margin-top:14px;padding-top:12px;border-top:1px dashed var(--line-strong);font-size:11px;color:var(--ink-2);display:flex;justify-content:space-between}
+/* 盖章成功 */
+.stamp-ovl{position:absolute;inset:0;z-index:20;display:flex;align-items:center;justify-content:center;background:rgba(23,19,16,.45)}
+.stamp-card{width:300px;background:var(--card);border:1px solid var(--line);border-radius:6px;box-shadow:3px 3px 0 rgba(34,29,21,.2);padding:54px 26px 24px;text-align:center;position:relative;animation:cardIn .4s var(--ease-out) both}
+@keyframes cardIn{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:translateY(0)}}
+.stamp-card .sc-k{font-size:9px;letter-spacing:.35em;color:var(--ink-3)}
+.stamp-card .sc-t{font-family:var(--serif);font-size:26px;font-weight:900;margin:8px 0 2px;letter-spacing:.08em}
+.stamp-card .sc-d{font-size:12px;color:var(--ink-2);line-height:1.9}
+.stamp-card .sc-d b{font-family:var(--serif);color:var(--ink)}
+.stamp-card .sc-line{border-top:1px dashed var(--line-strong);margin:16px 0 14px}
+.stamp-big{position:absolute;top:-37px;left:50%;width:74px;height:74px;background:var(--cinnabar);color:#FCF7EE;font-family:var(--serif);font-size:30px;font-weight:700;display:flex;align-items:center;justify-content:center;border-radius:6px;box-shadow:2px 3px 0 rgba(34,29,21,.18);animation:stampIn .55s cubic-bezier(.2,1.4,.3,1) .15s both}
+@keyframes stampIn{0%{opacity:0;transform:translateX(-50%) scale(2.6) rotate(-20deg)}55%{opacity:1;transform:translateX(-50%) scale(.9) rotate(-3deg)}100%{opacity:1;transform:translateX(-50%) scale(1) rotate(-6deg)}}
+.stamp-card .btn{width:100%;margin-top:4px}
+/* ---------- 教练详情 & 此间画面（方案A） ---------- */
+.coach-head{padding:20px 22px 0;display:flex;gap:18px}
+.coach-ava-lg{width:104px;height:132px;border:1px solid var(--line);background:var(--paper-2);border-radius:4px;display:flex;align-items:center;justify-content:center;font-family:var(--serif);font-size:44px;font-weight:900;color:var(--ink-2);flex-shrink:0;position:relative}
+.coach-ava-lg i{position:absolute;bottom:6px;right:8px;font-style:normal;font-family:var(--serif);font-size:9px;color:var(--ink-3);letter-spacing:.15em}
+.coach-id{flex:1}
+.coach-k{font-size:9px;letter-spacing:.3em;color:var(--ink-3)}
+.coach-nm{font-family:var(--serif);font-size:34px;font-weight:900;letter-spacing:.06em;margin:4px 0 6px;display:flex;align-items:center;gap:10px}
+.coach-seal{width:26px;height:26px;background:var(--cinnabar);color:#FCF7EE;font-family:var(--serif);font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;border-radius:3px;transform:rotate(-4deg)}
+.coach-sty{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--ink-2)}
+.coach-sty i{width:7px;height:7px;border-radius:50%}
+.coach-sty .sep{color:var(--ink-3);margin:0 2px}
+.bio-quote{margin:18px 22px 0;border-left:3px solid var(--line-strong);padding:6px 0 6px 16px;font-size:13px;color:var(--ink-2);line-height:2.1}
+.plates{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;padding:14px 22px 0}
+.plate .p-img{width:100%;aspect-ratio:3/4;background:var(--paper-2);border:1px solid var(--line);border-radius:3px;display:flex;align-items:center;justify-content:center;font-family:var(--serif);color:var(--ink-3);font-size:13px}
+.plate .p-cap{font-size:10px;color:var(--ink-3);margin-top:6px;letter-spacing:.04em}
+.masonry{column-count:2;column-gap:12px;padding:16px 22px 0}
+.mitem{break-inside:avoid;margin-bottom:12px;border:1px solid var(--line);background:var(--card);border-radius:4px;overflow:hidden}
+.mitem .mi-img{background:var(--paper-2);display:flex;align-items:center;justify-content:center;font-family:var(--serif);color:var(--ink-3);font-size:14px;letter-spacing:.1em}
+.mitem .mi-cap{padding:9px 11px;font-size:10.5px;color:var(--ink-3);display:flex;justify-content:space-between;align-items:center}
+.mitem .mi-cap b{font-family:var(--serif);color:var(--ink);font-weight:700}
+.gal-side{position:absolute;top:14px;right:14px;writing-mode:vertical-rl;font-family:var(--serif);font-size:24px;font-weight:900;letter-spacing:.3em;color:var(--ink);opacity:.85}
+@media (max-width:1024px){.screen{flex-direction:column}.screen .info{position:static;max-width:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="back" href="index.html">← 返回方案总览</a>
+  <div class="mast">
+    <div>
+      <h1>页面效果图</h1>
+      <p>四张主页面 + 两个关键状态（入场券、预约成功盖章）。图中人物照片均为占位示意，实施时以门店实拍图替换；所有数据为演示假数据。</p>
+    </div>
+    <div class="seal">栖</div>
+  </div>
+
+  <!-- ================= 01 首页 ================= -->
+  <div class="screen">
+    <div class="phone"><div class="ph-inner">
+      <div class="statusbar"><span>9:41</span><span class="sig">●●● ▲ ▮</span></div>
+      <div class="scroll">
+        <div class="mast-head">
+          <div class="brand">
+            <div class="b-seal">栖</div>
+            <div class="brand-line">
+              <div class="b-name">舞栖</div>
+              <div class="b-en">WUQI DANCE</div>
+            </div>
+          </div>
+          <div class="store-btn">万象城店</div>
+        </div>
+        <div class="holiday">10/1 – 10/3 国庆放假，相关课程已顺延</div>
+        <div class="hero">
+          <div class="hero-lines"></div>
+          <div class="hero-en">SEPTEMBER · MOVEMENT ARCHIVE</div>
+          <div class="v-title">以舞为栖<span class="v-seal">栖</span></div>
+          <div class="hero-month">九月 · 秋序</div>
+          <div class="hero-sub">今日 4 节课可约 · 2 个名额将满</div>
+        </div>
+
+        <div class="sec">
+          <div class="sec-h"><span class="no">壹</span><span class="t">栖事</span><span class="en">NOTICES</span></div>
+          <div class="sec-rule"></div>
+          <div class="notice"><span class="n-no">01</span><span class="n-t">中秋连假课表已发布，可提前约课</span><span class="n-tag">新</span></div>
+          <div class="notice"><span class="n-no">02</span><span class="n-t">九月「会员带新」回馈开启</span><span class="n-date">09/20</span></div>
+          <div class="notice"><span class="n-no">03</span><span class="n-t">B 教室地胶升级完成，恢复使用</span><span class="n-date">09/15</span></div>
+        </div>
+
+        <div class="sec">
+          <div class="sec-h"><span class="no">贰</span><span class="t">舞栖教练</span><span class="en">COACHES</span></div>
+          <div class="sec-rule"></div>
+          <div class="coaches">
+            <div class="coach"><div class="ph">林<i>01</i></div><div class="nm">林晚</div><div class="st"><i style="background:#B93A26"></i>古典舞</div></div>
+            <div class="coach"><div class="ph">苏<i>02</i></div><div class="nm">苏芮</div><div class="st"><i style="background:#B26A64"></i>韩舞</div></div>
+            <div class="coach"><div class="ph">陈<i>03</i></div><div class="nm">陈默</div><div class="st"><i style="background:#3E5C76"></i>街舞</div></div>
+            <div class="coach"><div class="ph">周<i>04</i></div><div class="nm">周雨桐</div><div class="st"><i style="background:#A0802E"></i>爵士</div></div>
+          </div>
+        </div>
+
+        <div class="sec" style="padding-bottom:0">
+          <div class="sec-h"><span class="no">叁</span><span class="t">今日之后</span><span class="en">NEXT&nbsp;CLASSES</span></div>
+          <div class="sec-rule"></div>
+          <div class="crow">
+            <div class="ctime"><b>19:30</b><span>- 21:00</span></div>
+            <div class="cmain">
+              <div class="cname"><i style="background:#B93A26"></i>古典舞 · 基础</div>
+              <div class="cmeta">林晚 · A 教室 · 已约 6/12</div>
+              <div class="cbar"><i style="width:50%"></i></div>
+            </div>
+            <button class="btn btn-p cbtn">预约</button>
+          </div>
+          <div class="crow">
+            <div class="ctime"><b>20:00</b><span>- 21:30</span></div>
+            <div class="cmain">
+              <div class="cname"><i style="background:#3E5C76"></i>街舞 · Element</div>
+              <div class="cmeta">陈默 · A 教室 · 已约 3/10</div>
+              <div class="cbar"><i style="width:30%"></i></div>
+            </div>
+            <button class="btn btn-p cbtn">预约</button>
+          </div>
+          <div class="crow" style="border-bottom:none">
+            <div class="ctime"><b>18:00</b><span>- 19:00</span></div>
+            <div class="cmain">
+              <div class="cname"><i style="background:#B26A64"></i>韩舞 · 框架</div>
+              <div class="cmeta">苏芮 · B 教室 · 已满</div>
+              <div class="cbar"><i style="width:100%;background:var(--line-strong)"></i></div>
+            </div>
+            <button class="btn btn-g cbtn">候补</button>
+          </div>
+        </div>
+
+        <div class="foot-brand">
+          <div class="fb-cn">舞 栖 · 以 舞 为 栖</div>
+          <div class="fb-en">WUQI DANCE STUDIO · 画廊「此间画面」→</div>
+        </div>
+      </div>
+      <div class="tabbar">
+        <div class="tab on"><span class="dot"></span>首页</div>
+        <div class="tab"><span class="dot"></span>预约</div>
+        <div class="tab"><span class="dot"></span>我的</div>
+      </div>
+    </div></div>
+    <div class="info">
+      <div class="sc-no">壹 / SCREEN 01</div>
+      <div class="sc-title">首页 · 刊头即舞台</div>
+      <div class="sc-en">HOME</div>
+      <p class="sc-desc">首屏是一张「杂志刊头」：店号字标 + 放假细条 + 大图区。竖排「以舞为栖」是整个 App 的点题处；内容按 壹栖事 / 贰教练 / 叁课程 三段编号排版。</p>
+      <ul class="notes">
+        <li><b>轮播升级</b>后台多图轮换保留，但视觉改为单幅刊头，去掉轮播圆点与小卡片堆叠</li>
+        <li><b>假期提醒</b>由彩色横幅改为左侧朱砂细条的引文样式，安静但醒目</li>
+        <li><b>栖事（公告）</b>编号目录 + 日期右对齐，「新」用朱砂小签</li>
+        <li><b>教练</b>方形肖像（实施用实拍）+ 宋体名 + 点色舞种，替代圆形彩色卡片</li>
+        <li><b>课程</b>与预约页同一「课程行」组件，首页只露出近 3 节，尾部箭头进完整课表</li>
+        <li><b>动效</b>进入时刊头大图 1.05→1 缓缩（开幕感），三段内容 80ms 逐段浮现</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- ================= 02 场次预约 ================= -->
+  <div class="screen">
+    <div class="phone"><div class="ph-inner">
+      <div class="statusbar"><span>9:41</span><span class="sig">●●● ▲ ▮</span></div>
+      <div class="scroll">
+        <div class="pg-head">
+          <div class="pg-title">场次预约</div>
+          <div class="pg-sub"><span class="en">BOOKING · 万象城店</span><span class="cnt">周三 09/24 · 今日 2 场</span></div>
+        </div>
+        <div class="week">
+          <div class="day"><div class="wd">一</div><div class="dn">22</div><div class="mk"></div></div>
+          <div class="day"><div class="wd">二</div><div class="dn">23</div><div class="mk"></div></div>
+          <div class="day sel"><div class="wd">三</div><div class="dn">24</div><div class="mk"></div></div>
+          <div class="day today"><div class="wd">四</div><div class="dn">25</div><div class="mk"></div></div>
+          <div class="day"><div class="wd">五</div><div class="dn">26</div><div class="mk"></div></div>
+          <div class="day"><div class="wd">六</div><div class="dn">27</div><div class="mk rest">休</div></div>
+          <div class="day"><div class="wd">日</div><div class="dn">28</div><div class="mk rest">休</div></div>
+        </div>
+        <div class="filters">
+          <span class="f-chip on">全部</span>
+          <span class="f-chip"><i style="background:#B93A26"></i>古典舞</span>
+          <span class="f-chip"><i style="background:#B26A64"></i>韩舞</span>
+          <span class="f-chip"><i style="background:#3E5C76"></i>街舞</span>
+          <span class="f-chip"><i style="background:#A0802E"></i>爵士</span>
+        </div>
+        <div class="hairline"></div>
+        <div class="crow-grp" style="padding-bottom:4px">
+          <div class="show-card">
+            <div class="sc-head">
+              <span class="sc-no2"><i style="background:#B93A26"></i>第一场 · 古典舞</span>
+              <span class="sc-time">19:30<small>- 21:00</small></span>
+            </div>
+            <div class="sc-name">古典舞 · 基础</div>
+            <div class="sc-meta">林晚 · A 教室（2 层）</div>
+            <div class="sc-foot">
+              <div class="sc-seat">已约 6 / 12 席<div class="cbar" style="max-width:160px"><i style="width:50%"></i></div></div>
+              <button class="btn btn-p cbtn">预约</button>
+            </div>
+          </div>
+          <div class="show-card">
+            <div class="sc-head">
+              <span class="sc-no2"><i style="background:#B26A64"></i>第二场 · 韩舞</span>
+              <span class="sc-time">18:00<small>- 19:00</small></span>
+            </div>
+            <div class="sc-name">韩舞 · 框架</div>
+            <div class="sc-meta">苏芮 · B 教室</div>
+            <div class="sc-foot">
+              <div class="sc-seat">已约 12 / 12 席 · 已满<div class="cbar" style="max-width:160px"><i style="width:100%;background:var(--line-strong)"></i></div></div>
+              <button class="btn btn-g cbtn">候补</button>
+            </div>
+          </div>
+          <div class="tomorrow-hint">明日戏单 · 3 场：古典舞 / 街舞 / 爵士 →</div>
+        </div>
+        <div class="waitlist-note">已加入候补「韩舞 · 框架」：有名额空出时将自动为你转正并扣课时，无需手动操作。</div>
+      </div>
+      <div class="tabbar">
+        <div class="tab"><span class="dot"></span>首页</div>
+        <div class="tab on"><span class="dot"></span>预约</div>
+        <div class="tab"><span class="dot"></span>我的</div>
+      </div>
+    </div></div>
+    <div class="info">
+      <div class="sc-no">贰 / SCREEN 02</div>
+      <div class="sc-title">场次预约 · 今日戏单</div>
+      <div class="sc-en">BOOKING</div>
+      <p class="sc-desc">门店每天一般只排 1-2 节课（最多 4 节）——课少不是劣势，改用「戏单」式大卡：<b>一场课一张节目单</b>，场次编号、宋体大时间、课名、名额线郑重铺满版面。课越少，每场越贵。</p>
+      <ul class="notes">
+        <li><b>戏单大卡</b>头部「第 N 场 + 舞种点色」、右侧宋体大时间；课名 23px 宋体；一般 1-2 节正好满屏不空，排满 4 节时纵向滚动即「一屏一课」</li>
+        <li><b>日期条</b>墨块选中 + 朱砂点标「今天」，周末「休」直接标在格内</li>
+        <li><b>舞种筛选</b>点色胶囊，选中反白为墨色</li>
+        <li><b>按钮五态</b>预约（朱砂）/ 已约✓（墨实底）/ 候补（墨描边）/ 未开放·已结束（纸灰）；现有 12 种状态全部映射到这套视觉，逻辑不变</li>
+        <li><b>名额</b>2px 发丝进度线：墨色=正常，灰满格=已满</li>
+        <li><b>候补提示</b>朱砂虚线引文条，「自动转正」规则大白话写在页面上</li>
+        <li><b>动效</b>切日期时戏单逐张浮现（80ms stagger）；预约成功走「盖章」流程（见屏 06）</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- ================= 03 课程详情 ================= -->
+  <div class="screen">
+    <div class="phone"><div class="ph-inner">
+      <div class="statusbar"><span>9:41</span><span class="sig">●●● ▲ ▮</span></div>
+      <div class="scroll">
+        <div class="cd-head">
+          <div class="cd-kicker">CLASSICAL · BASIC · 万象城店</div>
+          <div class="cd-title">古典舞 · 基础</div>
+          <div class="cd-coachline">带课 <b>林晚</b> <span class="cd-arrow">查看主页 →</span></div>
+        </div>
+        <div class="meta-grid">
+          <div class="mg"><div class="k">日期 DATE</div><div class="v">09/24 <small>周三</small></div></div>
+          <div class="mg"><div class="k">时间 TIME</div><div class="v">19:30 <small>– 21:00</small></div></div>
+          <div class="mg"><div class="k">教室 STUDIO</div><div class="v">A 教室 <small>2 层</small></div></div>
+          <div class="mg"><div class="k">名额 BOOKED</div><div class="v">6<small>/ 12 人</small></div></div>
+        </div>
+        <div class="rule-box">
+          <div class="rb-t">约课须知</div>
+          开课前 2 小时停止预约；开课前 1 小时外取消，课时全额退回；此后取消需使用 1 次「豁免机会」（当前剩 3 次）。不足 4 人开课将取消并全额退回课时。
+        </div>
+        <div class="meta-grid" style="border-bottom:none;margin-top:6px">
+          <div class="mg" style="border-right:1px solid var(--line)"><div class="k">消耗 COST</div><div class="v" style="color:var(--cinnabar)">1 <small>课时</small></div></div>
+          <div class="mg"><div class="k">我的状态 STATUS</div><div class="v" style="font-size:16px">未预约</div></div>
+        </div>
+      </div>
+      <div class="cd-bar">
+        <div class="cd-cost"><div class="c-num">1</div><div class="c-lab">消耗课时</div></div>
+        <button class="btn btn-p">立即预约</button>
+      </div>
+    </div></div>
+    <div class="info">
+      <div class="sc-no">叁 / SCREEN 03</div>
+      <div class="sc-title">课程详情 · 把规则说成人话</div>
+      <div class="sc-en">COURSE DETAIL</div>
+      <p class="sc-desc">详情页承担「决策」：去不去、几点去、扣多少。改版用 2×2 发丝线网格陈列关键信息，预约规则用大白话写清，底部常驻操作栏。</p>
+      <ul class="notes">
+        <li><b>标题区</b>英文 kicker + 大宋体课名，教练名可点进主页</li>
+        <li><b>信息网格</b>日期/时间/教室/名额 2×2，宋体大数字，发丝线十字分隔</li>
+        <li><b>约课须知</b>取消时限、豁免次数、最低开班人数合并为一段人话，豁免剩余次数带出（替代原来的多处灰色小字）</li>
+        <li><b>消耗课时</b>朱砂强调——这是会员最关心的成本</li>
+        <li><b>底部操作栏</b>纸片常驻：左侧大数字，右侧唯一朱砂按钮；已约/已满等状态在此栏变化</li>
+        <li><b>动效</b>进入时标题先落、网格 80ms 逐格浮现；「立即预约」点击后弹出确认抽屉 → 盖章收尾</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- ================= 04 个人中心 ================= -->
+  <div class="screen">
+    <div class="phone"><div class="ph-inner">
+      <div class="statusbar"><span>9:41</span><span class="sig">●●● ▲ ▮</span></div>
+      <div class="scroll">
+        <div class="me-hero">
+          <div class="me-ava">顾</div>
+          <div class="me-info">
+            <div class="me-name"><b>顾清欢</b><span class="me-tag">正</span></div>
+            <div class="me-sub">会员编号 WQ-0817 · 与舞栖同行 128 天</div>
+          </div>
+        </div>
+        <div class="me-stats">
+          <div class="mst"><div class="n">3</div><div class="l">待上课</div></div>
+          <div class="mst"><div class="n">26</div><div class="l">已上课</div></div>
+          <div class="mst"><div class="n gold">14</div><div class="l">剩余课时</div></div>
+        </div>
+        <div class="ticket">
+          <div class="tk-left">
+            <div class="tk-k">MEMBERSHIP · 季卡</div>
+            <div class="tk-name">时间卡 · 每日一节</div>
+            <div class="tk-meta">
+              有效期至 2026.12.08<br>
+              <span class="st-dot"><i style="background:#B93A26"></i>万象城店</span><span class="st-dot"><i style="background:#B26A64"></i>滨江店</span>
+            </div>
+          </div>
+          <div class="tk-right">
+            <div class="tk-big">94</div>
+            <div class="tk-lab">剩余天数</div>
+            <div class="tk-seal">栖</div>
+          </div>
+        </div>
+        <div class="menu">
+          <div class="mi"><span class="mi-ico qr">码</span>入场券 · 到店出示签到<span class="m-en">PASS</span><span class="arr">→</span></div>
+          <div class="mi"><span class="mi-ico"></span>我的记录<span class="m-en">RECORDS</span><span class="arr">→</span></div>
+          <div class="mi"><span class="mi-ico"></span>我的套餐<span class="m-en">PACKAGES</span><span class="arr">→</span></div>
+          <div class="mi"><span class="mi-ico"></span>消息推送设置<span class="m-en">ALERTS</span><span class="arr">→</span></div>
+          <div class="mi"><span class="mi-ico"></span>此间画面 · 画廊<span class="m-en">GALLERY</span><span class="arr">→</span></div>
+          <div class="mi"><span class="mi-ico"></span>联系门店<span class="m-en">CONTACT</span><span class="arr">→</span></div>
+        </div>
+        <div class="logout">退 出 登 录</div>
+      </div>
+      <div class="tabbar">
+        <div class="tab"><span class="dot"></span>首页</div>
+        <div class="tab"><span class="dot"></span>预约</div>
+        <div class="tab on"><span class="dot"></span>我的</div>
+      </div>
+    </div></div>
+    <div class="info">
+      <div class="sc-no">肆 / SCREEN 04</div>
+      <div class="sc-title">个人中心 · 会员志与票根</div>
+      <div class="sc-en">PROFILE</div>
+      <p class="sc-desc">把「个人中心」做成一本随身的《会员志》：名字用最大号的宋体，身份是一枚小印章「正」，套餐变成一张带撕票边的「季卡票根」，右上角盖朱砂小章。</p>
+      <ul class="notes">
+        <li><b>会员志</b>方头像 + 大名 + 印章身份签；「同行 128 天」替代冰冷的注册日期</li>
+        <li><b>数据</b>三个大数字一排，发丝线分格；剩余课时用哑金区别于黑体数据</li>
+        <li><b>套餐票根</b>虚线撕票边 + 打孔圆 + 右侧大数字（时间卡显剩余天数，次卡显剩余次数）——一张卡讲清楚「是什么、到何时、还剩多少」</li>
+        <li><b>会员码 → 入场券</b>改名「入场券」并做成抽屉（见屏 05），到店出示的仪式感</li>
+        <li><b>菜单</b>全部发丝线行 + 英文小注 + 箭头，图标弱化为一枚小方框</li>
+        <li><b>动效</b>数字滚动入场；票根盖章处首次进入时轻「压」一下（scale 1→0.96→1）</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- ================= 05 入场券 ================= -->
+  <div class="screen">
+    <div class="phone" style="height:600px"><div class="ph-inner">
+      <div class="statusbar"><span>9:41</span><span class="sig">●●● ▲ ▮</span></div>
+      <div class="scroll" style="filter:brightness(.96)"></div>
+      <div class="ovl">
+        <div class="dim"></div>
+        <div class="sheet">
+          <div class="handle"></div>
+          <div class="tk-title"><b>入 场 券</b><span>ADMIT ONE</span></div>
+          <div class="qr-stage">
+            <div class="qr">
+              <svg viewBox="0 0 29 29" shape-rendering="crispEdges"><rect width="29" height="29" fill="#fff"/><g fill="#221D15"><path d="M0 0h7v7H0zM22 0h7v7h-7zM0 22h7v7H0z"/><path d="M1 1h5v5H1zM23 1h5v5h-5zM1 23h5v5H1z" fill="#fff"/><path d="M2 2h3v3H2zM24 2h3v3h-3zM2 24h3v3H2z"/><path d="M9 0h1v2H9zM12 0h2v1h-2zM15 1h2v2h-2zM19 0h2v2h-2zM0 9h2v2H0zM2 12h1v2H2zM0 15h1v3H0zM1 19h2v2H1zM28 9h1v2h-1zM26 11h2v1h-2zM28 14h1v3h-1zM26 18h2v2h-2zM9 5h2v2H9zM11 4h1v3h-1zM14 5h2v1h-2zM17 5h1v2h-1zM19 6h2v2h-2zM5 9h2v1H5zM8 9h1v2H8zM10 10h2v2h-2zM13 9h3v1h-3zM17 9h1v2h-1zM19 10h2v2h-2zM22 9h1v1h-1zM24 10h2v2h-2zM3 13h2v2H3zM6 12h1v2H6zM9 13h1v3H9zM11 14h2v1h-2zM14 12h1v3h-1zM15 15h2v2h-2zM18 13h1v2h-1zM20 14h2v1h-2zM23 13h2v2h-2zM26 13h1v1h-1zM2 17h1v2H2zM4 18h2v1H4zM7 17h1v2H7zM9 18h2v1H9zM12 17h1v2h-1zM13 19h3v1h-3zM17 18h2v1h-2zM20 17h1v2h-1zM22 18h2v1h-2zM25 17h1v2h-1zM27 19h2v1h-2zM9 21h1v2H9zM11 22h2v1h-2zM14 21h1v2h-1zM16 22h2v1h-2zM19 21h1v2h-1zM21 22h2v1h-2zM24 21h2v2h-2zM27 22h1v2h-1zM10 25h1v2h-1zM12 26h2v1h-2zM15 25h2v2h-2zM18 25h1v2h-1zM20 26h2v1h-2zM23 25h1v3h-1zM25 26h2v1h-2z"/></g></svg>
+            </div>
+            <div class="qr-meta">
+              <b>古典舞 · 基础</b><br>
+              今日 19:30 · A 教室<br>
+              <span class="cd">WQ·0817·6C2F</span><br>
+              <span class="ref">◆ 60 秒自动刷新，防截图代扫</span>
+            </div>
+          </div>
+          <div class="sheet-note"><span>出示给门店工作人员扫码签到</span><span>签到后自动关闭</span></div>
+        </div>
+      </div>
+      <div class="tabbar"><div class="tab"><span class="dot"></span>首页</div><div class="tab"><span class="dot"></span>预约</div><div class="tab on"><span class="dot"></span>我的</div></div>
+    </div></div>
+    <div class="info">
+      <div class="sc-no">伍 / STATE 01</div>
+      <div class="sc-title">入场券（会员码抽屉）</div>
+      <div class="sc-en">QR PASS</div>
+      <p class="sc-desc">会员码从弹窗升级为「入场券」抽屉：ADMIT ONE 的票面语言 + 编号 + 刷新提示。纸感票面比悬浮白框更耐看，也更像剧场检票的仪式。</p>
+      <ul class="notes">
+        <li><b>票面</b>课名 + 时间 + 会员编号大字，工作人员远看即可核对</li>
+        <li><b>刷新</b>60 秒倒计时刷新逻辑不变，提示改为朱砂小字</li>
+        <li><b>动效</b>底部纸片上滑 0.45s；扫码成功后整券「盖章核销」式淡出</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- ================= 06 预约成功盖章 ================= -->
+  <div class="screen">
+    <div class="phone" style="height:600px"><div class="ph-inner">
+      <div class="statusbar"><span>9:41</span><span class="sig">●●● ▲ ▮</span></div>
+      <div class="scroll"></div>
+      <div class="stamp-ovl">
+        <div class="stamp-card">
+          <div class="sc-k">BOOKING CONFIRMED</div>
+          <div class="sc-t">预约成功</div>
+          <div class="stamp-big">栖</div>
+          <div class="sc-d">已预约 <b>古典舞 · 基础</b><br>09/24 周三 19:30 · A 教室<br>消耗 1 课时 · 剩余 13</div>
+          <div class="sc-line"></div>
+          <button class="btn btn-ink">好的</button>
+        </div>
+      </div>
+      <div class="tabbar"><div class="tab"><span class="dot"></span>首页</div><div class="tab"><span class="dot"></span>预约</div><div class="tab"><span class="dot"></span>我的</div></div>
+    </div></div>
+    <div class="info">
+      <div class="sc-no">陆 / STATE 02</div>
+      <div class="sc-title">预约成功 · 盖章</div>
+      <div class="sc-en">STAMP</div>
+      <p class="sc-desc">全 App 的签名瞬间：预约成功、签到成功、审核通过共用这一枚「栖」字朱砂印章——放大落回、轻斜、伴随一次短震动。取消预约则盖「止」字灰章，一正一反。</p>
+      <ul class="notes">
+        <li><b>章面</b>落章 0.55s 微回弹曲线，落定时卡片轻微下沉 1px（重量感）</li>
+        <li><b>结果数据</b>课时消耗与剩余直接写在票面，闭环不用再翻套餐</li>
+        <li><b>复用</b>同一组件覆盖：预约/候补转正/签到/取消/审核结果/放假通知确认</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- ================= 07 教练详情（A） ================= -->
+  <div class="screen">
+    <div class="phone"><div class="ph-inner">
+      <div class="statusbar"><span>9:41</span><span class="sig">●●● ▲ ▮</span></div>
+      <div class="scroll">
+        <div class="coach-head">
+          <div class="coach-ava-lg">林<i>PHOTO</i></div>
+          <div class="coach-id">
+            <div class="coach-k">COACH · 01 · 万象城店</div>
+            <div class="coach-nm">林晚<span class="coach-seal">执教</span></div>
+            <div class="coach-sty"><i style="background:#B93A26"></i>古典舞<span class="sep">/</span>教龄 6 年<span class="sep">/</span>本周 4 节</div>
+          </div>
+        </div>
+        <div class="bio-quote">「身体先于语言。古典舞的呼吸从脊柱开始，我们一节一节把它唤醒。」—— 摘自林晚教学手记</div>
+
+        <div class="sec">
+          <div class="sec-h"><span class="no">壹</span><span class="t">影集</span><span class="en">PORTFOLIO</span></div>
+          <div class="sec-rule"></div>
+          <div class="plates">
+            <div class="plate"><div class="p-img">剧排</div><div class="p-cap">影一 · 剧场排练</div></div>
+            <div class="plate"><div class="p-img">身韵</div><div class="p-cap">影二 · 身韵组合</div></div>
+            <div class="plate"><div class="p-img">后台</div><div class="p-cap">影三 · 演出后台</div></div>
+          </div>
+        </div>
+
+        <div class="sec" style="padding-bottom:0">
+          <div class="sec-h"><span class="no">贰</span><span class="t">近期课程</span><span class="en">CLASSES</span></div>
+          <div class="sec-rule"></div>
+          <div class="crow" style="border-top:none">
+            <div class="ctime"><b>19:30</b><span>- 21:00</span></div>
+            <div class="cmain">
+              <div class="cname"><i style="background:#B93A26"></i>古典舞 · 基础</div>
+              <div class="cmeta">周三 09/24 · A 教室 · 已约 6/12</div>
+              <div class="cbar"><i style="width:50%"></i></div>
+            </div>
+            <button class="btn btn-p cbtn">预约</button>
+          </div>
+          <div class="crow" style="border-bottom:none">
+            <div class="ctime"><b>10:00</b><span>- 11:30</span></div>
+            <div class="cmain">
+              <div class="cname"><i style="background:#B93A26"></i>古典舞 · 身韵</div>
+              <div class="cmeta">周六 09/27 · A 教室 · 已约 9/12</div>
+              <div class="cbar"><i style="width:75%"></i></div>
+            </div>
+            <button class="btn btn-p cbtn">预约</button>
+          </div>
+        </div>
+        <div class="foot-brand"><div class="fb-cn">舞 栖 · 以 舞 为 栖</div></div>
+      </div>
+    </div></div>
+    <div class="info">
+      <div class="sc-no">柒 / SCREEN 07</div>
+      <div class="sc-title">教练详情 · 人物志</div>
+      <div class="sc-en">COACH PROFILE</div>
+      <p class="sc-desc">教练页做成「人物志」：方版肖像 + 宋体大名 + 「执教」朱砂小章，简介用引文体排成一段手记，影集编号入册（影一/影二…），近期课程复用课程行。</p>
+      <ul class="notes">
+        <li><b>肖像</b>3:4 方版 + 编号注脚，替代圆形头像，杂志人物页的做法</li>
+        <li><b>简介</b>左侧发丝粗线的引文块，支持后端 introduction 长文本</li>
+        <li><b>影集</b>三列小版 + 「影N」编号，点开大图浏览（现有相册数据）</li>
+        <li><b>课程</b>只列该教练未来 7 天排课，直接可约（数据同现有 /schedules?coach_id）</li>
+        <li><b>动效</b>进入时肖像先落、影集逐张浮现；点「执教」章无功能，纯身份感</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- ================= 08 此间画面（A） ================= -->
+  <div class="screen">
+    <div class="phone"><div class="ph-inner">
+      <div class="statusbar"><span>9:41</span><span class="sig">●●● ▲ ▮</span></div>
+      <div class="scroll" style="position:relative">
+        <div class="gal-side">此间画面</div>
+        <div class="pg-head">
+          <div class="pg-title">此间画面</div>
+          <div class="pg-sub"><span class="en">MOMENTS ARCHIVE</span><span class="cnt">共 28 幅</span></div>
+        </div>
+        <div class="filters" style="padding:12px 22px 2px 22px">
+          <span class="f-chip on">全部</span>
+          <span class="f-chip">万象城店</span>
+          <span class="f-chip">滨江店</span>
+        </div>
+        <div class="masonry">
+          <div class="mitem"><div class="mi-img" style="height:150px">排练厅</div><div class="mi-cap"><b>影十二 · 排练厅的午后</b><span>09/12</span></div></div>
+          <div class="mitem"><div class="mi-img" style="height:100px">把杆</div><div class="mi-cap"><b>影十一 · 把杆</b><span>09/10</span></div></div>
+          <div class="mitem"><div class="mi-img" style="height:120px">镜屋</div><div class="mi-cap"><b>影十 · 镜屋</b><span>09/08</span></div></div>
+          <div class="mitem"><div class="mi-img" style="height:170px">演出</div><div class="mi-cap"><b>影九 · 秋季汇演</b><span>09/01</span></div></div>
+          <div class="mitem"><div class="mi-img" style="height:110px">鞋</div><div class="mi-cap"><b>影八 · 一双软鞋</b><span>08/27</span></div></div>
+          <div class="mitem"><div class="mi-img" style="height:140px">灯光</div><div class="mi-cap"><b>影七 · 灯光落下前</b><span>08/20</span></div></div>
+        </div>
+        <div class="foot-brand"><div class="fb-cn">畫 面 即 過 程</div><div class="fb-en">ARCHIVE · WUQI DANCE</div></div>
+      </div>
+    </div></div>
+    <div class="info">
+      <div class="sc-no">捌 / SCREEN 08</div>
+      <div class="sc-title">此间画面 · 影集档案</div>
+      <div class="sc-en">GALLERY ARCHIVE</div>
+      <p class="sc-desc">画廊做成「档案影集」：双列瀑布流、每幅照片是一张入册的「影N」版画——编号 + 题注 + 日期，右侧竖排「此间画面」点题。安静、耐翻、有收藏感。</p>
+      <ul class="notes">
+        <li><b>瀑布流</b>双列错落（图片高度来自实图），门店筛选胶囊沿用点色规范</li>
+        <li><b>题注</b>编号 + 一句短题 + 日期，数据可由图片标题/日期生成，无标题时只显编号日期</li>
+        <li><b>点开大图</b>纸底全屏浏览 + 底部题注行，左右滑动翻页（现有数据）</li>
+        <li><b>动效</b>进入时照片逐张浮现（100ms stagger，由近及远）；点开时整幅「拓印式」淡入</li>
+      </ul>
+    </div>
+  </div>
+
+  <footer style="margin-top:100px;border-top:3px double var(--line-strong);padding-top:24px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">
+    <div>
+      <div style="font-family:var(--serif);font-size:15px;letter-spacing:.2em">纸上舞台 · 待确认后实施</div>
+      <div style="font-size:9px;letter-spacing:.4em;color:var(--ink-3);margin-top:4px">MOCKUPS ONLY — IMPLEMENTATION AFTER APPROVAL</div>
+    </div>
+    <a class="btn btn-p" style="text-decoration:none" href="index.html">← 返回方案总览</a>
+  </footer>
+</div>
+</body>
+</html>

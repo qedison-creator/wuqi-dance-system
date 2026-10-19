@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>皮肤切换功能 · 可落地方案 — 舞栖会员端</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@600;700;900&family=Anton&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#F5F1E8; --card:#FCFAF4; --ink:#221D15; --ink2:#6C6353; --ink3:#A79D89;
+  --line:#DFD6C2; --cin:#B93A26;
+  --serif:"Noto Serif SC","Songti SC",serif;
+  --anton:"Anton","Arial Black",sans-serif;
+  --grot:"Space Grotesk","PingFang SC",sans-serif;
+  --sans:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--paper);color:var(--ink);font-family:var(--sans);font-size:15px;line-height:1.8}
+body::before{content:"";position:fixed;inset:0;pointer-events:none;opacity:.05;z-index:999;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='.5'/%3E%3C/svg%3E")}
+.wrap{max-width:1100px;margin:0 auto;padding:52px 28px 120px}
+.back{font-size:12px;letter-spacing:.2em;color:var(--ink2);text-decoration:none;border-bottom:1px solid var(--line);padding-bottom:3px}
+.back:hover{color:var(--cin);border-color:var(--cin)}
+.mast{border-bottom:3px double #C9BFA8;padding-bottom:28px;margin:18px 0 6px;display:flex;justify-content:space-between;align-items:flex-end;gap:20px;flex-wrap:wrap}
+.kicker{font-size:11px;letter-spacing:.35em;color:var(--cin);font-weight:700}
+h1{font-family:var(--serif);font-weight:900;font-size:44px;letter-spacing:.04em;margin:12px 0 4px}
+.mast p{max-width:640px;color:var(--ink2);font-size:14px}
+.mast p b{color:var(--ink)}
+.pill3{display:flex;gap:8px}
+.pill3 span{width:34px;height:34px;border-radius:8px;border:1px solid var(--line)}
+section{margin-top:84px}
+.sec-head{display:flex;align-items:baseline;gap:14px;border-bottom:1px solid var(--line);padding-bottom:12px;margin-bottom:28px}
+.sec-no{font-family:var(--serif);font-size:14px;color:var(--cin);font-weight:700}
+.sec-title{font-family:var(--serif);font-size:25px;font-weight:900;letter-spacing:.05em}
+.sec-en{font-size:10px;letter-spacing:.3em;color:var(--ink3);margin-left:auto;text-transform:uppercase}
+table.map{width:100%;border-collapse:collapse;border:1px solid var(--line);background:var(--card);font-size:13.5px;margin-top:6px}
+table.map th{font-family:var(--serif);text-align:left;padding:12px 16px;border-bottom:2px solid var(--ink);font-size:13.5px;letter-spacing:.05em}
+table.map td{padding:12px 16px;border-bottom:1px solid var(--line);vertical-align:top}
+table.map tr:last-child td{border-bottom:none}
+table.map td:first-child{font-weight:700}
+table.map .m{color:var(--ink2)}
+.ok{color:#41604F;font-weight:700}
+.no{color:var(--cin);font-weight:700}
+.note{font-size:12.5px;color:var(--ink3);margin-top:10px}
+
+/* ===== 交互试穿 Demo ===== */
+.demo-zone{display:flex;gap:36px;align-items:flex-start;flex-wrap:wrap}
+.demo-phone{width:340px;height:700px;background:#fff;border-radius:38px;box-shadow:0 24px 60px rgba(34,29,21,.18);padding:7px;flex-shrink:0;overflow:hidden}
+.demo-inner{width:100%;height:100%;border-radius:32px;overflow:hidden;display:flex;flex-direction:column;position:relative;transition:background .3s}
+/* — 皮肤令牌 — */
+.demo-inner.skin-classic{
+  --d-bg:#FBFAF8; --d-card:#FFFFFF; --d-ink:#2A2122; --d-sub:#8A7A7A; --d-line:#F0E6E6;
+  --d-acc:#D4786E; --d-acc-deep:#C05D53; --d-radius:18px; --d-radius-btn:999px; --d-btn-fg:#fff;
+  --d-head: -apple-system,"PingFang SC",sans-serif;
+}
+.demo-inner.skin-paper{
+  --d-bg:#F5F1E8; --d-card:#FCFAF4; --d-ink:#221D15; --d-sub:#6C6353; --d-line:#DFD6C2;
+  --d-acc:#B93A26; --d-acc-deep:#9E3322; --d-radius:6px; --d-radius-btn:3px; --d-btn-fg:#FCF7EE;
+  --d-head:"Noto Serif SC",serif;
+}
+.demo-inner.skin-volt{
+  --d-bg:#F2F1ED; --d-card:#FFFFFF; --d-ink:#111310; --d-sub:#77786F; --d-line:#DCDAD0;
+  --d-acc:#111310; --d-acc-deep:#111310; --d-radius:16px; --d-radius-btn:999px; --d-btn-fg:#D7FF3B;
+  --d-head:-apple-system,sans-serif;
+}
+.demo-inner{background:var(--d-bg)}
+.d-status{height:32px;display:flex;justify-content:space-between;align-items:center;padding:0 20px;font-size:11px;font-weight:700;color:var(--d-ink);flex-shrink:0}
+.d-scroll{flex:1;overflow-y:auto;scrollbar-width:none;padding:0 18px}
+.d-scroll::-webkit-scrollbar{display:none}
+/* 头部 */
+.d-head{display:flex;justify-content:space-between;align-items:center;padding:8px 0 12px}
+.d-brand{display:flex;align-items:center;gap:8px;font-weight:900;font-size:16px;color:var(--d-ink)}
+.d-mark{width:28px;height:28px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:900}
+.d-store{font-size:11px;color:var(--d-sub);border:1px solid var(--d-line);padding:4px 10px;border-radius:999px}
+/* 主视觉卡 */
+.d-hero{border-radius:var(--d-radius);padding:16px;margin-bottom:14px;position:relative;overflow:hidden}
+.d-hero .h-k{font-size:9px;letter-spacing:.25em;color:var(--d-sub)}
+.d-hero .h-t{font-size:21px;font-weight:900;color:var(--d-ink);margin-top:2px;font-family:var(--d-head)}
+.d-hero .h-s{font-size:11px;color:var(--d-sub);margin-top:4px}
+/* 公告 */
+.d-notice{display:flex;gap:10px;align-items:baseline;padding:10px 2px;border-top:1px solid var(--d-line);border-bottom:1px solid var(--d-line);font-size:12px;color:var(--d-ink)}
+.d-notice .n-no{font-size:10px;color:var(--d-sub)}
+/* 区块标题 */
+.d-sec{display:flex;align-items:baseline;gap:8px;margin:16px 0 4px}
+.d-sec .t{font-size:14px;font-weight:900;color:var(--d-ink);font-family:var(--d-head)}
+.d-sec .en{font-size:8px;letter-spacing:.25em;color:var(--d-sub);margin-left:auto}
+/* 课程卡（结构按皮肤分化） */
+.d-course{display:flex;align-items:center;gap:12px;padding:13px 2px;border-bottom:1px solid var(--d-line)}
+.d-course .c-time b{font-size:19px;font-weight:700;color:var(--d-ink);display:block;line-height:1.15}
+.d-course .c-time span{font-size:9px;color:var(--d-sub)}
+.d-course .c-main{flex:1;min-width:0}
+.d-course .c-name{font-size:13.5px;font-weight:900;color:var(--d-ink)}
+.d-course .c-meta{font-size:10.5px;color:var(--d-sub);margin-top:1px}
+.d-course .c-bar{height:4px;border-radius:99px;background:var(--d-line);margin-top:6px;overflow:hidden;max-width:120px}
+.d-course .c-bar i{display:block;height:100%;background:var(--d-acc)}
+.d-btn{height:34px;padding:0 16px;border-radius:var(--d-radius-btn);font-size:11.5px;font-weight:800;border:none;flex-shrink:0;cursor:pointer;transition:transform .12s}
+.d-btn:active{transform:scale(.95)}
+/* 皮肤专属结构重排 */
+.skin-classic .d-hero{background:linear-gradient(135deg,#F3C9BE,#EBA89F);border:none}
+.skin-classic .d-mark{background:var(--d-acc);color:#fff}
+.skin-classic .d-btn{background:linear-gradient(135deg,var(--d-acc),var(--d-acc-deep));color:#fff;box-shadow:0 4px 10px rgba(212,120,110,.35)}
+.skin-classic .d-notice .n-tag{background:#FF9EC5;color:#fff;font-size:9px;padding:1px 6px;border-radius:4px}
+.skin-paper .d-hero{background:var(--d-card);border:1px solid var(--line);box-shadow:2px 2px 0 rgba(34,29,21,.08)}
+.skin-paper .d-hero .h-t{letter-spacing:.1em}
+.skin-paper .d-mark{background:var(--d-acc);color:#FCF7EE;transform:rotate(-4deg);border-radius:4px}
+.skin-paper .d-btn{background:var(--d-acc);color:var(--d-btn-fg)}
+.skin-paper .d-notice .n-tag{background:var(--d-acc);color:#FCF7EE;font-size:9px;padding:1px 6px;border-radius:2px}
+.skin-paper .d-course .c-time b{font-family:"Noto Serif SC",serif}
+.skin-paper .d-sec{border-bottom:3px double #C9BFA8;padding-bottom:6px}
+.skin-volt .d-hero{background:var(--d-ink);color:var(--d-bg)}
+.skin-volt .d-hero .h-k{color:#9FA093}
+.skin-volt .d-hero .h-t{color:#D7FF3B;font-family:var(--anton);font-size:23px;letter-spacing:.03em}
+.skin-volt .d-hero .h-s{color:#CFCEC6}
+.skin-volt .d-hero .h-cnt{position:absolute;right:14px;bottom:10px;background:#D7FF3B;color:#111310;font-family:var(--anton);font-size:24px;padding:0 10px;border-radius:8px;transform:rotate(-3deg)}
+.skin-volt .d-mark{background:var(--d-ink);color:#D7FF3B;transform:rotate(-6deg)}
+.skin-volt .d-btn{background:var(--d-ink);color:#D7FF3B}
+.skin-volt .d-course{background:var(--d-card);border:2px solid var(--d-ink);border-radius:16px;padding:12px 14px;margin:10px 0;box-shadow:4px 4px 0 var(--d-ink);align-items:center}
+.skin-volt .d-course:last-child{margin-bottom:16px}
+.skin-volt .d-course .c-name{font-size:15px}
+.skin-volt .d-course .c-time b{font-family:var(--grot)}
+.skin-volt .d-course .c-bar{background:#ECEAE2;border:1px solid var(--d-line)}
+.skin-volt .d-course .c-bar i{background:#111310}
+.skin-volt .d-course .c-low{background:#D7FF3B;padding:0 5px;border-radius:4px}
+.skin-volt .d-notice{border:none;background:var(--d-ink);color:#F2F1ED;border-radius:10px;padding:8px 12px;overflow:hidden;white-space:nowrap}
+.skin-volt .d-notice .n-no{color:#D7FF3B;font-family:var(--grot)}
+.skin-volt .d-notice .n-tag{background:#D7FF3B;color:#111310;font-size:9px;padding:1px 6px;border-radius:4px;font-weight:800}
+/* TabBar */
+.d-tabbar{height:56px;border-top:1px solid var(--d-line);display:flex;align-items:center;gap:6px;padding:0 12px;flex-shrink:0;background:var(--d-card)}
+.d-tab{flex:1;height:38px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--d-sub);border-radius:999px}
+.d-tab.on{background:var(--d-acc);color:var(--d-btn-fg)}
+/* 换肤控制台 */
+.demo-ctl{flex:1;min-width:300px;max-width:430px}
+.ctl-title{font-family:var(--serif);font-size:20px;font-weight:900;margin-bottom:6px}
+.ctl-sub{font-size:13px;color:var(--ink2);margin-bottom:18px}
+.ctl-sub b{color:var(--ink)}
+.skin-chips{display:flex;flex-direction:column;gap:12px}
+.chip{display:flex;align-items:center;gap:14px;padding:14px 16px;border:1.5px solid var(--line);border-radius:14px;background:var(--card);cursor:pointer;transition:all .18s}
+.chip:hover{border-color:var(--ink)}
+.chip.on{border-color:var(--ink);box-shadow:3px 3px 0 var(--ink)}
+.chip .sw{display:flex;gap:4px;flex-shrink:0}
+.chip .sw i{width:16px;height:16px;border-radius:5px;border:1px solid rgba(34,29,21,.15)}
+.chip .c-info{flex:1}
+.chip .c-name{font-weight:900;font-size:14.5px;display:flex;align-items:center;gap:8px}
+.chip .c-desc{font-size:11.5px;color:var(--ink2);margin-top:1px}
+.chip .c-state{font-size:10px;letter-spacing:.2em;color:var(--ink3);font-weight:700}
+.chip.on .c-state{color:var(--cin)}
+.ctl-note{margin-top:16px;font-size:12px;color:var(--ink3);line-height:1.8;border-top:1px dashed var(--line);padding-top:12px}
+.ctl-note b{color:var(--ink2)}
+
+/* 架构图 */
+.arch{display:grid;grid-template-columns:1fr 1fr 1fr;gap:1px;background:var(--line);border:1px solid var(--line);margin-top:4px}
+.arch .ly{background:var(--card);padding:22px 20px}
+.arch .ly h4{font-family:var(--serif);font-size:17px;margin-bottom:4px}
+.arch .ly .tag{font-size:9.5px;letter-spacing:.2em;font-weight:700;padding:2px 8px;border-radius:3px;display:inline-block;margin-bottom:10px}
+.arch .ly p{font-size:12.5px;color:var(--ink2);line-height:1.9}
+.arch .ly p b{color:var(--ink)}
+.ly1 .tag{background:#E8F5E9;color:#2E7D32}
+.ly2 .tag{background:#F5EBE3;color:#B0653E}
+.ly3 .tag{background:#FDECEA;color:#B93A26}
+.arch-arrow{text-align:center;color:var(--ink3);font-size:12px;margin:8px 0}
+ul.plain{list-style:none}
+ul.plain li{padding:7px 0 7px 22px;position:relative;font-size:13.5px;color:var(--ink2);border-bottom:1px dashed var(--line)}
+ul.plain li:last-child{border-bottom:none}
+ul.plain li b{color:var(--ink)}
+ul.plain li::before{content:"◆";position:absolute;left:0;top:8px;font-size:9px;color:var(--cin)}
+@media (max-width:960px){.arch{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="back" href="index.html">← 返回方案总览</a>
+  <div class="mast">
+    <div>
+      <div class="kicker">MEMBER APP · THEME SWITCH · FEASIBLE PLAN</div>
+      <h1>皮肤切换 · 可落地方案</h1>
+      <p>给会员端做「三套衣服」：<b>经典</b>（现线上外观，原样保留）、<b>纸上舞台</b>（方案A）、<b>VOLT 舞力场</b>（方案B）。会员在「我的 → 皮肤外观」一键切换，即点即生效、记住选择。<b>只换"穿什么"，不动"记什么"</b>——后端、接口、数据库、本地业务数据全部零改动。</p>
+    </div>
+    <div class="pill3">
+      <span style="background:linear-gradient(135deg,#D4786E,#C05D53)"></span>
+      <span style="background:#F5F1E8;border-color:#B93A26"></span>
+      <span style="background:#D7FF3B"></span>
+    </div>
+  </div>
+
+  <!-- 01 会员看到什么 -->
+  <section>
+    <div class="sec-head"><span class="sec-no">壹 / 01</span><span class="sec-title">会员看到什么</span><span class="sec-en">UX Flow</span></div>
+    <table class="map">
+      <tr><th style="width:150px">步骤</th><th>说明</th></tr>
+      <tr><td>入口</td><td class="m">个人中心菜单新增「皮肤外观」一项（位于消息推送设置附近），图标用三色小方块</td></tr>
+      <tr><td>选择页</td><td class="m">三张皮肤卡：名称 + 一句话气质 + 色板条 + 「使用中」标记；点击立即套用并回到上一页，全程无需重启、无需重新登录</td></tr>
+      <tr><td>记住</td><td class="m">选择保存在手机本地；下次打开直接是上次选的皮肤；换手机默认回到经典</td></tr>
+      <tr><td>兜底</td><td class="m">皮肤值异常（升级/异常数据）自动回落经典皮肤，App 永远不会"没衣服穿"</td></tr>
+    </table>
+    <p class="note">不做新手引导弹窗、不做开屏询问——默认经典，想换的人自己去换，不打扰任何人。</p>
+  </section>
+
+  <!-- 02 现场试穿 -->
+  <section>
+    <div class="sec-head"><span class="sec-no">贰 / 02</span><span class="sec-title">现场试穿（交互演示）</span><span class="sec-en">Try It Live</span></div>
+    <div class="demo-zone">
+      <div class="demo-phone">
+        <div class="demo-inner skin-classic" id="demoInner">
+          <div class="d-status"><span>9:41</span><span>●●● ▲ ▮</span></div>
+          <div class="d-scroll">
+            <div class="d-head">
+              <div class="d-brand"><span class="d-mark">栖</span>舞栖</div>
+              <div class="d-store">万象城店</div>
+            </div>
+            <div class="d-hero">
+              <div class="h-k">TODAY · 09/24</div>
+              <div class="h-t" id="heroTitle">今天，去跳舞</div>
+              <div class="h-s" id="heroSub">4 节课可约 · 2 个名额将满</div>
+              <div class="h-cnt" id="heroCnt" style="display:none">04</div>
+            </div>
+            <div class="d-notice"><span class="n-no" id="noticeNo">01</span><span>中秋连假课表已发布，可提前约课</span><span class="n-tag" id="noticeTag">新</span></div>
+            <div class="d-sec"><span class="t" id="coachSecT">教练</span><span class="en" id="coachSecEn">COACHES</span></div>
+            <div class="d-course">
+              <div class="c-time"><b>19:30</b><span>- 21:00</span></div>
+              <div class="c-main">
+                <div class="c-name">古典舞 · 基础</div>
+                <div class="c-meta" id="meta1">林晚 · A 教室 · 已约 6/12</div>
+                <div class="c-bar"><i style="width:50%"></i></div>
+              </div>
+              <button class="d-btn" id="btn1">立即预约</button>
+            </div>
+            <div class="d-course">
+              <div class="c-time"><b>18:00</b><span>- 19:00</span></div>
+              <div class="c-main">
+                <div class="c-name">韩舞 · 框架</div>
+                <div class="c-meta" id="meta2">苏芮 · B 教室 · 已满</div>
+                <div class="c-bar"><i style="width:100%;opacity:.5"></i></div>
+              </div>
+              <button class="d-btn" id="btn2">候补</button>
+            </div>
+          </div>
+          <div class="d-tabbar">
+            <div class="d-tab on" id="tab1">首页</div>
+            <div class="d-tab" id="tab2">约课</div>
+            <div class="d-tab" id="tab3">我的</div>
+          </div>
+        </div>
+      </div>
+      <div class="demo-ctl">
+        <div class="ctl-title">选一件穿上</div>
+        <div class="ctl-sub">点下面任意皮肤卡，左边手机<b>立即换装</b>——注意文案、按钮、卡片结构随皮肤一起变化。这就是小程序里将要发生的全部过程。</div>
+        <div class="skin-chips">
+          <div class="chip on" data-skin="classic" onclick="setSkin('classic',this)">
+            <span class="sw"><i style="background:#D4786E"></i><i style="background:#FBFAF8"></i><i style="background:#2A2122"></i></span>
+            <span class="c-info">
+              <span class="c-name">经典 · 豆沙玫瑰</span>
+              <span class="c-desc">现线上外观，原样保留；柔和暖色</span>
+            </span>
+            <span class="c-state" data-state>使用中</span>
+          </div>
+          <div class="chip" data-skin="paper" onclick="setSkin('paper',this)">
+            <span class="sw"><i style="background:#F5F1E8"></i><i style="background:#B93A26"></i><i style="background:#221D15"></i></span>
+            <span class="c-info">
+              <span class="c-name">纸上舞台</span>
+              <span class="c-desc">宋体大字 · 朱砂印章 · 刊物纸感（方案A）</span>
+            </span>
+            <span class="c-state" data-state></span>
+          </div>
+          <div class="chip" data-skin="volt" onclick="setSkin('volt',this)">
+            <span class="sw"><i style="background:#111310"></i><i style="background:#F2F1ED"></i><i style="background:#D7FF3B"></i></span>
+            <span class="c-info">
+              <span class="c-name">VOLT 舞力场</span>
+              <span class="c-desc">三色纪律 · 登场文化 · 俱乐部能量（方案B）</span>
+            </span>
+            <span class="c-state" data-state></span>
+          </div>
+        </div>
+        <div class="ctl-note"><b>演示即实证：</b>这个页面用的换肤机制（根节点换类名 + 样式从"外观清单"取值 + 文案随皮肤替换）与小程序中将采用的机制完全一致。左边手机里的三套外观共用同一份 HTML 结构与同一份业务数据——对应到小程序就是"共用同一套 WXML 节点与业务 JS，仅样式与皮肤文案分流"。</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 03 它是怎么工作的 -->
+  <section>
+    <div class="sec-head"><span class="sec-no">叁 / 03</span><span class="sec-title">它是怎么工作的（大白话）</span><span class="sec-en">Architecture</span></div>
+    <div class="arch">
+      <div class="ly ly1">
+        <span class="tag">可换 · 皮肤层</span>
+        <h4>三件"衣服"</h4>
+        <p>每套皮肤 = 一张<b>外观清单</b>（颜色、圆角、阴影、字体、动效的取值表）+ 核心页面的一套<b>布局样式</b> + 一组<b>皮肤文案</b>（如按钮写"立即预约"还是"立即锁定"）。全部是纯前端资源，打包进小程序。</p>
+      </div>
+      <div class="ly ly2">
+        <span class="tag">共用 · 结构层</span>
+        <h4>同一副"身体"</h4>
+        <p>每个页面最外层挂一个"当前皮肤"类名（skin-classic / skin-paper / skin-volt），页面里的节点、点击事件、数据字段<b>三套皮肤完全共用</b>——同一个"预约"按钮，在三套皮肤里只是长得不一样，绑定的是同一个处理函数。</p>
+      </div>
+      <div class="ly ly3">
+        <span class="tag">不碰 · 业务与数据层</span>
+        <h4>账本不动</h4>
+        <p>登录鉴权、网络请求、WebSocket、扫码签到、订阅消息、所有业务逻辑与后端接口<b>一行不改</b>。皮肤偏好只存本地一个新键 <b>member_skin_id</b>，不进数据库、不进后端。</p>
+      </div>
+    </div>
+    <ul class="plain" style="margin-top:18px">
+      <li><b>切换为什么能即时生效：</b>会员点选 → 写入本地 + 更新全局皮肤变量 → 当前页重设类名 → 各页面在 onShow 时检测皮肤版本号自动刷新 → 自定义 TabBar 重绘 + 导航栏颜色跟随。全程 0.1 秒级，无白屏无重启。</li>
+      <li><b>为什么不会弄丢数据：</b>皮肤层根本接触不到数据。套餐、课时、约课、记录都在"业务与数据层"，那一层这次一行代码都不改；本地存储只新增一个键，已有的 token、用户信息等键零触碰。</li>
+      <li><b>回退保险：</b>读到未知皮肤值 → 自动按经典皮肤渲染并静默修正存储，永不白屏。</li>
+    </ul>
+  </section>
+
+  <!-- 04 数据安全清单 -->
+  <section>
+    <div class="sec-head"><span class="sec-no">肆 / 04</span><span class="sec-title">数据与功能安全清单</span><span class="sec-en">Safety Checklist</span></div>
+    <table class="map">
+      <tr><th style="width:220px">检查项</th><th style="width:90px">结论</th><th>依据</th></tr>
+      <tr><td>后端 / 接口 / 数据库</td><td class="ok">零改动</td><td class="m">皮肤纯前端实现，wuqi-backend 不随版发布</td></tr>
+      <tr><td>套餐信息 / 课时扣减 / 约课 / 签到 / 记录</td><td class="ok">不受影响</td><td class="m">三套皮肤共用同一套业务函数与请求层，仅样式与文案不同</td></tr>
+      <tr><td>本地存储既有键（token / userInfo 等）</td><td class="ok">零触碰</td><td class="m">只新增 member_skin_id 一个键</td></tr>
+      <tr><td>登录态 / 微信授权</td><td class="ok">无关</td><td class="m">切皮肤不触发任何登录逻辑，无需重新登录</td></tr>
+      <tr><td>约课按钮 12 种状态逻辑</td><td class="ok">完全保留</td><td class="m">状态判定不变，仅每套皮肤一套视觉映射（可约/已约/候补/未开放…）</td></tr>
+      <tr><td>会员码签到 / 60秒刷新</td><td class="ok">完全保留</td><td class="m">Canvas 二维码逻辑不动，换的是票面外观（A 入场券 / B 车票PASS）</td></tr>
+      <tr><td>订阅消息 / WebSocket 实时刷新</td><td class="ok">完全保留</td><td class="m">通信层不改，推送到达后的界面刷新逻辑三套皮肤各用各的样式类</td></tr>
+      <tr><td>老用户体验</td><td class="ok">零惊讶</td><td class="m">升级后默认经典皮肤，外观与线上 V1.1.2 一致</td></tr>
+      <tr><td>皮肤数据异常</td><td class="ok">自动兜底</td><td class="m">未知皮肤值回落经典并修正存储</td></tr>
+    </table>
+  </section>
+
+  <!-- 05 改动范围 -->
+  <section>
+    <div class="sec-head"><span class="sec-no">伍 / 05</span><span class="sec-title">改动范围明细</span><span class="sec-en">Scope</span></div>
+    <table class="map">
+      <tr><th style="width:210px">范围</th><th>内容</th></tr>
+      <tr><td>全量换肤页（每套独立布局）</td><td class="m">首页、场次预约、课程详情、<b>教练详情</b>、<b>此间画面（画廊）</b>、个人中心 —— 6 个核心页面 × 3 套布局（经典沿用现有，A/B 按已确认效果图实施）</td></tr>
+      <tr><td>令牌重涂页（换色不换布局）</td><td class="m">我的记录、我的套餐、套餐详情、教练列表、会员信息、订阅设置、隐私/协议/关于等次级页面——共用布局，颜色/圆角/字体从外观清单取值</td></tr>
+      <tr><td>全局元素</td><td class="m">自定义 TabBar 三套样式与图标、导航栏颜色随皮肤、全局弹窗/空态/骨架屏、成功反馈动效（经典=现有 / A=盖章 / B=LOCKED）</td></tr>
+      <tr><td>新增代码</td><td class="m">皮肤选择页 ×1、皮肤注册表（skins 配置）、页面级皮肤 Mixin（注入 skinId + 版本检测）、皮肤文案表</td></tr>
+      <tr><td class="no">不动</td><td class="m">utils/request、utils/auth、websocket-client、qrcode 签到、subscribe-message、所有业务处理函数主体、后端全部</td></tr>
+    </table>
+    <p class="note">页面 JS 的改动仅限：onLoad/onShow 里加一行读取当前皮肤 setData——业务函数本身不改。</p>
+  </section>
+
+  <!-- 06 动效包 -->
+  <section>
+    <div class="sec-head"><span class="sec-no">陆 / 06</span><span class="sec-title">每套皮肤自带动效包</span><span class="sec-en">Motion Packs</span></div>
+    <table class="map">
+      <tr><th style="width:150px">皮肤</th><th>进入 / 刷新</th><th>成功反馈</th><th>特色交互</th></tr>
+      <tr><td>经典（现状）</td><td class="m">现有骨架屏 + 淡入</td><td class="m">现有 toast + 微缩按钮</td><td class="m">spring 弹入弹窗（全部保持不变）</td></tr>
+      <tr><td>纸上舞台</td><td class="m">列表 80ms 逐行浮现；首页大图 1.05→1 缓缩；静态排版占位</td><td class="m">朱砂「栖」章盖章 + 短震动（预约/签到/审核通过）</td><td class="m">数字滚动、抽屉纸片上滑、下拉"注墨"细线</td></tr>
+      <tr><td>VOLT 舞力场</td><td class="m">大卡 70ms 依次登台；线框海报占位</td><td class="m">LOCKED 拳入 + 双色纸屑 + 轻震（取消=RELEASED）</td><td class="m">心电图下拉刷新、日期 Q 弹、PASS 均衡器、揭海报按压</td></tr>
+    </table>
+    <p class="note">动效包随皮肤整体切换：选了 A 就全是 A 的节奏，不会出现"VOLT 的页面盖 A 的章"。</p>
+  </section>
+
+  <!-- 07 验证矩阵 -->
+  <section>
+    <div class="sec-head"><span class="sec-no">柒 / 07</span><span class="sec-title">验证矩阵（交付前全过）</span><span class="sec-en">Test Matrix</span></div>
+    <table class="map">
+      <tr><th style="width:200px">流程</th><th>经典</th><th>纸上舞台</th><th>VOLT</th></tr>
+      <tr><td>登录 / 注册授权</td><td>✓</td><td>✓</td><td>✓</td></tr>
+      <tr><td>浏览约课 + 12 种按钮状态</td><td>✓</td><td>✓</td><td>✓</td></tr>
+      <tr><td>预约 → 扣课时 → 成功反馈</td><td>✓</td><td>✓（盖章）</td><td>✓（LOCKED）</td></tr>
+      <tr><td>取消（正常 / 豁免 / 补约5分钟）</td><td>✓</td><td>✓</td><td>✓</td></tr>
+      <tr><td>候补加入 / 自动转正</td><td>✓</td><td>✓</td><td>✓</td></tr>
+      <tr><td>会员码出示 / 扫码签到（含现场补签）</td><td>✓</td><td>✓（入场券）</td><td>✓（PASS）</td></tr>
+      <tr><td>套餐展示（次卡/时间卡/待激活/停卡）</td><td>✓</td><td>✓（票根）</td><td>✓（会员卡）</td></tr>
+      <tr><td>记录 / 教练详情 / 画廊 / 订阅设置</td><td>✓</td><td>✓</td><td>✓</td></tr>
+      <tr><td>皮肤切换即时生效 + 重启保持 + 异常回落</td><td colspan="3" style="text-align:center">✓（专项测试）</td></tr>
+    </table>
+    <p class="note">实施完成后在本机起测试库跑接口冒烟（同既往流程），再用真机预览分别以三套皮肤完整点一遍上表；管理端不受影响无需回归。</p>
+  </section>
+
+  <!-- 08 维护与交付 -->
+  <section>
+    <div class="sec-head"><span class="sec-no">捌 / 08</span><span class="sec-title">维护成本与交付方式</span><span class="sec-en">Delivery</span></div>
+    <ul class="plain">
+      <li><b>日常改一处、三处生效：</b>全局颜色/圆角/间距都收敛到"外观清单"，改按钮主色这类需求只改一张表；只有改核心 6 页布局时才需要分皮肤处理。</li>
+      <li><b>新功能同步三套：</b>后续新增页面默认按"令牌重涂"模式开发（自动获得三套配色），涉及新布局时三套皮肤同批交付，不留欠账。</li>
+      <li><b>一次性交付：</b>确认后整版实施——三套皮肤全部页面 + 切换功能 + 全量验证，随会员端下一次发版（并入当前未发布的版本批次）一起提审；后端无需随版发布。</li>
+      <li><b>体积影响：</b>新增的只有样式与少量 WXML/配置，无新依赖库，预计包体增量 <100KB，远低于分包上限。</li>
+    </ul>
+  </section>
+
+  <footer style="margin-top:96px;border-top:3px double #C9BFA8;padding-top:22px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">
+    <div>
+      <div style="font-family:var(--serif);font-size:15px;font-weight:900;letter-spacing:.15em">皮肤切换 · 待确认后实施</div>
+      <div style="font-size:9px;letter-spacing:.4em;color:var(--ink3);margin-top:4px">PLAN ONLY — NO CODE TOUCHED UNTIL APPROVED</div>
+    </div>
+    <div style="display:flex;gap:10px">
+      <a href="screens.html" style="font-size:12px;color:var(--ink2);text-decoration:none;border-bottom:1px solid var(--line);padding-bottom:2px">方案A 八屏 →</a>
+      <a href="proposal-b-screens.html" style="font-size:12px;color:var(--ink2);text-decoration:none;border-bottom:1px solid var(--line);padding-bottom:2px">方案B 八屏 →</a>
+    </div>
+  </footer>
+</div>
+
+<script>
+function setSkin(skin, chipEl){
+  const inner=document.getElementById('demoInner');
+  inner.classList.remove('skin-classic','skin-paper','skin-volt');
+  inner.classList.add('skin-'+skin);
+  document.querySelectorAll('.chip').forEach(c=>{c.classList.remove('on');const s=c.querySelector('[data-state]');if(s)s.textContent=''});
+  if(chipEl){chipEl.classList.add('on');const s=chipEl.querySelector('[data-state]');if(s)s.textContent='使用中'}
+  // 皮肤文案表（对应小程序的皮肤文案表）
+  const copy={
+    classic:{hero:'今天，去跳舞',heroSub:'4 节课可约 · 2 个名额将满',cnt:'',btn1:'立即预约',btn2:'候补',secT:'教练',secEn:'COACHES',meta1:'林晚 · A 教室 · 已约 6/12',meta2:'苏芮 · B 教室 · 已满',nt:'新',tab1:'首页',tab2:'约课',tab3:'我的'},
+    paper:{hero:'九月 · 秋序',heroSub:'今日 4 节课可约 · 2 个名额将满',cnt:'',btn1:'预约',btn2:'候补',secT:'舞栖教练',secEn:'COACHES',meta1:'林晚 · A 教室 · 已约 6/12',meta2:'苏芮 · B 教室 · 已满',nt:'新',tab1:'首页',tab2:'预约',tab3:'我的'},
+    volt:{hero:"SHOWTIME",heroSub:'',cnt:'04',btn1:'立即锁定',btn2:'候补排队',secT:'今日登场',secEn:'SHOWTIME',meta1:'林晚 · A 教室 · 仅剩 <span class="c-low">6</span>/12 席',meta2:'苏芮 · B 教室 · 已满 12/12 席',nt:'NEW',tab1:'首页',tab2:'约课',tab3:'我的'}
+  }[skin];
+  document.getElementById('heroTitle').textContent=copy.hero;
+  document.getElementById('heroSub').textContent=copy.heroSub;
+  document.getElementById('heroCnt').style.display=copy.cnt?'block':'none';
+  if(copy.cnt)document.getElementById('heroCnt').textContent=copy.cnt;
+  document.getElementById('btn1').textContent=copy.btn1;
+  document.getElementById('btn2').textContent=copy.btn2;
+  document.getElementById('coachSecT').textContent=copy.secT;
+  document.getElementById('coachSecEn').textContent=copy.secEn;
+  document.getElementById('meta1').innerHTML=copy.meta1;
+  document.getElementById('meta2').innerHTML=copy.meta2;
+  document.getElementById('noticeTag').textContent=copy.nt;
+  document.getElementById('tab2').textContent=copy.tab2;
+}
+</script>
+</body>
+</html>

@@ -6,6 +6,8 @@ const PackageActivation = require('../models/PackageActivation');
 const User = require('../models/User');
 const logService = require('./log.service');
 const { buildDeductionInfo } = require('./booking.service');
+const packageLabel = require('../utils/packageLabel');
+const timeUtil = require('../utils/time');
 const dayjs = require('dayjs');
 const utc = require('dayjs/plugin/utc');
 const timezone = require('dayjs/plugin/timezone');
@@ -285,18 +287,26 @@ exports.getMyAttendance = async (userId, page, pageSize) => {
   const start = (page - 1) * pageSize;
   const list = merged.slice(start, start + Number(pageSize));
 
-  // 附带按天口径（不限次卡/每日1节卡）缩期信息：Attendance 表不存该字段，从关联 Booking 取
+  // 附带按天口径（不限次卡/每日1节卡）缩期信息 + 扣课套餐快照：Attendance 表不存这些字段，从关联 Booking 取
   const shrinkIds = [...new Set(list.map(a => a.booking_id).filter(Boolean).map(String))];
-  const shrinkById = new Map();
+  const bookingMetaById = new Map();
   if (shrinkIds.length > 0) {
-    const shrinkBookings = await Booking.find({ _id: { $in: shrinkIds } }).select('shrink_days');
-    shrinkBookings.forEach(b => shrinkById.set(String(b._id), b.shrink_days));
+    const shrinkBookings = await Booking.find({ _id: { $in: shrinkIds } }).select('shrink_days package_name package_type');
+    shrinkBookings.forEach(b => bookingMetaById.set(String(b._id), b));
   }
+  const memberTypeCounts = (await packageLabel.getMemberTypeCounts([userId]))[String(userId)] || {};
   const resultList = list.map(a => {
-    const shrinkDays = a.booking_id ? (shrinkById.get(String(a.booking_id)) || 0) : 0;
+    const meta = a.booking_id ? bookingMetaById.get(String(a.booking_id)) : null;
+    const shrinkDays = meta ? (meta.shrink_days || 0) : 0;
     return {
       ...(a.toObject ? a.toObject() : a),
       ...buildDeductionInfo({ shrink_days: shrinkDays }),
+      // 扣课溯源后缀：同类套餐≥2张用具体套餐名，否则用类型词
+      package_label: packageLabel.resolvePackageSuffix(
+        meta && meta.package_name,
+        meta && meta.package_type,
+        (meta && memberTypeCounts[meta.package_type]) || 0
+      ),
     };
   });
 
@@ -328,18 +338,20 @@ exports.getAttendanceByUser = async (userId) => {
     .sort({ check_in_time: -1 })
     .lean();
 
-  // 按天口径（不限次卡/每日1节卡）缩期信息：从关联 Booking 取 shrink_days
+  // 按天口径（不限次卡/每日1节卡）缩期信息 + 扣课套餐快照：从关联 Booking 取
   const shrinkIds = [...new Set(records.map(att => att.booking_id).filter(Boolean).map(String))];
-  const shrinkById = new Map();
+  const bookingMetaById = new Map();
   if (shrinkIds.length > 0) {
-    const shrinkBookings = await Booking.find({ _id: { $in: shrinkIds } }).select('shrink_days');
-    shrinkBookings.forEach(b => shrinkById.set(String(b._id), b.shrink_days));
+    const shrinkBookings = await Booking.find({ _id: { $in: shrinkIds } }).select('shrink_days package_name package_type');
+    shrinkBookings.forEach(b => bookingMetaById.set(String(b._id), b));
   }
+  const memberTypeCounts = (await packageLabel.getMemberTypeCounts([userId]))[String(userId)] || {};
 
   // 格式化返回数据，优先从 schedule_id 取值，回退到快照字段
   const list = records.map(att => {
     const sch = att.schedule_id;
-    const shrinkDays = att.booking_id ? (shrinkById.get(String(att.booking_id)) || 0) : 0;
+    const meta = att.booking_id ? bookingMetaById.get(String(att.booking_id)) : null;
+    const shrinkDays = meta ? (meta.shrink_days || 0) : 0;
     return {
       _id: att._id,
       schedule_id: sch ? sch._id : null,
@@ -354,6 +366,12 @@ exports.getAttendanceByUser = async (userId) => {
       source: att.source,
       credits_cost: att.credits_cost || 0,
       ...buildDeductionInfo({ shrink_days: shrinkDays }),
+      // 扣课溯源后缀：同类套餐≥2张用具体套餐名，否则用类型词
+      package_label: packageLabel.resolvePackageSuffix(
+        meta && meta.package_name,
+        meta && meta.package_type,
+        (meta && memberTypeCounts[meta.package_type]) || 0
+      ),
       remark: att.remark || '',
       created_at: att.created_at,
     };
@@ -430,10 +448,9 @@ exports.getMemberCheckinProfile = async (userId) => {
 
     let remainingDays = null;
     // 时间卡和次卡都计算剩余天数（需已激活、未暂停、有到期日）
+    // 按北京自然日求差（与会员详情页 member-detail 口径一致），避免 23:59:59.999 末日被多算一天
     if (up.end_date && up.is_activated && !up.is_suspended) {
-      const now = dayjs().tz(BEIJING_TZ);
-      const end = dayjs(up.end_date).tz(BEIJING_TZ);
-      remainingDays = end.diff(now, 'day') + 1;
+      remainingDays = timeUtil.diffDays(up.end_date);
     }
 
     let timeCardUsage = null;

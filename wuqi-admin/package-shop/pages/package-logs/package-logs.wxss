@@ -269,6 +269,17 @@
   font-weight: normal;
 }
 
+/* 已撤回标记（套餐变更/延长记录被撤回后展示） */
+.undone-tag {
+  font-size: 20rpx;
+  color: #A89A8C;
+  border: 1rpx solid #C4B3A4;
+  border-radius: 6rpx;
+  padding: 1rpx 10rpx;
+  margin-left: 8rpx;
+  font-weight: normal;
+}
+
 /* 会员记录数量徽标 */
 .record-count-badge {
   font-size: 20rpx;

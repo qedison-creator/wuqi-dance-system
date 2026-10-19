@@ -105,8 +105,8 @@
           <text class="value">{{item.classroom || '未指定'}}</text>
         </view>
         <view class="info-row">
-          <text class="label">扣除次数</text>
-          <text class="value">{{item.credits_cost || 1}}次/节</text>
+          <text class="label">扣除课时</text>
+          <text class="value">{{item.credits_cost || 1}}课时/节</text>
         </view>
         <view class="info-row" wx:if="{{item.status === 'cancelled' && item.cancelReasonText}}">
           <text class="label">取消原因</text>
@@ -288,25 +288,25 @@
           <input wx:if="{{showCustomDuration}}" class="input-field" type="number" placeholder="请输入时长(分钟)" value="{{formData.customDuration}}" data-field="customDuration" bindinput="onFormInput" bindblur="onCustomDurationBlur" />
         </view>
 
-        <!-- 扣除课时次 -->
+        <!-- 扣除课时 -->
         <view class="form-group {{editingLocked ? 'locked' : ''}}">
-          <text class="form-label">扣除次数</text>
+          <text class="form-label">扣除课时</text>
           <view class="credit-cost-list">
             <view class="credit-cost-item {{formData.creditsCost === 1 ? 'active' : ''}}" bindtap="onSelectCreditsCost" data-value="1">
-              <text>1次</text>
+              <text>1课时</text>
             </view>
             <view class="credit-cost-item {{formData.creditsCost === 2 ? 'active' : ''}}" bindtap="onSelectCreditsCost" data-value="2">
-              <text>2次</text>
+              <text>2课时</text>
             </view>
             <view class="credit-cost-item {{formData.creditsCost === 3 ? 'active' : ''}}" bindtap="onSelectCreditsCost" data-value="3">
-              <text>3次</text>
+              <text>3课时</text>
             </view>
             <view class="credit-cost-item {{formData.creditsCost === -1 ? 'active' : ''}}" bindtap="onSelectCreditsCost" data-value="-1">
               <text>自定义</text>
             </view>
           </view>
-          <input wx:if="{{formData.creditsCost === -1}}" class="input-field" type="number" placeholder="请输入次数" value="{{formData.customCreditsCost}}" data-field="customCreditsCost" bindinput="onFormInput" />
-          <text class="credit-cost-hint">预约此课程时扣除的次数，关联会员次卡/时间卡套餐</text>
+          <input wx:if="{{formData.creditsCost === -1}}" class="input-field" type="number" placeholder="请输入课时" value="{{formData.customCreditsCost}}" data-field="customCreditsCost" bindinput="onFormInput" />
+          <text class="credit-cost-hint">预约此课程时扣除的课时，关联会员次卡/时间卡套餐</text>
         </view>
 
         <!-- 下课时间（自动计算） -->

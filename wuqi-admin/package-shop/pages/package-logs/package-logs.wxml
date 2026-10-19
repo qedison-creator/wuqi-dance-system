@@ -152,7 +152,8 @@
                   <view class="sub-record" wx:for="{{item.records}}" wx:for-item="record" wx:key="_id">
                     <view class="sub-record-divider" wx:if="{{index > 0}}"></view>
                     <view class="sub-record-header">
-                      <text class="log-type {{record.record_type === 'change' ? 'log-type-change' : ''}}">{{record.record_type === 'change' ? '套餐变更' : (record.typeLabel || '套餐延长')}}</text>
+                      <text class="log-type {{record.record_type === 'change' ? 'log-type-change' : ''}}">{{record.record_type === 'change' ? (record.is_undo ? '撤回变更' : '套餐变更') : (record.typeLabel || '套餐延长')}}</text>
+                      <text class="undone-tag" wx:if="{{record.undone}}">已撤回</text>
                     </view>
                     <!-- 套餐延长记录 -->
                     <block wx:if="{{record.record_type !== 'change'}}">

@@ -73,6 +73,18 @@ Page({
     // 新增套餐弹窗
     showAddPackageModal: false,
     addPackageForm: {},
+    showAddBonusSection: false,   // 新增套餐弹窗：赠送折叠区展开状态
+    // 追加赠送弹窗（仅使用中的主套餐）
+    showBonusModal: false,
+    bonusForm: { bonus_credits: '', bonus_expire_mode: 'follow_main', bonus_months: '', main_end_display: '' },
+    bonusTargetId: '',
+    // 编辑赠课弹窗（赠课卡专属：限制跟随主套餐，仅可纠错总次数/自定义月数模式的到期日）
+    showBonusEditModal: false,
+    bonusEditTargetId: '',
+    bonusEditForm: { total_credits: '', end_date: '', duration_value: '', reason: '' },
+    bonusEditInfo: { mode: 'follow_main', is_activated: false, main_end: '', used: 0 },
+    // 删除套餐弹窗：联动作废的赠课卡勾选列表
+    deletingPackageBonusLinks: [],
     addPackageStoreList: [],
     addPackageFormStoreIndex: 0,
     addPackageStoreLocked: false,  // 单门店权限时锁定所属门店为本门店
@@ -114,6 +126,10 @@ Page({
       current_end: '',
       reason: ''
     },
+    // 撤回变更弹窗（2小时内可撤回延长/字段变更）
+    showUndoModal: false,
+    undoForm: { reason: '' },
+    undoTargetInfo: {},
     // 记录TAB：booking=预约记录, attendance=上课记录
     recordTab: 'booking',
     // 上课记录
@@ -143,6 +159,11 @@ Page({
   },
 
   onUnload() {
+    // 停止撤回倒计时
+    if (this._undoTimer) {
+      clearInterval(this._undoTimer);
+      this._undoTimer = null;
+    }
     // 离开详情页时，若数据有变更，通知列表页局部刷新该会员（不重载列表、不影响滚动位置）
     if (this._memberDataModified && this.data.memberId) {
       const pages = getCurrentPages();
@@ -166,6 +187,125 @@ Page({
       }
       wx.stopPullDownRefresh();
     });
+  },
+
+  // ===== 撤回变更（2小时内） =====
+  // 撤回倒计时：每秒刷新按钮上的 mm:ss，超时自动隐藏按钮
+  startUndoCountdown() {
+    if (this._undoTimer) {
+      clearInterval(this._undoTimer);
+      this._undoTimer = null;
+    }
+    const tick = () => {
+      const packages = this.data.packages || [];
+      const patch = {};
+      let changed = false;
+      packages.forEach((pkg, pi) => {
+        // 遍历可见列表（卡片渲染源），同时同步补丁全量列表，保证 onUndoLog 取到最新撤回状态
+        (pkg._visibleExtensions || []).forEach((ext, vi) => {
+          if (!ext.undoable || !ext.undo_deadline) return;
+          const vPrefix = `packages[${pi}]._visibleExtensions[${vi}]`;
+          const fPrefix = `packages[${pi}].extensions[${ext._extIdx}]`;
+          const remain = new Date(ext.undo_deadline).getTime() - Date.now();
+          if (remain <= 0) {
+            patch[`${vPrefix}.undo_countdown`] = '';
+            patch[`${vPrefix}.undoable`] = false;
+            patch[`${vPrefix}.blocked_reason`] = '已超过2小时撤回时限';
+            patch[`${fPrefix}.undo_countdown`] = '';
+            patch[`${fPrefix}.undoable`] = false;
+            patch[`${fPrefix}.blocked_reason`] = '已超过2小时撤回时限';
+            changed = true;
+          } else {
+            const mm = Math.floor(remain / 60000);
+            const ss = Math.floor((remain % 60000) / 1000);
+            const text = `${String(mm).padStart(2, '0')}:${String(ss).padStart(2, '0')}`;
+            if (text !== ext.undo_countdown) {
+              patch[`${vPrefix}.undo_countdown`] = text;
+              patch[`${fPrefix}.undo_countdown`] = text;
+              changed = true;
+            }
+          }
+        });
+      });
+      if (changed) this.setData(patch);
+    };
+    tick();
+    this._undoTimer = setInterval(tick, 1000);
+  },
+
+  // 点击撤回按钮：可撤回则打开确认弹窗；不可撤回则说明原因
+  onUndoLog(e) {
+    const { pidx, eidx } = e.currentTarget.dataset;
+    const pkg = this.data.packages[pidx];
+    const ext = pkg && pkg.extensions && pkg.extensions[eidx];
+    if (!ext) return;
+    if (!ext.undoable) {
+      wx.showModal({
+        title: '无法撤回',
+        content: ext.blocked_reason || '该记录当前不可撤回',
+        showCancel: false
+      });
+      return;
+    }
+    this._undoTarget = {
+      pkgIndex: pidx,
+      extIndex: eidx,
+      recordType: ext.record_type,
+      recordId: ext._id
+    };
+    this.setData({
+      showUndoModal: true,
+      undoForm: { reason: '' },
+      undoTargetInfo: {
+        event_name: ext.event_name || '',
+        operator_name: ext.operator_name || '',
+        created_at_display: ext.created_at_display || '',
+        countdown: ext.undo_countdown || '',
+        preview: ext.undo_preview || []
+      }
+    });
+  },
+
+  onUndoReasonInput(e) {
+    this.setData({ 'undoForm.reason': e.detail.value });
+  },
+
+  onCloseUndoModal() {
+    this._undoTarget = null;
+    this.setData({ showUndoModal: false });
+  },
+
+  // 确认撤回：按记录类型调用对应撤回接口，成功后刷新详情
+  async onConfirmUndo() {
+    const t = this._undoTarget;
+    if (!t || this._undoSubmitting) return;
+    this._undoSubmitting = true;
+    const url = t.recordType === 'extend'
+      ? `/packages/extension-records/${t.recordId}/revoke`
+      : `/packages/change-records/${t.recordId}/revoke`;
+    wx.showLoading({ title: '撤回中...', mask: true });
+    try {
+      await request({
+        url,
+        method: 'PUT',
+        data: { reason: this.data.undoForm.reason }
+      });
+      wx.hideLoading();
+      wx.showToast({ title: '已撤回', icon: 'success' });
+      this._undoTarget = null;
+      this.setData({ showUndoModal: false });
+      this._memberDataModified = true;
+      await this.loadMemberDetail();
+    } catch (err) {
+      wx.hideLoading();
+      wx.showModal({
+        title: '撤回失败',
+        content: (err && err.message) || '请稍后重试',
+        showCancel: false
+      });
+    } finally {
+      this._undoSubmitting = false;
+    }
   },
 
   loadMemberDetail() {
@@ -268,16 +408,34 @@ Page({
         }
         // 格式化变更日志（延长记录 + 字段变更记录合并）日期与摘要文本
         if (pkg.extensions && pkg.extensions.length > 0) {
-          pkg.extensions = pkg.extensions.map(ext => {
+          const allExts = pkg.extensions.map(ext => {
             const operatorName = ext.operator_name || '管理员';
             const dateStr = ext.created_at ? this.formatDate(ext.created_at) : '';
             // 摘要格式：日期 操作人 事件名
             return {
               ...ext,
               created_at_display: dateStr,
-              summary_text: `${dateStr} ${operatorName} ${ext.event_name || ''}`
+              summary_text: `${dateStr} ${operatorName} ${ext.event_name || ''}`,
+              // 撤回状态（后端已按2小时窗口+冲突检测计算）：undoable=true 才显示撤回按钮
+              undone: !!ext.undone,
+              undoable: !!ext.undoable,
+              blocked_reason: ext.blocked_reason || '',
+              undo_preview: ext.undo_preview || [],
+              undo_deadline: ext.undo_deadline || '',
+              undo_countdown: ''
             };
           });
+          // 卡片内只展示最新3条 + 其后仍可撤回的记录（撤回窗口仅2小时，必在最新记录中）
+          const VISIBLE_EXT_COUNT = 3;
+          const visibleExts = [];
+          allExts.forEach((ext, idx) => {
+            ext._extIdx = idx; // 原始索引，供撤回按钮定位全量列表
+            if (idx < VISIBLE_EXT_COUNT || ext.undoable) visibleExts.push(ext);
+          });
+          pkg.extensions = allExts;
+          pkg._visibleExtensions = visibleExts;
+          pkg._extensionsTotal = allExts.length;
+          pkg._hiddenCount = allExts.length - visibleExts.length;
         }
         // 舞种限制展示文本：populate 后是 [{_id, name}]，未 populate 时是 ObjectId 数组
         const dsl = pkg.dance_style_limit || [];
@@ -318,6 +476,10 @@ Page({
           const store = booking.schedule_id.store_id;
           booking.store_name = typeof store === 'object' ? (store.name || '') : '';
         }
+        // 扣课溯源后缀（如「次卡」「时间卡」；同类套餐≥2张时为具体套餐名）
+        booking.packageLabel = booking.package_label || '';
+        // 按天口径缩期天数
+        booking.deduct_days = booking.deduct_days || booking.shrink_days || null;
         return booking;
       });
 
@@ -379,6 +541,8 @@ Page({
         canDeleteMember: !crossStoreAccess && this.data.isAdmin, // 删除会员
         canSetExemption: !crossStoreAccess       // 修改豁免次数
       });
+      // 启动撤回倒计时（2小时窗口内显示 mm:ss，超时自动隐藏按钮）
+      this.startUndoCountdown();
 
       // 预加载上课记录总数（用于角标即时显示，不阻塞页面渲染）
       this.fetchAttendanceCount();
@@ -515,6 +679,27 @@ Page({
     const { id } = e.currentTarget.dataset;
     const pkg = this.data.packages.find(p => p._id === id);
     if (!pkg) return;
+
+    // 赠课卡：专属轻量编辑弹窗（限制跟随主套餐，仅可纠错总次数/自定义月数模式的到期日）
+    if (pkg.is_bonus) {
+      this.setData({
+        showBonusEditModal: true,
+        bonusEditTargetId: id,
+        bonusEditForm: {
+          total_credits: pkg.total_credits != null ? String(pkg.total_credits) : '',
+          end_date: pkg.end_date ? this.formatDate(pkg.end_date) : '',
+          duration_value: pkg.duration_value != null ? String(pkg.duration_value) : '',
+          reason: ''
+        },
+        bonusEditInfo: {
+          mode: pkg.bonus_expire_mode || 'follow_main',
+          is_activated: !!pkg.is_activated,
+          main_end: pkg.end_date_display || '无',
+          used: Math.max(0, (Number(pkg.total_credits) || 0) - (Number(pkg.remaining_credits) || 0))
+        }
+      });
+      return;
+    }
 
     // 确保门店列表已加载（供附加门店多选使用）
     if (!this.data.addPackageStoreList || this.data.addPackageStoreList.length === 0) {
@@ -668,9 +853,21 @@ Page({
     const pkg = this.data.packages.find(p => p._id === id);
     if (!pkg) return;
 
+    // 联动赠课卡：主卡作废时可勾选一并作废（计算已用节数供提示）
+    const bonusLinks = this.data.packages
+      .filter(p => p.is_bonus && p.bonus_source_id && String(p.bonus_source_id) === String(id))
+      .map(b => ({
+        _id: String(b._id),
+        total_credits: b.total_credits || 0,
+        used: Math.max(0, (b.total_credits || 0) - (b.remaining_credits || 0)),
+        end_date_display: b.end_date_display || '',
+        checked: false
+      }));
+
     this.setData({
       showDeletePackageModal: true,
       deletingPackage: pkg,
+      deletingPackageBonusLinks: bonusLinks,
       deletePackageConfirmText: ''
     });
   },
@@ -679,6 +876,7 @@ Page({
     this.setData({
       showDeletePackageModal: false,
       deletingPackage: null,
+      deletingPackageBonusLinks: [],
       deletePackageConfirmText: ''
     });
   },
@@ -697,17 +895,21 @@ Page({
       return;
     }
 
-    wx.showLoading({ title: '删除中...', mask: true });
+    wx.showLoading({ title: '处理中...', mask: true });
     try {
-      await request({
+      // 赠课卡由后端强制随主套餐联动作废，无需前端传勾选列表
+      const res = await request({
         url: `/packages/user/${deletingPackage._id}`,
         method: 'DELETE'
       });
       wx.hideLoading();
-      wx.showToast({ title: '删除成功', icon: 'success' });
+      // 分级结果：未激活且从未使用的录入错误套餐 → 物理删除；其余 → 作废（记录保留以便权益溯源）
+      const mode = res.data && res.data.mode;
+      wx.showToast({ title: mode === 'voided' ? '套餐已作废' : '套餐已删除', icon: 'success' });
       this.setData({
         showDeletePackageModal: false,
         deletingPackage: null,
+        deletingPackageBonusLinks: [],
         deletePackageConfirmText: ''
       });
       this.loadMemberDetail();
@@ -1176,7 +1378,156 @@ Page({
   },
 
   onCloseAddPackageModal() {
-    this.setData({ showAddPackageModal: false, addPackageForm: {} });
+    this.setData({ showAddPackageModal: false, addPackageForm: {}, showAddBonusSection: false });
+  },
+
+  // 新增套餐弹窗：赠送折叠区展开/收起 + 赠课有效期模式切换
+  onToggleAddBonusSection() {
+    this.setData({ showAddBonusSection: !this.data.showAddBonusSection });
+  },
+
+  onAddBonusModeChange(e) {
+    const mode = e.currentTarget.dataset.mode;
+    if (this.data.addPackageForm.bonus_expire_mode === mode) return;
+    this.setData({ 'addPackageForm.bonus_expire_mode': mode });
+  },
+
+  // 追加赠送弹窗（仅使用中的主套餐）
+  onOpenBonusModal(e) {
+    const { id } = e.currentTarget.dataset;
+    const pkg = this.data.packages.find(p => p._id === id);
+    if (!pkg) return;
+    this.setData({
+      showBonusModal: true,
+      bonusTargetId: id,
+      bonusForm: {
+        bonus_credits: '',
+        bonus_expire_mode: 'follow_main',
+        bonus_months: '',
+        main_end_display: pkg.end_date_display || '无'
+      }
+    });
+  },
+
+  onCloseBonusModal() {
+    this.setData({
+      showBonusModal: false,
+      bonusTargetId: '',
+      bonusForm: { bonus_credits: '', bonus_expire_mode: 'follow_main', bonus_months: '', main_end_display: '' }
+    });
+  },
+
+  onBonusFormInput(e) {
+    const { field } = e.currentTarget.dataset;
+    this.setData({ [`bonusForm.${field}`]: e.detail.value });
+  },
+
+  onBonusModeChange(e) {
+    const mode = e.currentTarget.dataset.mode;
+    if (this.data.bonusForm.bonus_expire_mode === mode) return;
+    this.setData({ 'bonusForm.bonus_expire_mode': mode });
+  },
+
+  async onConfirmBonus() {
+    const { bonusForm, bonusTargetId } = this.data;
+    const credits = Number(bonusForm.bonus_credits);
+    if (!bonusForm.bonus_credits || isNaN(credits) || credits < 1 || credits > 99) {
+      wx.showToast({ title: '赠送课时需在1-99之间', icon: 'none' });
+      return;
+    }
+    if (bonusForm.bonus_expire_mode === 'months') {
+      const months = Number(bonusForm.bonus_months);
+      if (!bonusForm.bonus_months || isNaN(months) || months < 1 || months > 36) {
+        wx.showToast({ title: '赠课月数需在1-36之间', icon: 'none' });
+        return;
+      }
+    }
+
+    wx.showLoading({ title: '处理中...', mask: true });
+    try {
+      await request({
+        url: `/packages/user/${bonusTargetId}/bonus`,
+        method: 'POST',
+        data: {
+          bonus_credits: credits,
+          bonus_expire_mode: bonusForm.bonus_expire_mode === 'months' ? 'months' : 'follow_main',
+          bonus_months: bonusForm.bonus_expire_mode === 'months' ? Number(bonusForm.bonus_months) : 0
+        }
+      });
+      wx.hideLoading();
+      wx.showToast({ title: '追加赠送成功', icon: 'success' });
+      this.onCloseBonusModal();
+      this.loadMemberDetail();
+    } catch (err) {
+      wx.hideLoading();
+      wx.showToast({ title: (err.data && err.data.message) || '追加赠送失败', icon: 'none' });
+    }
+  },
+
+  // 延长有效期：常用原因预置
+  onExtendReasonPreset(e) {
+    this.setData({ 'extendForm.reason': e.currentTarget.dataset.reason });
+  },
+
+  // ========== 编辑赠课（赠课卡专属弹窗） ==========
+  onCloseBonusEditModal() {
+    this.setData({
+      showBonusEditModal: false,
+      bonusEditTargetId: '',
+      bonusEditForm: { total_credits: '', end_date: '', duration_value: '', reason: '' },
+      bonusEditInfo: { mode: 'follow_main', is_activated: false, main_end: '', used: 0 }
+    });
+  },
+
+  onBonusEditInput(e) {
+    const { field } = e.currentTarget.dataset;
+    this.setData({ [`bonusEditForm.${field}`]: e.detail.value });
+  },
+
+  onBonusEditEndDate(e) {
+    this.setData({ 'bonusEditForm.end_date': e.detail.value });
+  },
+
+  async onConfirmBonusEdit() {
+    const { bonusEditForm, bonusEditInfo, bonusEditTargetId } = this.data;
+    const total = Number(bonusEditForm.total_credits);
+    if (bonusEditForm.total_credits === '' || isNaN(total) || total < 0 || total > 999 || !Number.isInteger(total)) {
+      wx.showToast({ title: '总次数需为0-999的整数', icon: 'none' });
+      return;
+    }
+    const postData = { total_credits: total, remark: bonusEditForm.reason || '' };
+    if (bonusEditInfo.mode === 'months') {
+      if (bonusEditInfo.is_activated) {
+        if (!bonusEditForm.end_date) {
+          wx.showToast({ title: '请选择到期日期', icon: 'none' });
+          return;
+        }
+        postData.end_date = bonusEditForm.end_date;
+      } else {
+        const months = Number(bonusEditForm.duration_value);
+        if (!bonusEditForm.duration_value || isNaN(months) || months < 1 || months > 36 || !Number.isInteger(months)) {
+          wx.showToast({ title: '赠课月数需为1-36的整数', icon: 'none' });
+          return;
+        }
+        postData.duration_value = months;
+      }
+    }
+
+    wx.showLoading({ title: '处理中...', mask: true });
+    try {
+      await request({
+        url: `/packages/${bonusEditTargetId}`,
+        method: 'PUT',
+        data: postData
+      });
+      wx.hideLoading();
+      wx.showToast({ title: '变更成功', icon: 'success' });
+      this.onCloseBonusEditModal();
+      this.loadMemberDetail();
+    } catch (err) {
+      wx.hideLoading();
+      wx.showToast({ title: (err.data && err.data.message) || '变更失败', icon: 'none' });
+    }
   },
 
   onAddPackageModalTap() {},
@@ -1215,6 +1566,26 @@ Page({
         return;
       }
     }
+    // 赠送配置校验（选填）
+    const bonusCredits = addPackageForm.bonus_credits ? Number(addPackageForm.bonus_credits) : 0;
+    if (addPackageForm.bonus_credits && (isNaN(bonusCredits) || bonusCredits < 0 || bonusCredits > 99)) {
+      wx.showToast({ title: '赠送课时需在0-99之间', icon: 'none' });
+      return;
+    }
+    if (bonusCredits > 0 && addPackageForm.bonus_expire_mode === 'months') {
+      const bonusMonths = Number(addPackageForm.bonus_months || 0);
+      if (!(bonusMonths >= 1 && bonusMonths <= 36)) {
+        wx.showToast({ title: '赠课月数需在1-36之间', icon: 'none' });
+        return;
+      }
+    }
+    if (addPackageForm.gift_validity_months) {
+      const giftMonths = Number(addPackageForm.gift_validity_months);
+      if (isNaN(giftMonths) || giftMonths < 0 || giftMonths > 36) {
+        wx.showToast({ title: '赠送有效期需在0-36之间', icon: 'none' });
+        return;
+      }
+    }
 
     try {
       const postData = {
@@ -1229,8 +1600,15 @@ Page({
         weekday_limit: this._weekdayFormValue(addPackageForm.weekday_limit),
         usable_before: addPackageForm.usable_before || '',
         usable_after: addPackageForm.usable_after || '',
+        // 赠送配置（选填）
+        bonus_credits: bonusCredits,
+        gift_validity_months: addPackageForm.gift_validity_months ? Number(addPackageForm.gift_validity_months) : 0,
         remark: addPackageForm.remark
       };
+      if (bonusCredits > 0 && addPackageForm.bonus_expire_mode === 'months') {
+        postData.bonus_expire_mode = 'months';
+        postData.bonus_months = Number(addPackageForm.bonus_months);
+      }
       if (!this._validateTimeLimit(addPackageForm)) return;
 
       if (addPackageForm.package_type === 'count_card') {
@@ -1511,10 +1889,10 @@ Page({
 
         // 课程中取消特殊处理
         const isCancelledAfterCheckin = att.check_in_method === 'cancelled_after_checkin';
-        let creditsCost = att.credits_cost || 0;
+        const creditsCost = att.credits_cost || 0;
         // 按天口径（不限次卡/每日1节卡）：显示占天而不是扣课时
         const deductDays = att.deduct_days || null;
-        if (isCancelledAfterCheckin) creditsCost = 0;
+        // 签到后取消：课时/有效期已退还，仍保留原数值用于"退还"文案展示
 
         let cancelReasonText = '';
         if (isCancelledAfterCheckin) {
@@ -1530,6 +1908,9 @@ Page({
           isCancelledAfterCheckin,
           credits_cost: creditsCost,
           deduct_days: deductDays,
+          // 扣课溯源后缀（如「次卡」「时间卡」；同类套餐≥2张时为具体套餐名）
+          package_label: att.package_label || '',
+          packageLabel: att.package_label || '',
           cancelReasonText
         };
       });
@@ -1662,14 +2043,14 @@ Page({
       return;
     }
 
-    wx.showLoading({ title: '删除中...', mask: true });
+    wx.showLoading({ title: '注销中...', mask: true });
     try {
       await request({
         url: `/members/${memberId}`,
         method: 'DELETE'
       });
       wx.hideLoading();
-      wx.showToast({ title: '会员已删除', icon: 'success' });
+      wx.showToast({ title: '会员已注销', icon: 'success' });
       setTimeout(() => {
         const pages = getCurrentPages();
         if (pages.length > 1) {
@@ -1680,16 +2061,18 @@ Page({
       }, 1500);
     } catch (err) {
       wx.hideLoading();
-      wx.showToast({ title: err.data?.message || '删除失败', icon: 'none' });
+      wx.showToast({ title: err.data?.message || '注销失败', icon: 'none' });
     }
   },
 
   // ========== 查看套餐变更记录 ==========
   onViewPackageChanges(e) {
-    const { userName } = e.currentTarget.dataset;
-    // 跳转到套餐记录查询页面的"套餐变更"TAB，并按会员姓名搜索
+    const { userId, userName } = e.currentTarget.dataset;
+    // 跳转到套餐记录查询页面的"套餐变更"TAB。
+    // 传 user_id 让后端按会员精确过滤（同名会员、跨门店套餐都不会漏记录），
+    // keyword 仅用于让搜索框回显会员姓名。
     wx.navigateTo({
-      url: `/package-shop/pages/package-logs/package-logs?tab=extension&keyword=${encodeURIComponent(userName || '')}`
+      url: `/package-shop/pages/package-logs/package-logs?tab=extension&user_id=${userId || ''}&keyword=${encodeURIComponent(userName || '')}`
     });
   },
 
@@ -1744,13 +2127,12 @@ Page({
       wx.showToast({ title: '延长时长需为整数', icon: 'none' });
       return;
     }
-    if (numValue > 3650) {
+    // 单次延长上限：10 年（按所选单位换算，天数=3650，月份=120）
+    const maxValue = extend_unit === 'month' ? 120 : 3650;
+    if (numValue > maxValue) {
       wx.showToast({ title: '单次延长不能超过10年', icon: 'none' });
       return;
     }
-
-    // 月按30天换算为天
-    const extendDays = extend_unit === 'month' ? numValue * 30 : numValue;
 
     wx.showLoading({ title: '处理中...', mask: true });
     try {
@@ -1758,7 +2140,10 @@ Page({
         url: `/packages/${extendingPackageId}/extend`,
         method: 'PUT',
         data: {
-          extend_days: extendDays,
+          // 传原始数值 + 单位，由后端决定算法：
+          // month 按自然月相加（如 3/15 → 4/15），day 按自然日相加。
+          // 前端不能把「1个月」折算成 30 天，否则跨月会少算天数。
+          extend_days: numValue,
           extend_value: numValue,
           extend_unit: extend_unit,
           reason

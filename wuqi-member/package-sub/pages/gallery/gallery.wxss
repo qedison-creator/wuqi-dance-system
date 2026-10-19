@@ -147,3 +147,5 @@
   color: #948284;
   letter-spacing: 3rpx;
 }
+
+@import "./gallery.skin.wxss";

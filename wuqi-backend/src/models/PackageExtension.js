@@ -15,6 +15,9 @@ const packageExtensionSchema = new mongoose.Schema({
   holiday_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Holiday' },
   operated_by: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   revoked_extension_id: { type: mongoose.Schema.Types.ObjectId, ref: 'PackageExtension' },
+  // 撤回标记：该延长操作被撤销的时间与操作人（防止重复撤销 + 前端展示"已撤回"）
+  undone_at: { type: Date, default: null },
+  undone_by: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
   reason: { type: String },
   remark: { type: String },
   // 快照字段：即使会员/套餐被删除，记录信息也不丢失

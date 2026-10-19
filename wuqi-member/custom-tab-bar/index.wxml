@@ -1,22 +1,61 @@
-<view class="tab-bar">
-  <view class="tab-bar-capsule">
-    <view class="tab-item {{active === 'index' ? 'active' : ''}}" data-path="/pages/index/index" data-index="0" bindtap="onTabTap">
-      <view class="tab-icon">
-        <view class="ti-shape ti-home"></view>
+<view class="tab-bar skin-{{skinId}}">
+  <!-- 经典：CSS 形状图标 -->
+  <block wx:if="{{skinId === 'classic'}}">
+    <view class="tab-bar-capsule">
+      <view class="tab-item {{active === 'index' ? 'active' : ''}}" data-path="/pages/index/index" data-index="0" bindtap="onTabTap">
+        <view class="tab-icon">
+          <view class="ti-shape ti-home"></view>
+        </view>
+        <text class="tab-text">首页</text>
       </view>
-      <text class="tab-text">首页</text>
-    </view>
-    <view class="tab-item {{active === 'booking' ? 'active' : ''}}" data-path="/pages/booking/booking" data-index="1" bindtap="onTabTap">
-      <view class="tab-icon">
-        <view class="ti-shape ti-cal"></view>
+      <view class="tab-item {{active === 'booking' ? 'active' : ''}}" data-path="/pages/booking/booking" data-index="1" bindtap="onTabTap">
+        <view class="tab-icon">
+          <view class="ti-shape ti-cal"></view>
+        </view>
+        <text class="tab-text">预约</text>
       </view>
-      <text class="tab-text">预约</text>
-    </view>
-    <view class="tab-item {{active === 'profile' ? 'active' : ''}}" data-path="/pages/profile/profile" data-index="2" bindtap="onTabTap">
-      <view class="tab-icon">
-        <view class="ti-shape ti-user"></view>
+      <view class="tab-item {{active === 'profile' ? 'active' : ''}}" data-path="/pages/profile/profile" data-index="2" bindtap="onTabTap">
+        <view class="tab-icon">
+          <view class="ti-shape ti-user"></view>
+        </view>
+        <text class="tab-text">我的</text>
       </view>
-      <text class="tab-text">我的</text>
     </view>
-  </view>
+  </block>
+
+  <!-- 纸上舞台：小方点 + 宋体文字 -->
+  <block wx:if="{{skinId === 'paper'}}">
+    <view class="tb-bar-capsule tb-paper">
+      <view class="tb-item {{active === 'index' ? 'active' : ''}}" data-path="/pages/index/index" data-index="0" bindtap="onTabTap">
+        <view class="tb-dot"></view>
+        <text class="tb-text">首页</text>
+      </view>
+      <view class="tb-item {{active === 'booking' ? 'active' : ''}}" data-path="/pages/booking/booking" data-index="1" bindtap="onTabTap">
+        <view class="tb-dot"></view>
+        <text class="tb-text">预约</text>
+      </view>
+      <view class="tb-item {{active === 'profile' ? 'active' : ''}}" data-path="/pages/profile/profile" data-index="2" bindtap="onTabTap">
+        <view class="tb-dot"></view>
+        <text class="tb-text">我的</text>
+      </view>
+    </view>
+  </block>
+
+  <!-- VOLT：胶囊选中 -->
+  <block wx:if="{{skinId === 'volt'}}">
+    <view class="tb-bar-capsule tb-volt">
+      <view class="tb-item {{active === 'index' ? 'active' : ''}}" data-path="/pages/index/index" data-index="0" bindtap="onTabTap">
+        <view class="tb-dot"></view>
+        <text class="tb-text">首页</text>
+      </view>
+      <view class="tb-item {{active === 'booking' ? 'active' : ''}}" data-path="/pages/booking/booking" data-index="1" bindtap="onTabTap">
+        <view class="tb-dot"></view>
+        <text class="tb-text">约课</text>
+      </view>
+      <view class="tb-item {{active === 'profile' ? 'active' : ''}}" data-path="/pages/profile/profile" data-index="2" bindtap="onTabTap">
+        <view class="tb-dot"></view>
+        <text class="tb-text">我的</text>
+      </view>
+    </view>
+  </block>
 </view>

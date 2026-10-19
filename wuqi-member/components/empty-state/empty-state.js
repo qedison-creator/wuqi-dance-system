@@ -1,4 +1,13 @@
 Component({
+  lifetimes: {
+    attached() {
+      try {
+        const skinId = wx.getStorageSync('member_skin_id');
+        this.setData({ skinId: skinId === 'paper' || skinId === 'volt' ? skinId : 'classic' });
+      } catch (e) { /* 忽略 */ }
+    }
+  },
+
   options: {
     pureDataPattern: /^_/
   },

@@ -199,3 +199,5 @@
   font-size: 28rpx;
   border-radius: 40rpx;
 }
+
+@import "./coach-list.skin.wxss";

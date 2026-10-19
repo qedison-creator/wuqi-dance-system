@@ -1,0 +1,31 @@
+/* package-detail 皮肤覆盖（纸上舞台 / VOLT）—— 由 package-detail.wxss 通过 @import 引入 */
+
+/* 我的套餐列表：纸上舞台 / VOLT 完整覆盖 */
+.skin-root.skin-paper.page { background: #F5F1E8; }
+.skin-paper .pkg-card { background: #FCFAF4; border: 2rpx solid #DFD6C2; border-radius: 8rpx; box-shadow: none; }
+.skin-paper .pkg-top-bar, .skin-paper .pkg-card.active .pkg-top-bar { background: #B93A26; }
+.skin-paper .pkg-card.expired .pkg-top-bar { background: #C9C0B0; }
+.skin-paper .pkg-card.paused .pkg-top-bar { background: #A0802E; }
+.skin-paper .pkg-type-badge { background: #F5EBE3; color: #B93A26; border-radius: 4rpx; font-family: 'Noto Serif SC', serif; font-weight: 700; }
+/* 状态章（替换豆沙玫瑰的绿/橙/粉配色） */
+.skin-paper .pkg-status-badge { border-radius: 4rpx; font-family: 'Noto Serif SC', serif; font-weight: 700; }
+.skin-paper .pkg-status-badge.active { background: #F5EBE3; color: #B93A26; }
+.skin-paper .pkg-status-badge.pending { background: #F3EAD3; color: #A0802E; }
+.skin-paper .pkg-status-badge.expired,
+.skin-paper .pkg-status-badge.depleted { background: transparent; color: #A79D89; border: 2rpx dashed #DFD6C2; }
+.skin-paper .pkg-status-badge.paused { background: #F3EAD3; color: #A0802E; }
+/* 行分隔与文字 */
+.skin-paper .pkg-row { border-bottom: 2rpx dashed #DFD6C2; }
+.skin-paper .pkg-label { color: #6C6353; }
+.skin-paper .pkg-val { color: #221D15; }
+.skin-paper .pkg-val.dance-limit { color: #6C6353; }
+.skin-paper .pkg-val.accent { color: #B93A26; font-family: 'Noto Serif SC', serif; font-weight: 700; }
+.skin-paper .btn-primary { background: #B93A26; border-radius: 6rpx; font-family: 'Noto Serif SC', serif; box-shadow: 2rpx 3rpx 0 rgba(34, 29, 21, 0.18); }
+.skin-root.skin-volt.page { background: #F2F1ED; }
+.skin-volt .pkg-card { background: #FFFFFF; border: 3rpx solid #111310; border-radius: 24rpx; box-shadow: 5rpx 5rpx 0 #111310; }
+.skin-volt .pkg-top-bar, .skin-volt .pkg-card.active .pkg-top-bar { background: #D7FF3B; }
+.skin-volt .pkg-card.expired .pkg-top-bar { background: #DCDAD0; }
+.skin-volt .pkg-card.paused .pkg-top-bar { background: #77786F; }
+.skin-volt .pkg-type-badge { background: #111310; color: #D7FF3B; border-radius: 999rpx; }
+.skin-volt .pkg-val.accent { color: #111310; font-family: 'GroteskV', sans-serif; font-weight: 700; }
+.skin-volt .btn-primary { background: #111310; color: #D7FF3B; border-radius: 999rpx; font-weight: 800; box-shadow: none; }

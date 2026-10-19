@@ -1,10 +1,12 @@
 {
-  "navigationBarTitleText": "场次预约",
+  "navigationBarTitleText": "",
   "enablePullDownRefresh": true,
   "backgroundColor": "#FBFAF8",
   "backgroundTextStyle": "dark",
   "usingComponents": {
     "empty-state": "/components/empty-state/empty-state",
-    "login-modal": "/components/login-modal/login-modal"
-  }
+    "login-modal": "/components/login-modal/login-modal",
+    "skin-success": "/components/skin-success/skin-success"
+  },
+  "navigationStyle": "custom"
 }

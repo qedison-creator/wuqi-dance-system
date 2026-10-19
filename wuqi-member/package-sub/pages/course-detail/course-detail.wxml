@@ -1,16 +1,18 @@
-<view class="loading-state" wx:if="{{loading}}">
+<view class="loading-state skin-root skin-{{skinId}}" wx:if="{{loading}}">
   <view class="loading-spinner"></view>
   <text class="loading-text">加载课程详情中...</text>
 </view>
 
-<view class="page" wx:elif="{{course}}">
-  <view class="cover-section">
+<view class="page skin-root skin-{{skinId}}" wx:elif="{{course}}">
+  <view class="cover-section" wx:if="{{skinId === 'classic'}}">
     <image class="cover-img" src="{{course.cover}}" binderror="onCoverImgError" mode="aspectFill" wx:if="{{course.cover && !imageErrors.cover}}" />
     <image class="cover-img" src="/images/default-course.svg" mode="aspectFill" wx:else />
     <view class="cover-gradient"></view>
   </view>
 
   <view class="content">
+    <!-- 经典标题卡 -->
+    <block wx:if="{{skinId === 'classic'}}">
     <view class="course-title-card">
       <view class="ctc-store-tag" wx:if="{{course.storeName}}">
         <view class="cst-dot"></view>
@@ -21,7 +23,36 @@
         <view class="ctc-tag" style="background: {{course.danceTagBg}}; color: {{course.danceTagText}}">{{course.danceStyle || '舞蹈'}}</view>
       </view>
     </view>
+    </block>
 
+    <!-- 纸上舞台标题 -->
+    <block wx:if="{{skinId === 'paper'}}">
+      <view class="cdp-head">
+        <text class="cdp-kicker">{{course.storeName || 'WUQI DANCE'}}</text>
+        <text class="cdp-title">{{course.name}}</text>
+        <view class="cdp-coachline" bindtap="onCoachTap">
+          <text class="cdp-coach-k">带课</text>
+          <text class="cdp-coach-n">{{course.coachName || '待定'}}</text>
+          <text class="cdp-coach-more">查看主页 →</text>
+        </view>
+        <view class="cdp-rule"></view>
+      </view>
+    </block>
+
+    <!-- VOLT 标题 -->
+    <block wx:if="{{skinId === 'volt'}}">
+      <view class="cdv-head">
+        <text class="cdv-kicker">{{course.storeName || 'WUQI DANCE CLUB'}}</text>
+        <text class="cdv-title">{{course.name}}</text>
+        <view class="cdv-coachline" bindtap="onCoachTap">
+          <text class="cdv-coach-k">带课</text>
+          <text class="cdv-coach-n">{{course.coachName || '待定'}}</text>
+          <text class="cdv-coach-more">主页 →</text>
+        </view>
+      </view>
+    </block>
+
+    <block wx:if="{{skinId === 'classic'}}">
     <view class="info-card">
       <view class="ic-row">
         <view class="ic-left">
@@ -35,7 +66,7 @@
           <view class="ic-icon time"></view>
           <text class="ic-label">时间</text>
         </view>
-        <text class="ic-value" wx:if="{{isOfficial}}">{{course.dateStr}} {{course.weekDayStr}} {{course.startTime}}-{{course.endTime}}</text>
+        <text class="ic-value" wx:if="{{isOfficial && canViewCapacity && course.bookedCount !== null}}">{{course.dateStr}} {{course.weekDayStr}} {{course.startTime}}-{{course.endTime}}</text>
         <text class="ic-value" wx:else>{{course.dateStr}} {{course.weekDayStr}} ??:??-??:??</text>
       </view>
       <view class="ic-row" wx:if="{{course.room}}">
@@ -58,7 +89,7 @@
           <view class="ic-icon min-people"></view>
           <text class="ic-label">最低成班</text>
         </view>
-        <text class="ic-value" wx:if="{{isOfficial}}">{{course.minBookings}}人起成班</text>
+        <text class="ic-value" wx:if="{{isOfficial && canViewCapacity && course.bookedCount !== null}}">{{course.minBookings}}人起成班</text>
         <text class="ic-value" wx:else>?人起成班</text>
       </view>
       <view class="ic-row" wx:if="{{isOfficial}}">
@@ -81,6 +112,47 @@
         <text class="ic-value">{{course.cancel_deadline_text}}</text>
       </view>
     </view>
+
+    </block>
+
+    <!-- 纸上舞台：信息网格 -->
+    <block wx:if="{{skinId === 'paper'}}">
+      <view class="cdp-grid">
+        <view class="cdp-g"><text class="cdp-g-k">日期 DATE</text><view class="cdp-g-v">{{course.dateStr}}<text class="cdp-g-s"> {{course.weekDayStr}}</text></view></view>
+        <view class="cdp-g"><text class="cdp-g-k">时间 TIME</text><view class="cdp-g-v" wx:if="{{isOfficial}}">{{course.startTime}}<text class="cdp-g-s"> - {{course.endTime}}</text></view><view class="cdp-g-v" wx:else>??:??<text class="cdp-g-s"> - ??:??</text></view></view>
+        <view class="cdp-g"><text class="cdp-g-k">教室 STUDIO</text><view class="cdp-g-v">{{course.room || '待定'}}</view></view>
+        <view class="cdp-g"><text class="cdp-g-k">名额 BOOKED</text><view class="cdp-g-v" wx:if="{{isOfficial && canViewCapacity && course.bookedCount !== null}}">{{course.bookedCount || 0}}<text class="cdp-g-s"> / {{course.maxCount || 20}} 人</text></view><view class="cdp-g-v" wx:elif="{{isOfficial}}">?<text class="cdp-g-s"> / ? 人</text></view><view class="cdp-g-v" wx:else>--</view></view>
+      </view>
+
+      <view class="cdp-note">
+        <text class="cdp-note-t">约课须知</text>
+        <text class="cdp-note-b">{{course.booking_deadline_text || ''}}人数不足{{course.minBookings || 1}}人（最低成班人数），课程自动取消，课时全额退还，预约时敬请授权消息提醒；</text>
+        <text class="cdp-note-b">{{course.cancel_deadline_text || ''}}可正常取消预约，过了截止时间，不能取消；</text>
+      </view>
+      <view class="cdp-grid2">
+        <view class="cdp-g2"><text class="cdp-g-k">消耗 COST</text><view class="cdp-g2-v cdp-acc" wx:if="{{isOfficial}}">{{course.creditsCost || 1}}<text class="cdp-g-s"> 课时</text></view><view class="cdp-g2-v" wx:else>-</view></view>
+        <view class="cdp-g2"><text class="cdp-g-k">我的状态 STATUS</text><view class="cdp-g2-v" wx:if="{{isOfficial}}">{{isBooked ? '已预约' : isWaitlisted ? '候补第' + waitlistPosition + '位' : isOngoing ? '进行中' : isEnded ? (isCompleted ? '已完成' : '已结束') : isCancelled ? '已取消' : '未预约'}}</view><view class="cdp-g2-v" wx:else>--</view></view>
+      </view>
+    </block>
+
+    <!-- VOLT：信息网格 -->
+    <block wx:if="{{skinId === 'volt'}}">
+      <view class="cdv-grid">
+        <view class="cdv-g"><text class="cdv-g-k">DATE</text><view class="cdv-g-v">{{course.dateStr}}<text class="cdv-g-s"> {{course.weekDayStr}}</text></view></view>
+        <view class="cdv-g"><text class="cdv-g-k">TIME</text><view class="cdv-g-v" wx:if="{{isOfficial}}">{{course.startTime}}<text class="cdv-g-s"> - {{course.endTime}}</text></view><view class="cdv-g-v" wx:else>??:??</view></view>
+        <view class="cdv-g"><text class="cdv-g-k">STUDIO</text><view class="cdv-g-v">{{course.room || '待定'}}</view></view>
+        <view class="cdv-g"><text class="cdv-g-k">SEATS</text><view class="cdv-g-v" wx:if="{{isOfficial && canViewCapacity && course.bookedCount !== null}}">{{course.bookedCount || 0}}<text class="cdv-g-s"> / {{course.maxCount || 20}}</text></view><view class="cdv-g-v" wx:elif="{{isOfficial}}">?</view><view class="cdv-g-v" wx:else>--</view></view>
+      </view>
+      <view class="cdv-note">
+        <text class="cdv-note-t">开抢规则</text>
+        <text class="cdv-note-b">{{course.booking_deadline_text || ''}}人数不足{{course.minBookings || 1}}人（最低成班人数），课程自动取消，课时全额退还，预约时敬请授权消息提醒；</text>
+        <text class="cdv-note-b">{{course.cancel_deadline_text || ''}}可正常取消预约，过了截止时间，不能取消；</text>
+      </view>
+      <view class="cdv-grid2">
+        <view class="cdv-g2"><text class="cdv-g-k">COST</text><view class="cdv-cost-v" wx:if="{{isOfficial}}">{{course.creditsCost || 1}}<text class="cdv-g-s"> 课时</text></view><view class="cdv-cost-v" wx:else>-</view></view>
+        <view class="cdv-g2"><text class="cdv-g-k">STOCK</text><view class="cdv-cost-v" wx:if="{{isOfficial && canViewCapacity && course.bookedCount !== null && course.maxCount}}">仅剩 <text class="cdv-stock-low {{course.maxCount - (course.bookedCount || 0) <= 0 ? 'zero' : ''}}">{{course.maxCount - (course.bookedCount || 0) <= 0 ? 0 : course.maxCount - (course.bookedCount || 0)}}</text><text class="cdv-g-s"> 席</text></view><view class="cdv-cost-v" wx:elif="{{isOfficial}}">--</view><view class="cdv-cost-v" wx:else>--</view></view>
+      </view>
+    </block>
 
     <view class="desc-card" wx:if="{{course.description}}">
       <view class="dc-header">
@@ -170,13 +242,23 @@
         <text>不可预约</text>
       </view>
       <!-- 可预约 -->
-      <view class="bb-primary {{!isLoggedIn || isPackageSuspended ? 'disabled' : ''}}" wx:else bindtap="onBookTap">
-        <text>立即预约</text>
-      </view>
+      <block wx:else>
+        <view class="cd-cost-inline" wx:if="{{skinId !== 'classic' && isOfficial}}">
+          <view class="cdc-row">
+            <text class="cdc-n">{{course.creditsCost || 1}}</text>
+            <text class="cdc-l">{{skinId === 'volt' ? 'CREDIT' : '消耗课时'}}</text>
+          </view>
+          <view class="cdc-stock" wx:if="{{skinId === 'volt' && stockLabel}}">{{stockLabel}}</view>
+        </view>
+        <view class="bb-primary {{!isLoggedIn || isPackageSuspended ? 'disabled' : ''}}" bindtap="onBookTap">
+          <text>{{skinId !== 'classic' ? t.detailBookBtn : '立即预约'}}</text>
+        </view>
+      </block>
     </block>
   </view>
 
-  <view class="modal-mask" wx:if="{{showActivationModal}}" bindtap="onCancelActivation">
+  <!-- 套餐待激活：classic 走原弹窗，paper/volt 走 bk-cfm 壳 -->
+  <view class="modal-mask" wx:if="{{showActivationModal && skinId === 'classic'}}" bindtap="onCancelActivation">
     <view class="modal-content" catchtap="onModalTap">
       <view class="mc-title">套餐待激活</view>
       <view class="mc-body">您有未激活的套餐，首次预约将自动激活套餐</view>
@@ -186,8 +268,23 @@
       </view>
     </view>
   </view>
+  <view class="bk-cfm-mask {{skinId === 'volt' ? 'bk-cfm-mask-volt' : ''}}" wx:if="{{showActivationModal && skinId !== 'classic'}}" bindtap="onCancelActivation">
+    <view class="bk-cfm-card" catchtap="onModalTap">
+      <view class="bk-cfm-handle" wx:if="{{skinId === 'volt'}}"></view>
+      <view class="bk-cfm-seal" wx:if="{{skinId === 'paper'}}">栖</view>
+      <text class="bk-cfm-kicker" wx:if="{{skinId === 'paper'}}">BOOKING NOTICE</text>
+      <text class="bk-cfm-title">套餐待激活</text>
+      <view class="bk-cfm-line"></view>
+      <text class="bk-cfm-body">您有未激活的套餐，首次预约将自动激活套餐</text>
+      <view class="bk-cfm-actions">
+        <view class="bk-cfm-cancel" bindtap="onCancelActivation">取消</view>
+        <view class="bk-cfm-ok" bindtap="onConfirmActivation">确认预约</view>
+      </view>
+    </view>
+  </view>
 
-  <view class="modal-mask" wx:if="{{showBookingModal}}" bindtap="onCancelBooking">
+  <!-- 确认预约：classic 走原弹窗，paper/volt 走 LOCKED 同款票面 -->
+  <view class="modal-mask" wx:if="{{showBookingModal && skinId === 'classic'}}" bindtap="onCancelBooking">
     <view class="modal-content" catchtap="onModalTap">
       <view class="mc-title">确认预约</view>
       <text class="mc-body">{{bookingModalText}}</text>
@@ -197,8 +294,29 @@
       </view>
     </view>
   </view>
+  <view class="bk-cfm-mask {{skinId === 'volt' ? 'bk-cfm-mask-volt' : ''}}" wx:if="{{showBookingModal && skinId !== 'classic'}}" bindtap="onCancelBooking">
+    <view class="bk-cfm-card" catchtap="onModalTap">
+      <view class="bk-cfm-handle" wx:if="{{skinId === 'volt'}}"></view>
+      <view class="bk-cfm-seal" wx:if="{{skinId === 'paper'}}">栖</view>
+      <text class="bk-cfm-kicker" wx:if="{{skinId === 'paper'}}">BOOKING CONFIRMED</text>
+      <text class="bk-cfm-title">确认预约<text class="bk-cfm-q" wx:if="{{skinId === 'volt'}}">?</text></text>
+      <view class="bk-cfm-line"></view>
+      <block wx:if="{{cfmInfo}}">
+        <view class="bk-cfm-row"><text>确认预约</text><text class="bk-cfm-strong">「{{cfmInfo.name}}」</text></view>
+        <view class="bk-cfm-row"><text>教练：{{cfmInfo.coach}}</text></view>
+        <view class="bk-cfm-row"><text>{{cfmInfo.date}} {{cfmInfo.weekDay}} {{cfmInfo.time}}</text></view>
+        <view class="bk-cfm-row"><text class="bk-cfm-hl">{{cfmInfo.deductText}}</text></view>
+      </block>
+      <text class="bk-cfm-body" wx:else>{{bookingModalText}}</text>
+      <view class="bk-cfm-actions">
+        <view class="bk-cfm-cancel" bindtap="onCancelBooking">取消</view>
+        <view class="bk-cfm-ok" bindtap="onConfirmBooking">{{skinId === 'paper' ? '确认预约' : '立即锁定'}}</view>
+      </view>
+    </view>
+  </view>
 
-  <view class="modal-mask" wx:if="{{showCancelModal}}" bindtap="onCancelCancel">
+  <!-- 取消预约 -->
+  <view class="modal-mask" wx:if="{{showCancelModal && skinId === 'classic'}}" bindtap="onCancelCancel">
     <view class="modal-content" catchtap="onModalTap">
       <view class="mc-title">取消预约</view>
       <view class="mc-body">
@@ -210,8 +328,31 @@
       </view>
     </view>
   </view>
+  <view class="bk-cfm-mask {{skinId === 'volt' ? 'bk-cfm-mask-volt' : ''}}" wx:if="{{showCancelModal && skinId !== 'classic'}}" bindtap="onCancelCancel">
+    <view class="bk-cfm-card" catchtap="onModalTap">
+      <view class="bk-cfm-handle" wx:if="{{skinId === 'volt'}}"></view>
+      <view class="bk-cfm-seal bk-cfm-seal-cancel" wx:if="{{skinId === 'paper'}}">止</view>
+      <text class="bk-cfm-kicker" wx:if="{{skinId === 'paper'}}">BOOKING CANCELLED</text>
+      <text class="bk-cfm-title">取消预约<text class="bk-cfm-q" wx:if="{{skinId === 'volt'}}">?</text></text>
+      <view class="bk-cfm-line"></view>
+      <block wx:if="{{cancelInfo}}">
+        <view class="bk-cfm-row"><text>确认取消</text><text class="bk-cfm-strong">「{{cancelInfo.name}}」</text></view>
+        <view class="bk-cfm-row"><text>{{cancelInfo.date}} {{cancelInfo.weekDay}} {{cancelInfo.time}}</text></view>
+        <view class="bk-cfm-row"><text class="bk-cfm-hl">{{cancelInfo.refundText}}</text><text> · 下次见</text></view>
+        <view class="bk-cfm-row" wx:if="{{cancelInfo.phase}}"><text class="bk-cfm-note">{{cancelInfo.phase}}</text></view>
+      </block>
+      <block wx:else>
+        <text class="bk-cfm-body bk-cfm-body-line" wx:for="{{cancelModalSections}}" wx:key="index">{{item}}</text>
+      </block>
+      <view class="bk-cfm-actions">
+        <view class="bk-cfm-cancel" bindtap="onCancelCancel">取消</view>
+        <view class="bk-cfm-ok" bindtap="onConfirmCancel">确定取消</view>
+      </view>
+    </view>
+  </view>
 
-  <view class="modal-mask" wx:if="{{showWaitlistModal}}" bindtap="onCancelWaitlistModal">
+  <!-- 加入候补排队 -->
+  <view class="modal-mask" wx:if="{{showWaitlistModal && skinId === 'classic'}}" bindtap="onCancelWaitlistModal">
     <view class="modal-content" catchtap="onModalTap">
       <view class="mc-title">加入候补排队</view>
       <view class="mc-body">{{bookingModalText}}</view>
@@ -221,8 +362,23 @@
       </view>
     </view>
   </view>
+  <view class="bk-cfm-mask {{skinId === 'volt' ? 'bk-cfm-mask-volt' : ''}}" wx:if="{{showWaitlistModal && skinId !== 'classic'}}" bindtap="onCancelWaitlistModal">
+    <view class="bk-cfm-card" catchtap="onModalTap">
+      <view class="bk-cfm-handle" wx:if="{{skinId === 'volt'}}"></view>
+      <view class="bk-cfm-seal" wx:if="{{skinId === 'paper'}}">栖</view>
+      <text class="bk-cfm-kicker" wx:if="{{skinId === 'paper'}}">BOOKING NOTICE</text>
+      <text class="bk-cfm-title">加入候补排队</text>
+      <view class="bk-cfm-line"></view>
+      <text class="bk-cfm-body">{{bookingModalText}}</text>
+      <view class="bk-cfm-actions">
+        <view class="bk-cfm-cancel" bindtap="onCancelWaitlistModal">取消</view>
+        <view class="bk-cfm-ok" bindtap="onConfirmWaitlist">加入候补</view>
+      </view>
+    </view>
+  </view>
 
-  <view class="modal-mask" wx:if="{{showLeaveWaitlistModal}}" bindtap="onCancelLeaveWaitlist">
+  <!-- 退出候补 -->
+  <view class="modal-mask" wx:if="{{showLeaveWaitlistModal && skinId === 'classic'}}" bindtap="onCancelLeaveWaitlist">
     <view class="modal-content" catchtap="onModalTap">
       <view class="mc-title">退出候补</view>
       <text class="mc-body">{{bookingModalText}}</text>
@@ -232,13 +388,41 @@
       </view>
     </view>
   </view>
+  <view class="bk-cfm-mask {{skinId === 'volt' ? 'bk-cfm-mask-volt' : ''}}" wx:if="{{showLeaveWaitlistModal && skinId !== 'classic'}}" bindtap="onCancelLeaveWaitlist">
+    <view class="bk-cfm-card" catchtap="onModalTap">
+      <view class="bk-cfm-handle" wx:if="{{skinId === 'volt'}}"></view>
+      <view class="bk-cfm-seal" wx:if="{{skinId === 'paper'}}">栖</view>
+      <text class="bk-cfm-kicker" wx:if="{{skinId === 'paper'}}">BOOKING NOTICE</text>
+      <text class="bk-cfm-title">退出候补</text>
+      <view class="bk-cfm-line"></view>
+      <text class="bk-cfm-body">{{bookingModalText}}</text>
+      <view class="bk-cfm-actions">
+        <view class="bk-cfm-cancel" bindtap="onCancelLeaveWaitlist">取消</view>
+        <view class="bk-cfm-ok" bindtap="onConfirmLeaveWaitlist">确定退出</view>
+      </view>
+    </view>
+  </view>
 
-  <view class="modal-mask" wx:if="{{showLimitModal}}" bindtap="onCloseLimitModal">
+  <!-- 预约提醒 -->
+  <view class="modal-mask" wx:if="{{showLimitModal && skinId === 'classic'}}" bindtap="onCloseLimitModal">
     <view class="modal-content" catchtap="onModalTap">
       <view class="mc-title">预约提醒</view>
       <view class="mc-body">{{limitModalText}}</view>
       <view class="mc-footer single">
         <view class="mcf-btn primary full" bindtap="onCloseLimitModal">好的</view>
+      </view>
+    </view>
+  </view>
+  <view class="bk-cfm-mask {{skinId === 'volt' ? 'bk-cfm-mask-volt' : ''}}" wx:if="{{showLimitModal && skinId !== 'classic'}}" bindtap="onCloseLimitModal">
+    <view class="bk-cfm-card" catchtap="onModalTap">
+      <view class="bk-cfm-handle" wx:if="{{skinId === 'volt'}}"></view>
+      <view class="bk-cfm-seal" wx:if="{{skinId === 'paper'}}">栖</view>
+      <text class="bk-cfm-kicker" wx:if="{{skinId === 'paper'}}">BOOKING NOTICE</text>
+      <text class="bk-cfm-title">预约提醒</text>
+      <view class="bk-cfm-line"></view>
+      <text class="bk-cfm-body">{{limitModalText}}</text>
+      <view class="bk-cfm-actions">
+        <view class="bk-cfm-ok" bindtap="onCloseLimitModal">好的</view>
       </view>
     </view>
   </view>
@@ -257,3 +441,4 @@
   hint="请返回首页查看其他课程">
 </empty-state>
 <update-modal />
+<skin-success props="{{skinSuccess}}" bind:ok="onSkinSuccessOk" />

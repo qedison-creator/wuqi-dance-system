@@ -814,6 +814,8 @@ Page({
     const phone = item.phone || item.mobile || '';
     let packageName = item.package_name || item.card_name || item.card_type || item.course_name || item.product_name || '';
     let remaining = item.remaining;
+    // 后端 /stats/dashboard 的次卡提醒字段名为 remaining_credits，需优先读取
+    if (remaining === undefined || remaining === null) remaining = item.remaining_credits;
     if (remaining === undefined || remaining === null) remaining = item.left_times;
     if (remaining === undefined || remaining === null) remaining = item.times_left;
     if (remaining === undefined || remaining === null) remaining = item.remaining_count;
@@ -909,16 +911,15 @@ Page({
         }
 
         // 套餐名：优先匹配当前 type，否则取第一个有效套餐
+        // 同时定位"当前提醒类型对应的套餐"，供剩余次数取值使用
         let packageName = '';
         const packages = Array.isArray(data.packages) ? data.packages : [];
+        let targetPkg = null;
         if (packages.length > 0) {
-          if (type === 'count_card') {
-            const target = packages.find((p) => p && p.package_type === 'count_card' && p.name);
-            if (target) packageName = target.name;
-          } else if (type === 'time_card') {
-            const target = packages.find((p) => p && p.package_type === 'time_card' && p.name);
-            if (target) packageName = target.name;
-          }
+          // 次卡提醒只认次卡套餐；时间卡提醒只认时间卡套餐
+          const matchType = type === 'time_card' ? 'time_card' : 'count_card';
+          targetPkg = packages.find((p) => p && p.package_type === matchType) || null;
+          if (targetPkg && targetPkg.name) packageName = targetPkg.name;
           if (!packageName) {
             const active = packages.find((p) => p && p.status === 'active' && p.name);
             packageName = (active && active.name) || (packages[0] && packages[0].name) || '';
@@ -928,10 +929,11 @@ Page({
         // 剩余次数 / 天数：从详情兜底
         let remaining = item.remaining;
         let daysLeft = item.days_left;
-        if ((remaining === undefined || remaining === null || remaining === 0) && packages.length > 0) {
-          const first = packages[0];
-          if (first.remaining_credits !== undefined && first.remaining_credits !== null) {
-            remaining = first.remaining_credits;
+        // 兜底必须取"同类型套餐"的剩余次数：时间卡不限次数，其 remaining_credits 是哨兵值（如 9999/10002），
+        // 早期实现直接取 packages[0]，会把时间卡的哨兵值当成次卡剩余次数显示，故改为按类型匹配
+        if ((remaining === undefined || remaining === null || remaining === 0) && targetPkg) {
+          if (targetPkg.remaining_credits !== undefined && targetPkg.remaining_credits !== null) {
+            remaining = targetPkg.remaining_credits;
           }
         }
         // 时间卡按时间计费、不限次数：不展示剩余次数（详情包里 remaining_credits 为哨兵值如10002）

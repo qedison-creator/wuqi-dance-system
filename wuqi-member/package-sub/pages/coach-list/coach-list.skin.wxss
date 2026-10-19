@@ -1,0 +1,15 @@
+/* coach-list 皮肤覆盖（纸上舞台 / VOLT）—— 由 coach-list.wxss 通过 @import 引入 */
+
+/* 教练列表：纸上舞台 / VOLT 完整覆盖 */
+.skin-root.skin-paper.cl-page { background: #F5F1E8; }
+.skin-paper .cl-title { font-family: 'Noto Serif SC', serif; color: #221D15; }
+.skin-paper .cl-dot { background: #B93A26; }
+.skin-paper .coach-name { font-family: 'Noto Serif SC', serif; color: #221D15; }
+.skin-paper .coach-tag { border-radius: 4rpx; font-family: 'Noto Serif SC', serif; }
+.skin-paper .retry-btn { background: #B93A26; color: #FCF7EE; border-radius: 6rpx; font-family: 'Noto Serif SC', serif; box-shadow: 2rpx 3rpx 0 rgba(34, 29, 21, 0.18); }
+.skin-root.skin-volt.cl-page { background: #F2F1ED; }
+.skin-volt .cl-title { font-weight: 900; color: #111310; }
+.skin-volt .cl-dot { background: #D7FF3B; box-shadow: 2rpx 2rpx 0 #111310; }
+.skin-volt .coach-name { font-weight: 900; color: #111310; }
+.skin-volt .coach-tag { border: 2rpx solid #111310; border-radius: 999rpx; background: #FFFFFF; color: #111310; }
+.skin-volt .retry-btn { background: #111310; color: #D7FF3B; border-radius: 999rpx; font-weight: 800; box-shadow: none; }

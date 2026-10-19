@@ -1,0 +1,27 @@
+<view class="skin-page skin-root skin-{{skinId}}">
+  <view class="skin-head">
+    <view class="sh-title">皮肤外观</view>
+    <view class="sh-sub">选一套喜欢的样子，即点即换、自动记住。</view>
+  </view>
+
+  <view class="skin-list">
+    <view
+      class="skin-card {{item.active ? 'active' : ''}} sc-{{item.id}}"
+      wx:for="{{skins}}"
+      wx:key="id"
+      data-id="{{item.id}}"
+      bindtap="onPickSkin"
+    >
+      <view class="sc-swatches">
+        <view class="sc-sw" wx:for="{{item.swatches}}" wx:for-item="color" wx:key="*this" style="background: {{color}};"></view>
+      </view>
+      <view class="sc-info">
+        <view class="sc-name">{{item.name}}</view>
+        <view class="sc-desc">{{item.desc}}</view>
+      </view>
+      <view class="sc-state">{{item.active ? '使用中' : ''}}</view>
+    </view>
+  </view>
+
+  <view class="skin-foot">切换后所有页面即时生效；下次打开默认使用上次选择的皮肤。</view>
+</view>

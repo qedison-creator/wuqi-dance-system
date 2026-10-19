@@ -1,0 +1,611 @@
+/* 个人中心皮肤样式（纸上舞台 / VOLT）—— 由 profile.wxss 通过 @import 引入
+   策略：共用现有节点全量换色 + hero 局部重塑；业务与弹窗（QR/签到等）零改动 */
+
+/* ---------- 纸上舞台 ---------- */
+.skin-paper.profile-page {
+  background: var(--sk-bg);
+  min-height: 100vh;
+}
+.skin-paper .hero-card {
+  background: var(--sk-card);
+  border: 2rpx solid var(--sk-line);
+  border-radius: 8rpx;
+  box-shadow: none;
+}
+.skin-paper .hero-avatar,
+.skin-paper .hero-avatar-wrap .hero-avatar { border-radius: 8rpx; }
+.skin-paper .hero-avatar-ring { border-radius: 8rpx; }
+.skin-paper .hero-name {
+  font-family: var(--sk-serif);
+  font-size: 44rpx;
+  font-weight: 900;
+  letter-spacing: 0.05em;
+}
+.skin-paper .hero-member-id { color: var(--sk-sub); letter-spacing: 0.05em; }
+.skin-paper .qr-btn {
+  background: var(--sk-acc);
+  border-radius: var(--sk-btn-radius);
+  box-shadow: 2rpx 3rpx 0 rgba(34, 29, 21, 0.18);
+}
+.skin-paper .status-chip { border-radius: 4rpx; font-family: var(--sk-serif); }
+.skin-paper .stat-card {
+  background: var(--sk-card);
+  border: 2rpx solid var(--sk-line);
+  border-radius: 8rpx;
+  box-shadow: none;
+}
+.skin-paper .stat-num { font-family: var(--sk-serif); }
+.skin-paper .section-left-bar { background: var(--sk-acc); border-radius: 2rpx; }
+.skin-paper .section-title { font-family: var(--sk-serif); letter-spacing: 0.06em; }
+.skin-paper .menu-card {
+  background: var(--sk-card);
+  border: 2rpx solid var(--sk-line);
+  border-radius: 8rpx;
+  box-shadow: none;
+}
+.skin-paper .menu-item { border-radius: 0; }
+.skin-paper .menu-item-title { color: var(--sk-ink); }
+.skin-paper .menu-logout { color: var(--sk-hint); letter-spacing: 0.3em; }
+
+/* ---------- VOLT ---------- */
+.skin-volt.profile-page {
+  background: var(--sk-bg);
+  min-height: 100vh;
+}
+.skin-volt .hero-card {
+  background: var(--sk-card);
+  border: 3rpx solid var(--sk-ink);
+  border-radius: 28rpx;
+  box-shadow: 6rpx 6rpx 0 var(--sk-ink);
+}
+.skin-volt .hero-avatar,
+.skin-volt .hero-avatar-wrap .hero-avatar { border-radius: 18rpx; }
+.skin-volt .hero-avatar-ring { border-radius: 18rpx; }
+.skin-volt .hero-name {
+  font-size: 46rpx;
+  font-weight: 900;
+  letter-spacing: 0;
+}
+.skin-volt .hero-member-id { color: var(--sk-sub); font-weight: 700; }
+.skin-volt .qr-btn {
+  background: var(--sk-ink);
+  border-radius: 999rpx;
+  box-shadow: none;
+  border: 3rpx solid var(--sk-ink);
+}
+.skin-volt .qr-btn-text { color: var(--sk-acc-fg); font-weight: 800; }
+.skin-volt .status-chip { border-radius: 999rpx; font-weight: 800; border: 2rpx solid var(--sk-ink); }
+.skin-volt .stat-card {
+  background: var(--sk-card);
+  border: 3rpx solid var(--sk-ink);
+  border-radius: 22rpx;
+  box-shadow: 4rpx 4rpx 0 var(--sk-ink);
+}
+.skin-volt .stat-num { font-weight: 900; }
+.skin-volt .section-left-bar {
+  background: var(--sk-volt);
+  border-radius: 4rpx;
+  box-shadow: 2rpx 2rpx 0 var(--sk-ink);
+}
+.skin-volt .section-title { font-weight: 900; }
+.skin-volt .menu-card {
+  background: var(--sk-card);
+  border: 3rpx solid var(--sk-ink);
+  border-radius: 28rpx;
+  box-shadow: 5rpx 5rpx 0 var(--sk-ink);
+  overflow: hidden;
+}
+.skin-volt .menu-item-title { color: var(--sk-ink); font-weight: 800; }
+.skin-volt .menu-logout { color: var(--sk-sub); font-weight: 700; letter-spacing: 0.3em; }
+
+/* ---------- 首轮验收修复：hero 分支与套餐票根 ---------- */
+/* 纸上舞台：会员志名片 */
+.pf-hero-paper {
+  margin: 20rpx 30rpx 0;
+  background: var(--sk-card);
+  border: 2rpx solid var(--sk-line);
+  border-radius: 8rpx;
+  padding: 28rpx 28rpx 24rpx;
+  box-shadow: 0 2rpx 0 rgba(34, 29, 21, 0.03);
+}
+.pfp-row { display: flex; align-items: center; gap: 24rpx; }
+.pfp-ava {
+  width: 120rpx; height: 120rpx;
+  border: 2rpx solid var(--sk-line);
+  border-radius: 6rpx; overflow: hidden;
+  background: #ECE5D6; flex-shrink: 0;
+}
+.pfp-ava-img { width: 100%; height: 100%; }
+.pfp-info { flex: 1; min-width: 0; }
+.pfp-nm-row { display: flex; align-items: center; gap: 14rpx; }
+.pfp-name { font-family: var(--sk-serif); font-size: 44rpx; font-weight: 900; color: var(--sk-ink); letter-spacing: 0.05em; }
+.pfp-seal {
+  width: 36rpx; height: 36rpx;
+  background: var(--sk-acc); color: #FCF7EE;
+  font-size: 19rpx; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 4rpx; transform: rotate(-4deg);
+  flex-shrink: 0;
+}
+.pfp-sub { display: block; margin-top: 6rpx; font-size: 21rpx; color: var(--sk-sub); letter-spacing: 0.05em; }
+.pfp-qr {
+  flex-shrink: 0;
+  background: var(--sk-acc); color: var(--sk-btn-fg);
+  padding: 14rpx 24rpx; border-radius: 4rpx;
+  box-shadow: 2rpx 3rpx 0 rgba(34, 29, 21, 0.18);
+}
+.pfp-qr-t { font-size: 23rpx; font-weight: 700; font-family: var(--sk-serif); letter-spacing: 0.1em; }
+.pfp-status-row {
+  display: flex; align-items: center; gap: 18rpx;
+  margin-top: 22rpx; padding-top: 20rpx;
+  border-top: 2rpx dashed var(--sk-line);
+}
+.pfp-status-chip {
+  font-family: var(--sk-serif);
+  font-size: 21rpx; font-weight: 700;
+  color: var(--sk-acc);
+  border: 2rpx solid var(--sk-acc);
+  padding: 4rpx 16rpx; border-radius: 4rpx;
+}
+.pfp-status-sub { font-size: 21rpx; color: var(--sk-sub); }
+.pfp-exempt { margin-left: auto; font-size: 21rpx; color: var(--sk-gold); }
+
+/* VOLT：护照名片 */
+.pf-hero-volt {
+  margin: 20rpx 30rpx 0;
+  background: var(--sk-card);
+  border: 3rpx solid var(--sk-ink);
+  border-radius: 28rpx;
+  padding: 30rpx 30rpx 26rpx;
+  box-shadow: 6rpx 6rpx 0 var(--sk-ink);
+}
+.pfv-row { display: flex; align-items: center; gap: 24rpx; }
+.pfv-ava {
+  width: 120rpx; height: 120rpx;
+  border: 3rpx solid var(--sk-ink);
+  border-radius: 24rpx; overflow: hidden;
+  background: #FFFFFF; flex-shrink: 0;
+}
+.pfv-ava-img { width: 100%; height: 100%; }
+.pfv-info { flex: 1; min-width: 0; }
+.pfv-name { display: block; font-size: 46rpx; font-weight: 900; color: var(--sk-ink); }
+.pfv-sub { display: block; margin-top: 8rpx; font-size: 19rpx; font-weight: 700; letter-spacing: 0.15em; color: var(--sk-sub); }
+.pfv-qr {
+  flex-shrink: 0;
+  background: var(--sk-ink);
+  border: 3rpx solid var(--sk-ink);
+  padding: 14rpx 28rpx; border-radius: 999rpx;
+}
+.pfv-qr-t { font-size: 23rpx; font-weight: 900; letter-spacing: 0.1em; color: var(--sk-acc-fg); }
+.pfv-status-row { display: flex; align-items: center; gap: 18rpx; margin-top: 24rpx; }
+.pfv-chip {
+  font-size: 21rpx; font-weight: 800;
+  background: var(--sk-volt); color: var(--sk-ink);
+  border: 2rpx solid var(--sk-ink);
+  padding: 6rpx 20rpx; border-radius: 999rpx;
+}
+.pfv-exempt { margin-left: auto; font-size: 21rpx; font-weight: 700; color: var(--sk-sub); }
+
+/* 套餐票根（paper=pt / volt=vt 共用结构） */
+.pkg-skin-sec { margin-top: 40rpx; padding: 0 30rpx; }
+.pkg-sk-head { display: flex; align-items: baseline; gap: 14rpx; margin-bottom: 18rpx; }
+.pkg-sk-title { font-size: 32rpx; font-weight: 900; color: var(--sk-ink); }
+.skin-paper .pkg-sk-title { font-family: var(--sk-serif); letter-spacing: 0.06em; }
+.pkg-sk-en { margin-left: auto; font-size: 18rpx; letter-spacing: 0.25em; color: var(--sk-hint); font-weight: 700; }
+.pkg-ticket {
+  display: flex; align-items: stretch;
+  background: var(--sk-card);
+  border: 2rpx solid var(--sk-line);
+  border-radius: 10rpx;
+  margin-bottom: 20rpx;
+  position: relative;
+  overflow: hidden;
+}
+.pkg-ticket.pt { box-shadow: 0 2rpx 0 rgba(34, 29, 21, 0.04); }
+.pkg-ticket.vt { border: none; border-radius: 24rpx; box-shadow: 5rpx 5rpx 0 rgba(17, 19, 16, 0.18); }
+.pkt-left { flex: 1; min-width: 0; padding: 24rpx 26rpx; }
+.pkt-k { display: block; font-size: 18rpx; letter-spacing: 0.2em; color: var(--sk-hint); font-weight: 700; }
+.pkt-name { display: block; margin-top: 8rpx; font-size: 32rpx; font-weight: 900; color: var(--sk-ink); }
+.skin-paper .pkt-name { font-family: var(--sk-serif); }
+.pkt-meta { display: block; margin-top: 8rpx; font-size: 21rpx; color: var(--sk-sub); }
+.pkt-source { display: block; margin-top: 6rpx; font-size: 20rpx; color: var(--sk-gold, #A08450); }
+.pkt-status { display: inline-block; margin-top: 10rpx; font-size: 19rpx; color: var(--sk-sub); }
+.pkt-right {
+  width: 180rpx; flex-shrink: 0;
+  border-left: 2rpx dashed var(--sk-line);
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  position: relative;
+  padding: 20rpx 8rpx;
+}
+.pkt-big { font-family: var(--sk-serif); font-size: 52rpx; font-weight: 900; color: var(--sk-ink); line-height: 1; }
+.pkg-ticket.vt .pkt-big { font-size: 48rpx; }
+.pkt-lab { margin-top: 8rpx; font-size: 17rpx; letter-spacing: 0.15em; color: var(--sk-hint); }
+.pkt-seal {
+  position: absolute; right: 8rpx; bottom: 8rpx;
+  width: 34rpx; height: 34rpx;
+  background: var(--sk-acc); color: #FCF7EE;
+  font-size: 18rpx; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 4rpx; transform: rotate(-5deg);
+  opacity: 0.9;
+}
+.pkg-skin-empty, .pkg-skin-history {
+  margin: 0 30rpx; padding: 26rpx;
+  text-align: center;
+  font-size: 22rpx; color: var(--sk-sub);
+  border: 2rpx dashed var(--sk-line);
+  border-radius: 8rpx;
+}
+.pkg-skin-history { margin-top: 16rpx; border: none; }
+
+/* ---------- 二轮精修：三数据 + 入场券 ---------- */
+/* 纸上舞台：三数据 */
+.pf-stats-paper {
+  display: flex;
+  margin: 24rpx 30rpx 0;
+  border-top: 2rpx solid var(--sk-line);
+  border-bottom: 2rpx solid var(--sk-line);
+}
+.pf-st { flex: 1; text-align: center; padding: 26rpx 0 22rpx; }
+.pf-st + .pf-st { border-left: 2rpx solid var(--sk-line); }
+.pf-st-n { display: block; font-family: var(--sk-serif); font-size: 48rpx; font-weight: 900; color: var(--sk-ink); line-height: 1.1; }
+.pf-st-gold { color: var(--sk-gold); }
+.pf-st-l { display: block; margin-top: 6rpx; font-size: 19rpx; letter-spacing: 0.2em; color: var(--sk-hint); }
+
+/* VOLT：三数据 */
+.pf-stats-volt { display: flex; gap: 16rpx; margin: 24rpx 30rpx 0; }
+.pv-st {
+  flex: 1; text-align: center;
+  background: var(--sk-card);
+  border: 3rpx solid var(--sk-ink);
+  border-radius: 20rpx;
+  padding: 22rpx 0 18rpx;
+  box-shadow: 4rpx 4rpx 0 var(--sk-ink);
+}
+.pv-st-hot { background: var(--sk-volt); }
+.pv-st-n { display: block; font-size: 44rpx; font-weight: 900; color: var(--sk-ink); line-height: 1.1; }
+.pv-st-l { display: block; margin-top: 6rpx; font-size: 19rpx; font-weight: 700; letter-spacing: 0.12em; color: var(--sk-sub); }
+.pv-st-hot .pv-st-l { color: var(--sk-ink); }
+
+/* 次卡+时间卡同时持有：四数据时收紧字号，避免挤压换行 */
+.pf-stats-paper.pf-stats-4 .pf-st-n { font-size: 40rpx; }
+.pf-stats-paper.pf-stats-4 .pf-st-l { font-size: 17rpx; letter-spacing: 0.08em; }
+.pf-stats-volt.pf-stats-4 .pv-st-n { font-size: 38rpx; }
+.pf-stats-volt.pf-stats-4 .pv-st-l { font-size: 17rpx; letter-spacing: 0.04em; }
+
+/* 纸上舞台：入场券弹窗 */
+.ssq-mask {
+  position: fixed; left: 0; top: 0; right: 0; bottom: 0;
+  z-index: 99990;
+  background: rgba(34, 29, 21, 0.45);
+  display: flex; align-items: flex-end;
+}
+.ssq-paper {
+  width: 100%;
+  background: var(--sk-card);
+  border-radius: 20rpx 20rpx 0 0;
+  border-top: 4rpx solid var(--sk-line);
+  padding: 36rpx 36rpx calc(40rpx + env(safe-area-inset-bottom));
+  box-sizing: border-box;
+  animation: sk-rise-in 400ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.ssq-head { display: flex; justify-content: space-between; align-items: baseline; }
+.ssq-title { font-family: var(--sk-serif); font-size: 38rpx; font-weight: 900; color: var(--sk-ink); letter-spacing: 0.2em; }
+.ssq-en { font-size: 19rpx; letter-spacing: 0.3em; color: var(--sk-acc); font-weight: 700; }
+.ssq-body { display: flex; gap: 30rpx; align-items: center; margin-top: 26rpx; }
+.ssq-qr {
+  width: 240rpx; height: 240rpx; flex-shrink: 0;
+  background: #FFFFFF;
+  border: 2rpx solid var(--sk-line);
+  padding: 14rpx; box-sizing: border-box;
+  display: flex; align-items: center; justify-content: center;
+}
+.ssq-canvas { width: 210rpx; height: 210rpx; }
+.ssq-meta { flex: 1; min-width: 0; }
+.ssq-name { display: block; font-family: var(--sk-serif); font-size: 30rpx; font-weight: 700; color: var(--sk-ink); }
+.ssq-code { display: block; margin-top: 8rpx; font-family: var(--sk-serif); font-size: 34rpx; font-weight: 900; letter-spacing: 0.12em; color: var(--sk-ink); }
+.ssq-refresh { display: block; margin-top: 12rpx; font-size: 20rpx; color: var(--sk-acc); }
+.ssq-note-row {
+  display: flex; justify-content: space-between;
+  margin-top: 26rpx; padding-top: 20rpx;
+  border-top: 2rpx dashed var(--sk-line);
+  font-size: 20rpx; color: var(--sk-sub);
+}
+.ssq-status { margin-top: 16rpx; text-align: center; }
+
+/* VOLT：PASS 弹窗 */
+.svq-mask {
+  position: fixed; left: 0; top: 0; right: 0; bottom: 0;
+  z-index: 99990;
+  background: rgba(17, 19, 16, 0.55);
+  display: flex; align-items: flex-end;
+}
+.svq-card {
+  width: 100%;
+  background: var(--sk-bg);
+  border-radius: 32rpx 32rpx 0 0;
+  border-top: 4rpx solid var(--sk-ink);
+  padding: 36rpx 36rpx calc(40rpx + env(safe-area-inset-bottom));
+  box-sizing: border-box;
+  animation: sk-rise-in 400ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.svq-head { display: flex; justify-content: space-between; align-items: baseline; }
+.svq-title { font-size: 40rpx; font-weight: 900; color: var(--sk-ink); letter-spacing: 0.04em; }
+.svq-en { font-size: 19rpx; letter-spacing: 0.25em; color: var(--sk-sub); font-weight: 700; }
+.svq-ticket {
+  margin-top: 24rpx;
+  background: var(--sk-volt);
+  border: 3rpx solid var(--sk-ink);
+  border-radius: 24rpx;
+  padding: 24rpx;
+  box-shadow: 5rpx 5rpx 0 var(--sk-ink);
+}
+.svq-ticket-top { display: flex; align-items: center; }
+.svq-t-name { font-size: 24rpx; font-weight: 900; color: var(--sk-ink); letter-spacing: 0.15em; }
+.svq-body {
+  display: flex; gap: 28rpx; align-items: center;
+  margin-top: 18rpx;
+  background: #FFFFFF;
+  border: 2rpx solid var(--sk-ink);
+  border-radius: 16rpx;
+  padding: 20rpx;
+}
+.svq-qr {
+  width: 220rpx; height: 220rpx; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+}
+.svq-canvas { width: 210rpx; height: 210rpx; }
+.svq-meta { flex: 1; min-width: 0; }
+.svq-name { display: block; font-size: 28rpx; font-weight: 900; color: var(--sk-ink); }
+.svq-code { display: block; margin-top: 8rpx; font-size: 30rpx; font-weight: 900; letter-spacing: 0.1em; color: var(--sk-ink); }
+.svq-refresh { display: block; margin-top: 10rpx; font-size: 19rpx; font-weight: 700; color: var(--sk-sub); }
+.svq-note-row { margin-top: 22rpx; font-size: 20rpx; color: var(--sk-sub); display: flex; justify-content: center; }
+.svq-status { margin-top: 14rpx; text-align: center; }
+
+/* ---------- 三轮精修：功能菜单（入场券入口 + 方形空心图标 + 英文注脚） ---------- */
+.pf-menu {
+  margin: 30rpx 30rpx 0;
+  border-top: 2rpx solid var(--sk-line);
+}
+.pf-mi {
+  display: flex; align-items: center; gap: 20rpx;
+  padding: 28rpx 6rpx;
+  border-bottom: 2rpx solid var(--sk-line);
+}
+.pf-mi:active { background: rgba(34, 29, 21, 0.03); }
+.pf-mi-ico {
+  width: 44rpx; height: 44rpx;
+  border: 2rpx solid var(--sk-sub);
+  border-radius: 4rpx;
+  flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  box-sizing: border-box;
+}
+.pf-mi-ico-txt { font-family: var(--sk-serif); font-size: 22rpx; font-weight: 700; color: var(--sk-ink); }
+.pf-mi-ico-skin { flex-direction: row; gap: 4rpx; }
+.pf-mi-ico-skin .sd-dot { width: 10rpx; height: 10rpx; border-radius: 3rpx; border-width: 1rpx; }
+.pf-mi-name { flex: 1; font-size: 27rpx; color: var(--sk-ink); font-weight: 500; }
+.skin-paper .pf-mi-name { font-family: var(--sk-serif); }
+.pf-mi-en { font-size: 18rpx; letter-spacing: 0.22em; color: var(--sk-hint); font-weight: 700; }
+.pf-mi-arr { font-size: 26rpx; color: var(--sk-sub); }
+
+/* 法务链接与退出 */
+.pf-legal {
+  margin-top: 40rpx;
+  display: flex; justify-content: center; align-items: center; gap: 20rpx;
+  font-size: 21rpx; color: var(--sk-hint);
+}
+.pf-legal-sep { color: var(--sk-line); }
+.pf-logout {
+  margin: 36rpx 0 20rpx;
+  text-align: center;
+  font-size: 24rpx; letter-spacing: 0.35em;
+  color: var(--sk-hint);
+}
+
+/* VOLT 菜单微调 */
+.pf-menu-volt .pf-mi-ico { border-width: 3rpx; border-radius: 8rpx; }
+.pf-menu-volt .pf-mi-name { font-weight: 700; }
+
+/* ---------- 四轮逐帧精修（对照预览图） ---------- */
+/* 会员志：去卡片底，纸底直排 */
+.pf-hero-paper {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  border-radius: 0;
+  padding: 36rpx 30rpx 6rpx;
+  margin: 16rpx 0 0;
+}
+.pfp-ava {
+  width: 130rpx; height: 130rpx;
+  background: #ECE5D6;
+  border: none;
+  border-radius: 8rpx;
+}
+.pfp-name { font-size: 56rpx; letter-spacing: 0.04em; }
+.pfp-nm-row { margin-bottom: 10rpx; }
+.pfp-seal {
+  width: 42rpx; height: 42rpx;
+  font-size: 20rpx;
+  transform: rotate(6deg);
+  border-radius: 6rpx;
+  align-self: flex-start;
+  margin-top: 6rpx;
+}
+.pfp-sub { color: var(--sk-hint); letter-spacing: 0.03em; }
+/* 豁免取消剩余次数：靠右、底部与会员姓名对齐 */
+.pfp-exempt {
+  margin-left: auto;
+  align-self: flex-end;
+  font-family: var(--sk-serif);
+  font-size: 20rpx;
+  line-height: 1;
+  color: var(--sk-sub);
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+}
+
+/* 票根：MEMBERSHIP kicker / 门店点色行 / 打孔圆 */
+.pkg-ticket.pt {
+  background: var(--sk-card);
+  border: none;
+  border-radius: 14rpx;
+  box-shadow: 0 2rpx 10rpx rgba(34, 29, 21, 0.04);
+}
+.pkt-k { letter-spacing: 0.22em; color: var(--sk-hint); font-weight: 700; }
+.pkt-name { font-family: var(--sk-serif); font-size: 34rpx; font-weight: 900; letter-spacing: 0.03em; }
+.pkt-meta { color: var(--sk-sub); }
+.pkt-stores { display: flex; gap: 26rpx; margin-top: 12rpx; }
+.pkt-store { display: flex; align-items: center; gap: 8rpx; font-size: 21rpx; color: var(--sk-sub); }
+.pkt-store-dot { width: 10rpx; height: 10rpx; border-radius: 50%; background: var(--sk-acc); }
+.pkt-store-dot-2 { background: var(--sk-gold); }
+
+/* 打孔：右侧票联上下两个纸色圆（骑在虚线上） */
+.pkg-ticket.pt { position: relative; }
+.pkt-right { position: relative; }
+.pkt-right::before,
+.pkt-right::after {
+  content: '';
+  position: absolute;
+  left: -13rpx;
+  width: 22rpx; height: 22rpx;
+  border-radius: 50%;
+  background: var(--sk-bg, #F5F1E8);
+  border: 2rpx solid var(--sk-line);
+}
+.pkt-right::before { top: -13rpx; }
+.pkt-right::after { bottom: -13rpx; }
+.pkt-big { font-size: 58rpx; }
+.pkt-lab { margin-top: 10rpx; }
+.pkt-seal { width: 38rpx; height: 38rpx; font-size: 19rpx; right: 6rpx; bottom: 10rpx; }
+
+/* ==================== 三轮：profile 内部弹窗与残留 skin-audit-2 ==================== */
+/* 完善资料引导卡（official 未完善时强显示） */
+.skin-paper .setup-guide-card { background: var(--sk-card); border: 2rpx solid var(--sk-line); border-radius: 8rpx; box-shadow: none; }
+.skin-paper .setup-guide-icon-wrap { background: #F5EBE3; border-radius: 6rpx; }
+.skin-paper .setup-guide-icon { border-color: #B93A26; }
+.skin-paper .setup-guide-title { font-family: var(--sk-serif); color: #221D15; }
+.skin-paper .setup-guide-arrow { border-color: #B93A26; }
+.skin-volt .setup-guide-card { background: #FFFFFF; border: 3rpx solid #111310; border-radius: 24rpx; box-shadow: 5rpx 5rpx 0 #111310; }
+.skin-volt .setup-guide-icon-wrap { background: #D7FF3B; border: 2rpx solid #111310; border-radius: 12rpx; }
+.skin-volt .setup-guide-icon { border-color: #111310; }
+.skin-volt .setup-guide-title { font-weight: 900; color: #111310; }
+.skin-volt .setup-guide-arrow { border-color: #111310; }
+
+/* 套餐详情底部抽屉（paper/volt 从票根进入的路径兜底） */
+.skin-paper .pkg-sheet { background: #FCFAF4; border-radius: 20rpx 20rpx 0 0; }
+.skin-paper .pkg-sheet-mask { background: rgba(34, 29, 21, 0.45); }
+.skin-volt .pkg-sheet { background: #F2F1ED; border-radius: 32rpx 32rpx 0 0; border-top: 3rpx solid #111310; }
+.skin-volt .pkg-sheet-mask { background: rgba(17, 19, 16, 0.55); }
+
+/* 头像更换面板 */
+.skin-paper .avatar-sheet { background: #FCFAF4; border-radius: 20rpx 20rpx 0 0; }
+.skin-volt .avatar-sheet { background: #F2F1ED; border-radius: 32rpx 32rpx 0 0; border-top: 3rpx solid #111310; }
+
+/* 签到成功 / 失败弹窗 */
+.skin-paper .modal-content.checkin { background: #FCFAF4; border: 2rpx solid #DFD6C2; border-radius: 10rpx; }
+.skin-paper .checkin-ok { background: #B93A26; border-radius: 8rpx; }
+.skin-paper .checkin-title { font-family: var(--sk-serif); letter-spacing: 0.1em; }
+.skin-paper .checkin-fail::before { border-color: #B93A26; }
+.skin-paper .checkin-title.failed { color: #B93A26; }
+.skin-volt .modal-content.checkin { background: #F2F1ED; border: 3rpx solid #111310; border-radius: 32rpx; box-shadow: 6rpx 6rpx 0 #111310; }
+.skin-volt .checkin-ok { background: #D7FF3B; border: 2rpx solid #111310; border-radius: 50%; }
+.skin-volt .checkin-title { font-weight: 900; }
+.skin-volt .checkin-fail::before { border-color: #111310; }
+.skin-volt .checkin-title.failed { color: #111310; }
+
+/* 豁免说明气泡（classic 入口已移除，兜底覆盖） */
+.skin-paper .exemption-tip-bubble { background: #221D15; color: #FCF7EE; border-radius: 6rpx; }
+.skin-volt .exemption-tip-bubble { background: #111310; color: #D7FF3B; border-radius: 16rpx; }
+
+/* ==================== 五轮：重建后补齐（最近一课 / 青柠票根 / 条码） ==================== */
+/* VOLT：最近一课 */
+.pf-last-sec { margin: 30rpx 30rpx 0; }
+.pf-last-head { display: flex; align-items: baseline; margin-bottom: 16rpx; }
+.pf-last-t { font-size: 30rpx; font-weight: 900; color: var(--sk-ink); }
+.pf-last-en { margin-left: auto; font-size: 18rpx; letter-spacing: 0.25em; color: var(--sk-sub); font-weight: 700; }
+.pf-last-card {
+  display: flex; align-items: center; gap: 20rpx;
+  background: var(--sk-card);
+  border: 3rpx solid var(--sk-ink);
+  border-radius: 24rpx;
+  padding: 24rpx 28rpx;
+  box-shadow: 5rpx 5rpx 0 var(--sk-ink);
+}
+.pfl-mark {
+  width: 60rpx; height: 60rpx; flex-shrink: 0;
+  background: var(--sk-volt);
+  border: 2rpx solid var(--sk-ink);
+  border-radius: 16rpx;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 28rpx; font-weight: 900; color: var(--sk-ink);
+}
+.pfl-main { flex: 1; min-width: 0; }
+.pfl-name { display: block; font-size: 28rpx; font-weight: 900; color: var(--sk-ink); }
+.pfl-meta { display: block; margin-top: 6rpx; font-size: 20rpx; color: var(--sk-sub); }
+.pfl-k { flex-shrink: 0; text-align: right; font-size: 19rpx; font-weight: 700; color: var(--sk-sub); line-height: 1.7; }
+
+/* VOLT：青柠票根（对齐预览 MEMBERSHIP 青柠卡 + 条码） */
+.pkg-ticket.vt {
+  background: var(--sk-volt);
+  border: none;
+  border-radius: 24rpx;
+  box-shadow: 5rpx 5rpx 0 rgba(17, 19, 16, 0.18);
+  display: block;
+  overflow: hidden;
+}
+.pkg-ticket.vt .pkt-left { padding: 26rpx 30rpx 18rpx; }
+.pkg-ticket.vt .pkt-k { color: #3d4a12; letter-spacing: 0.22em; }
+.pkg-ticket.vt .pkt-name { font-size: 34rpx; font-weight: 900; color: var(--sk-ink); }
+.pkg-ticket.vt .pkt-meta { color: #2c3a10; font-weight: 700; }
+.pkg-ticket.vt .pkt-right {
+  position: absolute; top: 0; right: 0; bottom: 0;
+  width: 170rpx;
+  border-left: 2rpx dashed rgba(17, 19, 16, 0.35);
+  background: var(--sk-volt);
+  justify-content: center;
+}
+.pkg-ticket.vt .pkt-big { color: var(--sk-ink); font-family: 'GroteskV', sans-serif; }
+.pkg-ticket.vt .pkt-lab { color: #3d4a12; }
+.pkg-ticket.vt .pkt-seal { display: none; }
+.pkg-ticket.vt .pkt-barcode {
+  margin: 0 30rpx 24rpx;
+  height: 34rpx;
+  display: flex; align-items: stretch; gap: 6rpx;
+}
+.pkb-bar { flex: 1; background: var(--sk-ink); border-radius: 2rpx; }
+.pkb-bar.pkb-w2 { flex: 2; }
+.pkb-bar.pkb-w3 { flex: 4; }
+/* VOLT 票根右侧数字绝对定位后需给票根 relative */
+.pkg-ticket { position: relative; }
+
+/* ==================== 十六轮：游客区 / 改手机号弹窗 ==================== */
+/* 游客名片（纸上舞台） */
+.skin-paper .guest-hero { background: transparent; border: none; box-shadow: none; }
+.skin-paper .guest-avatar-icon-small { border-color: #A79D89; background: #ECE5D6; }
+.skin-paper .guest-login-btn-small { background: #B93A26; border-radius: 6rpx; font-family: 'Noto Serif SC', serif; box-shadow: 2rpx 3rpx 0 rgba(34, 29, 21, 0.18); }
+.skin-paper .guest-stat { background: #FCFAF4; border: 2rpx solid #DFD6C2; border-radius: 8rpx; box-shadow: none; }
+/* 游客名片（VOLT） */
+.skin-volt .guest-hero { background: #FFFFFF; border: 3rpx solid #111310; border-radius: 28rpx; box-shadow: 6rpx 6rpx 0 #111310; }
+.skin-volt .guest-avatar-icon-small { border-color: #111310; background: #ECEAE2; }
+.skin-volt .guest-login-btn-small { background: #111310; border-radius: 999rpx; font-weight: 800; box-shadow: none; }
+.skin-volt .guest-login-btn-text-small { color: #D7FF3B; }
+.skin-volt .guest-stat { background: #FFFFFF; border: 3rpx solid #111310; border-radius: 20rpx; box-shadow: 4rpx 4rpx 0 #111310; }
+/* 改手机号弹窗（表单件全局覆盖已有，此处补按钮与徽章） */
+.skin-paper .audit-badge-pending { background: #F5EBE3; color: #B93A26; border-radius: 4rpx; }
+.skin-paper .btn-primary { border-radius: 6rpx; font-family: 'Noto Serif SC', serif; }
+.skin-volt .audit-badge-pending { background: #D7FF3B; color: #111310; border-radius: 999rpx; }
+.skin-volt .btn-primary { border-radius: 999rpx; }
+
+/* VOLT 票根打孔圆：卡片无描边后凹口圆不带圈（红框点名） */
+.pkg-ticket.vt .pkt-right::before,
+.pkg-ticket.vt .pkt-right::after { border: none; }
+
+/* ==================== 赠课卡徽章（paper金印「赠」） ==================== */
+.pkt-seal-bonus {
+  background: #C49A3A;
+  color: #FFF8E7;
+  transform: rotate(6deg);
+}

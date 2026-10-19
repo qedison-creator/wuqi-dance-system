@@ -92,11 +92,26 @@ router.put('/:id/activate', auth, checkPermission(['member']), async (req, res, 
   }
 });
 
-// DELETE /api/v1/packages/user/:id - 删除用户套餐(super_admin/store_manager/staff)
+// DELETE /api/v1/packages/user/:id - 删除/作废用户套餐(super_admin/store_manager/staff)
+// 分级：未激活且从未使用的录入错误套餐 → 物理删除；其余 → 作废（保留记录用于权益溯源）
+// include_bonus_ids：主卡作废时前端勾选一并作废的赠课卡ID列表
 router.delete('/user/:id', auth, checkPermission(['super_admin', 'store_manager', 'staff']), storeFilter(), packageOwnershipGuard, async (req, res, next) => {
   try {
-    const result = await packageService.deleteUserPackage(req.params.id, req.user.id);
-    res.json(success(result, '删除套餐成功'));
+    const reason = (req.body && req.body.reason) || '';
+    const includeBonusIds = (req.body && Array.isArray(req.body.include_bonus_ids)) ? req.body.include_bonus_ids : [];
+    const result = await packageService.deleteUserPackage(req.params.id, req.user.id, reason, { include_bonus_ids: includeBonusIds });
+    res.json(success(result, result.mode === 'deleted' ? '套餐已删除' : '套餐已作废（记录已保留）'));
+  } catch (err) {
+    next(err);
+  }
+});
+
+// POST /api/v1/packages/user/:id/bonus - 为使用中的主卡追加赠送(super_admin/store_manager)
+router.post('/user/:id/bonus', auth, checkPermission(['super_admin', 'store_manager']), storeFilter(), packageOwnershipGuard, async (req, res, next) => {
+  try {
+    const { bonus_credits, bonus_expire_mode, bonus_months } = req.body;
+    const bonus = await packageService.addBonusToPackage(req.params.id, { bonus_credits, bonus_expire_mode, bonus_months }, req.user.id);
+    res.json(success(bonus, '追加赠送成功'));
   } catch (err) {
     next(err);
   }
@@ -161,6 +176,17 @@ router.put('/extension-records/:id/revoke', auth, checkPermission(['super_admin'
     const { reason } = req.body;
     const pkg = await packageService.revokePackageExtension(req.params.id, req.user.id, req.user.nick_name || req.user.username, reason);
     res.json(success(pkg, '撤销延长成功'));
+  } catch (err) {
+    next(err);
+  }
+});
+
+// PUT /api/v1/packages/change-records/:id/revoke - 撤回套餐字段变更（2小时内）
+router.put('/change-records/:id/revoke', auth, checkPermission(['super_admin', 'store_manager']), storeFilter(), async (req, res, next) => {
+  try {
+    const { reason } = req.body;
+    const pkg = await packageService.revokePackageChange(req.params.id, req.user.id, req.user.nick_name || req.user.username, reason);
+    res.json(success(pkg, '撤回变更成功'));
   } catch (err) {
     next(err);
   }

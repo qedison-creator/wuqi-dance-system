@@ -1,0 +1,172 @@
+/* 我的记录页皮肤覆盖（纸上舞台 / VOLT）—— 由 records.wxss 通过 @import 引入 */
+
+/* ---------- 纸上舞台 ---------- */
+.skin-root.skin-paper.page { background: #F5F1E8; }
+.skin-paper .tb-item.active { color: #221D15; font-family: 'Noto Serif SC', serif; font-weight: 700; }
+.skin-paper .tb-slider { background: #221D15; border-radius: 2rpx; }
+.skin-paper .r-card { background: #FCFAF4; border: 2rpx solid #DFD6C2; border-radius: 8rpx; box-shadow: none; }
+.skin-paper .rc-name { font-family: 'Noto Serif SC', serif; color: #221D15; }
+.skin-paper .rc-left-line, .skin-paper .rc-left-line.upcoming { background: #B93A26; }
+.skin-paper .rc-left-line.completed { background: #A0802E; }
+.skin-paper .rc-left-line.cancelled, .skin-paper .rc-left-line.absent { background: #C9C0B0; }
+.skin-paper .rc-left-line.waitlist { background: #41604F; }
+.skin-paper .rc-status.upcoming { background: #F5EBE3; color: #B93A26; border-radius: 4rpx; }
+.skin-paper .rci-icon::after { border-color: #A79D89; }
+.skin-paper .rci-text.highlight { color: #B93A26; }
+.skin-paper .expand-toggle { color: #B93A26; }
+.skin-paper .toggle-arrow.down, .skin-paper .toggle-arrow.up { border-color: #B93A26; }
+.skin-paper .fb-item.active { color: #B93A26; font-weight: 700; }
+.skin-paper .rca-btn.cancel { border: 2rpx solid #221D15; color: #221D15; border-radius: 4rpx; }
+.skin-paper .btt-icon { border-color: #221D15; }
+.skin-paper .lm-line { background: #DFD6C2; }
+.skin-paper .loading-spinner-sm { border-color: #DFD6C2; border-top-color: #B93A26; }
+
+/* ---------- VOLT ---------- */
+.skin-root.skin-volt.page { background: #F2F1ED; }
+.skin-volt .tb-item.active { color: #111310; font-weight: 900; }
+.skin-volt .tb-slider { background: #111310; border-radius: 99rpx; }
+.skin-volt .r-card {
+  background: #FFFFFF;
+  border: 3rpx solid #111310;
+  border-radius: 24rpx;
+  box-shadow: 5rpx 5rpx 0 #111310;
+  margin-bottom: 30rpx;
+}
+.skin-volt .rc-name { font-weight: 900; color: #111310; }
+.skin-volt .rc-left-line, .skin-volt .rc-left-line.upcoming { background: #111310; }
+.skin-volt .rc-left-line.completed { background: #77786F; }
+.skin-volt .rc-left-line.cancelled, .skin-volt .rc-left-line.absent { background: #DCDAD0; }
+.skin-volt .rc-left-line.waitlist { background: #77786F; }
+.skin-volt .rc-status.upcoming { background: #D7FF3B; color: #111310; border-radius: 999rpx; font-weight: 800; }
+.skin-volt .rci-icon::after { border-color: #9C9D93; }
+.skin-volt .rci-text.highlight { color: #111310; font-weight: 800; }
+.skin-volt .expand-toggle { color: #111310; font-weight: 800; }
+.skin-volt .toggle-arrow.down, .skin-volt .toggle-arrow.up { border-color: #111310; }
+.skin-volt .fb-item.active { color: #111310; font-weight: 900; }
+.skin-volt .rca-btn.cancel { border: 3rpx solid #111310; color: #111310; border-radius: 999rpx; font-weight: 800; }
+.skin-volt .btt-icon { border-color: #111310; }
+.skin-volt .lm-line { background: #DCDAD0; }
+.skin-volt .loading-spinner-sm { border-color: #DCDAD0; border-top-color: #111310; }
+
+/* ==================== 十四轮：状态章/圆点/文字/tab 完整 VOLT 化 ==================== */
+
+/* ---------- TAB：滑块上的文字必须可见 ---------- */
+/* VOLT：墨色滑块 → 选中文字青柠 */
+.skin-volt .tb-item.active { color: #D7FF3B !important; font-weight: 800; }
+.skin-volt .tb-item { z-index: 1; }
+/* PAPER：朱砂滑块 → 选中文字纸白 */
+.skin-paper .tab-bar { background: #FCFAF4; border: 2rpx solid #DFD6C2; border-radius: 8rpx; box-shadow: none; }
+.skin-paper .tb-item.active { color: #FCFAF4 !important; font-family: 'Noto Serif SC', serif; font-weight: 700; }
+.skin-paper .tb-slider { background: #B93A26; border-radius: 4rpx; }
+/* 文字层级须高于滑块（base .tb-item 为 z-index:2 / .tb-slider 为 z-index:1），
+   否则滑块会盖住选中文字 */
+.skin-paper .tb-item { z-index: 2; color: #A79D89; }
+
+/* ---------- 状态章（VOLT）：非取消态青柠胶囊，取消态灰描边 ---------- */
+.skin-volt .rc-status.upcoming,
+.skin-volt .rc-status { background: #D7FF3B; color: #111310; border-radius: 999rpx; font-weight: 800; border: 2rpx solid #111310; }
+.skin-volt .rc-status.completed { background: #FFFFFF; color: #111310; }
+.skin-volt .rc-status.cancelled { background: transparent; color: #9C9D93; border: 2rpx dashed #C9C7BD; font-weight: 600; }
+/* ---------- 状态章（PAPER） ---------- */
+.skin-paper .rc-status.upcoming,
+.skin-paper .rc-status { background: #F5EBE3; color: #B93A26; border-radius: 4rpx; font-family: 'Noto Serif SC', serif; font-weight: 700; }
+.skin-paper .rc-status.completed { background: #ECE5D6; color: #221D15; }
+.skin-paper .rc-status.cancelled { background: transparent; color: #A79D89; border: 2rpx dashed #DFD6C2; font-weight: 500; }
+
+/* ---------- 卡内行文字与图标点（VOLT） ---------- */
+.skin-volt .rci-text { color: #111310; font-weight: 600; }
+.skin-volt .rci-text.highlight { color: #111310; font-weight: 900; background: #D7FF3B; padding: 0 8rpx; border-radius: 6rpx; }
+.skin-volt .rci-icon::after { background: #111310; }
+.skin-volt .method-auto { background: #D7FF3B; color: #111310; border-radius: 999rpx; font-weight: 800; }
+/* ---------- 卡内行文字与图标点（PAPER） ---------- */
+.skin-paper .rci-text { color: #6C6353; }
+.skin-paper .rci-text.highlight { color: #221D15; font-weight: 700; font-family: 'Noto Serif SC', serif; }
+.skin-paper .rci-icon::after { background: #B93A26; }
+.skin-paper .method-auto { background: #F5EBE3; color: #B93A26; border-radius: 4rpx; font-family: 'Noto Serif SC', serif; }
+/* 行图标：统一纸上舞台配色（图标底米黄 / 圆点朱砂），覆盖 base 的紫/橙/绿多色 */
+.skin-paper .rci-icon,
+.skin-paper .rci-icon.date,
+.skin-paper .rci-icon.time,
+.skin-paper .rci-icon.checkin,
+.skin-paper .rci-icon.coach,
+.skin-paper .rci-icon.store,
+.skin-paper .rci-icon.credit { background: #F1EADD; border-radius: 4rpx; }
+.skin-paper .rci-icon::after,
+.skin-paper .rci-icon.date::after,
+.skin-paper .rci-icon.time::after,
+.skin-paper .rci-icon.checkin::after,
+.skin-paper .rci-icon.coach::after,
+.skin-paper .rci-icon.store::after,
+.skin-paper .rci-icon.credit::after { background: #B93A26; }
+
+/* ---------- 排队轮候（lm-*） ---------- */
+.skin-volt .rc-position-tag { background: #D7FF3B; color: #111310; border: 2rpx solid #111310; border-radius: 8rpx; font-weight: 800; }
+.skin-paper .rc-position-tag { background: #F5EBE3; color: #B93A26; border-radius: 4rpx; font-family: 'Noto Serif SC', serif; }
+
+/* ---------- 卡名与卡底 ---------- */
+.skin-volt .r-card { padding: 6rpx 0 2rpx; }
+.skin-volt .rc-name { font-size: 30rpx; }
+
+/* ==================== 十五轮：VOLT 专属模板（tbv / rd-volt） ==================== */
+/* TAB：墨底胶囊 + 青柠字 */
+.tbv-bar {
+  display: flex; gap: 12rpx;
+  padding: 10rpx 30rpx 22rpx;
+  position: sticky; top: 0; z-index: 5;
+  background: #F2F1ED;
+}
+.tbv-item {
+  flex: 1; text-align: center;
+  padding: 18rpx 0; border-radius: 999rpx;
+  font-size: 25rpx; font-weight: 700; color: #77786F;
+  border: 2rpx solid #DCDAD0; background: #FFFFFF;
+}
+.tbv-item.on {
+  background: #111310; color: #D7FF3B;
+  border-color: #111310; font-weight: 800;
+}
+
+/* 记录卡：白卡描边硬影 */
+.rd-volt {
+  background: #FFFFFF;
+  border: 3rpx solid #111310;
+  border-radius: 24rpx;
+  padding: 24rpx 28rpx 20rpx;
+  margin: 0 30rpx 30rpx;
+  box-shadow: 5rpx 5rpx 0 #111310;
+}
+.rdv-head { display: flex; align-items: center; gap: 14rpx; margin-bottom: 14rpx; }
+.rdv-name { flex: 1; font-size: 30rpx; font-weight: 900; color: #111310; }
+.rdv-badge {
+  flex-shrink: 0;
+  font-size: 20rpx; font-weight: 800;
+  padding: 4rpx 16rpx; border-radius: 999rpx;
+  background: #D7FF3B; color: #111310; border: 2rpx solid #111310;
+}
+.rdv-badge.off { background: transparent; color: #9C9D93; border: 2rpx dashed #C9C7BD; font-weight: 600; }
+.rdv-rows { border-top: 2rpx dashed #DCDAD0; padding-top: 10rpx; }
+.rdv-row {
+  display: flex; align-items: baseline; gap: 18rpx;
+  padding: 12rpx 0;
+  border-bottom: 2rpx dashed rgba(220, 218, 208, 0.6);
+}
+.rdv-row:last-child { border-bottom: none; }
+.rdv-k { width: 84rpx; flex-shrink: 0; font-size: 19rpx; letter-spacing: 0.15em; color: #9C9D93; font-weight: 700; }
+.rdv-v { font-size: 24rpx; color: #111310; font-weight: 600; font-family: 'GroteskV', sans-serif; }
+.rdv-s { font-size: 20rpx; color: #77786F; font-family: -apple-system, sans-serif; font-weight: 500; }
+.rdv-hl {
+  display: inline-block;
+  background: #D7FF3B; color: #111310;
+  padding: 2rpx 14rpx; border-radius: 8rpx;
+  border: 2rpx solid #111310;
+  font-weight: 800;
+}
+.rdv-actions { display: flex; justify-content: flex-end; margin-top: 14rpx; }
+.rdv-cancel {
+  height: 64rpx; padding: 0 32rpx;
+  display: inline-flex; align-items: center;
+  border: 3rpx solid #111310; border-radius: 999rpx;
+  font-size: 23rpx; font-weight: 800; color: #111310;
+  background: transparent;
+}
+.rdv-cancel:active { transform: scale(0.96); }

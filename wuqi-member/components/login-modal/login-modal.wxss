@@ -192,3 +192,15 @@
   background: #FDF2EF;
   color: #D4786E;
 }
+
+/* 皮肤：纸上舞台 / VOLT */
+.modal-mask.skin-paper .btn-confirm { background: #B93A26; border-radius: 6rpx; font-family: 'Noto Serif SC', serif; letter-spacing: 0.12em; box-shadow: 2rpx 3rpx 0 rgba(34, 29, 21, 0.18); }
+.modal-mask.skin-paper .btn-cancel { background: transparent; color: #6C6353; border: 2rpx solid #C9BFA8; border-radius: 6rpx; }
+.modal-mask.skin-paper .privacy-link { color: #B93A26; }
+.modal-mask.skin-paper .checkbox-icon.checked { background: #B93A26; border-color: #B93A26; }
+.modal-mask.skin-paper .card { background: #FCFAF4; border: 2rpx solid #DFD6C2; border-radius: 10rpx; }
+.modal-mask.skin-volt .btn-confirm { background: #111310; color: #D7FF3B; border-radius: 999rpx; font-weight: 800; box-shadow: none; }
+.modal-mask.skin-volt .btn-cancel { background: transparent; color: #77786F; border: 3rpx solid #DCDAD0; border-radius: 999rpx; }
+.modal-mask.skin-volt .privacy-link { color: #111310; font-weight: 700; }
+.modal-mask.skin-volt .checkbox-icon.checked { background: #111310; border-color: #111310; }
+.modal-mask.skin-volt .card { background: #F2F1ED; border: 3rpx solid #111310; border-radius: 32rpx; box-shadow: 6rpx 6rpx 0 #111310; }

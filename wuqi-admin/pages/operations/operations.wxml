@@ -212,19 +212,19 @@
             <!-- 管理员/课程取消：课时已退还/有效期已恢复，不可操作 -->
             <block wx:if="{{item.isCourseCancel}}">
               <text class="booking-refunded" wx:if="{{item.deductDays}}">有效期已恢复</text>
-              <text class="booking-refunded" wx:else>已退还{{item.creditsRefunded}}次</text>
+              <text class="booking-refunded" wx:else>已退还{{item.creditsRefunded}}{{item.creditsUnit}}</text>
               <text class="course-cancelled-tag">{{item.cancelReasonText || '课程已取消'}}</text>
             </block>
             <!-- 已签到/已完成：显示扣次/缩期+已签到标签 -->
             <block wx:elif="{{item.checkedIn}}">
               <text class="booking-credits" wx:if="{{item.deductDays}}">缩短有效期{{item.deductDays}}天</text>
-              <text class="booking-credits" wx:else>扣{{item.creditsDeducted}}次</text>
+              <text class="booking-credits" wx:else>扣{{item.creditsDeducted}}{{item.creditsUnit}}</text>
               <text class="checked-in-tag">已签到</text>
             </block>
             <!-- 正常可操作的预约（待上课） -->
             <block wx:else>
               <text class="booking-credits" wx:if="{{item.deductDays}}">缩短有效期{{item.deductDays}}天</text>
-              <text class="booking-credits" wx:else>扣{{item.creditsDeducted}}次</text>
+              <text class="booking-credits" wx:else>扣{{item.creditsDeducted}}{{item.creditsUnit}}</text>
               <view class="booking-btn btn-checkin" data-id="{{item._id}}" bindtap="onCheckIn">
                 <text>签到</text>
               </view>
@@ -259,7 +259,7 @@
           </view>
           <view class="booking-actions">
             <text class="booking-credits" wx:if="{{item.deductDays}}">缩短有效期{{item.deductDays}}天</text>
-            <text class="booking-credits" wx:else>扣{{item.creditsDeducted}}次</text>
+            <text class="booking-credits" wx:else>扣{{item.creditsDeducted}}{{item.creditsUnit}}</text>
             <text class="checked-in-method-tag">{{item.checkInMethodText}}</text>
           </view>
         </view>
@@ -284,6 +284,8 @@
           </view>
           <view class="booking-cancel-row">
             <text class="cancel-reason-tag" wx:if="{{item.cancelReason}}">{{item.cancelReason}}</text>
+            <text class="booking-refunded" wx:if="{{item.deductDays}}">有效期已恢复</text>
+            <text class="booking-refunded" wx:elif="{{item.creditsRefunded}}">已退还{{item.creditsRefunded}}{{item.creditsUnit}}</text>
             <text class="cancel-time-text" wx:if="{{item.cancelTime}}">取消时间：{{item.cancelTime}}</text>
           </view>
         </view>

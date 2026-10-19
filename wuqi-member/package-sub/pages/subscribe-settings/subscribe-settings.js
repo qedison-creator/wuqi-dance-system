@@ -18,6 +18,9 @@ Page({
   },
 
   onShow() {
+    // 皮肤状态（纯前端偏好，仅影响外观）
+    const skin = require('../../../utils/skin.js');
+    this.setData(skin.pageState());
     // 从小程序设置页返回时自动刷新（用户可能在设置页手动开启了订阅）
     this.loadSubscribedStatus();
   },

@@ -741,3 +741,5 @@
   0% { background-position: -200% 0; }
   100% { background-position: 200% 0; }
 }
+
+@import "./coach-detail.skin.wxss";

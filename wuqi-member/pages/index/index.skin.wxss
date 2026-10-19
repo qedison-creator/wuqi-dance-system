@@ -1,0 +1,465 @@
+/* 首页皮肤样式（纸上舞台 / VOLT）—— 由 index.wxss 通过 @import 引入 */
+
+/* ==================== 纸上舞台（首页） ==================== */
+.pi-wrap { padding: 24rpx 30rpx 60rpx; }
+.pi-holiday {
+  border-left: 6rpx solid #B93A26;
+  background: #FCFAF4;
+  padding: 14rpx 20rpx;
+  font-size: 22rpx;
+  color: #B93A26;
+  margin-bottom: 20rpx;
+  line-height: 1.6;
+}
+.pi-masthead { display: flex; justify-content: space-between; align-items: center; padding: 8rpx 0 20rpx; }
+.pi-brand { display: flex; align-items: center; gap: 16rpx; }
+.pi-brand-seal {
+  width: 56rpx; height: 56rpx;
+  background: #B93A26; color: #FCF7EE;
+  font-size: 30rpx; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 8rpx; transform: rotate(-4deg);
+  box-shadow: 3rpx 4rpx 0 rgba(34, 29, 21, 0.15);
+}
+.pi-brand-line { display: flex; flex-direction: column; line-height: 1.3; }
+.pi-brand-name { font-family: var(--sk-serif); font-weight: 900; font-size: 36rpx; color: #221D15; letter-spacing: 0.08em; }
+.pi-brand-en { font-size: 16rpx; letter-spacing: 0.34em; color: #A79D89; }
+.pi-hero {
+  position: relative; height: 420rpx;
+  background: #ECE5D6; border: 2rpx solid #DFD6C2;
+  overflow: hidden; margin-bottom: 10rpx;
+}
+.pi-hero-lines {
+  position: absolute; left: 0; right: 0; top: 0; bottom: 0;
+  background-image: repeating-linear-gradient(0deg, transparent, transparent 46rpx, rgba(34, 29, 21, 0.04) 46rpx, rgba(34, 29, 21, 0.04) 47rpx);
+}
+.pi-hero-en { position: absolute; left: 28rpx; top: 24rpx; font-size: 17rpx; letter-spacing: 0.3em; color: #A79D89; }
+.pi-hero-vt {
+  position: absolute; right: 30rpx; top: 26rpx;
+  display: flex; flex-direction: column; align-items: center;
+}
+.pi-vt-text {
+  writing-mode: vertical-rl;
+  font-family: var(--sk-serif);
+  font-size: 56rpx; font-weight: 900; letter-spacing: 0.22em;
+  color: #221D15;
+}
+.pi-vt-seal {
+  width: 46rpx; height: 46rpx; margin-top: 24rpx;
+  background: #B93A26; color: #FCF7EE;
+  font-size: 24rpx; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 6rpx; transform: rotate(-4deg);
+}
+.pi-hero-month {
+  position: absolute; left: 28rpx; bottom: 78rpx;
+  font-family: var(--sk-serif);
+  font-size: 52rpx; font-weight: 900; color: #221D15; letter-spacing: 0.04em;
+}
+.pi-hero-sub {
+  position: absolute; left: 28rpx; bottom: 36rpx;
+  font-size: 22rpx; color: #6C6353;
+  text-decoration: underline; text-underline-offset: 6rpx;
+  text-decoration-color: rgba(108, 99, 83, 0.4);
+}
+.pi-sec { padding: 40rpx 0 0; }
+.pi-sec-h { display: flex; align-items: baseline; gap: 16rpx; margin-bottom: 8rpx; }
+.pi-sec-no { font-family: var(--sk-serif); font-size: 22rpx; color: #B93A26; letter-spacing: 0.2em; font-weight: 700; }
+.pi-sec-t { font-family: var(--sk-serif); font-size: 34rpx; font-weight: 700; color: #221D15; letter-spacing: 0.06em; }
+.pi-sec-en { margin-left: auto; font-size: 17rpx; letter-spacing: 0.28em; color: #A79D89; }
+.pi-sec-rule { border-top: 6rpx double #C9BFA8; margin-bottom: 6rpx; }
+.pi-notice {
+  display: flex; gap: 20rpx; align-items: baseline;
+  padding: 22rpx 4rpx; border-bottom: 2rpx solid #DFD6C2;
+}
+.pi-n-no { font-family: var(--sk-serif); font-size: 21rpx; color: #A79D89; width: 40rpx; flex-shrink: 0; }
+.pi-n-t { flex: 1; font-size: 25rpx; color: #221D15; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pi-n-tag { background: #B93A26; color: #FCF7EE; font-size: 18rpx; padding: 2rpx 10rpx; border-radius: 4rpx; flex-shrink: 0; }
+.pi-n-date { font-size: 20rpx; color: #A79D89; flex-shrink: 0; }
+.pi-empty { padding: 30rpx 4rpx; font-size: 24rpx; color: #A79D89; }
+/* 教练：一屏 4 位（156rpx×4 + 22rpx×3 = 690rpx = 内容区宽度），超出横向滑动 */
+.pi-coaches { white-space: nowrap; width: 100%; }
+.pi-coaches-inner { display: inline-flex; gap: 22rpx; padding: 16rpx 0 6rpx; }
+.pi-coach { width: 156rpx; flex-shrink: 0; text-align: center; }
+.pi-coach-ph {
+  position: relative; width: 100%; height: 190rpx;
+  border: 2rpx solid #DFD6C2; border-radius: 8rpx;
+  background: #ECE5D6; overflow: hidden;
+}
+.pi-coach-img { width: 100%; height: 100%; }
+.pi-coach-idx {
+  position: absolute; right: 8rpx; bottom: 6rpx;
+  font-family: var(--sk-serif); font-size: 17rpx; color: #FCFAF4;
+  text-shadow: 0 2rpx 6rpx rgba(34, 29, 21, 0.5);
+}
+.pi-coach-name { display: block; margin-top: 12rpx; font-family: var(--sk-serif); font-size: 24rpx; font-weight: 700; color: #221D15; }
+.pi-coach-sty { display: block; margin-top: 4rpx; font-size: 18rpx; color: var(--sk-sub); }
+.pi-coach-sty::before {
+  content: '';
+  display: inline-block; width: 10rpx; height: 10rpx;
+  border-radius: 50%; background: var(--sk-acc);
+  margin-right: 8rpx; vertical-align: middle;
+}
+.pi-course {
+  display: flex; align-items: center; gap: 24rpx;
+  padding: 26rpx 4rpx; border-bottom: 2rpx solid #DFD6C2;
+}
+.pi-c-time { width: 190rpx; text-align: center; flex-shrink: 0; }
+.pi-c-time-b { display: block; font-family: var(--sk-serif); font-size: 32rpx; font-weight: 700; color: #221D15; line-height: 1.3; }
+.pi-c-weekday { font-size: 20rpx; color: #A79D89; }
+.pi-c-main { flex: 1; min-width: 0; }
+.pi-c-name {
+  display: flex; align-items: center; gap: 12rpx;
+  font-family: var(--sk-serif); font-size: 28rpx; font-weight: 700; color: #221D15;
+}
+.pi-c-dot { width: 12rpx; height: 12rpx; border-radius: 50%; flex-shrink: 0; }
+.pi-c-meta { display: block; margin-top: 6rpx; font-size: 21rpx; color: #6C6353; }
+.pi-c-btn {
+  flex-shrink: 0;
+  height: 64rpx; padding: 0 30rpx;
+  display: flex; align-items: center; justify-content: center;
+  background: #B93A26; color: #FCF7EE;
+  border-radius: 4rpx;
+  font-size: 24rpx; font-weight: 700;
+  font-family: var(--sk-serif);
+  letter-spacing: 0.12em;
+  box-shadow: 2rpx 3rpx 0 rgba(34, 29, 21, 0.18);
+}
+.pi-c-btn:active { transform: scale(0.95); }
+.pi-gallery {
+  margin-top: 40rpx; padding: 30rpx;
+  background: #ECE5D6; border: 2rpx solid #DFD6C2;
+  display: flex; justify-content: space-between; align-items: center;
+}
+.pi-gallery-t { font-family: var(--sk-serif); font-size: 30rpx; font-weight: 900; color: #221D15; letter-spacing: 0.1em; }
+.pi-gallery-en { font-size: 21rpx; color: #6C6353; }
+.pi-foot { padding: 60rpx 0 30rpx; text-align: center; }
+.pi-foot-cn { display: block; font-family: var(--sk-serif); font-size: 22rpx; letter-spacing: 0.4em; color: #A79D89; }
+.pi-foot-en { display: block; margin-top: 8rpx; font-size: 16rpx; letter-spacing: 0.4em; color: #C9C0B0; }
+
+/* ==================== VOLT 舞力场（首页） ==================== */
+.vi-wrap { padding-bottom: 60rpx; }
+/* 跑马灯：固定顶部，不随页面滚动 */
+.vi-marquee {
+  position: fixed;
+  left: 0; right: 0;
+  z-index: 30;
+  overflow: hidden;
+  background: #111310;
+}
+.vi-mq-track { display: inline-flex; align-items: center; white-space: nowrap; animation: vi-mq 16s linear infinite; }
+.vi-mq-group { display: inline-flex; align-items: center; white-space: nowrap; }
+.vi-mq-item { font-size: 22rpx; font-weight: 700; letter-spacing: 0.2em; color: #F2F1ED; padding: 18rpx 0; }
+.vi-mq-sep { color: #D7FF3B; padding: 0 16rpx; font-size: 22rpx; }
+@keyframes vi-mq { to { transform: translateX(-50%); } }
+.vi-masthead { display: flex; justify-content: space-between; align-items: center; padding: 26rpx 30rpx 16rpx; }
+.vi-brand { display: flex; align-items: center; gap: 18rpx; margin: 0 30rpx; }
+.vi-brand-mark {
+  width: 62rpx; height: 62rpx;
+  background: #111310; color: #D7FF3B;
+  font-size: 32rpx; font-weight: 900;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 18rpx; transform: rotate(-6deg);
+}
+.vi-brand-line { display: flex; flex-direction: column; line-height: 1.3; }
+.vi-brand-name { font-size: 34rpx; font-weight: 900; color: #111310; letter-spacing: 0.06em; }
+.vi-brand-en { font-size: 16rpx; letter-spacing: 0.3em; color: #77786F; }
+.vi-store-btn {
+  font-size: 23rpx; font-weight: 700; color: #111310;
+  border: 3rpx solid #111310; background: #FFFFFF;
+  height: 64rpx; box-sizing: border-box;
+  display: inline-flex; align-items: center;
+  padding: 0 26rpx; border-radius: 999rpx;
+  flex-shrink: 0;
+}
+.vi-store-btn:active { transform: scale(0.96); }
+.vi-hero { padding: 16rpx 30rpx 6rpx; }
+.vi-hero-k { font-size: 20rpx; letter-spacing: 0.25em; color: #77786F; font-weight: 700; }
+.vi-hero-t { display: flex; align-items: baseline; gap: 18rpx; margin-top: 6rpx; }
+.vi-hero-cn { font-size: 52rpx; font-weight: 900; color: #111310; }
+.vi-hero-cnt {
+  margin-left: auto;
+  font-size: 56rpx; font-weight: 900;
+  background: #D7FF3B; color: #111310;
+  padding: 0 22rpx; border-radius: 16rpx;
+  transform: rotate(-3deg);
+}
+/* 登场大卡 */
+.vi-drop {
+  position: relative; margin: 26rpx 30rpx 0;
+  background: #FFFFFF; border: 3rpx solid #111310;
+  border-radius: 28rpx; overflow: hidden;
+  box-shadow: 8rpx 8rpx 0 #111310;
+  transition: transform 150ms cubic-bezier(0.34, 1.56, 0.64, 1);
+  animation: sk-rise-in 500ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.vi-drop:active { transform: scale(0.97) rotate(-0.5deg); }
+.vi-ghost {
+  position: absolute; top: 0; right: 22rpx;
+  font-size: 96rpx; font-weight: 900; line-height: 1.2;
+  color: transparent;
+  -webkit-text-stroke: 2rpx #E3E1D6;
+  pointer-events: none;
+}
+.vi-drop-top {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 26rpx 30rpx;
+  border-bottom: 2rpx dashed #DCDAD0;
+}
+.vi-tag {
+  font-size: 21rpx; font-weight: 700;
+  border: 2rpx solid #111310; border-radius: 999rpx;
+  padding: 6rpx 22rpx; background: #FFFFFF; color: #111310;
+}
+.vi-tag.vi-tag-live {
+  background: #111310; color: #D7FF3B;
+  display: inline-flex; align-items: center; gap: 10rpx;
+}
+.vi-live-dot { width: 10rpx; height: 10rpx; border-radius: 50%; background: #D7FF3B; animation: vi-blink 1.2s infinite; }
+@keyframes vi-blink { 50% { opacity: 0.2; } }
+.vi-drop-tm { font-size: 44rpx; font-weight: 700; color: #111310; letter-spacing: -0.01em; }
+.vi-drop-tm-end { font-size: 22rpx; color: #9C9D93; font-weight: 500; }
+.vi-drop-body { padding: 22rpx 30rpx 4rpx; }
+.vi-drop-name { display: block; font-size: 40rpx; font-weight: 900; color: #111310; }
+.vi-drop-meta { display: block; margin-top: 6rpx; font-size: 22rpx; color: #77786F; }
+.vi-drop-foot {
+  display: flex; justify-content: space-between; align-items: flex-end; gap: 20rpx;
+  padding: 18rpx 30rpx 28rpx;
+}
+.vi-seat { flex: 1; min-width: 0; }
+.vi-seat-txt { font-size: 23rpx; font-weight: 800; color: #111310; letter-spacing: 0.02em; }
+.vi-seat-dim { color: #9C9D93; font-weight: 600; }
+.vi-seat-bar {
+  height: 6rpx; margin-top: 10rpx;
+  background: #ECEAE2; border: 1rpx solid #DCDAD0;
+  border-radius: 99rpx; overflow: hidden;
+}
+.vi-seat-bar-fill { height: 100%; background: #111310; border-radius: 99rpx; }
+.vi-seat-bar-fill.full { background: #77786F; }
+.vi-drop-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  height: 64rpx; padding: 0 30rpx;
+  border-radius: 999rpx;
+  font-size: 23rpx; font-weight: 800; letter-spacing: 0.06em;
+  background: #111310; color: #D7FF3B;
+  border: 3rpx solid #111310;
+  flex-shrink: 0;
+}
+.vi-drop-btn.ghost { background: transparent; color: #111310; }
+.vi-drop-btn.dim { background: transparent; color: #9C9D93; border-color: #DCDAD0; }
+.vi-drop-btn:active { transform: scale(0.96); }
+.vi-empty { margin: 30rpx 30rpx 0; padding: 40rpx; text-align: center; font-size: 24rpx; color: #77786F; border: 2rpx dashed #DCDAD0; border-radius: 20rpx; }
+
+/* 你的节奏卡 */
+.vi-rhythm {
+  margin: 30rpx 30rpx 0;
+  background: #FFFFFF;
+  border: 3rpx solid #111310;
+  border-radius: 28rpx;
+  padding: 26rpx 30rpx 24rpx;
+  box-shadow: 6rpx 6rpx 0 #111310;
+}
+.vi-rhythm-head { display: flex; justify-content: space-between; align-items: center; }
+.vi-rhythm-t { font-size: 30rpx; font-weight: 900; color: #111310; }
+.vi-rhythm-bpm {
+  font-size: 22rpx; font-weight: 800; letter-spacing: 0.1em;
+  background: #D7FF3B; border: 2rpx solid #111310;
+  color: #111310; padding: 4rpx 16rpx; border-radius: 10rpx;
+}
+/* 心电图：直接复用预览图 path — 灰线全程 + 墨色波形层用 mask 扫描窗口滑动（同相位零毛刺） */
+.vi-rhythm-ecg {
+  height: 56rpx; margin-top: 16rpx;
+  position: relative;
+}
+.vi-rhythm-ecg::before,
+.vi-rhythm-ecg::after {
+  content: '';
+  position: absolute;
+  left: 0; top: 0; right: 0; bottom: 0;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 300 40' preserveAspectRatio='none'%3E%3Cpath d='M0 20 H52 L62 20 L70 8 L80 38 L90 14 L98 22 H150 L160 22 L168 8 L178 38 L188 14 L196 22 H250 L260 22 L268 8 L278 38 L288 14 L296 22 H300' fill='none' stroke='%23C9C7BD' stroke-width='2'/%3E%3C/svg%3E");
+  background-size: 600rpx 56rpx;
+  background-repeat: repeat-x;
+}
+.vi-rhythm-ecg::after {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 300 40' preserveAspectRatio='none'%3E%3Cpath d='M0 20 H52 L62 20 L70 8 L80 38 L90 14 L98 22 H150 L160 22 L168 8 L178 38 L188 14 L196 22 H250 L260 22 L268 8 L278 38 L288 14 L296 22 H300' fill='none' stroke='%23111310' stroke-width='2.5'/%3E%3C/svg%3E");
+  -webkit-mask-image: linear-gradient(90deg, #000 0 120rpx, transparent 120rpx 420rpx);
+  -webkit-mask-size: 420rpx 100%;
+  -webkit-mask-repeat: repeat-x;
+  mask-image: linear-gradient(90deg, #000 0 120rpx, transparent 120rpx 420rpx);
+  mask-size: 420rpx 100%;
+  mask-repeat: repeat-x;
+  animation: vi-ecg-scan 2.4s linear infinite;
+}
+@keyframes vi-ecg-scan {
+  to { -webkit-mask-position: 420rpx 0; mask-position: 420rpx 0; }
+}
+.vi-rhythm-sub { display: block; margin-top: 14rpx; font-size: 21rpx; color: #77786F; }
+
+/* 带课教练 */
+.vi-coach-sec { padding: 40rpx 30rpx 0; }
+.vi-sec-h { display: flex; align-items: baseline; margin-bottom: 20rpx; }
+.vi-sec-t { font-size: 30rpx; font-weight: 900; color: #111310; }
+.vi-sec-en { margin-left: auto; font-size: 21rpx; font-weight: 700; color: #77786F; letter-spacing: 0.1em; }
+.vi-coaches { white-space: nowrap; width: 100%; }
+.vi-coaches-inner { display: inline-flex; gap: 22rpx; padding: 0 30rpx; }
+.vi-coach { width: 156rpx; flex-shrink: 0; }
+.vi-coach-ph {
+  width: 100%; height: 190rpx;
+  border: 3rpx solid #111310; border-radius: 22rpx;
+  background: #FFFFFF; overflow: hidden;
+  box-shadow: 5rpx 5rpx 0 #111310;
+}
+.vi-coach-img { width: 100%; height: 100%; }
+.vi-coach-name { display: block; margin-top: 12rpx; font-size: 23rpx; font-weight: 900; color: #111310; }
+.vi-coach-sty { display: block; margin-top: 4rpx; font-size: 19rpx; color: #77786F; }
+.vi-gallery {
+  margin: 40rpx 30rpx 0; padding: 28rpx 32rpx;
+  border: 3rpx solid #111310; border-radius: 24rpx;
+  background: #FFFFFF; box-shadow: 5rpx 5rpx 0 #111310;
+  display: flex; justify-content: space-between; align-items: center;
+  font-size: 26rpx; font-weight: 900; color: #111310;
+}
+.vi-gallery-arrow { color: #111310; font-weight: 900; }
+.vi-foot { padding: 50rpx 0 20rpx; text-align: center; font-size: 20rpx; letter-spacing: 0.35em; font-weight: 700; color: #77786F; }
+
+/* 名额：仅剩 X（青柠色块）/ Y 席 */
+.vi-seat-low {
+  display: inline-block;
+  background: #D7FF3B; color: #111310;
+  padding: 0 8rpx; border-radius: 6rpx;
+  font-weight: 900;
+}
+.vi-seat-low.zero { background: #DCDAD0; color: #77786F; }
+
+/* ---------- 字体接线（预览同款：Anton 海报字 / Space Grotesk 数字） ---------- */
+.vi-hero-cnt,
+.vi-ghost,
+.vi-tag.vi-tag-live { font-family: 'AntonV', 'Anton', sans-serif; letter-spacing: 0.08em; }
+.vi-drop-tm,
+.vi-mq-item,
+.vi-mq-sep,
+.vi-seat-txt,
+.vi-rhythm-bpm { font-family: 'GroteskV', 'Space Grotesk', sans-serif; }
+.vi-drop-tm { font-weight: 700; letter-spacing: 0; }
+.vi-hero-cnt { letter-spacing: 0.02em; }
+
+/* ---------- 六轮：大卡时间置于幽灵编号之上 ---------- */
+.vi-drop-top { position: relative; z-index: 2; }
+.vi-drop-body,
+.vi-drop-foot { position: relative; z-index: 2; }
+.vi-ghost { opacity: 0.55; }
+.vi-drop-tm-raise {
+  display: inline-flex; align-items: baseline;
+  background: rgba(255, 255, 255, 0.92);
+  padding: 6rpx 16rpx 6rpx 2rpx;
+  border-radius: 8rpx;
+}
+
+/* 时间左移：为右上幽灵编号留出空间 */
+.vi-drop-top-ghost-safe { padding-right: 150rpx; }
+
+/* ---------- 十二轮：顶部三层结构（门店行 / 跑马灯 / 品牌行） ---------- */
+.vi-store-row {
+  position: fixed;
+  left: 0; right: 0;
+  height: 44px;
+  display: flex; align-items: center;
+  padding: 0 30rpx;
+  z-index: 40;
+}
+.vi-store-btn {
+  font-size: 23rpx; font-weight: 700; color: #111310;
+  border: 3rpx solid #111310; background: #FFFFFF;
+  height: 64rpx; box-sizing: border-box;
+  display: inline-flex; align-items: center;
+  padding: 0 26rpx; border-radius: 999rpx;
+  flex-shrink: 0;
+}
+.vi-store-btn:active { transform: scale(0.96); }
+
+/* ---------- 十三轮：卡头周X大字 / 日期小字 / 最低成班灰字（下课时间压浅色编号=预览海报效果） ---------- */
+.vi-drop-tr { display: flex; flex-direction: column; align-items: flex-end; position: relative; z-index: 2; }
+.vi-drop-tr-line1 { display: flex; align-items: baseline; gap: 16rpx; white-space: nowrap; }
+.vi-drop-wd { font-size: 44rpx; font-weight: 900; color: #111310; }
+.vi-drop-date { display: block; margin-top: 6rpx; margin-right: 96rpx; font-size: 22rpx; color: #9C9D93; font-family: 'GroteskV', sans-serif; }
+/* 时间行不再垫白底（预览：时间直接压在浅色编号上，编号从文字底下透出） */
+.vi-drop-tm-raise { background: none; }
+.vi-min-cap { flex-shrink: 0; font-size: 20rpx; color: #9C9D93; margin-right: 6rpx; }
+.vi-seat { flex: 0 1 auto; min-width: 200rpx; }
+.vi-drop-btn { margin-left: auto; }
+
+/* ---------- 位置授权弹窗（纸上舞台 / VOLT） ---------- */
+.skin-paper .lam-card { background: #FCFAF4; border: 2rpx solid #DFD6C2; border-radius: 10rpx; }
+.skin-paper .lam-icon { border-color: #B93A26; }
+.skin-paper .lam-title { font-family: 'Noto Serif SC', serif; color: #221D15; }
+.skin-paper .lam-btn-confirm { background: #B93A26; color: #FCF7EE; border-radius: 6rpx; font-family: 'Noto Serif SC', serif; box-shadow: 2rpx 3rpx 0 rgba(34, 29, 21, 0.18); }
+.skin-paper .lam-btn-cancel { background: transparent; color: #6C6353; border: 2rpx solid #C9BFA8; border-radius: 6rpx; }
+.skin-volt .lam-card { background: #F2F1ED; border: 3rpx solid #111310; border-radius: 32rpx; box-shadow: 6rpx 6rpx 0 #111310; }
+.skin-volt .lam-icon { border-color: #111310; background: #D7FF3B; }
+.skin-volt .lam-title { font-weight: 900; color: #111310; }
+.skin-volt .lam-btn-confirm { background: #111310; color: #D7FF3B; border-radius: 999rpx; font-weight: 800; box-shadow: none; }
+.skin-volt .lam-btn-cancel { background: transparent; color: #77786F; border: 3rpx solid #DCDAD0; border-radius: 999rpx; }
+
+/* ---------- 骨架屏（纸上舞台 / VOLT） ---------- */
+/* paper：纸灰排版占位 */
+.skin-paper .sk-page { background: #F5F1E8; }
+.skin-paper .sk-banner { background: #ECE5D6; }
+.skin-paper .sk-hero-card, .skin-paper .sk-content .sk-hero-card { background: #FCFAF4; border: 2rpx solid #DFD6C2; box-shadow: none; }
+.skin-paper .sk-emoji, .skin-paper .sk-greet-main, .skin-paper .sk-greet-sub,
+.skin-paper .sk-store-icon, .skin-paper .sk-store-name, .skin-paper .sk-store-addr, .skin-paper .sk-store-phone,
+.skin-paper .sk-announce, .skin-paper .sk-section-dot, .skin-paper .sk-section-title, .skin-paper .sk-course-tag,
+.skin-paper .sk-course-name, .skin-paper .sk-course-meta, .skin-paper .sk-course-thumb, .skin-paper .sk-coach-avatar,
+.skin-paper .sk-coach-name { background: #ECE5D6; }
+/* volt：线框海报 */
+.skin-volt .sk-page { background: #F2F1ED; }
+.skin-volt .sk-banner { background: #ECEAE2; }
+.skin-volt .sk-hero-card, .skin-volt .sk-content .sk-hero-card { background: #FFFFFF; border: 3rpx solid #111310; border-radius: 28rpx; box-shadow: 6rpx 6rpx 0 #111310; }
+.skin-volt .sk-emoji, .skin-volt .sk-greet-main, .skin-volt .sk-greet-sub,
+.skin-volt .sk-store-icon, .skin-volt .sk-store-name, .skin-volt .sk-store-addr, .skin-volt .sk-store-phone,
+.skin-volt .sk-announce, .skin-volt .sk-section-dot, .skin-volt .sk-section-title, .skin-volt .sk-course-tag,
+.skin-volt .sk-course-name, .skin-volt .sk-course-meta, .skin-volt .sk-course-thumb, .skin-volt .sk-coach-avatar,
+.skin-volt .sk-coach-name { background: #ECEAE2; }
+.skin-volt .sk-section-dot { background: #D7FF3B !important; }
+
+/* ---------- 卡头/卡体终版：直接复用预览 .drop/.drop-top/.tm/.ghost 参数（px→rpx ×2） ---------- */
+.vi-drop { border: 4rpx solid #111310; border-radius: 36rpx; box-shadow: 10rpx 10rpx 0 #111310; }
+.vi-drop-top { padding: 28rpx 36rpx; border-bottom: 3rpx dashed #DCDAD0; }
+.vi-tag { font-size: 23rpx; border-width: 3rpx; padding: 10rpx 26rpx; }
+.vi-drop-top-ghost-safe { padding-right: 0; }
+.vi-drop-tm-raise { background: none; padding: 0; }
+.vi-drop-tm { display: block; margin-right: -12rpx; font-size: 46rpx; font-weight: 700; letter-spacing: -0.01em; color: #111310; font-family: 'GroteskV', sans-serif; white-space: nowrap; line-height: 1.2; position: relative; z-index: 2; }
+.vi-drop-wd { font-size: 46rpx; font-weight: 900; color: #111310; margin-right: 16rpx; }
+.vi-drop-tm-end { font-size: 22rpx; color: #9C9D93; font-weight: 500; margin-left: 10rpx; }
+.vi-ghost { font-size: 116rpx; line-height: 1; right: 24rpx; -webkit-text-stroke: 2.6rpx #E3E1D6; }
+.vi-drop-body { padding: 30rpx 36rpx 12rpx; }
+.vi-drop-name { font-size: 46rpx; }
+.vi-drop-meta-row { display: flex; align-items: center; justify-content: space-between; gap: 16rpx; margin-top: 6rpx; }
+.vi-drop-meta { display: inline; margin-top: 0; margin-left: 12rpx; font-size: 24rpx; color: #9C9D93; }
+.vi-drop-coach { font-size: 26rpx; color: #9C9D93; }
+
+/* ---------- 课程卡尺寸统一（与场次预约页 bk-volt-card 同参） ---------- */
+.vi-drop-foot { padding: 24rpx 36rpx 32rpx; gap: 28rpx; }
+.vi-drop-btn { height: 72rpx; padding: 0 40rpx; font-size: 25rpx; }
+
+/* ---------- 编号与下课时间右缘精确对齐：去掉 vi-ghost 的字距尾隙与降透明度（与预约页编号一致） ---------- */
+.vi-ghost { letter-spacing: 0; opacity: 1; }
+
+/* ---------- 近期登场报幕条（预览 .dd 直译：24px 下方登台 · 70ms 间隔 · 0.5s spring 过冲） ---------- */
+.vi-bill { display: flex; align-items: center; justify-content: center; height: 72rpx; margin: 14rpx 30rpx 0; background: #FFFFFF; border: 4rpx solid #111310; border-radius: 24rpx; box-shadow: 6rpx 6rpx 0 #111310; opacity: 0; animation: vi-bill-in 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; }
+.vi-bill:active { transform: scale(0.98); }
+/* 白卡家族（与你的节奏卡同语言）：白底墨描边硬影，能量靠青柠块/墨数字/重课名，黑只留给进行中反转态 */
+.vi-bill { display: flex; align-items: center; justify-content: center; gap: 14rpx; height: 80rpx; margin: 14rpx 30rpx 0; background: #FFFFFF; border: 3rpx solid #111310; border-radius: 24rpx; box-shadow: 6rpx 6rpx 0 #111310; opacity: 0; animation: vi-bill-in 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; }
+.vi-bill:active { transform: scale(0.98); }
+/* 序数块：青柠底墨字（BPM/?/! 徽章家族） */
+.vi-bill-badge { flex-shrink: 0; background: #D7FF3B; color: #111310; font-size: 22rpx; font-weight: 900; padding: 4rpx 14rpx; border-radius: 8rpx; transform: rotate(-3deg); }
+.vi-bill-wd { flex-shrink: 0; font-size: 22rpx; font-weight: 600; color: #9C9D93; }
+.vi-bill-time { flex-shrink: 0; font-family: 'GroteskV', sans-serif; font-weight: 800; font-size: 28rpx; color: #111310; letter-spacing: -0.01em; }
+.vi-bill-name { font-size: 26rpx; font-weight: 900; color: #111310; max-width: 300rpx; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vi-bill-spark { flex-shrink: 0; font-size: 24rpx; font-weight: 900; color: #111310; }
+/* 进行中：唯一出现的黑卡反转态（墨底 + 青柠序数 + 骨白文字）——稀有即信号 */
+.vi-bill.live { background: #111310; border-color: #111310; }
+.vi-bill.live .vi-bill-wd { color: #9C9D93; }
+.vi-bill.live .vi-bill-time { color: #F2F1ED; }
+.vi-bill.live .vi-bill-name { color: #F2F1ED; }
+.vi-bill.live .vi-bill-spark { color: #D7FF3B; }
+@keyframes vi-bill-in { from { opacity: 0; transform: translateY(48rpx); } to { opacity: 1; transform: translateY(0); } }

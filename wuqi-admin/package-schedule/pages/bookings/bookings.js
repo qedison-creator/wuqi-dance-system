@@ -332,7 +332,7 @@ Page({
         const reason = reasons[res.tapIndex];
         wx.showModal({
           title: '确认取消',
-          content: `确认以「${reason}」为由取消此预约？将退还会员次数。`,
+          content: `确认以「${reason}」为由取消此预约？将退还会员课时。`,
           success: async (modalRes) => {
             if (modalRes.confirm) {
               try {

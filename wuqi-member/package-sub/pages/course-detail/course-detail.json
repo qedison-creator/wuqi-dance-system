@@ -2,6 +2,7 @@
   "navigationBarTitleText": "场次详情",
   "usingComponents": {
     "empty-state": "/components/empty-state/empty-state",
-    "login-modal": "/components/login-modal/login-modal"
+    "login-modal": "/components/login-modal/login-modal",
+    "skin-success": "/components/skin-success/skin-success"
   }
 }

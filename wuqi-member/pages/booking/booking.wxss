@@ -18,6 +18,33 @@ page {
   margin-bottom: 24rpx;
 }
 
+/* 经典皮肤页面内标题栏（页面级 navigationStyle:custom，需自行渲染标题）
+   固定于顶部，不随内容滚动（与个人中心页原生标题栏行为一致） */
+.cl-navbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 200;
+  height: 80rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #FBFAF8;
+  box-sizing: content-box;
+}
+
+/* 固定标题栏占位（80rpx 高度 + 16rpx 间距），避免门店卡片上移顶到标题栏 */
+.cl-navbar-spacer { height: 96rpx; }
+
+.cl-navbar-title {
+  font-size: 17px;
+  font-weight: 400;
+  color: #000000;
+  letter-spacing: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Helvetica Neue', sans-serif;
+}
+
 .store-card {
   display: flex;
   align-items: center;
@@ -323,8 +350,10 @@ page {
 
 .card-right-actions {
   position: absolute;
-  top: 50%;
-  transform: translateY(-50%);
+  /* 贴底悬浮：贴近卡片底部「已约X/Y + 微信头像」行，而非卡片垂直居中
+     卡片右下 padding 24rpx + meta 行高 44rpx（头像）= 68rpx，故取 76rpx（留 8rpx 间距） */
+  top: auto;
+  bottom: 76rpx;
   right: 20rpx;
   display: flex;
   flex-direction: column;
@@ -409,6 +438,8 @@ page {
   flex-wrap: wrap;
   margin-bottom: 10rpx;
   gap: 16rpx;
+  /* 为右侧悬浮的预约按钮预留位置（与 .course-time-row 同款），避免长文案被按钮遮挡 */
+  padding-right: 180rpx;
 }
 
 .deadline-text {
@@ -1341,3 +1372,5 @@ page {
   0%, 100% { opacity: 0.4; }
   50% { opacity: 0.8; }
 }
+
+@import "./booking.skin.wxss";

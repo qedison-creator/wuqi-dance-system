@@ -1278,3 +1278,86 @@
   font-size: 24rpx;
   font-weight: 600;
 }
+
+/* ===== 赠送（选填）折叠区 ===== */
+.bonus-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20rpx 24rpx;
+  background: #FBF8F4;
+  border: 1rpx dashed #D9CDBA;
+  border-radius: 12rpx;
+}
+.bonus-toggle-label {
+  color: #8A6D3B;
+  font-weight: 500;
+}
+.bonus-toggle-right {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+}
+.bonus-toggle-summary {
+  font-size: 24rpx;
+  color: #C4663E;
+}
+.bonus-toggle-empty {
+  color: #B0A79A;
+}
+.bonus-toggle-arrow {
+  color: #B0A79A;
+  font-size: 28rpx;
+  transform: rotate(0deg);
+  transition: transform 0.2s ease;
+}
+.bonus-toggle-arrow.open {
+  transform: rotate(90deg);
+}
+.bonus-section {
+  margin-top: 16rpx;
+  padding: 16rpx 24rpx;
+  background: #FBF8F4;
+  border-radius: 12rpx;
+}
+.bonus-lock-tip {
+  font-size: 24rpx;
+  color: #C4663E;
+  background: #FBEDE6;
+  padding: 12rpx 16rpx;
+  border-radius: 8rpx;
+  margin-bottom: 16rpx;
+}
+.bonus-field-row {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  margin-bottom: 16rpx;
+  min-height: 64rpx;
+}
+.bonus-field-label {
+  width: 160rpx;
+  flex-shrink: 0;
+  font-size: 26rpx;
+  color: #5C5246;
+}
+.bonus-input {
+  width: 140rpx;
+  height: 64rpx;
+  min-height: 64rpx;
+  line-height: 64rpx;
+  text-align: center;
+  padding: 0;
+  background: #FFFFFF;
+  border: 1rpx solid #E3D9CB;
+  border-radius: 8rpx;
+}
+.bonus-field-unit {
+  flex: 1;
+  font-size: 22rpx;
+  color: #A09584;
+}
+.bonus-mode-picker {
+  flex: 1;
+  margin-bottom: 0;
+}

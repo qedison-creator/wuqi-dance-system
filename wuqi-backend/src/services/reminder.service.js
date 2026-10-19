@@ -245,7 +245,8 @@ async function checkInactiveMemberReminders() {
     _id: { $in: inactiveUserIds },
     openid: { $exists: true, $ne: '' },
     status: { $ne: 'disabled' },
-    member_status: 'official'  // 仅正式会员才发不活跃提醒，排除游客/注册未审核用户
+    member_status: 'official',  // 仅正式会员才发不活跃提醒，排除游客/注册未审核用户
+    is_deleted: { $ne: true }   // 已注销会员不再提醒
   });
 
   let sentCount = 0;

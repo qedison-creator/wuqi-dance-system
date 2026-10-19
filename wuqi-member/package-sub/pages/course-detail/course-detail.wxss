@@ -613,3 +613,5 @@ page {
   font-size: 24rpx;
   color: #CCC0C0;
 }
+
+@import "./course-detail.skin.wxss";

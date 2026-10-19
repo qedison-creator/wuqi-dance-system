@@ -3,7 +3,7 @@
 const READ_SECONDS = 5;
 
 Component({
-  options: {
+    options: {
     pureDataPattern: /^_/
   },
 
@@ -19,6 +19,7 @@ Component({
   },
 
   data: {
+    skinId: 'classic',
     locked: false, // 重要弹窗读秒期间锁定关闭
     countdown: 0   // 剩余秒数
   },
@@ -35,6 +36,12 @@ Component({
   },
 
   lifetimes: {
+    attached() {
+      try {
+        const skinId = wx.getStorageSync('member_skin_id');
+        this.setData({ skinId: skinId === 'paper' || skinId === 'volt' ? skinId : 'classic' });
+      } catch (e) { /* 忽略 */ }
+    },
     detached() {
       this._stopCountdown();
     }

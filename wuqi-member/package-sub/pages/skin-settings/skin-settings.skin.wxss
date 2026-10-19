@@ -1,0 +1,16 @@
+/* 皮肤选择页轻覆盖（选择器本身保持中性外观，仅底色/卡片随皮肤） */
+
+/* VOLT：骨白底 + 皮肤卡描边硬影 */
+.skin-root.skin-volt.skin-page { background: #F2F1ED; }
+.skin-volt .skin-card { background: #FFFFFF; border: 3rpx solid #111310; border-radius: 24rpx; box-shadow: 5rpx 5rpx 0 #111310; }
+.skin-volt .skin-card.active { box-shadow: 5rpx 5rpx 0 #111310; border-color: #111310; }
+.skin-volt .sh-title { font-weight: 900; color: #111310; }
+.skin-volt .sh-sub { color: #77786F; }
+.skin-volt .skin-foot { color: #9C9D93; }
+
+/* PAPER：纸底 + 票卡 */
+.skin-root.skin-paper.skin-page { background: #F5F1E8; }
+.skin-paper .skin-card { background: #FCFAF4; border: 2rpx solid #DFD6C2; border-radius: 8rpx; box-shadow: 2rpx 2rpx 0 rgba(34, 29, 21, 0.06); }
+.skin-paper .skin-card.active { border-color: #221D15; box-shadow: 3rpx 4rpx 0 rgba(34, 29, 21, 0.2); }
+.skin-paper .sh-title { font-family: 'Noto Serif SC', serif; color: #221D15; }
+.skin-paper .sh-sub { color: #6C6353; }
