@@ -642,13 +642,7 @@ Page({
     auth.requireMember(() => {
       const { course, isPackageSuspended } = this.data;
       if (isPackageSuspended) {
-        wx.showModal({
-          title: '无法加入候补',
-          content: '您的套餐暂停使用中，不能进行预约课程操作。',
-          showCancel: false,
-          confirmText: '知道了',
-          confirmColor: skinUtil.confirmColor()
-        });
+        this.showSkinNotice('paused');
         return;
       }
 
@@ -837,15 +831,9 @@ Page({
     auth.requireMember(() => {
       const { course, isPackageSuspended, courseStoreMatched, courseStyleMatched, weekdayMatched, timeMatched } = this.data;
 
-      // 套餐停卡中，拦截预约
+      // 套餐停卡中，拦截预约（按当前皮肤展示）
       if (isPackageSuspended) {
-        wx.showModal({
-          title: '无法预约',
-          content: '您的套餐暂停使用中，不能进行预约课程操作。',
-          showCancel: false,
-          confirmText: '知道了',
-          confirmColor: skinUtil.confirmColor()
-        });
+        this.showSkinNotice('paused');
         return;
       }
 
@@ -964,6 +952,25 @@ Page({
   // 关闭皮肤成功动效层
   onSkinSuccessOk() {
     require('../../../utils/skin.js').closeSuccess(this);
+  },
+
+  // 皮肤化状态拦截提示
+  showSkinNotice(kind, title, desc) {
+    const t = skinUtil.getSkin().t;
+    this.setData({
+      skinNotice: {
+        visible: true,
+        skin: skinUtil.getSkinId(),
+        kind: kind || 'paused',
+        title: title || t.noticePausedTitle,
+        desc: desc || t.noticePausedDesc,
+        okText: t.okBtn
+      }
+    });
+  },
+
+  onSkinNoticeOk() {
+    this.setData({ 'skinNotice.visible': false });
   },
 
   onCancelTap() {

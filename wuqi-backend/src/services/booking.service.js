@@ -2564,19 +2564,27 @@ exports.checkIn = async (scheduleId, userId, operatorId = null, isOnsite = false
             }
           }
 
-          // 停卡套餐自动恢复：签到即结束停卡，恢复正常使用
-          if (userPackage.is_suspended) {
+          // 请假停卡套餐自动恢复：签到即结束停卡；权益冻结（freeze）不允许签到自动解冻
+          if (userPackage.is_suspended && userPackage.suspend_type !== 'freeze') {
+            const nowAtResume = new Date();
+            // 按实际停卡天数补回到期日，与手动复卡/定时任务口径一致
+            if (userPackage.frozen_end_date) {
+              let actualSuspendDays = 0;
+              if (userPackage.suspended_at) {
+                actualSuspendDays = Math.ceil((nowAtResume.getTime() - userPackage.suspended_at.getTime()) / (24 * 60 * 60 * 1000));
+                if (actualSuspendDays < 1) actualSuspendDays = 1;
+              }
+              userPackage.end_date = new Date(userPackage.frozen_end_date.getTime() + actualSuspendDays * 24 * 60 * 60 * 1000);
+            }
             userPackage.is_suspended = false;
+            userPackage.suspend_type = null;
             userPackage.suspended_at = null;
             userPackage.suspend_end_date = null;
             if (userPackage.frozen_remaining_credits > 0) {
               userPackage.remaining_credits = userPackage.frozen_remaining_credits;
               userPackage.frozen_remaining_credits = 0;
             }
-            if (userPackage.frozen_end_date) {
-              userPackage.end_date = userPackage.frozen_end_date;
-              userPackage.frozen_end_date = null;
-            }
+            userPackage.frozen_end_date = null;
             if (userPackage.status === 'suspended') {
               userPackage.status = 'active';
             }
@@ -2927,11 +2935,22 @@ exports.onsiteCheckIn = async (scheduleId, userId, operatorId = null, userPackag
       timeCardShrinkDays = limitCheck.shrinkDays || 0;
     }
 
-    // 停卡会员：签到后终止停卡期限，恢复正常服务
+    // 请假停卡会员：签到后终止停卡期限，恢复正常服务；权益冻结不允许签到自动解冻
     let packageResumed = false;  // 标记是否触发了停卡恢复
-    if (pkg.is_suspended) {
+    if (pkg.is_suspended && pkg.suspend_type !== 'freeze') {
       packageResumed = true;
+      const nowAtResume = new Date();
+      // 按实际停卡天数补回到期日，与手动复卡/定时任务口径一致
+      if (pkg.frozen_end_date) {
+        let actualSuspendDays = 0;
+        if (pkg.suspended_at) {
+          actualSuspendDays = Math.ceil((nowAtResume.getTime() - pkg.suspended_at.getTime()) / (24 * 60 * 60 * 1000));
+          if (actualSuspendDays < 1) actualSuspendDays = 1;
+        }
+        pkg.end_date = new Date(pkg.frozen_end_date.getTime() + actualSuspendDays * 24 * 60 * 60 * 1000);
+      }
       pkg.is_suspended = false;
+      pkg.suspend_type = null;
       pkg.suspended_at = null;
       pkg.suspend_end_date = null;
       // 恢复冻结的课时
@@ -2939,10 +2958,7 @@ exports.onsiteCheckIn = async (scheduleId, userId, operatorId = null, userPackag
         pkg.remaining_credits = pkg.frozen_remaining_credits;
         pkg.frozen_remaining_credits = 0;
       }
-      if (pkg.frozen_end_date) {
-        pkg.end_date = pkg.frozen_end_date;
-        pkg.frozen_end_date = null;
-      }
+      pkg.frozen_end_date = null;
       if (pkg.status === 'suspended') {
         pkg.status = 'active';
       }

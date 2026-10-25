@@ -60,6 +60,10 @@
           <text>已停卡</text>
           <view class="filter-count" wx:if="{{filterCounts.suspended > 0}}">{{filterCounts.suspended}}</view>
         </view>
+        <view class="filter-item {{activeFilter === 'frozen' ? 'active' : ''}}" data-filter="frozen" bindtap="onFilterChange">
+          <text>已冻结</text>
+          <view class="filter-count" wx:if="{{filterCounts.frozen > 0}}">{{filterCounts.frozen}}</view>
+        </view>
         <view class="filter-item {{activeFilter === 'expired' ? 'active' : ''}}" data-filter="expired" bindtap="onFilterChange">
           <text>已过期</text>
           <view class="filter-count" wx:if="{{filterCounts.expired > 0}}">{{filterCounts.expired}}</view>
@@ -88,9 +92,9 @@
                 <view class="store-tag {{store.isFuyong ? 'store-tag-fuyong' : ''}}" wx:for="{{item.store_labels}}" wx:key="id" wx:for-item="store">
                   <text class="store-tag-text">{{store.name}}</text>
                 </view>
-                <!-- 状态标签：仅显示会员级状态（待审核/未录套餐/已停卡）；套餐级状态（已激活/待激活/已过期/已用完）改为在下方套餐行内逐个标注 -->
-                <view class="member-status {{item.status === 'pending' ? 'status-warning' : item.status === 'disabled' ? 'status-danger' : 'status-default'}}" wx:if="{{item.status === 'pending' || item.status === 'no-package' || item.status === 'disabled'}}">
-                  <text>{{item.status === 'pending' ? '待审核' : item.status === 'no-package' ? '未录套餐' : '已停卡'}}</text>
+                <!-- 状态标签：仅显示会员级状态（待审核/未录套餐/已停卡/已限制/已冻结）；套餐级状态改为在下方套餐行内逐个标注 -->
+                <view class="member-status {{item.status === 'pending' ? 'status-warning' : item.status === 'disabled' ? 'status-danger' : item.status === 'frozen' ? 'status-info' : 'status-default'}}" wx:if="{{item.status === 'pending' || item.status === 'no-package' || item.status === 'disabled' || item.status === 'frozen'}}">
+                  <text>{{item.status === 'pending' ? '待审核' : item.status === 'no-package' ? '未录套餐' : item.status === 'disabled' ? '已限制' : '已冻结'}}</text>
                 </view>
               </view>
             </view>

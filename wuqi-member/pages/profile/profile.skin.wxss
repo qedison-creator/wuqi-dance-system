@@ -202,9 +202,25 @@
   overflow: hidden;
 }
 .pkg-ticket.pt { box-shadow: 0 2rpx 0 rgba(34, 29, 21, 0.04); }
-.pkg-ticket.vt { border: none; border-radius: 24rpx; box-shadow: 5rpx 5rpx 0 rgba(17, 19, 16, 0.18); }
+.pkg-ticket.vt { border: none !important; border-radius: 24rpx; box-shadow: 5rpx 5rpx 0 rgba(17, 19, 16, 0.18); }
 .pkt-left { flex: 1; min-width: 0; padding: 24rpx 26rpx; }
-.pkt-k { display: block; font-size: 18rpx; letter-spacing: 0.2em; color: var(--sk-hint); font-weight: 700; }
+.skin-paper .pkt-k { display: block; font-size: 18rpx; letter-spacing: 0.2em; color: var(--sk-hint); font-weight: 700; }
+.skin-paper .pkt-pause {
+  display: block;
+  margin-top: 8rpx;
+  font-size: 20rpx;
+  color: #B93A26;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+.skin-paper .pkt-seal-pause {
+  background: #B93A26;
+  color: #FCF7EE;
+}
+.skin-paper .pfp-sub-pause {
+  color: #B93A26;
+  font-weight: 700;
+}
 .pkt-name { display: block; margin-top: 8rpx; font-size: 32rpx; font-weight: 900; color: var(--sk-ink); }
 .skin-paper .pkt-name { font-family: var(--sk-serif); }
 .pkt-meta { display: block; margin-top: 8rpx; font-size: 21rpx; color: var(--sk-sub); }
@@ -550,7 +566,7 @@
 /* VOLT：青柠票根（对齐预览 MEMBERSHIP 青柠卡 + 条码） */
 .pkg-ticket.vt {
   background: var(--sk-volt);
-  border: none;
+  border: none !important;
   border-radius: 24rpx;
   box-shadow: 5rpx 5rpx 0 rgba(17, 19, 16, 0.18);
   display: block;
@@ -560,6 +576,18 @@
 .pkg-ticket.vt .pkt-k { color: #3d4a12; letter-spacing: 0.22em; }
 .pkg-ticket.vt .pkt-name { font-size: 34rpx; font-weight: 900; color: var(--sk-ink); }
 .pkg-ticket.vt .pkt-meta { color: #2c3a10; font-weight: 700; }
+.skin-volt .pkt-pause-volt {
+  display: inline-block;
+  margin-top: 10rpx;
+  padding: 2rpx 12rpx;
+  border: 2rpx solid #111310;
+  border-radius: 999rpx;
+  background: #D7FF3B;
+  color: #111310;
+  font-size: 18rpx;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+}
 .pkg-ticket.vt .pkt-right {
   position: absolute; top: 0; right: 0; bottom: 0;
   width: 170rpx;
@@ -599,9 +627,9 @@
 .skin-volt .audit-badge-pending { background: #D7FF3B; color: #111310; border-radius: 999rpx; }
 .skin-volt .btn-primary { border-radius: 999rpx; }
 
-/* VOLT 票根打孔圆：卡片无描边后凹口圆不带圈（红框点名） */
-.pkg-ticket.vt .pkt-right::before,
-.pkg-ticket.vt .pkt-right::after { border: none; }
+/* VOLT 票根打孔圆：仅下方圆带阴影（与票根 5rpx 5rpx 偏移影同参数，凹口处连续）；上方圆无阴影 */
+.pkg-ticket.vt .pkt-right::before { border: none; }
+.pkg-ticket.vt .pkt-right::after { border: none; box-shadow: 5rpx 5rpx 0 rgba(17, 19, 16, 0.18); }
 
 /* ==================== 赠课卡徽章（paper金印「赠」） ==================== */
 .pkt-seal-bonus {

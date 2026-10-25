@@ -22,6 +22,9 @@ const userSchema = new mongoose.Schema({
   username: { type: String, unique: true, sparse: true },
   password: { type: String },
   status: { type: String, enum: ['active', 'disabled'], required: true, default: 'active' },
+  // 因套餐权益冻结而被动禁用的标记：解冻时仅当此标记为 true 才恢复 active，
+  // 原本就因欠费/违约被限制的账号不会因解冻而恢复登录
+  frozen_by_package: { type: Boolean, default: false },
   // 豁免次数：仅由门店默认豁免次数初始化（未选门店时为0，无全局默认）
   exemption_count: { type: Number, default: 0 },
   member_code: { type: String, unique: true, sparse: true },

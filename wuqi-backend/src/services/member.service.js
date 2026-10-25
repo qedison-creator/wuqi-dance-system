@@ -28,7 +28,7 @@ function buildMemberKeywordOr(keyword) {
 
 // 获取会员列表(支持status/keyword/store_id/package_active/package_suspended/package_expired/package_pending/package_exhausted筛选)
 exports.getMemberList = async (query) => {
-  const { status, keyword, store_id, member_status, package_active, package_suspended, package_expired, package_pending, package_exhausted, no_package, no_store, cross_store, page = 1, pageSize = 20 } = query;
+  const { status, keyword, store_id, member_status, package_active, package_suspended, package_frozen, package_expired, package_pending, package_exhausted, no_package, no_store, cross_store, page = 1, pageSize = 20 } = query;
   const filter = { user_type: 'member', is_deleted: { $ne: true } };
 
   // 将字符串 store_id 转为 ObjectId，供聚合查询使用
@@ -127,12 +127,26 @@ exports.getMemberList = async (query) => {
       return { list: [], total: 0, pendingCount: 0, page: Number(page), pageSize: Number(pageSize) };
     }
   } else if (package_suspended === 'true' || package_suspended === true) {
-    // 已停卡：有 active 且 is_suspended 的套餐
+    // 已停卡：有 active 且请假停卡（leave）的套餐；权益冻结单独归类
     const suspendedPkgs = await UserPackage.find({
       status: 'active',
       is_suspended: true,
+      suspend_type: { $ne: 'freeze' },
     }).distinct('user_id');
     const targetIds = suspendedPkgs.map(id => id.toString());
+    if (targetIds.length > 0) {
+      filter._id = { $in: targetIds };
+    } else {
+      return { list: [], total: 0, pendingCount: 0, page: Number(page), pageSize: Number(pageSize) };
+    }
+  } else if (package_frozen === 'true' || package_frozen === true) {
+    // 已冻结：有 active 且权益冻结（freeze）的套餐
+    const frozenPkgs = await UserPackage.find({
+      status: 'active',
+      is_suspended: true,
+      suspend_type: 'freeze',
+    }).distinct('user_id');
+    const targetIds = frozenPkgs.map(id => id.toString());
     if (targetIds.length > 0) {
       filter._id = { $in: targetIds };
     } else {
@@ -228,8 +242,9 @@ exports.getMemberList = async (query) => {
   const pendingCount = await User.countDocuments(pendingFilter);
 
   // 为每个会员附加套餐信息
+  // 已作废套餐也一并返回，列表按灰色「已作废」展示，避免详情有套餐而列表提示「录入套餐」
   const listWithPackages = await Promise.all(list.map(async (user) => {
-    const packages = await UserPackage.find({ user_id: user._id, status: { $ne: 'voided' } })
+    const packages = await UserPackage.find({ user_id: user._id })
       .populate('store_id', 'name')
       .populate('dance_style_limit', 'name')
       .sort({ created_at: -1 });
@@ -259,8 +274,9 @@ exports.getMemberById = async (id) => {
   await packageService.refreshPackageStatus(id);
 
   // 获取会员套餐（使用 lean 返回普通对象，确保可附加 extensions 字段）
-  // 作废套餐（voided）在会员详情隐藏，仅在后台"套餐记录查询"可见
-  const packages = await UserPackage.find({ user_id: id, status: { $ne: 'voided' } })
+  // 已作废套餐（voided）也返回给管理端，以灰色「已作废」只读展示留痕；
+  // 会员端与预约统计仍排除 voided，不参与任何权益计算
+  const packages = await UserPackage.find({ user_id: id })
     .populate('store_id', 'name')
     .populate('extra_store_ids', 'name')
     .populate('dance_style_limit', 'name')
@@ -590,11 +606,26 @@ exports.getExemptionLogs = async (userId, page = 1, pageSize = 20) => {
 };
 
 // 更新会员信息
-exports.updateMember = async (id, data) => {
+exports.updateMember = async (id, data, operatorId = null) => {
   const user = await User.findById(id);
   if (!user) throw new Error('会员不存在');
 
   const allowedFields = ['nick_name', 'real_name', 'avatar_url', 'phone', 'gender', 'store_id', 'member_status', 'status'];
+  const oldStatus = user.status;
+
+  // 权益冻结期间禁止直接改账号状态，避免绕过解冻流程恢复登录
+  if (data.status !== undefined) {
+    const frozenCount = await UserPackage.countDocuments({
+      user_id: id,
+      status: 'active',
+      is_suspended: true,
+      suspend_type: 'freeze',
+    });
+    if (frozenCount > 0 || user.frozen_by_package) {
+      throw new Error('该会员处于权益冻结中，请先解除冻结');
+    }
+  }
+
   for (const key of Object.keys(data)) {
     if (allowedFields.includes(key)) {
       user[key] = data[key];
@@ -602,6 +633,18 @@ exports.updateMember = async (id, data) => {
   }
 
   await user.save();
+
+  // 账号限制/解除限制留痕：后续排查历史限制起始时间依赖此日志
+  if (data.status && data.status !== oldStatus && operatorId) {
+    await logService.createLog({
+      operator_id: operatorId,
+      action: data.status === 'disabled' ? 'disable' : 'enable',
+      module: 'member',
+      target_id: id,
+      detail: data.status === 'disabled' ? '会员账号已被限制使用' : '会员账号已恢复正常使用',
+    });
+  }
+
   return user;
 };
 
@@ -640,15 +683,17 @@ exports.getMemberFilterCounts = async (query) => {
   }
 
   const now = new Date();
-  const [activePkgUsers, anyActiveUsers, activeValidDateUsers, suspendedUsers, expiredUsers, pendingUsers, exhaustedUsers, crossStorePkgUsers] = await Promise.all([
+  const [activePkgUsers, anyActiveUsers, activeValidDateUsers, suspendedUsers, frozenUsers, expiredUsers, pendingUsers, exhaustedUsers, crossStorePkgUsers] = await Promise.all([
     // 使用中：active 且未停卡
     UserPackage.find({ status: 'active', is_suspended: { $ne: true } }).distinct('user_id'),
     // 全部 active（pending/exhausted 分支的排除集合）
     UserPackage.find({ status: 'active' }).distinct('user_id'),
     // active 且有效期未过（expired 分支的排除集合，对应 getMemberList 的日期条件）
     UserPackage.find({ status: 'active', $or: [{ end_date: { $gte: now } }, { end_date: null }] }).distinct('user_id'),
-    // 已停卡：active 且 is_suspended
-    UserPackage.find({ status: 'active', is_suspended: true }).distinct('user_id'),
+    // 已停卡：active 且请假停卡（历史空类型按 leave 处理）
+    UserPackage.find({ status: 'active', is_suspended: true, suspend_type: { $ne: 'freeze' } }).distinct('user_id'),
+    // 已冻结：active 且权益冻结
+    UserPackage.find({ status: 'active', is_suspended: true, suspend_type: 'freeze' }).distinct('user_id'),
     // 已过期：expired 或有效期已过
     UserPackage.find({ $or: [{ status: 'expired' }, { end_date: { $lt: now } }] }).distinct('user_id'),
     // 待激活：pending
@@ -679,7 +724,7 @@ exports.getMemberFilterCounts = async (query) => {
     return rows.length > 0 ? rows[0].n : 0;
   })();
 
-  const [allCount, activeCount, crossStoreCount, unactivatedCount, suspendedCount, expiredCount, exhaustedCount] = await Promise.all([
+  const [allCount, activeCount, crossStoreCount, unactivatedCount, suspendedCount, frozenCount, expiredCount, exhaustedCount] = await Promise.all([
     User.countDocuments({ ...memberBase, ...storeCondition }),
     User.countDocuments({ ...memberBase, ...storeCondition, _id: { $in: activePkgUsers } }),
     // 跨门店：指定门店时要求会员归属门店 ≠ 当前门店；全部门店时无此条件
@@ -688,6 +733,7 @@ exports.getMemberFilterCounts = async (query) => {
       : User.countDocuments({ ...memberBase, _id: { $in: crossStorePkgUsers } }),
     User.countDocuments({ ...memberBase, ...storeCondition, _id: { $in: withoutActive(pendingUsers, anyActiveSet) } }),
     User.countDocuments({ ...memberBase, ...storeCondition, _id: { $in: suspendedUsers } }),
+    User.countDocuments({ ...memberBase, ...storeCondition, _id: { $in: frozenUsers } }),
     User.countDocuments({ ...memberBase, ...storeCondition, _id: { $in: withoutActive(expiredUsers, activeValidSet) } }),
     User.countDocuments({ ...memberBase, ...storeCondition, _id: { $in: withoutActive(exhaustedUsers, anyActiveSet) } }),
   ]);
@@ -700,6 +746,7 @@ exports.getMemberFilterCounts = async (query) => {
       cross_store: crossStoreCount,
       unactivated: unactivatedCount,
       suspended: suspendedCount,
+      frozen: frozenCount,
       expired: expiredCount,
       exhausted: exhaustedCount,
     },
@@ -712,7 +759,7 @@ exports.suspendMember = async (userId, suspendDays, operatorId) => {
   if (!user) throw new Error('会员不存在');
   
   // 找到所有有效且未停卡的套餐
-  const activePackages = await UserPackage.find({ user_id: userId, status: 'active', is_suspended: false });
+  const activePackages = await UserPackage.find({ user_id: userId, status: 'active', is_suspended: { $ne: true } });
   if (!activePackages || activePackages.length === 0) throw new Error('没有可停卡的有效套餐');
   
   const now = new Date();
@@ -725,6 +772,7 @@ exports.suspendMember = async (userId, suspendDays, operatorId) => {
 
     // 冻结当前数据
     pkg.is_suspended = true;
+    pkg.suspend_type = 'leave';
     pkg.suspended_at = now;
     pkg.suspend_end_date = suspendEndDate;
     pkg.frozen_remaining_credits = pkg.remaining_credits;
@@ -776,9 +824,14 @@ exports.suspendMember = async (userId, suspendDays, operatorId) => {
   return user;
 };
 
-// 复卡：恢复服务有效期和剩余时长（批量恢复该会员所有已停套餐）
+// 复卡：恢复服务有效期和剩余时长（只恢复请假停卡 leave，权益冻结由 unfreezeMember 处理）
 exports.unsuspendMember = async (userId, operatorId) => {
-  const suspendedPackages = await UserPackage.find({ user_id: userId, status: 'active', is_suspended: true });
+  const suspendedPackages = await UserPackage.find({
+    user_id: userId,
+    status: 'active',
+    is_suspended: true,
+    suspend_type: { $ne: 'freeze' },
+  });
   if (!suspendedPackages || suspendedPackages.length === 0) throw new Error('没有停卡中的套餐');
   
   const now = new Date();
@@ -789,21 +842,22 @@ exports.unsuspendMember = async (userId, operatorId) => {
     const suspendedAt = pkg.suspended_at;
     const oldEndDate = pkg.end_date;
 
-    // 计算实际停卡天数（按自然天计算，向上取整）
+    // 计算实际停卡天数（按整日计算，不足 1 天不补）
     let actualSuspendDays = 0;
     if (suspendedAt) {
       const diffMs = now.getTime() - suspendedAt.getTime();
-      actualSuspendDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
-      if (actualSuspendDays < 1) actualSuspendDays = 1; // 至少计1天
+      actualSuspendDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+      if (actualSuspendDays < 0) actualSuspendDays = 0;
     }
 
-    // 校准 end_date：frozen_end_date + 实际停卡天数
-    if (pkg.frozen_end_date && actualSuspendDays > 0) {
+    // 校准 end_date：frozen_end_date + 实际停卡整日数（0 天即恢复停卡前状态）
+    if (pkg.frozen_end_date) {
       const correctedEndDate = new Date(pkg.frozen_end_date.getTime() + actualSuspendDays * 24 * 60 * 60 * 1000);
       pkg.end_date = correctedEndDate;
     }
 
     pkg.is_suspended = false;
+    pkg.suspend_type = null;
     pkg.suspended_at = null;
     pkg.suspend_end_date = null;
     pkg.frozen_remaining_credits = null;
@@ -830,6 +884,13 @@ exports.unsuspendMember = async (userId, operatorId) => {
     }
     await packageService._recordPackageChange(pkg, changes, operatorId, `管理员复卡（实际停卡${actualSuspendDays}天）`);
   }
+
+  // 复卡后「随主套餐」赠课卡按主卡结算后的到期日同步（停卡期间发生的主卡延长/停卡顺延在此归位）
+  for (const pkg of suspendedPackages) {
+    if (!pkg.is_bonus) {
+      await packageService.syncFollowMainBonusDates(pkg);
+    }
+  }
   
   await logService.createLog({
     operator_id: operatorId,
@@ -847,6 +908,184 @@ exports.unsuspendMember = async (userId, operatorId) => {
   }
 
   const user = await User.findById(userId);
+  return user;
+};
+
+// 权益冻结：退款/转卡处理期封存全部 active 套餐（含赠课卡）
+// 规则：无期限、手动解冻；有效期暂停计时；次数锁定；期间禁止登录/预约/签到
+exports.freezeMember = async (userId, reason, operatorId) => {
+  const trimmedReason = (reason || '').trim();
+  if (!trimmedReason) throw new Error('请填写冻结原因');
+
+  const user = await User.findById(userId);
+  if (!user) throw new Error('会员不存在');
+
+  const packages = await UserPackage.find({ user_id: userId, status: 'active' });
+  // 已冻结的套餐不重复冻结，避免重置冻结起点导致补回天数失真
+  const candidates = packages.filter(p => !(p.is_suspended && p.suspend_type === 'freeze'));
+  if (candidates.length === 0) throw new Error('没有可冻结的有效套餐');
+
+  const now = new Date();
+  const DAY_MS = 24 * 60 * 60 * 1000;
+  let frozenCount = 0;
+
+  for (const pkg of candidates) {
+    const oldEndDate = pkg.end_date;
+
+    // 停卡中的套餐先按实际停卡天数结算，再转入冻结，避免双重顺延
+    if (pkg.is_suspended && pkg.suspend_type !== 'freeze' && pkg.frozen_end_date) {
+      let leaveDays = 0;
+      if (pkg.suspended_at) {
+        // 不足 1 天不补：同日停卡→冻结不能凭空多补 1 天
+        leaveDays = Math.floor((now.getTime() - pkg.suspended_at.getTime()) / DAY_MS);
+        if (leaveDays < 0) leaveDays = 0;
+      }
+      if (leaveDays > 0) {
+        pkg.end_date = new Date(pkg.frozen_end_date.getTime() + leaveDays * DAY_MS);
+      }
+    }
+
+    pkg.is_suspended = true;
+    pkg.suspend_type = 'freeze';
+    pkg.suspended_at = now;
+    pkg.suspend_end_date = null;
+    pkg.frozen_remaining_credits = pkg.remaining_credits;
+    pkg.frozen_end_date = pkg.end_date;
+
+    await pkg.save();
+    frozenCount++;
+
+    const changes = [{
+      field: 'is_suspended',
+      field_label: '冻结状态',
+      old_value: '正常',
+      new_value: '权益冻结'
+    }];
+    if (oldEndDate && pkg.end_date && oldEndDate.getTime() !== pkg.end_date.getTime()) {
+      changes.push({
+        field: 'end_date',
+        field_label: '到期日期',
+        old_value: oldEndDate.toISOString().split('T')[0],
+        new_value: pkg.end_date.toISOString().split('T')[0]
+      });
+    }
+    await packageService._recordPackageChange(pkg, changes, operatorId, `管理员权益冻结：${trimmedReason}`);
+  }
+
+  // 账号处理：原本正常 → 随冻结一并禁用；原本已限制 → 保持原限制状态与标记
+  if (user.status === 'active') {
+    user.status = 'disabled';
+    user.frozen_by_package = true;
+  }
+  await user.save();
+
+  await logService.createLog({
+    operator_id: operatorId,
+    action: 'freeze',
+    module: 'member',
+    target_id: userId,
+    detail: `会员(${userId})权益冻结（${trimmedReason}，${frozenCount}个套餐封存）`,
+  });
+
+  try {
+    sendToUser(userId, 'package_update', { action: 'freeze' });
+  } catch (e) {
+    console.error('[Member] 推送套餐更新事件失败:', e.message);
+  }
+
+  return user;
+};
+
+// 解除权益冻结：到期日按实际冻结天数补回，次数不覆盖；账号仅在因冻结被禁用时恢复
+exports.unfreezeMember = async (userId, operatorId) => {
+  const user = await User.findById(userId);
+  if (!user) throw new Error('会员不存在');
+
+  const frozenPackages = await UserPackage.find({
+    user_id: userId,
+    status: 'active',
+    is_suspended: true,
+    suspend_type: 'freeze',
+  });
+  if (frozenPackages.length === 0 && !user.frozen_by_package) {
+    throw new Error('没有冻结中的套餐');
+  }
+
+  const now = new Date();
+  const DAY_MS = 24 * 60 * 60 * 1000;
+  let unfrozenCount = 0;
+  let totalDays = 0;
+
+  for (const pkg of frozenPackages) {
+    const oldEndDate = pkg.end_date;
+    let freezeDays = 0;
+    if (pkg.suspended_at) {
+      // 按整日计算，不足 1 天不补：同日冻结→解冻应原样恢复，不能固定 +1 天（反复操作会累计多加）
+      freezeDays = Math.floor((now.getTime() - pkg.suspended_at.getTime()) / DAY_MS);
+      if (freezeDays < 0) freezeDays = 0;
+    }
+
+    // 到期日校准：冻结前到期日 + 实际冻结整日数（0 天即恢复冻结前状态）
+    if (pkg.frozen_end_date) {
+      pkg.end_date = new Date(pkg.frozen_end_date.getTime() + freezeDays * DAY_MS);
+    }
+
+    pkg.is_suspended = false;
+    pkg.suspend_type = null;
+    pkg.suspended_at = null;
+    pkg.suspend_end_date = null;
+    pkg.frozen_remaining_credits = null;
+    pkg.frozen_end_date = null;
+
+    await pkg.save();
+    unfrozenCount++;
+    totalDays = freezeDays;
+
+    const changes = [{
+      field: 'is_suspended',
+      field_label: '冻结状态',
+      old_value: '权益冻结',
+      new_value: '正常'
+    }];
+    if (oldEndDate && pkg.end_date && oldEndDate.getTime() !== pkg.end_date.getTime()) {
+      changes.push({
+        field: 'end_date',
+        field_label: '到期日期',
+        old_value: oldEndDate.toISOString().split('T')[0],
+        new_value: pkg.end_date.toISOString().split('T')[0]
+      });
+    }
+    await packageService._recordPackageChange(pkg, changes, operatorId, `管理员解除冻结（实际冻结${freezeDays}天）`);
+  }
+
+  // 解冻后「随主套餐」赠课卡按主卡结算后的到期日同步，避免赠课与主卡有效期不一致
+  for (const pkg of frozenPackages) {
+    if (!pkg.is_bonus) {
+      await packageService.syncFollowMainBonusDates(pkg);
+    }
+  }
+
+  // 仅当账号是被冻结连带禁用时才恢复；原限制账号保持限制
+  if (user.status === 'disabled' && user.frozen_by_package) {
+    user.status = 'active';
+  }
+  user.frozen_by_package = false;
+  await user.save();
+
+  await logService.createLog({
+    operator_id: operatorId,
+    action: 'unfreeze',
+    module: 'member',
+    target_id: userId,
+    detail: `会员(${userId})解除权益冻结（实际冻结${totalDays}天，${unfrozenCount}个套餐恢复）`,
+  });
+
+  try {
+    sendToUser(userId, 'package_update', { action: 'unfreeze' });
+  } catch (e) {
+    console.error('[Member] 推送套餐更新事件失败:', e.message);
+  }
+
   return user;
 };
 
@@ -1174,7 +1413,7 @@ exports.exportMembers = async (store_id) => {
       member.birth_date ? member.birth_date.split('T')[0] : '',
       `"${storeName}"`,
       member.created_at ? member.created_at.toLocaleString('zh-CN') : '',
-      member.status === 'active' ? '正常' : member.status === 'disabled' ? '停卡' : '其他'
+      member.status === 'active' ? '正常' : member.status === 'disabled' ? '已限制' : '其他'
     ].join(',');
     csv += row + '\n';
   });

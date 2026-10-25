@@ -11,6 +11,19 @@ const isRetryableNetworkError = (err) => {
          msg.indexOf('fail') !== -1; // request:fail / request:fail timeout 等
 };
 
+// 限制账号 / 权益冻结状态缓存：供启动页按皮肤展示拦截说明
+const saveAccountBlock = (data) => {
+  const state = data && data.account_state;
+  if (!state) return;
+  try {
+    wx.setStorageSync('account_block', {
+      state: state,
+      message: (data && data.message) || '',
+      at: Date.now()
+    });
+  } catch (e) { /* 忽略存储异常 */ }
+};
+
 // 单次原始请求
 const _rawRequest = (options) => {
   return new Promise((resolve, reject) => {
@@ -33,6 +46,7 @@ const _rawRequest = (options) => {
           if (res.data.code === 200) {
             resolve(res.data);
           } else if (res.data.code === 401) {
+            saveAccountBlock(res.data.data);
             wx.removeStorageSync('token');
             if (app && app.globalData) {
               app.globalData.token = '';
@@ -50,6 +64,7 @@ const _rawRequest = (options) => {
           // 401: token 失效/过期/账号禁用，需清除 token 并触发重登
           // skipAuthRedirect=true 时仅清除 token 并 reject，由调用方决定后续处理（如自动重登）
           const skipAuthRedirect = options.skipAuthRedirect === true;
+          saveAccountBlock(res.data && res.data.data);
           // 先清除本地 token，避免后续请求携带失效 token
           wx.removeStorageSync('token');
           if (app && app.globalData) {

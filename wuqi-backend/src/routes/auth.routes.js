@@ -20,6 +20,10 @@ router.post('/wx-login', async (req, res, next) => {
     }
     res.json(success(result, '微信登录成功'));
   } catch (err) {
+    // 限制账号 / 权益冻结：返回 401 + 可区分状态，会员端据此展示皮肤化拦截页
+    if (err.account_state) {
+      return res.status(401).json({ code: 401, message: err.message, data: { account_state: err.account_state } });
+    }
     next(err);
   }
 });

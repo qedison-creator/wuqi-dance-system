@@ -713,6 +713,11 @@
   color: #C44B4B;
 }
 
+.status-info {
+  background: rgba(123, 158, 179, 0.12);
+  color: #6E93A8;
+}
+
 .status-default {
   background: rgba(184, 175, 158, 0.08);
   color: #8B7E6A;

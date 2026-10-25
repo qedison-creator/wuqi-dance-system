@@ -1180,6 +1180,25 @@ Page({
     require('../../utils/skin.js').closeSuccess(this);
   },
 
+  // 皮肤化状态拦截提示
+  showSkinNotice(kind, title, desc) {
+    const t = skinUtil.getSkin().t;
+    this.setData({
+      skinNotice: {
+        visible: true,
+        skin: skinUtil.getSkinId(),
+        kind: kind || 'paused',
+        title: title || t.noticePausedTitle,
+        desc: desc || t.noticePausedDesc,
+        okText: t.okBtn
+      }
+    });
+  },
+
+  onSkinNoticeOk() {
+    this.setData({ 'skinNotice.visible': false });
+  },
+
   onBookCourse(e) {
     // 未登录用户：先弹引导登录弹窗，用户点"去登录"后再弹授权弹窗
     if (!this.data.isLoggedIn) {
@@ -1206,15 +1225,9 @@ Page({
       return;
     }
 
-    // 套餐停卡中，拦截预约
+    // 套餐停卡中，拦截预约（按当前皮肤展示）
     if (this.data.isPackageSuspended) {
-      wx.showModal({
-        title: '无法预约',
-        content: '您的套餐暂停使用中，不能进行预约课程操作。',
-        showCancel: false,
-        confirmText: '知道了',
-        confirmColor: skinUtil.confirmColor()
-      });
+      this.showSkinNotice('paused');
       return;
     }
 
@@ -1639,7 +1652,7 @@ Page({
       const cd = new Date(String(course.date).replace(/-/g, '/'));
       if (!isNaN(cd.getTime())) {
         cardWd = '周' + '日一二三四五六'.charAt(cd.getDay());
-        cardDateCn = (cd.getMonth() + 1) + '/' + String(cd.getDate()).padStart(2, '0');
+        cardDateCn = (cd.getMonth() + 1) + '月' + String(cd.getDate()).padStart(2, '0') + '日';
       }
     }
     // 未开放预约（课程日期在预约窗口外）：推算开抢日 = 课程日期 - (窗口天数-1)，供 VOLT 卡「MM/DD 开抢」展示

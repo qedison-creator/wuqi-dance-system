@@ -263,6 +263,38 @@ async function activateLinkedBonusCards(mainPkg, options = {}) {
   return activated;
 }
 
+/**
+ * 主卡有效期变化后，同步「随主套餐」赠课卡的起止日期
+ * 覆盖场景：主卡编辑有效期、延长/撤销延长、放假顺延/回滚
+ * 单独有效期（bonus_expire_mode='months'）的赠课卡按自身日期独立计时，不受影响
+ * @param {Object} mainPkg 主卡 doc（需已落库）
+ * @returns {number} 同步的赠课卡数量
+ */
+async function syncFollowMainBonusDates(mainPkg) {
+  if (!mainPkg || mainPkg.is_bonus) return 0;
+  const linkedBonuses = await UserPackage.find({
+    is_bonus: true,
+    bonus_source_id: mainPkg._id,
+    status: 'active',
+    // 停卡/冻结中的赠课卡不在此处改期：复卡/解冻完成后再按主卡结算值同步
+    is_suspended: { $ne: true },
+    bonus_expire_mode: { $ne: 'months' },
+  });
+  for (const bonus of linkedBonuses) {
+    bonus.start_date = mainPkg.start_date || null;
+    bonus.end_date = mainPkg.end_date || null;
+    bonus.original_end_date = mainPkg.original_end_date || mainPkg.end_date || null;
+    bonus.duration_value = mainPkg.duration_value || null;
+    bonus.duration_unit = mainPkg.duration_unit || 'month';
+    await bonus.save();
+  }
+  if (linkedBonuses.length > 0) {
+    console.log(`[Package] 主卡(${mainPkg._id})有效期变化，联动更新随主套餐赠课卡 ${linkedBonuses.length} 张`);
+  }
+  return linkedBonuses.length;
+}
+exports.syncFollowMainBonusDates = syncFollowMainBonusDates;
+
 // ========== 套餐变更明细值展示格式化 ==========
 // PackageChange.changes 写入时保存的是原始字符串值（ObjectId/英文时间串/null/数字星期），
 // 查询展示时统一转为可读文案，存量历史数据同样生效。
@@ -1267,25 +1299,7 @@ exports.updatePackage = async (id, data, operatorId = null) => {
 
   // 「随主套餐」赠课卡跟随主卡当前起止（含本次编辑延长/缩短结果），与预建档编辑的同步逻辑保持一致；
   // months（单独有效期）模式的赠课卡不受主卡编辑影响
-  if (!userPackage.is_bonus) {
-    const linkedBonuses = await UserPackage.find({
-      is_bonus: true,
-      bonus_source_id: userPackage._id,
-      status: 'active',
-      bonus_expire_mode: { $ne: 'months' },
-    });
-    for (const bonus of linkedBonuses) {
-      bonus.start_date = userPackage.start_date || null;
-      bonus.end_date = userPackage.end_date || null;
-      bonus.original_end_date = userPackage.original_end_date || userPackage.end_date || null;
-      bonus.duration_value = userPackage.duration_value || null;
-      bonus.duration_unit = userPackage.duration_unit || 'month';
-      await bonus.save();
-    }
-    if (linkedBonuses.length > 0) {
-      console.log(`[Package] 主卡(${userPackage._id})编辑有效期，联动更新随主套餐赠课卡 ${linkedBonuses.length} 张`);
-    }
-  }
+  await syncFollowMainBonusDates(userPackage);
 
   // 记录套餐变更历史（仅当存在字段变更时）
   if (changes.length > 0) {
@@ -1357,7 +1371,8 @@ exports.deleteUserPackage = async (id, operatorId, reason = '', options = {}) =>
     PackageExtension.countDocuments({ user_package_id: id }),
   ]);
   const neverUsed = bookingCount === 0 && activationCount === 0 && extensionCount === 0;
-  const canPhysicallyDelete = !userPackage.is_activated && userPackage.status === 'pending' && neverUsed;
+  // forceVoid：历史补录（退款/转卡结清）必须保留记录，即使未激活未使用也强制作废，不做物理删除
+  const canPhysicallyDelete = !options.forceVoid && !userPackage.is_activated && userPackage.status === 'pending' && neverUsed;
   const typeLabel = userPackage.package_type === 'count_card' ? '次卡' : '时间卡';
 
   if (canPhysicallyDelete) {
@@ -2070,6 +2085,9 @@ exports.extendPackage = async (packageId, extendDays, operatorId, operatorName, 
   }
   await userPackage.save();
 
+  // 「随主套餐」赠课卡同步顺延（手动延长/放假顺延共用本入口），避免赠课到期日与主卡不一致
+  await syncFollowMainBonusDates(userPackage);
+
   // 构建延长记录快照
   const extendSnapshot = await exports._buildActivationSnapshot(userPackage);
 
@@ -2171,6 +2189,9 @@ exports.revokePackageExtension = async (extensionId, operatorId, operatorName, r
   if (!updated) {
     throw new Error('套餐状态刚刚发生了变化，请刷新后重试');
   }
+
+  // 「随主套餐」赠课卡同步回退，避免撤销延长后赠课到期日与主卡不一致
+  await syncFollowMainBonusDates(updated);
 
   // 标记原延长记录已撤回（防重复 + 前端展示）
   await PackageExtension.updateOne(
@@ -2472,7 +2493,9 @@ exports.getMemberPackageStatus = async (userId) => {
 
 exports.refreshPackageStatus = async (userId) => {
   const now = new Date();
-  const packages = await UserPackage.find({ user_id: userId, is_activated: true });
+  // 停卡/权益冻结中的套餐不参与状态刷新：期间有效期暂停，解冻/复卡后再按实际天数结算
+  // （尤其权益冻结不预延长 end_date，若被误标 expired，解冻时将找不到可恢复的套餐）
+  const packages = await UserPackage.find({ user_id: userId, is_activated: true, is_suspended: { $ne: true } });
 
   let updated = 0;
   for (const pkg of packages) {

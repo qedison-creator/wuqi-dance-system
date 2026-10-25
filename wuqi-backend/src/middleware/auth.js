@@ -15,11 +15,17 @@ const auth = async (req, res, next) => {
 
     // 从 DB 刷新关键权限字段，确保 role/store_id/store_ids/permissions 变更实时生效
     // （JWT payload 中的值可能已过期，以 DB 最新值为准）
-    const user = await User.findById(decoded.id).select('status role store_id store_ids permissions user_type nick_name');
+    const user = await User.findById(decoded.id).select('status frozen_by_package role store_id store_ids permissions user_type nick_name');
     if (!user) {
       return res.status(401).json(error(401, '账号不存在'));
     }
     if (user.status === 'disabled') {
+      // 会员：区分「限制账号」与「权益冻结」，供会员端按皮肤展示拦截页
+      if (user.user_type === 'member') {
+        const accountState = user.frozen_by_package ? 'frozen' : 'limited';
+        const message = user.frozen_by_package ? '套餐权益已冻结，请联系门店' : '账号已被限制，请联系门店';
+        return res.status(401).json(error(401, message, { account_state: accountState }));
+      }
       return res.status(401).json(error(401, '账号已被禁用，请联系管理员'));
     }
 

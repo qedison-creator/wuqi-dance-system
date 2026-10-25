@@ -40,6 +40,9 @@ const userPackageSchema = new mongoose.Schema({
   auto_activate_at: { type: Date },
   // 停卡相关
   is_suspended: { type: Boolean, default: false },
+  // 停卡类型：'leave'=请假/伤停（有期限，到期自动复卡并顺延）；'freeze'=权益冻结（退款/转卡，无期限，手动解冻）
+  // 历史数据 is_suspended=true 且 suspend_type 为空时统一按 'leave' 处理
+  suspend_type: { type: String, enum: ['leave', 'freeze'], default: null },
   suspended_at: { type: Date },
   suspend_end_date: { type: Date },
   frozen_remaining_credits: { type: Number },

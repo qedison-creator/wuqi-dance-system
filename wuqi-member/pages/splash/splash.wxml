@@ -1,4 +1,5 @@
 <view class="splash-container skin-root skin-{{skinId}}" style="background: {{sp.bg}};">
+  <block wx:if="{{!block}}">
   <view class="logo-wrapper {{ready ? 'logo-show' : ''}}">
     <view class="sp-seal" style="background: {{sp.sealBg}}; color: {{sp.sealColor}};">栖</view>
     <view class="sp-brand">
@@ -7,5 +8,20 @@
     </view>
     <image src="/images/logo.png" mode="widthFix" class="logo-img {{ready ? 'logo-ready' : ''}}"></image>
   </view>
+  </block>
+
+  <!-- 限制账号 / 权益冻结：按皮肤展示整屏说明 -->
+  <block wx:else>
+    <view class="sp-block sp-block-{{skinId}}">
+      <view class="sp-block-seal">{{block.state === 'frozen' ? '缓' : '止'}}</view>
+      <text class="sp-block-kicker">{{skinId === 'volt' ? (block.state === 'frozen' ? 'FROZEN' : 'ACCESS DENIED') : (skinId === 'paper' ? 'MEMBERSHIP NOTICE' : '账号状态')}}</text>
+      <text class="sp-block-title">{{block.title}}</text>
+      <text class="sp-block-desc">{{block.desc}}</text>
+      <view class="sp-block-actions">
+        <view class="sp-block-btn primary" bindtap="onContactStore"><text>{{block.contact}}</text></view>
+        <view class="sp-block-btn ghost" bindtap="onRecheck"><text>{{block.recheck}}</text></view>
+      </view>
+    </view>
+  </block>
 </view>
 <update-modal />

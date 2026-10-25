@@ -188,7 +188,7 @@ router.get('/:id', auth, checkPermission(['super_admin', 'store_manager', 'staff
 // PUT /api/v1/members/:id - 更新会员信息
 router.put('/:id', auth, checkPermission(['super_admin', 'store_manager']), storeFilter(), memberOwnershipGuard, async (req, res, next) => {
   try {
-    const member = await memberService.updateMember(req.params.id, req.body);
+    const member = await memberService.updateMember(req.params.id, req.body, req.user.id);
     res.json(success(member, '更新会员信息成功'));
   } catch (err) {
     next(err);
@@ -202,7 +202,7 @@ router.put('/:id/status', auth, checkPermission(['super_admin', 'store_manager']
     if (!status || !['active', 'disabled'].includes(status)) {
       return res.status(400).json({ code: 400, message: 'status必须为active或disabled', data: null });
     }
-    const member = await memberService.updateMember(req.params.id, { status });
+    const member = await memberService.updateMember(req.params.id, { status }, req.user.id);
     res.json(success(member, status === 'disabled' ? '会员已被限制使用' : '会员已恢复正常使用'));
   } catch (err) {
     next(err);
@@ -289,11 +289,35 @@ router.put('/:id/suspend', auth, checkPermission(['super_admin', 'store_manager'
   }
 });
 
-// PUT /api/v1/members/:id/unsuspend - 复卡
+// PUT /api/v1/members/:id/unsuspend - 复卡（仅请假停卡）
 router.put('/:id/unsuspend', auth, checkPermission(['super_admin', 'store_manager', 'staff']), storeFilter(), memberOwnershipGuard, async (req, res, next) => {
   try {
     const member = await memberService.unsuspendMember(req.params.id, req.user.id);
     res.json(success(member, '复卡成功'));
+  } catch (err) {
+    next(err);
+  }
+});
+
+// PUT /api/v1/members/:id/freeze - 权益冻结（退款/转卡处理期）
+router.put('/:id/freeze', auth, checkPermission(['super_admin', 'store_manager']), storeFilter(), memberOwnershipGuard, async (req, res, next) => {
+  try {
+    const { reason } = req.body;
+    if (!reason || !String(reason).trim()) {
+      return res.status(400).json({ code: 400, message: '请填写冻结原因', data: null });
+    }
+    const member = await memberService.freezeMember(req.params.id, reason, req.user.id);
+    res.json(success(member, '权益冻结成功'));
+  } catch (err) {
+    next(err);
+  }
+});
+
+// PUT /api/v1/members/:id/unfreeze - 解除权益冻结
+router.put('/:id/unfreeze', auth, checkPermission(['super_admin', 'store_manager']), storeFilter(), memberOwnershipGuard, async (req, res, next) => {
+  try {
+    const member = await memberService.unfreezeMember(req.params.id, req.user.id);
+    res.json(success(member, '解除冻结成功'));
   } catch (err) {
     next(err);
   }

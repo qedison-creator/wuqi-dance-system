@@ -143,8 +143,9 @@ Page({
   computeMemberStatus(userInfo, packages) {
     if (!userInfo || userInfo.member_status !== 'official') return 'disabled';
     if (packages && packages.length > 0) {
-      const hasSuspended = packages.some(function(p) { return p.is_suspended; });
-      if (hasSuspended) return 'suspended';
+      const activePkgs = packages.filter(function(p) { return p.status === 'active'; });
+      // 整会员停卡：全部 active 套餐都停卡；部分停卡不算，避免误显示
+      if (activePkgs.length > 0 && activePkgs.every(function(p) { return p.is_suspended; })) return 'suspended';
     }
     return 'active';
   },
@@ -955,7 +956,7 @@ Page({
         pendingPackages: [],
         historyPackages: [],
         currentPackageType: '',
-        memberStatusText: memberStatus === 'active' ? '正式会员' : (memberStatus === 'suspended' ? '已停卡' : '待激活')
+        memberStatusText: memberStatus === 'active' ? '正式会员' : (memberStatus === 'suspended' ? '停卡中' : '待激活')
       };
     }
 
@@ -1019,7 +1020,19 @@ Page({
       // 状态文案（情绪价值表达，无emoji）      // 动态修正：已激活但有效期已过的，标记为已过期
       var isExpired = pkg.is_activated && pkg.end_date && new Date() > new Date(pkg.end_date);
       if (pkg.is_suspended) {
-        pkg._statusText = '暂停中';
+        pkg._statusText = pkg.suspend_type === 'freeze' ? '已冻结' : '停卡中';
+        // 停卡说明：复卡后继续（纸上/VOLT 票根与经典卡片共用）
+        pkg._suspendNote = pkg.suspend_type === 'freeze'
+          ? '权益冻结中 · 有效期暂停'
+          : '停卡中 · 有效期冻结，复卡后继续';
+        if (pkg.suspend_type !== 'freeze' && pkg.suspend_end_date) {
+          var sd = new Date(pkg.suspend_end_date);
+          var sy = sd.getFullYear();
+          var sm = String(sd.getMonth() + 1).padStart(2, '0');
+          var sday = String(sd.getDate()).padStart(2, '0');
+          pkg._suspendEndDisplay = sy + '-' + sm + '-' + sday;
+          pkg._suspendNote = '停卡中 · ' + pkg._suspendEndDisplay + ' 自动复卡';
+        }
       } else if (isExpired || pkg.status === 'expired') {
         pkg._statusText = '已过期';
       } else if (pkg.status === 'active') {
@@ -1221,7 +1234,7 @@ Page({
       pendingPackages: pendingPackages,
       historyPackages: historyPackages,
       currentPackageType: currentPackageType,
-      memberStatusText: memberStatus === 'active' ? '正式会员' : (memberStatus === 'suspended' ? '已停卡' : '待激活')
+      memberStatusText: memberStatus === 'active' ? '正式会员' : (memberStatus === 'suspended' ? '停卡中' : '待激活')
     };
   },
 

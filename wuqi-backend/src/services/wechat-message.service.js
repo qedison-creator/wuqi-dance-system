@@ -229,8 +229,33 @@ const sendSubscribeMessage = async (openid, templateId, data, page = '', clientT
 
 // ========== 核心：从 DB 读取模板与映射发送 ==========
 
+// 订阅消息统一拦截：账号被限制 / 权益冻结（disabled），或请假停卡（全部 active 套餐均停卡）时不推送
+// 返回 true 表示拦截
+const isMemberMessageBlocked = async (openid) => {
+  if (!openid) return true;
+  try {
+    const User = require('../models/User');
+    const UserPackage = require('../models/UserPackage');
+    const user = await User.findOne({ openid }).select('status is_deleted user_type frozen_by_package');
+    if (!user) return true;
+    if (user.is_deleted || user.status === 'disabled') return true;
+    if (user.user_type !== 'member') return false;
+
+    const activePackages = await UserPackage.find({ user_id: user._id, status: 'active' })
+      .select('is_suspended');
+    if (activePackages.length === 0) return false;
+    return activePackages.every(p => p.is_suspended === true);
+  } catch (err) {
+    // 校验异常不阻塞正常业务通知
+    console.error('[WeChatMessage] 订阅消息状态校验失败:', err.message);
+    return false;
+  }
+};
+
 const sendByTemplateKey = async (openid, templateKey, bizData, page = '', clientType = 'member') => {
   if (!openid || !bizData) return false;
+  // 限制账号 / 权益冻结 / 停卡会员：所有订阅消息静默不推送
+  if (clientType === 'member' && await isMemberMessageBlocked(openid)) return false;
 
   const template = await loadTemplateFromDB(templateKey);
   if (!template || !template.templateId) return false;
@@ -358,5 +383,6 @@ exports.sendPhoneAuditResult = async (user, result, reason = '', clientType = 'm
 
 exports.sendSubscribeMessage = sendSubscribeMessage;
 exports.sendByTemplateKey = sendByTemplateKey;
+exports.isMemberMessageBlocked = isMemberMessageBlocked;
 exports.buildWxData = buildWxData;
 exports.clearMappingCache = clearMappingCache;

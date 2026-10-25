@@ -173,7 +173,8 @@ async function getPreMemberList(query = {}) {
   // 为每条记录查询套餐信息
   const userIds = list.map(u => u._id);
   const packages = userIds.length > 0 ? await UserPackage.find({
-    user_id: { $in: userIds }
+    user_id: { $in: userIds },
+    status: { $ne: 'voided' }  // 已作废套餐保留入库用于权益溯源，但不在预建档卡片中展示
   }).populate('store_id', 'name').populate('extra_store_ids', 'name').populate('dance_style_limit', 'name').lean() : [];
 
   const packageMap = {};

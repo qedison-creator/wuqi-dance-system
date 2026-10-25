@@ -363,6 +363,8 @@ const extendMemberPackages = async (totalDays, storeId, holidayId, operatorId, o
   const pkgFilter = {
     status: 'active',
     is_activated: true,
+    // 赠课卡不单独顺延：随主套餐（follow_main）由主卡顺延后联动同步，单独有效期（months）不跟随放假顺延
+    is_bonus: { $ne: true },
     end_date: { $ne: null },
     ...buildPackageStoreFilter(storeId),
   };
@@ -446,6 +448,16 @@ const rollbackMemberPackages = async (holidayId, operatorId, operatorName) => {
     const pkg = await UserPackage.findById(ext.user_package_id);
     if (!pkg) {
       console.warn('回滚放假顺延: 关联套餐不存在，跳过', ext.user_package_id);
+      continue;
+    }
+
+    // 历史版本对赠课卡也单独顺延过：随主套餐模式的赠课日期已由主卡回滚后联动同步，
+    // 这里跳过单独回退（仅标记已处理），避免双重扣减；单独有效期（months）模式的赠课卡正常回退
+    if (pkg.is_bonus && pkg.bonus_expire_mode !== 'months') {
+      await PackageExtension.updateOne(
+        { _id: ext._id },
+        { $set: { undone_at: new Date(), undone_by: operatorId } }
+      );
       continue;
     }
 

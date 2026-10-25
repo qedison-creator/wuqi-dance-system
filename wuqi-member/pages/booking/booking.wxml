@@ -452,3 +452,4 @@
 <login-modal visible="{{showLoginModal}}" bind:close="onLoginModalClose" bind:success="onLoginSuccess"></login-modal>
 <update-modal />
 <skin-success props="{{skinSuccess}}" bind:ok="onSkinSuccessOk" />
+<skin-notice props="{{skinNotice}}" bind:ok="onSkinNoticeOk" />

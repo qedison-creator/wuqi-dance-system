@@ -42,6 +42,7 @@
           <text>{{memberStatusText}}</text>
         </view>
         <text class="status-sub" wx:if="{{currentPackageType}}">当前套餐：{{currentPackageType}}</text>
+        <text class="status-sub" wx:if="{{memberStatus === 'suspended'}}">有效期已冻结，复卡后继续</text>
         <view class="hero-exemption exemption-anchor" wx:if="{{userInfo.exemption_count > 0}}" bindtap="onToggleExemptionTip">
           <text>豁免取消剩余{{userInfo.exemption_count}}次</text>
           <text class="hero-exemption-q">?</text>
@@ -65,6 +66,7 @@
             </view>
             <text class="pfp-sub" wx:if="{{userInfo.member_code}}">会员编号 {{userInfo.member_code}} · 与舞栖同行 {{memberSinceDays}} 天</text>
             <text class="pfp-sub" wx:else>与舞栖同行 {{memberSinceDays}} 天</text>
+            <text class="pfp-sub pfp-sub-pause" wx:if="{{memberStatus === 'suspended'}}">停卡中 · 有效期冻结</text>
           </view>
         </view>
       </view>
@@ -351,6 +353,10 @@
             <view class="pkg-new-footer" wx:if="{{item.is_activated && item.start_date_display}}">
               <text class="pkg-new-date-text">服务有效期：{{item.start_date_display}}至{{item.end_date_display}}</text>
             </view>
+            <!-- 停卡说明 -->
+            <view class="pkg-new-suspend-note" wx:if="{{item.is_suspended}}">
+              <text>{{item._suspendNote}}</text>
+            </view>
           </view>
         </view>
         </block>
@@ -531,12 +537,14 @@
                 <view class="pkt-store"><view class="pkt-store-dot"></view><text>{{item._storeName || '舞栖'}}</text></view>
                 <view class="pkt-store" wx:if="{{item._crossStore}}"><view class="pkt-store-dot pkt-store-dot-2"></view><text>跨店通用</text></view>
               </view>
+              <text class="pkt-pause" wx:if="{{item.is_suspended}}">{{item._suspendNote}}</text>
             </block>
             <block wx:else>
               <text class="pkt-k">MEMBERSHIP · {{item._typeLabel || '套餐'}}</text>
               <text class="pkt-name">{{item._isBonus ? '赠送课时' : (item.package_type === 'time_card' ? '时间卡' : '次卡')}}</text>
               <text class="pkt-source" wx:if="{{item._isBonus && item._sourceText}}">{{item._sourceText}}</text>
               <text class="pkt-meta">有效期至 {{item.end_date_display || '-'}}</text>
+              <text class="pkt-pause pkt-pause-volt" wx:if="{{item.is_suspended}}">{{item._suspendNote}}</text>
             </block>
           </view>
           <view class="pkt-right">
@@ -548,8 +556,9 @@
               <text class="pkt-big">{{item.remaining_days}}</text>
               <text class="pkt-lab">剩余天数</text>
             </block>
-            <view class="pkt-seal" wx:if="{{skinId === 'paper' && !item._isBonus}}">栖</view>
-            <view class="pkt-seal pkt-seal-bonus" wx:if="{{skinId === 'paper' && item._isBonus}}">赠</view>
+            <view class="pkt-seal pkt-seal-pause" wx:if="{{item.is_suspended}}">缓</view>
+            <view class="pkt-seal" wx:elif="{{skinId === 'paper' && !item._isBonus}}">栖</view>
+            <view class="pkt-seal pkt-seal-bonus" wx:elif="{{skinId === 'paper' && item._isBonus}}">赠</view>
           </view>
           <view class="pkt-barcode" wx:if="{{skinId === 'volt'}}"><view class="pkb-bar"></view><view class="pkb-bar pkb-w2"></view><view class="pkb-bar pkb-w3"></view><view class="pkb-bar"></view><view class="pkb-bar pkb-w2"></view><view class="pkb-bar"></view><view class="pkb-bar pkb-w3"></view><view class="pkb-bar pkb-w2"></view><view class="pkb-bar"></view><view class="pkb-bar pkb-w3"></view><view class="pkb-bar"></view><view class="pkb-bar pkb-w2"></view><view class="pkb-bar pkb-w3"></view><view class="pkb-bar"></view><view class="pkb-bar pkb-w2"></view><view class="pkb-bar"></view><view class="pkb-bar pkb-w3"></view><view class="pkb-bar pkb-w2"></view><view class="pkb-bar"></view><view class="pkb-bar pkb-w3"></view></view>
         </view>

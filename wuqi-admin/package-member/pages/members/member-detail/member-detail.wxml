@@ -1,4 +1,4 @@
-<page-meta page-style="{{showDeleteModal || showDeletePackageModal || showStoreModal || showAddPackageModal || showPackageEditModal || showEditNameModal || showSuspendModal || showExtendModal || showDanceStylePicker || showBonusModal || showBonusEditModal ? 'overflow: hidden;' : ''}}"/>
+<page-meta page-style="{{showDeleteModal || showDeletePackageModal || showStoreModal || showAddPackageModal || showPackageEditModal || showEditNameModal || showSuspendModal || showFreezeModal || showExtendModal || showDanceStylePicker || showBonusModal || showBonusEditModal ? 'overflow: hidden;' : ''}}"/>
 
 <!-- WXS：WXML 绑定不支持方法调用（indexOf），数组包含判断必须走 WXS -->
 <wxs module="wArr">
@@ -46,15 +46,26 @@ module.exports = {
         <text class="status-badge {{memberStatusClass}}">{{memberStatusText}}</text>
         <text class="store-tag-sm" wx:for="{{member.linkedStores}}" wx:key="_id">{{item.name}}</text>
       </view>
+      <!-- 账号受限说明：限制账号不冻结套餐时间；权益冻结则暂停有效期 -->
+      <view class="member-limit-banner {{member.frozen_by_package ? 'frozen' : ''}}" wx:if="{{member.status === 'disabled'}}">
+        <text class="member-limit-title">{{member.frozen_by_package ? '权益已冻结' : '账号已限制'}}</text>
+        <text class="member-limit-desc">{{member.frozen_by_package ? '套餐有效期已暂停，解冻后按实际冻结天数补回，剩余次数不变。' : '无法登录与预约，套餐有效期正常计时；如属退款/转卡，请改用权益冻结。'}}</text>
+      </view>
       <view class="member-actions">
-        <view class="toggle-status-btn {{member.status === 'disabled' ? 'enable' : 'disable'}}" wx:if="{{canEditMember}}" bindtap="onToggleMemberStatus">
+        <view class="toggle-status-btn {{member.status === 'disabled' ? 'enable' : 'disable'}}" wx:if="{{canManageAccount && !hasFrozenPackage && !member.frozen_by_package}}" bindtap="onToggleMemberStatus">
           <text>{{member.status === 'disabled' ? '解除限制' : '限制账号'}}</text>
         </view>
-        <view class="inline-suspend-btn" wx:if="{{hasActivePackage && canSetExemption}}" bindtap="onSuspendCard">
+        <view class="inline-suspend-btn" wx:if="{{hasActivePackage && canSetExemption && !hasFrozenPackage}}" bindtap="onSuspendCard">
           <text>停卡</text>
         </view>
-        <view class="inline-unsuspend-btn" wx:if="{{hasSuspendedPackage && canSetExemption}}" bindtap="onUnsuspendCard">
+        <view class="inline-unsuspend-btn" wx:if="{{hasSuspendedPackage && canSetExemption && !hasFrozenPackage}}" bindtap="onUnsuspendCard">
           <text>恢复停卡</text>
+        </view>
+        <view class="inline-freeze-btn" wx:if="{{hasFreezablePackage && canManageAccount && !hasFrozenPackage}}" bindtap="onFreezePackage">
+          <text>权益冻结</text>
+        </view>
+        <view class="inline-unfreeze-btn" wx:if="{{canManageAccount && (hasFrozenPackage || member.frozen_by_package)}}" bindtap="onUnfreezePackage">
+          <text>解除冻结</text>
         </view>
       </view>
     </view>
@@ -105,7 +116,7 @@ module.exports = {
             <text class="package-type-badge">{{item.package_type === 'time_card' ? '时间卡' : '次卡'}}</text>
             <text class="package-store-badge" wx:if="{{item.store_id && item.store_id.name}}">{{item.store_id.name}}</text>
             <text class="package-cross-store-badge" wx:if="{{item.extra_store_ids && item.extra_store_ids.length > 0}}">可跨店</text>
-            <text class="package-status-badge {{item.is_suspended ? 'suspended' : (item.is_activated ? (item._displayStatus || item.status) : 'pending')}}">{{item.is_suspended ? '已停用' : (item.is_activated ? ((item._displayStatus || item.status) === 'active' ? '使用中' : ((item._displayStatus || item.status) === 'expired' ? '已过期' : '已用完')) : '待激活')}}</text>
+            <text class="package-status-badge {{item.status === 'voided' ? 'voided' : (item.is_suspended ? (item.suspend_type === 'freeze' ? 'frozen' : 'suspended') : (item.is_activated ? (item._displayStatus || item.status) : 'pending'))}}">{{item.status === 'voided' ? '已作废' : (item.is_suspended ? (item.suspend_type === 'freeze' ? '已冻结' : '已停卡') : (item.is_activated ? ((item._displayStatus || item.status) === 'active' ? '使用中' : ((item._displayStatus || item.status) === 'expired' ? '已过期' : '已用完')) : '待激活'))}}</text>
           </view>
         </view>
         <view class="package-info">
@@ -124,8 +135,8 @@ module.exports = {
             <!-- 已激活：服务有效期 + 剩余天数 -->
             <block wx:if="{{item.is_activated && item.start_date}}">
               <text class="package-expire">{{item.start_date_display}} ~ {{item.end_date_display}}</text>
-              <text class="package-expire package-remaining" wx:if="{{item.remaining_days >= 0}}">剩余 {{item.remaining_days}} 天</text>
-              <text class="package-expire package-expired-soon" wx:if="{{item.remaining_days < 0}}">已超 {{0 - item.remaining_days}} 天</text>
+              <text class="package-expire package-remaining" wx:if="{{!item._isVoided && !item.is_suspended && item.remaining_days >= 0}}">剩余 {{item.remaining_days}} 天</text>
+              <text class="package-expire package-expired-soon" wx:if="{{!item._isVoided && !item.is_suspended && item.remaining_days < 0}}">已超 {{0 - item.remaining_days}} 天</text>
             </block>
           </block>
 
@@ -141,8 +152,8 @@ module.exports = {
               <text class="package-credits">剩余 {{item.remaining_credits || 0}} / {{item.total_credits || 0}} 次</text>
               <block wx:if="{{item.start_date}}">
                 <text class="package-expire">{{item.start_date_display}} ~ {{item.end_date_display}}</text>
-                <text class="package-expire package-remaining" wx:if="{{item.remaining_days >= 0}}">剩余 {{item.remaining_days}} 天</text>
-                <text class="package-expire package-expired-soon" wx:if="{{item.remaining_days < 0}}">已超 {{0 - item.remaining_days}} 天</text>
+                <text class="package-expire package-remaining" wx:if="{{!item._isVoided && !item.is_suspended && item.remaining_days >= 0}}">剩余 {{item.remaining_days}} 天</text>
+                <text class="package-expire package-expired-soon" wx:if="{{!item._isVoided && !item.is_suspended && item.remaining_days < 0}}">已超 {{0 - item.remaining_days}} 天</text>
               </block>
             </block>
           </block>
@@ -170,6 +181,17 @@ module.exports = {
 
           <!-- 未激活：待激活倒计时 -->
           <text class="package-expire package-pending" wx:if="{{!item.is_activated && item.auto_activate_at_display}}">待激活 · {{item.auto_activate_at_display}} 自动激活</text>
+
+          <!-- 停卡 / 权益冻结说明 -->
+          <view class="package-suspend-note {{item.suspend_type === 'freeze' ? 'frozen' : ''}}" wx:if="{{item.is_suspended}}">
+            <text>{{item.suspend_type === 'freeze' ? '权益冻结中 · 有效期暂停计时，解冻后按实际冻结天数补回，剩余次数不变' : '停卡中 · 有效期暂停计时，复卡后继续'}}</text>
+          </view>
+
+          <!-- 已作废说明：只读留痕 -->
+          <view class="package-voided-note" wx:if="{{item.status === 'voided'}}">
+            <text>套餐已作废 · 不参与预约与统计{{item.voided_reason ? '（' + item.voided_reason + '）' : ''}}</text>
+            <text class="package-voided-time" wx:if="{{item.voided_at_display}}">作废时间：{{item.voided_at_display}}</text>
+          </view>
         </view>
 
         <!-- 底部操作栏：功能按钮（描边按钮风格，与标签胶囊区分） -->
@@ -1022,6 +1044,46 @@ module.exports = {
       <view class="modal-actions">
         <view class="btn-secondary" bindtap="onCloseSuspendModal"><text>取消</text></view>
         <view class="btn-primary" bindtap="onConfirmSuspendCard"><text>确认停卡</text></view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 权益冻结弹窗（退款/转卡处理期） -->
+  <view class="modal-mask" wx:if="{{showFreezeModal}}" bindtap="onCloseFreezeModal">
+    <view class="suspend-modal-content" catchtap="onModalTap">
+      <view class="modal-header">
+        <text class="modal-title">权益冻结</text>
+        <text class="modal-close" bindtap="onCloseFreezeModal">×</text>
+      </view>
+
+      <view class="suspend-rules">
+        <text class="suspend-rules-title">冻结规则</text>
+        <view class="suspend-rule-item">
+          <text class="rule-dot">•</text>
+          <text class="rule-text">全部有效套餐（含赠课卡）有效期暂停计时</text>
+        </view>
+        <view class="suspend-rule-item">
+          <text class="rule-dot">•</text>
+          <text class="rule-text">剩余次数锁定不变，冻结期间无法预约与签到</text>
+        </view>
+        <view class="suspend-rule-item">
+          <text class="rule-dot">•</text>
+          <text class="rule-text">会员账号将被禁止登录，解冻后恢复</text>
+        </view>
+        <view class="suspend-rule-item">
+          <text class="rule-dot">•</text>
+          <text class="rule-text">解冻时按实际冻结天数补回到期日</text>
+        </view>
+      </view>
+
+      <view class="form-group">
+        <text class="form-label">冻结原因 *</text>
+        <input class="input-field" placeholder="必填，如：退款审核中、已办理转卡" value="{{freezeReason}}" bindinput="onFreezeReasonInput" />
+      </view>
+
+      <view class="modal-actions">
+        <view class="btn-secondary" bindtap="onCloseFreezeModal"><text>取消</text></view>
+        <view class="btn-primary" bindtap="onConfirmFreeze"><text>确认冻结</text></view>
       </view>
     </view>
   </view>

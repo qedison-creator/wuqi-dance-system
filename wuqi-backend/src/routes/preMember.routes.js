@@ -348,7 +348,10 @@ router.get('/:id', auth, checkPermission(['super_admin', 'store_manager', 'staff
     if (!user) {
       return res.status(404).json({ code: 404, message: '预建档记录不存在' });
     }
-    const packages = await UserPackage.find({ user_id: user._id })
+    const packages = await UserPackage.find({
+      user_id: user._id,
+      status: { $ne: 'voided' }  // 已作废套餐不在预建档详情/编辑回显中展示
+    })
       .populate('store_id', 'name')
       .populate('extra_store_ids', 'name')
       .populate('dance_style_limit', 'name')

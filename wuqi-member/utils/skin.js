@@ -40,7 +40,17 @@ const SKINS = {
       sealChar: '栖',
       okBtn: '好的',
       coachK: 'COACH',
-      lastK: 'RECORDS'
+      lastK: 'RECORDS',
+      noticePausedTitle: '暂不可约',
+      noticePausedDesc: '套餐停卡中，复卡后可继续预约',
+      stopBadge: '停卡中',
+      stopNote: '停卡中 · 有效期冻结，复卡后继续',
+      limitedTitle: '账号已限制',
+      limitedDesc: '请联系门店处理',
+      frozenTitle: '权益已冻结',
+      frozenDesc: '套餐权益处理中，请联系门店',
+      contactStore: '联系门店',
+      recheck: '重新验证'
     }
   },
   paper: {
@@ -74,7 +84,17 @@ const SKINS = {
       sealChar: '栖',
       okBtn: '好的',
       coachK: 'COACH',
-      lastK: 'RECORDS'
+      lastK: 'RECORDS',
+      noticePausedTitle: '暂停入场',
+      noticePausedDesc: '套餐停卡中，复卡后可继续预约',
+      stopBadge: '缓',
+      stopNote: '停卡中 · 有效期冻结',
+      limitedTitle: '暂停入场',
+      limitedDesc: '账号已限制，请联系门店',
+      frozenTitle: '暂缓使用',
+      frozenDesc: '权益处理中，请联系门店',
+      contactStore: '联系门店',
+      recheck: '重新验证'
     }
   },
   volt: {
@@ -108,7 +128,17 @@ const SKINS = {
       sealChar: '栖',
       okBtn: '好的，舞社见',
       coachK: 'COACH',
-      lastK: 'LAST SESSION'
+      lastK: 'LAST SESSION',
+      noticePausedTitle: 'PAUSED',
+      noticePausedDesc: '套餐停卡中，复卡后可继续预约',
+      stopBadge: 'PAUSED',
+      stopNote: 'PAUSED · 有效期已冻结',
+      limitedTitle: 'ACCESS DENIED',
+      limitedDesc: '账号已限制，请联系门店',
+      frozenTitle: 'FROZEN',
+      frozenDesc: '权益处理中，请联系门店',
+      contactStore: '联系门店',
+      recheck: '重新验证'
     }
   }
 };

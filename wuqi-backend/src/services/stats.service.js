@@ -598,12 +598,14 @@ exports.getPackageStatusList = async function (storeId) {
     is_activated: true,
     status: 'active',
     user_id: { $ne: null },
+    // 停卡/权益冻结套餐不做任何提醒（含到期、次数不足、久未到店）
+    is_suspended: { $ne: true },
   };
   if (storeId) pkgFilter.store_id = storeId;
 
-  // 拉取全部激活套餐（populate 用户 + 门店名）
+  // 拉取全部激活套餐（populate 用户 + 门店名；status 用于排除被限制/冻结的账号）
   const packages = await UserPackage.find(pkgFilter)
-    .populate('user_id', 'real_name nick_name avatar_url phone wechat_phone reserve_phone')
+    .populate('user_id', 'real_name nick_name avatar_url phone wechat_phone reserve_phone status')
     .populate('store_id', 'name')
     .lean();
 
@@ -613,6 +615,8 @@ exports.getPackageStatusList = async function (storeId) {
 
   packages.forEach(pkg => {
     if (!pkg.user_id) return;
+    // 账号被限制/权益冻结（禁用）的会员不进数据中心任何提醒
+    if (pkg.user_id.status === 'disabled') return;
     // 赠课卡不进数据中心三类提醒（到期/低次数/沉默）——有效期跟主套餐走、次数为赠送性质（决策4）
     if (pkg.is_bonus) return;
     const endDate = pkg.end_date ? dayjs(pkg.end_date) : null;

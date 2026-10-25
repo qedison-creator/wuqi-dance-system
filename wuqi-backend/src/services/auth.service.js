@@ -163,6 +163,13 @@ exports.wxLogin = async (code, storeId, clientType = 'member', profileData = {})
     throw new Error('该账号已注销，如需恢复使用请联系门店管理员');
   }
 
+  // 账号被限制 / 套餐权益冻结：禁止登录，并返回可区分状态供会员端按皮肤展示
+  if (user && user.status === 'disabled') {
+    const err = new Error(user.frozen_by_package ? '套餐权益已冻结，请联系门店' : '账号已被限制，请联系门店');
+    err.account_state = user.frozen_by_package ? 'frozen' : 'limited';
+    throw err;
+  }
+
   // 3. 生成JWT token
   const token = generateToken(user);
 

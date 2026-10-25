@@ -242,6 +242,8 @@ App({
     }).then(res => {
       this.globalData.userInfo = res.data;
       this.globalData.userInfoLastFetch = Date.now(); // 更新缓存时间
+      // 账号可用：清除限制/冻结拦截缓存
+      try { wx.removeStorageSync('account_block'); } catch (e) { /* 忽略 */ }
       this._tryMatchStoreForUser();
     }).catch((err) => {
       // 认证失败（401/403）：尝试静默重新登录后重试一次
@@ -619,6 +621,7 @@ App({
               this.globalData.userInfoLastFetch = Date.now();
               // 登录状态令牌自增，通知页面刷新数据
               this.globalData.loginStateToken = (this.globalData.loginStateToken || 0) + 1;
+              try { wx.removeStorageSync('account_block'); } catch (e) { /* 忽略 */ }
               console.log('[App] 静默重新登录成功');
               this._silentReLoginPromise = null;
               resolve(userInfo);
@@ -646,10 +649,10 @@ App({
   // 认证失效（账号被删除/禁用、token 过期等）时强制登出并回到启动页
   // 防止被删除的会员继续浏览本地缓存的会员信息
   forceLogoutAndRedirect(message = '账号已失效，请重新登录', silent = false) {
-    // 已经登出则不再重复跳转
-    if (!wx.getStorageSync('token') && !this.globalData.token) {
-      return;
-    }
+    // 已处于跳转流程则忽略，避免并发 401 重复 reLaunch
+    // 注意：request.js 在调用前已清除 token，不能用 token 是否为空判断是否已登出
+    if (this._redirectingToSplash) return;
+    this._redirectingToSplash = true;
     wx.removeStorageSync('token');
     wx.removeStorageSync('currentStore');  // 清除缓存门店，防止被删除会员的旧门店影响游客定位
     wx.removeStorageSync('userCoords');    // 清除缓存坐标，让游客重新定位
@@ -668,6 +671,7 @@ App({
       wx.showToast({ title: message, icon: 'none', duration: 2000 });
     }
     setTimeout(() => {
+      this._redirectingToSplash = false;
       wx.reLaunch({ url: '/pages/splash/splash' });
     }, silent ? 0 : 1500);
   }

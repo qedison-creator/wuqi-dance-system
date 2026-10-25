@@ -74,9 +74,30 @@
   color: #B5A5A5;
 }
 
-.pkg-status-badge.paused {
+.pkg-status-badge.paused,
+.pkg-status-badge.suspended {
   background: rgba(212,120,110,0.08);
   color: #D4786E;
+}
+
+.pkg-status-badge.frozen {
+  background: rgba(123,158,179,0.12);
+  color: #6E93A8;
+}
+
+.pkg-suspend-note {
+  margin: 0 28rpx 24rpx;
+  padding: 14rpx 18rpx;
+  border-radius: 14rpx;
+  background: rgba(212, 120, 110, 0.08);
+  color: #C4663E;
+  font-size: 22rpx;
+  line-height: 1.6;
+}
+
+.pkg-suspend-note.frozen {
+  background: rgba(123, 158, 179, 0.12);
+  color: #6E93A8;
 }
 
 .pkg-body {

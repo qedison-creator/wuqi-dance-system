@@ -165,6 +165,16 @@
   color: var(--color-danger);
 }
 
+.status-badge.disabled {
+  background-color: var(--color-danger-bg);
+  color: var(--color-danger);
+}
+
+.status-badge.frozen {
+  background-color: var(--color-info-bg);
+  color: var(--color-info);
+}
+
 .status-badge.expired {
   background-color: rgba(184, 175, 158, 0.2);
   color: var(--text-tertiary);
@@ -259,6 +269,62 @@
   background: var(--color-primary-bg);
   color: var(--color-primary);
   border: 1rpx solid rgba(196, 102, 62, 0.3);
+}
+
+.inline-freeze-btn {
+  display: inline-flex;
+  align-items: center;
+  padding: 10rpx 24rpx;
+  border-radius: var(--radius-md);
+  font-size: 24rpx;
+  font-weight: 500;
+  background: var(--color-info-bg);
+  color: var(--color-info);
+  border: 1rpx solid rgba(123, 158, 179, 0.3);
+}
+
+.inline-unfreeze-btn {
+  display: inline-flex;
+  align-items: center;
+  padding: 10rpx 24rpx;
+  border-radius: var(--radius-md);
+  font-size: 24rpx;
+  font-weight: 500;
+  background: var(--color-success-bg);
+  color: var(--color-success);
+  border: 1rpx solid rgba(52, 199, 89, 0.3);
+}
+
+.member-limit-banner {
+  margin-top: 16rpx;
+  padding: 14rpx 18rpx;
+  border-radius: var(--radius-md);
+  background: var(--color-danger-bg);
+  border: 1rpx solid rgba(255, 59, 48, 0.18);
+}
+
+.member-limit-banner.frozen {
+  background: var(--color-info-bg);
+  border-color: rgba(123, 158, 179, 0.25);
+}
+
+.member-limit-title {
+  display: block;
+  font-size: 24rpx;
+  font-weight: 600;
+  color: var(--color-danger);
+}
+
+.member-limit-banner.frozen .member-limit-title {
+  color: var(--color-info);
+}
+
+.member-limit-desc {
+  display: block;
+  margin-top: 6rpx;
+  font-size: 22rpx;
+  line-height: 1.6;
+  color: var(--text-secondary);
 }
 
 .section {
@@ -434,6 +500,51 @@
 .package-status-badge.suspended {
   background-color: var(--color-danger-bg);
   color: var(--color-danger);
+}
+
+.package-status-badge.frozen {
+  background-color: var(--color-info-bg);
+  color: var(--color-info);
+}
+
+/* 已作废：灰色只读留痕 */
+.package-status-badge.voided {
+  background-color: rgba(184, 175, 158, 0.22);
+  color: var(--text-tertiary);
+}
+
+.package-suspend-note {
+  margin-top: 12rpx;
+  padding: 10rpx 14rpx;
+  border-radius: var(--radius-sm, 8rpx);
+  background: var(--color-danger-bg);
+  color: var(--color-danger);
+  font-size: 22rpx;
+  line-height: 1.6;
+}
+
+.package-suspend-note.frozen {
+  background: var(--color-info-bg);
+  color: var(--color-info);
+}
+
+/* 已作废说明：灰色只读 */
+.package-voided-note {
+  margin-top: 12rpx;
+  padding: 10rpx 14rpx;
+  border-radius: var(--radius-sm, 8rpx);
+  background: rgba(184, 175, 158, 0.16);
+  color: var(--text-tertiary);
+  font-size: 22rpx;
+  line-height: 1.6;
+  display: flex;
+  flex-direction: column;
+  gap: 4rpx;
+}
+
+.package-voided-time {
+  font-size: 20rpx;
+  opacity: 0.85;
 }
 
 .package-actions {

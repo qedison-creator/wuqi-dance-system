@@ -421,6 +421,8 @@ const startScheduler = () => {
       const expiredSuspends = await UserPackage.find({
         status: 'active',
         is_suspended: true,
+        // 仅请假停卡自动复卡；权益冻结（freeze）必须人工解冻
+        suspend_type: { $ne: 'freeze' },
         suspend_end_date: { $lte: now, $ne: null },
       });
 
@@ -434,21 +436,22 @@ const startScheduler = () => {
       for (const pkg of expiredSuspends) {
         const suspendedAt = pkg.suspended_at;
 
-        // 计算实际停卡天数
+        // 计算实际停卡天数（按整日计算，不足 1 天不补）
         let actualSuspendDays = 0;
         if (suspendedAt) {
           const diffMs = (pkg.suspend_end_date || now).getTime() - suspendedAt.getTime();
-          actualSuspendDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
-          if (actualSuspendDays < 1) actualSuspendDays = 1;
+          actualSuspendDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+          if (actualSuspendDays < 0) actualSuspendDays = 0;
         }
 
         // 校准 end_date
-        if (pkg.frozen_end_date && actualSuspendDays > 0) {
+        if (pkg.frozen_end_date) {
           const correctedEndDate = new Date(pkg.frozen_end_date.getTime() + actualSuspendDays * 24 * 60 * 60 * 1000);
           pkg.end_date = correctedEndDate;
         }
 
         pkg.is_suspended = false;
+        pkg.suspend_type = null;
         pkg.suspended_at = null;
         pkg.suspend_end_date = null;
         pkg.frozen_remaining_credits = null;

@@ -1202,6 +1202,17 @@ page {
   line-height: 1.5;
 }
 
+/* 停卡说明（经典卡片） */
+.pkg-new-suspend-note {
+  margin-top: 12rpx;
+  padding: 10rpx 16rpx;
+  border-radius: 12rpx;
+  background: rgba(196, 75, 75, 0.08);
+  color: #C44B4B;
+  font-size: 22rpx;
+  line-height: 1.5;
+}
+
 /* 待激活卡片底部说明文字（强制激活提示） */
 .pkg-new-footer-hint {
   color: #A69294;

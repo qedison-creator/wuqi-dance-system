@@ -532,6 +532,8 @@ Page({
         data.cross_store = true;
       } else if (this.data.activeFilter === 'suspended') {
         data.package_suspended = true;
+      } else if (this.data.activeFilter === 'frozen') {
+        data.package_frozen = true;
       } else if (this.data.activeFilter === 'unactivated') {
         data.package_pending = true;
       } else if (this.data.activeFilter === 'exhausted') {
@@ -631,9 +633,10 @@ Page({
     // 构建套餐行数据：一个套餐一行，每行携带自己的状态标签（已激活/待激活/已停卡/已过期/已用完）
     let packageRows = [];
     if (member.member_status === 'official' && member.packages && member.packages.length > 0) {
-      // 展示排序：使用中 > 已停卡 > 待激活 > 已用完 > 已过期
-      const statusOrder = { active: 0, suspended: 1, pending: 2, exhausted: 3, expired: 4 };
+      // 展示排序：使用中 > 已停卡 > 待激活 > 已用完 > 已过期 > 已作废
+      const statusOrder = { active: 0, suspended: 1, pending: 2, exhausted: 3, expired: 4, voided: 5 };
       const getPkgOrder = (p) => {
+        if (p.status === 'voided') return statusOrder.voided;
         if (p.status === 'active' && p.is_suspended) return statusOrder.suspended;
         return statusOrder[p.status] !== undefined ? statusOrder[p.status] : 9;
       };
@@ -692,9 +695,12 @@ Page({
           // 套餐状态标签
           let statusText = '';
           let statusCls = '';
-          if (pkg.is_suspended) {
-            statusText = '已停卡';
-            statusCls = 'status-danger';
+          if (pkg.status === 'voided') {
+            statusText = '已作废';
+            statusCls = 'status-default';
+          } else if (pkg.is_suspended) {
+            statusText = pkg.suspend_type === 'freeze' ? '已冻结' : '已停卡';
+            statusCls = pkg.suspend_type === 'freeze' ? 'status-info' : 'status-danger';
           } else if (pkg.status === 'active') {
             statusText = '已激活';
             statusCls = 'status-active';
@@ -750,20 +756,23 @@ Page({
     let displayStatus = 'inactive';
     let canEditPackage = false;
     if (member.status === 'disabled') {
-      displayStatus = 'disabled';
+      displayStatus = member.frozen_by_package ? 'frozen' : 'disabled';
     } else if (member.member_status === 'registered') {
       displayStatus = 'pending';
     } else if (!member.packages || member.packages.length === 0) {
       displayStatus = 'no-package';
     } else {
       const activePkg = member.packages.find(p => p.status === 'active' && p.is_activated && !p.is_suspended);
-      const suspendedPkg = member.packages.find(p => p.status === 'active' && p.is_activated && p.is_suspended);
+      const suspendedPkg = member.packages.find(p => p.status === 'active' && p.is_activated && p.is_suspended && p.suspend_type !== 'freeze');
+      const frozenPkg = member.packages.find(p => p.status === 'active' && p.is_activated && p.is_suspended && p.suspend_type === 'freeze');
       const pendingPkg = member.packages.find(p => p.status === 'pending' && !p.is_activated);
       const exhaustedPkg = member.packages.find(p => p.status === 'exhausted');
       const expiredPkg = member.packages.find(p => p.status === 'expired');
       if (activePkg) {
         displayStatus = 'active';
         canEditPackage = true;
+      } else if (frozenPkg) {
+        displayStatus = 'frozen';
       } else if (suspendedPkg) {
         displayStatus = 'suspended';
       } else if (pendingPkg) {
@@ -773,6 +782,9 @@ Page({
         displayStatus = 'exhausted';
       } else if (expiredPkg) {
         displayStatus = 'expired';
+      } else if (member.packages.some(p => p.status === 'voided')) {
+        // 仅有已作废套餐：不显示「未录套餐」，也不提示录入套餐
+        displayStatus = 'voided';
       } else {
         displayStatus = 'no-package';
       }

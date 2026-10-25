@@ -114,6 +114,7 @@ async function checkPackageExpireReminders() {
 
   const packages = await UserPackage.find({
     status: 'active',
+    is_bonus: { $ne: true },  // 赠课卡不发到期提醒：有效期随主套餐或到期自动失效，无需提醒会员
     end_date: { $gte: todayDate, $lte: expireDate.toDate() }
   }).populate('user_id');
 
@@ -172,6 +173,7 @@ async function checkCountCardLowReminders() {
   const packages = await UserPackage.find({
     package_type: 'count_card',
     status: 'active',
+    is_bonus: { $ne: true },  // 赠课卡不发次数不足提醒：避免新赠课卡一创建就误报「剩余次数仅剩N次」
     remaining_credits: { $gt: 0, $lte: lowCount },
     end_date: { $gte: today.toDate() }
   }).populate('user_id');

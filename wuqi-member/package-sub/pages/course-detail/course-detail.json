@@ -3,6 +3,7 @@
   "usingComponents": {
     "empty-state": "/components/empty-state/empty-state",
     "login-modal": "/components/login-modal/login-modal",
-    "skin-success": "/components/skin-success/skin-success"
+    "skin-success": "/components/skin-success/skin-success",
+    "skin-notice": "/components/skin-notice/skin-notice"
   }
 }

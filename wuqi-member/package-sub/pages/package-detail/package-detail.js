@@ -74,6 +74,19 @@ Page({
             }
           }
         }
+        // 停卡/冻结说明
+        if (pkg.is_suspended) {
+          pkg._suspendNote = pkg.suspend_type === 'freeze'
+            ? '权益冻结中 · 有效期暂停，解冻后按实际冻结天数补回'
+            : '停卡中 · 有效期暂停，复卡后继续';
+          if (pkg.suspend_type !== 'freeze' && pkg.suspend_end_date) {
+            const sd = new Date(pkg.suspend_end_date);
+            const sy = sd.getFullYear();
+            const sm = String(sd.getMonth() + 1).padStart(2, '0');
+            const sday = String(sd.getDate()).padStart(2, '0');
+            pkg._suspendNote = `停卡中 · 有效期暂停，预计 ${sy}-${sm}-${sday} 自动复卡`;
+          }
+        }
         // 舞种限制展示文本：populate 后是 [{_id, name}]，空数组=不限舞种
         var dsl = Array.isArray(pkg.dance_style_limit) ? pkg.dance_style_limit : [];
         if (dsl.length > 0) {

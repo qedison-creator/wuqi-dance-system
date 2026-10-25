@@ -70,6 +70,9 @@ Page({
     suspendDays: 7,
     customSuspendDays: '',
     suspendReason: '',
+    // 权益冻结弹窗（退款/转卡处理期）
+    showFreezeModal: false,
+    freezeReason: '',
     // 新增套餐弹窗
     showAddPackageModal: false,
     addPackageForm: {},
@@ -109,6 +112,7 @@ Page({
     showDeleteModal: false,
     deleteConfirmName: '',
     isAdmin: false,
+    canManageAccount: false, // 限制账号 / 权益冻结权限（店长及以上）
     // 删除套餐
     showDeletePackageModal: false,
     deletingPackage: null,
@@ -152,7 +156,9 @@ Page({
     const userInfo = app.globalData.userInfo || {};
     this.setData({
       isAdmin: userInfo.role === 'super_admin',
-      isReviewer: userInfo.role === 'reviewer'
+      isReviewer: userInfo.role === 'reviewer',
+      // 限制账号 / 权益冻结仅店长及以上可操作（与后端路由权限一致）
+      canManageAccount: userInfo.role === 'super_admin' || userInfo.role === 'store_manager'
     });
     // 标志位：会员套餐/状态数据是否有变更（用于返回列表页时通知局部刷新）
     this._memberDataModified = false;
@@ -384,7 +390,12 @@ Page({
         }
         // 计算剩余天数（已激活的套餐）
 
-        if (pkg.is_activated && pkg.end_date) {
+        if (pkg.status === 'voided') {
+          // 已作废套餐：只读留痕，不计算剩余天数、不做动态状态修正
+          pkg._isVoided = true;
+          pkg.remaining_days = null;
+          if (pkg.voided_at) pkg.voided_at_display = this.formatDate(pkg.voided_at);
+        } else if (pkg.is_activated && pkg.end_date) {
           const now = getBeijingDate();
           const end = getBeijingDate(pkg.end_date);
           // 纯自然日差（与会员端个人中心口径一致）：取两端北京日期部分计算，
@@ -456,6 +467,8 @@ Page({
         pkg._timeLimitText = (tb && ta) ? (tb + '前、' + ta + '后') : (tb ? (tb + '前') : (ta ? (ta + '后') : ''));
         return pkg;
       });
+      // 已作废套餐排在最后，避免占据正常套餐的视觉位置
+      packages.sort((a, b) => (a._isVoided ? 1 : 0) - (b._isVoided ? 1 : 0));
 
       // 格式化预约记录日期
 
@@ -485,7 +498,9 @@ Page({
 
       // 计算综合会员状态
 
-      const { statusText, statusClass, hasActive, hasSuspended } = this.calcMemberStatus(member, packages);
+      const { statusText, statusClass, hasActive, hasSuspended, hasFrozen } = this.calcMemberStatus(member, packages);
+      // 可冻结：存在未停卡的 active 套餐；冻结后不允许重复冻结
+      const hasFreezable = packages.some(p => p.status === 'active' && !p.is_suspended);
 
       // 手机号脱敏：保留原始号码用于切换显示，脱敏号默认展示
       const maskPhone = (p) => {
@@ -513,6 +528,11 @@ Page({
       // - 非跨门店访问：所有套餐都可操作（受角色限制）
       // - 跨门店访问：仅 store_id=当前门店 且非跨门店套餐（extra_store_ids 为空）可操作
       packages.forEach(pkg => {
+        // 已作废套餐只读展示，不提供任何操作入口
+        if (pkg.status === 'voided') {
+          pkg.canOperate = false;
+          return;
+        }
         const pkgStoreId = pkg.store_id && typeof pkg.store_id === 'object' ? String(pkg.store_id._id || pkg.store_id) : String(pkg.store_id || '');
         const isCrossStorePackage = pkg.extra_store_ids && pkg.extra_store_ids.length > 0;
         if (crossStoreAccess) {
@@ -533,6 +553,8 @@ Page({
         memberStatusClass: statusClass,
         hasActivePackage: hasActive,
         hasSuspendedPackage: hasSuspended,
+        hasFrozenPackage: !!hasFrozen,
+        hasFreezablePackage: hasFreezable,
         showFullPhone: false,  // 每次加载详情重置为脱敏显示
         loading: false,
         // 跨门店权限控制标志
@@ -571,35 +593,46 @@ Page({
    * 优先级：已停卡 > 有使用中 > 待激活 > 已到期 > 次卡已用完 > 时间卡周期次数已用完 > 套餐已失效
    */
   calcMemberStatus(member, packages) {
-    const pkgList = packages || [];
-    const suspendedPackages = pkgList.filter(p => p.is_suspended);
-    const hasSuspended = suspendedPackages.length > 0;
+    // 已作废套餐只读留痕，不参与会员状态计算
+    const pkgList = (packages || []).filter(p => p.status !== 'voided');
+    // 权益冻结与请假停卡分开统计：freeze 无期限、手动解冻；leave 有期限、自动复卡
+    const frozenPackages = pkgList.filter(p => p.is_suspended && p.suspend_type === 'freeze');
+    const suspensionPackages = pkgList.filter(p => p.is_suspended && p.suspend_type !== 'freeze');
+    const hasFrozen = frozenPackages.length > 0;
+    const hasSuspended = suspensionPackages.length > 0;
 
-    // 账户已停用
-
+    // 账号被限制 / 因权益冻结被禁用
     if (member.status === 'disabled') {
-      return { statusText: '已停卡', statusClass: 'suspended', hasActive: false, hasSuspended };
+      if (member.frozen_by_package || hasFrozen) {
+        return { statusText: '已冻结', statusClass: 'frozen', hasActive: false, hasSuspended, hasFrozen: true };
+      }
+      return { statusText: '已限制', statusClass: 'disabled', hasActive: false, hasSuspended, hasFrozen: false };
     }
 
     // 没有套餐
 
     if (pkgList.length === 0) {
-      return { statusText: '无套餐', statusClass: 'no-package', hasActive: false, hasSuspended: false };
+      return { statusText: '无套餐', statusClass: 'no-package', hasActive: false, hasSuspended: false, hasFrozen: false };
     }
 
     // 检查是否有使用中的套餐（已激活、未停卡、未过期）
 
     const activePackages = pkgList.filter(p => p.status === 'active' && !p._displayStatus && p.is_activated && !p.is_suspended);
     if (activePackages.length > 0) {
-      // 有活跃套餐，同时可能也有已停卡套餐（混合状态：仍算已激活，可操作停卡/复卡）
+      // 有活跃套餐，同时可能也有已停卡/冻结套餐（混合状态）
+      return { statusText: '已激活', statusClass: 'activated', hasActive: true, hasSuspended, hasFrozen };
+    }
 
-      return { statusText: '已激活', statusClass: 'activated', hasActive: true, hasSuspended };
+    // 全部冻结
+
+    if (hasFrozen) {
+      return { statusText: '已冻结', statusClass: 'frozen', hasActive: false, hasSuspended, hasFrozen: true };
     }
 
     // 所有活跃套餐都停卡了
 
     if (hasSuspended) {
-      return { statusText: '已停卡', statusClass: 'suspended', hasActive: false, hasSuspended: true };
+      return { statusText: '已停卡', statusClass: 'suspended', hasActive: false, hasSuspended: true, hasFrozen: false };
     }
 
     // 检查是否有待激活的套餐
@@ -1804,6 +1837,77 @@ Page({
           } catch (err) {
             wx.hideLoading();
             wx.showToast({ title: err.data?.message || '恢复失败', icon: 'none' });
+          }
+        }
+      }
+    });
+  },
+
+  // ========== 权益冻结（退款/转卡处理期） ==========
+  onFreezePackage() {
+    if (!this.data.hasFreezablePackage) {
+      wx.showToast({ title: '没有可冻结的有效套餐', icon: 'none' });
+      return;
+    }
+    this.setData({ showFreezeModal: true, freezeReason: '' });
+  },
+
+  onCloseFreezeModal() {
+    this.setData({ showFreezeModal: false, freezeReason: '' });
+  },
+
+  onFreezeReasonInput(e) {
+    this.setData({ freezeReason: e.detail.value });
+  },
+
+  async onConfirmFreeze() {
+    const { memberId, freezeReason } = this.data;
+    const reason = (freezeReason || '').trim();
+    if (!reason) {
+      wx.showToast({ title: '请填写冻结原因', icon: 'none' });
+      return;
+    }
+
+    wx.showLoading({ title: '处理中...', mask: true });
+    try {
+      await request({
+        url: `/members/${memberId}/freeze`,
+        method: 'PUT',
+        data: { reason }
+      });
+      wx.hideLoading();
+      wx.showToast({ title: '权益冻结成功', icon: 'success' });
+      this.setData({ showFreezeModal: false, freezeReason: '' });
+      this.loadMemberDetail();
+    } catch (err) {
+      wx.hideLoading();
+      // 业务/HTTP 错误已由 request 统一提示，避免重复 toast
+      if (!err.statusCode && !err._handled) {
+        wx.showToast({ title: (err && err.message) || '冻结失败', icon: 'none' });
+      }
+    }
+  },
+
+  onUnfreezePackage() {
+    const { memberId } = this.data;
+    wx.showModal({
+      title: '确认解除冻结',
+      content: '解冻后套餐有效期按实际冻结天数补回，剩余次数不变；因冻结被禁用的账号将恢复登录。确认解除吗？',
+      confirmText: '确认解冻',
+      confirmColor: '#C5744B',
+      success: async (res) => {
+        if (!res.confirm) return;
+        wx.showLoading({ title: '处理中...', mask: true });
+        try {
+          await request({ url: `/members/${memberId}/unfreeze`, method: 'PUT' });
+          wx.hideLoading();
+          wx.showToast({ title: '已解除冻结', icon: 'success' });
+          this.loadMemberDetail();
+        } catch (err) {
+          wx.hideLoading();
+          // 业务/HTTP 错误已由 request 统一提示，避免重复 toast
+          if (!err.statusCode && !err._handled) {
+            wx.showToast({ title: (err && err.message) || '解冻失败', icon: 'none' });
           }
         }
       }

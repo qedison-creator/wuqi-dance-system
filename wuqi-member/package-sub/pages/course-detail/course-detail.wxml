@@ -442,3 +442,4 @@
 </empty-state>
 <update-modal />
 <skin-success props="{{skinSuccess}}" bind:ok="onSkinSuccessOk" />
+<skin-notice props="{{skinNotice}}" bind:ok="onSkinNoticeOk" />

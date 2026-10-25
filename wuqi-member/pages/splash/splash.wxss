@@ -92,3 +92,135 @@
 /* paper/volt：使用皮肤字标系统，隐藏 classic 位图 logo（避免叠影） */
 .skin-volt .logo-img,
 .skin-paper .logo-img { display: none; }
+
+/* ---------- 限制账号 / 权益冻结整屏说明 ---------- */
+.sp-block {
+  width: 560rpx;
+  max-width: 82vw;
+  box-sizing: border-box;
+  text-align: center;
+  animation: sp-block-in 320ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.sp-block-seal {
+  width: 116rpx;
+  height: 116rpx;
+  margin: 0 auto 24rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 52rpx;
+  font-weight: 700;
+  border-radius: 16rpx;
+  background: #D4786E;
+  color: #FFFFFF;
+  box-shadow: 4rpx 5rpx 0 rgba(0, 0, 0, 0.12);
+}
+
+.sp-block-kicker {
+  display: block;
+  font-size: 18rpx;
+  letter-spacing: 0.32em;
+  color: #B5A5A5;
+  font-weight: 700;
+  margin-bottom: 12rpx;
+}
+
+.sp-block-title {
+  display: block;
+  font-size: 42rpx;
+  font-weight: 800;
+  color: #2A2122;
+}
+
+.sp-block-desc {
+  display: block;
+  margin-top: 14rpx;
+  font-size: 25rpx;
+  line-height: 1.7;
+  color: #8B7E6A;
+}
+
+.sp-block-actions {
+  margin-top: 40rpx;
+  display: flex;
+  flex-direction: column;
+  gap: 18rpx;
+}
+
+.sp-block-btn {
+  height: 84rpx;
+  border-radius: 999rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28rpx;
+  font-weight: 600;
+}
+
+.sp-block-btn.primary {
+  background: #D4786E;
+  color: #FFFFFF;
+}
+
+.sp-block-btn.ghost {
+  border: 1rpx solid rgba(139, 126, 106, 0.35);
+  color: #8B7E6A;
+}
+
+/* 纸上舞台 */
+.sp-block-paper {
+  background: #FCFAF4;
+  border: 2rpx solid #DFD6C2;
+  border-radius: 10rpx;
+  padding: 56rpx 40rpx 40rpx;
+  box-shadow: none;
+}
+.sp-block-paper .sp-block-seal {
+  background: #B93A26;
+  color: #FCF7EE;
+  border-radius: 12rpx;
+  transform: rotate(-4deg);
+}
+.sp-block-paper .sp-block-kicker { color: #A79D89; }
+.sp-block-paper .sp-block-title {
+  font-family: "Noto Serif SC", "Songti SC", serif;
+  color: #221D15;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+}
+.sp-block-paper .sp-block-desc { color: #6C6353; }
+.sp-block-paper .sp-block-btn { border-radius: 6rpx; font-family: "Noto Serif SC", "Songti SC", serif; letter-spacing: 0.1em; }
+.sp-block-paper .sp-block-btn.primary { background: #221D15; color: #FCF7EE; }
+.sp-block-paper .sp-block-btn.ghost { border: 2rpx dashed #DFD6C2; color: #6C6353; }
+
+/* VOLT */
+.sp-block-volt {
+  background: #F2F1ED;
+  border: 3rpx solid #111310;
+  border-radius: 32rpx;
+  padding: 48rpx 40rpx 38rpx;
+  box-shadow: 8rpx 8rpx 0 #111310;
+}
+.sp-block-volt .sp-block-seal {
+  background: #D7FF3B;
+  color: #111310;
+  border-radius: 24rpx;
+  transform: rotate(-6deg);
+}
+.sp-block-volt .sp-block-kicker { color: #77786F; }
+.sp-block-volt .sp-block-title {
+  color: #111310;
+  font-size: 46rpx;
+  font-weight: 900;
+  letter-spacing: 0.02em;
+}
+.sp-block-volt .sp-block-desc { color: #55574F; }
+.sp-block-volt .sp-block-btn { border-radius: 999rpx; font-weight: 800; }
+.sp-block-volt .sp-block-btn.primary { background: #D7FF3B; color: #111310; border: 3rpx solid #111310; }
+.sp-block-volt .sp-block-btn.ghost { border: 2rpx solid #111310; color: #111310; }
+
+@keyframes sp-block-in {
+  from { opacity: 0; transform: translateY(20rpx); }
+  to { opacity: 1; transform: translateY(0); }
+}
