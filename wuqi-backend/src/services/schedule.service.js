@@ -45,6 +45,7 @@ function canViewBookingInfo(viewableStoreIds, storeId) {
 function maskScheduleBookingInfo(schedule) {
   delete schedule.current_bookings;
   delete schedule.total_bookings;
+  delete schedule.pre_cancel_bookings;
   schedule.booked_users = [];
   delete schedule.cancel_reason;
   delete schedule.cancel_type;
@@ -542,14 +543,38 @@ exports.getScheduleList = async (query, req = null) => {
     // 查询所有状态的预约，统计历史总预约人次
     const allBookingsForCount = await Booking.find({
       schedule_id: { $in: scheduleIds }
-    }).select('schedule_id user_id').lean();
+    }).select('schedule_id user_id status cancel_type checked_in source created_at').lean();
 
     const uniqueUserBySchedule = {};
+    // 已取消排课：按用户取最新一条预约，用于统计"取消前实际预约人数"
+    const latestBookingByUser = {};
     for (const b of allBookingsForCount) {
       const sid = String(b.schedule_id);
-      if (!uniqueUserBySchedule[sid]) uniqueUserBySchedule[sid] = new Set();
       const uid = b.user_id ? String(b.user_id) : '';
-      if (uid) uniqueUserBySchedule[sid].add(uid);
+      if (!uid) continue;
+      if (!uniqueUserBySchedule[sid]) uniqueUserBySchedule[sid] = new Set();
+      uniqueUserBySchedule[sid].add(uid);
+      if (!latestBookingByUser[sid]) latestBookingByUser[sid] = {};
+      const prev = latestBookingByUser[sid][uid];
+      const t = b.created_at ? new Date(b.created_at).getTime() : 0;
+      const prevT = prev && prev.created_at ? new Date(prev.created_at).getTime() : -1;
+      if (t >= prevT) latestBookingByUser[sid][uid] = b;
+    }
+
+    // 取消前实际预约人数：与预约名单卡片同口径——
+    // 计入 booked / 走过预约流程的签到 / 课程取消（人数不足、管理员、放假）；
+    // 不计入会员自行取消、豁免、现场补签（source=onsite 且未走过预约流程）
+    const COURSE_CANCEL_TYPES = ['min_bookings_not_met', 'admin_cancel', 'holiday', 'after_checkin_cancel'];
+    const preCancelCountBySchedule = {};
+    for (const sid of Object.keys(latestBookingByUser)) {
+      let count = 0;
+      for (const b of Object.values(latestBookingByUser[sid])) {
+        const isCheckedIn = !!b.checked_in || b.status === 'completed';
+        const isOnsite = b.source === 'onsite';
+        const isCourseCancel = b.status === 'cancelled' && COURSE_CANCEL_TYPES.includes(b.cancel_type);
+        if (b.status === 'booked' || (isCheckedIn && !isOnsite) || isCourseCancel) count++;
+      }
+      preCancelCountBySchedule[sid] = count;
     }
 
     // 统计每节课的历史总预约人次（含已取消/已完成）
@@ -617,6 +642,12 @@ exports.getScheduleList = async (query, req = null) => {
         } catch (e) {
           console.warn(`[getScheduleList] 兜底补偿失败 schedule=${schedule._id}:`, e.message);
         }
+      }
+
+      // 已取消排课：卡片「预约人数」展示取消前的实际预约人数
+      // （取消时该课程全部预约被置为 cancelled，实时统计的 current_bookings 会变成 0）
+      if (schedule.status === SCHEDULE_STATUS.CANCELLED) {
+        schedule.pre_cancel_bookings = preCancelCountBySchedule[sid] || 0;
       }
 
       // 处理封面图片URL：将相对路径转为完整URL

@@ -114,7 +114,7 @@
         </view>
         <view class="info-row" wx:if="{{!item.isTemplatePreview}}">
           <text class="label">预约人数</text>
-          <text class="value">{{item.current_bookings || 0}}/{{item.max_bookings}}人(最低{{item.min_bookings || 5}}人)</text>
+          <text class="value">{{item.status === 'cancelled' ? (item.pre_cancel_bookings || 0) : (item.current_bookings || 0)}}/{{item.max_bookings}}人(最低{{item.min_bookings || 5}}人)</text>
         </view>
       </view>
       <view class="schedule-actions">
