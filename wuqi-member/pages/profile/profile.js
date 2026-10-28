@@ -294,6 +294,8 @@ Page({
           });
           this.loadUserData();
         } else {
+      // 游客态：断开 WebSocket 并清空残留回调，防止无 token 请求触发 401 跳转循环
+      try { wsClient.disconnect(); } catch (e) { /* 忽略 */ }
       this.setData({ isLoggedIn: false, userInfo: null, isOfficialMember: false, memberSinceDays: 0, avatarSrc: '/images/default-avatar.svg', avatarImageError: false });
     }
   },
@@ -539,6 +541,8 @@ Page({
   },
 
   _refreshStatsAndPackages() {
+    // 登录守卫：退出登录后残留的 WS 回调（降级轮询/推送）不应再发起请求
+    if (!checkLogin()) return;
     request({ url: '/packages/my' }).then(function(res) {
       if (res.data) {
         var packages = [];
@@ -927,7 +931,10 @@ Page({
       success: function(res) {
         if (res.confirm) {
           var logout = require('../../utils/auth').logout;
+          // logout 内部已断开 WebSocket 并清空残留回调（防止 401 跳转循环）
           logout();
+          // 复位本页连接标记，重新登录后 onShow 可重建连接
+          self._reviewWsConnected = false;
           self.setData({
             isLoggedIn: false,
             userInfo: null,
@@ -2080,15 +2087,16 @@ Page({
   },
 
   _cropAndUpload(filePath) {
-    const { cropImageToCircle } = require('../../utils/util');
+    // 不再离屏裁圆上传：此前上传时直接把图片内容裁成圆形（四角透明），
+    // 服务器存的就是圆形素材，导致 paper/volt 皮肤下头像无论怎么改 CSS 都是圆的。
+    // 现统一上传 1:1 方形原图（wx.cropImage '1:1' 已在上游保证方形），
+    // 圆形/方形观感交由各皮肤 CSS 控制：classic 用 border-radius:50% 显示为圆，
+    // paper/volt 用方形小圆角显示。
     wx.showLoading({ title: '处理中...' });
-    cropImageToCircle(filePath).then((circlePath) => {
-      wx.hideLoading();
-      this._uploadAvatar(circlePath);
-    }).catch(() => {
+    setTimeout(() => {
       wx.hideLoading();
       this._uploadAvatar(filePath);
-    });
+    }, 200);
   },
 
   _uploadAvatar(filePath) {

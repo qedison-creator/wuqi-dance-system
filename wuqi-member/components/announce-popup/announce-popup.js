@@ -15,11 +15,16 @@ Component({
     announce: {
       type: Object,
       value: null
+    },
+    // 当前皮肤（页面响应式传入）：组件常驻首页，若仅靠 attached 读 storage，
+    // 切换皮肤后不会重新 attached，弹窗会一直用切换前的皮肤样式（颜色对调观感）
+    skinId: {
+      type: String,
+      value: 'classic'
     }
   },
 
   data: {
-    skinId: 'classic',
     locked: false, // 重要弹窗读秒期间锁定关闭
     countdown: 0   // 剩余秒数
   },
@@ -33,14 +38,20 @@ Component({
         this._stopCountdown();
       }
     }
+    // 注意：skinId 为 property，值变化会自动同步到 this.data 并驱动视图更新；
+    // 切勿在 observer 中对同名字段 setData（会触发 observer 无限循环导致页面白屏死机）
   },
 
   lifetimes: {
     attached() {
-      try {
-        const skinId = wx.getStorageSync('member_skin_id');
-        this.setData({ skinId: skinId === 'paper' || skinId === 'volt' ? skinId : 'classic' });
-      } catch (e) { /* 忽略 */ }
+      // 兜底：页面未传 skinId 时自行读取本地偏好
+      const current = this.data.skinId;
+      if (current !== 'paper' && current !== 'volt' && current !== 'classic') {
+        try {
+          const skinId = wx.getStorageSync('member_skin_id');
+          this.setData({ skinId: skinId === 'paper' || skinId === 'volt' ? skinId : 'classic' });
+        } catch (e) { /* 忽略 */ }
+      }
     },
     detached() {
       this._stopCountdown();

@@ -44,5 +44,14 @@ Page({
     wx.showToast({ title: '已切换：' + target.name, icon: 'none', duration: 1500 });
     // 轻震动反馈
     try { wx.vibrateShort({ type: 'light', fail: function () {} }); } catch (e) { /* 忽略 */ }
+    // 选择完成后自动返回"我的"页面（toast 为原生层，返回后仍持续显示）
+    setTimeout(() => {
+      wx.navigateBack({
+        fail: function () {
+          // 非栈内进入（如开发工具直接编译到本页）：兜底切回"我的" tab
+          wx.switchTab({ url: '/pages/profile/profile' });
+        }
+      });
+    }, 800);
   }
 });

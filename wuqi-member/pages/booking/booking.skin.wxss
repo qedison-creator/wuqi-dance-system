@@ -254,13 +254,15 @@
 .skin-paper .date-scroll { padding: 24rpx 30rpx 8rpx; }
 .skin-paper .date-item {
   background: transparent; border: none; border-radius: 8rpx;
-  padding: 10rpx 0 8rpx;
+  /* 左右补内边距：此前 padding 左右为 0，7 等分的窄块（约 90rpx）内文字直接贴边 */
+  box-sizing: border-box;
+  padding: 10rpx 10rpx 8rpx;
 }
 .skin-paper .date-item.active {
   background: var(--sk-ink); border-radius: 6rpx;
-  padding: 12rpx 0 10rpx;
+  padding: 12rpx 10rpx 10rpx;
 }
-.skin-paper .date-md { font-size: 34rpx; font-weight: 700; color: var(--sk-ink); }
+.skin-paper .date-md { font-size: 30rpx; font-weight: 700; color: var(--sk-ink); }
 .skin-paper .date-item.active .date-md { color: var(--sk-btn-fg); }
 .skin-paper .date-wd { color: var(--sk-hint); }
 .skin-paper .date-item.active .date-wd { color: rgba(252, 247, 238, 0.75); }
@@ -428,7 +430,9 @@
 
 /* ---------- 十一轮：门店胶囊与微信胶囊水平对齐（自定义导航） ---------- */
 /* VOLT 头部第一行：门店胶囊行高与胶囊一致 */
-.bkv-head { padding-left: 30rpx; padding-right: 30rpx; }
+/* 负 margin 抵消 booking-page 整页 28rpx 内边距，再用自身 30rpx 定位：
+   门店胶囊/标题左缘 = 30rpx，与首页 vi-store-btn/vi-brand 完全同线（消除两页水平错位 28rpx） */
+.bkv-head { padding-left: 30rpx; padding-right: 30rpx; margin-left: -28rpx; margin-right: -28rpx; }
 .bkv-store {
   display: inline-flex; align-items: center; gap: 8rpx;
   height: 64rpx; box-sizing: border-box;
@@ -441,6 +445,11 @@
 .bkp-store { align-self: flex-start; height: 64rpx; box-sizing: border-box; display: inline-flex; align-items: center; }
 /* classic 头部：门店卡与胶囊水平对齐 */
 .skin-volt .header-section, .skin-paper .header-section, .header-section { padding-left: 30rpx; padding-right: 30rpx; }
+
+/* ---------- 十二轮：VOLT 预约页头部固定（不随滚动位移） ---------- */
+/* 整页锁定一屏高：门店胶囊 / 场次预约标题 / 日期星期行钉在顶部，仅课程列表在剩余空间内滚动
+   （classic/paper 不受影响，仅 volt 生效） */
+.skin-volt.booking-page { height: 100vh; overflow: hidden; }
 
 /* ---------- 骨架屏（纸上舞台 / VOLT） ---------- */
 .skin-paper .skeleton-card { background: #FCFAF4; border: 2rpx solid #DFD6C2; border-radius: 8rpx; box-shadow: none; }

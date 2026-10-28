@@ -117,6 +117,11 @@ const logout = () => {
   getApp().globalData.userInfo = null;
   // 登录状态令牌自增，通知首页等页面用户身份已变化（退出登录），需强制刷新数据
   getApp().globalData.loginStateToken = (getApp().globalData.loginStateToken || 0) + 1;
+  // 断开 WebSocket（审核结果/套餐变更推送随登录态结束）并清空残留回调，
+  // 防止退出后降级轮询/推送回调以无 token 身份请求受保护接口，触发 401 跳转循环
+  try {
+    require('./websocket-client').disconnect();
+  } catch (e) { /* 模块不可用时忽略 */ }
 };
 
 module.exports = { wxLogin, checkLogin, requireLogin, requireMember, logout };

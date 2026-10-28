@@ -59,8 +59,8 @@
   box-shadow: 6rpx 6rpx 0 var(--sk-ink);
 }
 .skin-volt .hero-avatar,
-.skin-volt .hero-avatar-wrap .hero-avatar { border-radius: 18rpx; }
-.skin-volt .hero-avatar-ring { border-radius: 18rpx; }
+.skin-volt .hero-avatar-wrap .hero-avatar { border-radius: 8rpx; }
+.skin-volt .hero-avatar-ring { border-radius: 8rpx; }
 .skin-volt .hero-name {
   font-size: 46rpx;
   font-weight: 900;
@@ -115,7 +115,7 @@
   border-radius: 6rpx; overflow: hidden;
   background: #ECE5D6; flex-shrink: 0;
 }
-.pfp-ava-img { width: 100%; height: 100%; }
+.pfp-ava-img { width: 100%; height: 100%; display: block; border-radius: 4rpx; }
 .pfp-info { flex: 1; min-width: 0; }
 .pfp-nm-row { display: flex; align-items: center; gap: 14rpx; }
 .pfp-name { font-family: var(--sk-serif); font-size: 44rpx; font-weight: 900; color: var(--sk-ink); letter-spacing: 0.05em; }
@@ -163,10 +163,10 @@
 .pfv-ava {
   width: 120rpx; height: 120rpx;
   border: 3rpx solid var(--sk-ink);
-  border-radius: 24rpx; overflow: hidden;
+  border-radius: 8rpx; overflow: hidden;
   background: #FFFFFF; flex-shrink: 0;
 }
-.pfv-ava-img { width: 100%; height: 100%; }
+.pfv-ava-img { width: 100%; height: 100%; display: block; border-radius: 5rpx; }
 .pfv-info { flex: 1; min-width: 0; }
 .pfv-name { display: block; font-size: 46rpx; font-weight: 900; color: var(--sk-ink); }
 .pfv-sub { display: block; margin-top: 8rpx; font-size: 19rpx; font-weight: 700; letter-spacing: 0.15em; color: var(--sk-sub); }
@@ -631,9 +631,54 @@
 .pkg-ticket.vt .pkt-right::before { border: none; }
 .pkg-ticket.vt .pkt-right::after { border: none; box-shadow: 5rpx 5rpx 0 rgba(17, 19, 16, 0.18); }
 
+/* ==================== 待激活票面（纸上舞台 / VOLT） ==================== */
+/* 纸上舞台：朱砂虚线边示意未生效 */
+.pkg-ticket.pt.pending { border: 2rpx dashed rgba(185, 58, 38, 0.5); }
+/* VOLT：黑色虚线边（原票根无边框，需 !important 覆盖） */
+.pkg-ticket.vt.pending { border: 2rpx dashed rgba(17, 19, 16, 0.4) !important; }
+.skin-paper .pkt-pending-hint { color: #B93A26; font-weight: 700; }
+.skin-volt .pkt-pending-hint { color: #3d4a12; font-weight: 700; }
+/* 纸上舞台「启」印章：虚线框半透明，区别于生效票的实印 */
+.skin-paper .pkt-seal-pending { background: transparent; border: 2rpx dashed #B93A26; color: #B93A26; opacity: 0.85; }
+/* VOLT PENDING 徽标：青柠底黑字硬边 */
+.pkt-pending-badge {
+  position: absolute; right: 16rpx; bottom: 14rpx;
+  background: #D7FF3B; color: #111310; border: 2rpx solid #111310;
+  font-size: 16rpx; font-weight: 900; letter-spacing: 0.18em;
+  padding: 6rpx 12rpx; line-height: 1; border-radius: 4rpx;
+}
+
 /* ==================== 赠课卡徽章（paper金印「赠」） ==================== */
 .pkt-seal-bonus {
   background: #C49A3A;
   color: #FFF8E7;
   transform: rotate(6deg);
 }
+
+/* ==================== 审核中卡片（paper / volt） ==================== */
+.skin-paper .pending-card { background: var(--sk-card); border: 2rpx solid var(--sk-line); border-radius: 8rpx; box-shadow: none; }
+.skin-paper .pending-icon-wrap { background: #F5EBE3; border-radius: 6rpx; }
+.skin-paper .pending-icon { background: #B93A26; }
+.skin-paper .pending-title { font-family: var(--sk-serif); color: #B93A26; }
+.skin-paper .pending-desc { color: #6C6353; }
+.skin-volt .pending-card { background: #FFFFFF; border: 3rpx solid #111310; border-radius: 24rpx; box-shadow: 5rpx 5rpx 0 #111310; }
+.skin-volt .pending-icon-wrap { background: #D7FF3B; border: 2rpx solid #111310; border-radius: 12rpx; }
+.skin-volt .pending-icon { background: #111310; }
+.skin-volt .pending-title { font-weight: 900; color: #111310; }
+.skin-volt .pending-desc { color: #77786F; }
+
+/* ==================== 完善信息 / 表单弹窗（paper / volt） ==================== */
+.skin-paper .modal-content { background: #FCFAF4; border: 2rpx solid #DFD6C2; border-radius: 10rpx; }
+.skin-paper .modal-title-text { font-family: var(--sk-serif); color: #221D15; letter-spacing: 0.06em; }
+.skin-paper .modal-hint-text { color: #6C6353; }
+.skin-paper .form-label { color: #6C6353; }
+.skin-paper .form-input { background: #F5EBE3; border: 2rpx solid #DFD6C2; border-radius: 6rpx; color: #221D15; }
+.skin-paper .gp-option { background: #F5EBE3; border: 2rpx solid #DFD6C2; border-radius: 6rpx; color: #6C6353; }
+.skin-paper .gp-option.active { background: rgba(185, 58, 38, 0.08); border-color: #B93A26; color: #B93A26; }
+.skin-volt .modal-content { background: #F2F1ED; border: 3rpx solid #111310; border-radius: 32rpx; box-shadow: 8rpx 8rpx 0 rgba(17, 19, 16, 0.4); }
+.skin-volt .modal-title-text { font-weight: 900; color: #111310; }
+.skin-volt .modal-hint-text { color: #77786F; }
+.skin-volt .form-label { color: #111310; font-weight: 700; }
+.skin-volt .form-input { background: #FFFFFF; border: 3rpx solid #111310; border-radius: 16rpx; color: #111310; }
+.skin-volt .gp-option { background: #FFFFFF; border: 3rpx solid #111310; border-radius: 16rpx; color: #77786F; font-weight: 700; }
+.skin-volt .gp-option.active { background: #D7FF3B; border-color: #111310; color: #111310; font-weight: 900; }

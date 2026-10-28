@@ -46,6 +46,7 @@ Page({
     myCredits: 0,
     userBookings: [],
     showActivationModal: false,
+    activationCountdown: 0,
     showBookingModal: false,
     showCancelModal: false,
     showWaitlistModal: false,
@@ -141,10 +142,12 @@ Page({
 
   onHide() {
     wsClient.disconnect();
+    this._stopActivationCountdown();
   },
 
   onUnload() {
     wsClient.disconnect();
+    this._stopActivationCountdown();
   },
 
   // 建立 WebSocket 连接，接收套餐变更推送，即时刷新预约按钮状态
@@ -903,6 +906,7 @@ Page({
 
       if (hasPendingPackage && !hasActivePackage) {
         this.setData({ showActivationModal: true });
+        this._startActivationCountdown();
         return;
       }
 
@@ -1100,6 +1104,9 @@ Page({
   },
 
   onConfirmActivation() {
+    // 3 秒读秒未结束：禁止确认（给用户时间阅读"有效期开始计算"提醒）
+    if (this.data.activationCountdown > 0) return;
+    this._stopActivationCountdown();
     this.setData({ showActivationModal: false });
     // 继续预约流程，后端会自动激活套餐
     const { course } = this.data;
@@ -1110,7 +1117,31 @@ Page({
   },
 
   onCancelActivation() {
+    this._stopActivationCountdown();
     this.setData({ showActivationModal: false });
+  },
+
+  // 激活弹窗 3 秒读秒：时间戳口径（Date.now()+3000），100ms tick，切后台不错乱
+  _startActivationCountdown() {
+    this._stopActivationCountdown();
+    const end = Date.now() + 3000;
+    this.setData({ activationCountdown: 3 });
+    this._activationCountdownTimer = setInterval(() => {
+      const remain = Math.ceil((end - Date.now()) / 1000);
+      if (remain <= 0) {
+        this._stopActivationCountdown();
+        this.setData({ activationCountdown: 0 });
+      } else if (this.data.activationCountdown !== remain) {
+        this.setData({ activationCountdown: remain });
+      }
+    }, 100);
+  },
+
+  _stopActivationCountdown() {
+    if (this._activationCountdownTimer) {
+      clearInterval(this._activationCountdownTimer);
+      this._activationCountdownTimer = null;
+    }
   },
 
   onConfirmBooking() {

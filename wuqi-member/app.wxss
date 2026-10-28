@@ -427,6 +427,12 @@ page {
 .bk-cfm-mask-volt .bk-cfm-cancel { border: 3rpx solid #111310; border-radius: 999rpx; font-weight: 800; }
 .bk-cfm-mask-volt .bk-cfm-ok { background: #111310; color: #D7FF3B; border-radius: 999rpx; font-weight: 800; font-family: -apple-system, sans-serif; box-shadow: none; }
 
+/* ---------- 激活弹窗警示行：激活后有效期开始计算（paper / volt） ---------- */
+.bk-cfm-warn { display: block; margin-top: 18rpx; padding: 16rpx 22rpx; box-sizing: border-box; font-size: 23rpx; font-weight: 700; line-height: 1.7; text-align: left; background: rgba(185, 58, 38, 0.07); color: #B93A26; border: 2rpx solid rgba(185, 58, 38, 0.35); border-radius: 8rpx; }
+.bk-cfm-mask-volt .bk-cfm-warn { background: #FFFFFF; color: #111310; border: 3rpx solid #111310; border-radius: 10rpx; }
+/* 确认按钮 3 秒读秒期间：视觉弱化（点击守卫在 JS） */
+.bk-cfm-ok.counting { opacity: 0.5; }
+
 
 /* ---------- 皮肤动效 keyframes（组件/页面共用） ---------- */
 /* A 盖章 */

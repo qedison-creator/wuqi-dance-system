@@ -78,7 +78,8 @@ Page({
     returnCardOffsetX: 0,
     _dataLoaded: false,
     _lastStoreId: '',
-    isOfficial: false
+    isOfficial: false,
+    skinId: 'classic'
   },
 
   onLoad() {
@@ -780,10 +781,18 @@ Page({
       const storeId = this.data.currentStore ? this.data.currentStore._id : '';
       const res = await request({ url: `/announces?store_id=${storeId}&status=active`, method: 'GET', silent: true });
       const list = res.data && res.data.list ? res.data.list : (Array.isArray(res.data) ? res.data : []);
-      const announces = list.map(a => ({
-        ...a,
-        createdAtDisplay: a.created_at ? new Date(a.created_at).toLocaleDateString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit', weekday: 'short' }) : ''
-      }));
+      const announces = list.map(a => {
+        let dateCn = '';
+        if (a.created_at) {
+          const d = new Date(a.created_at);
+          dateCn = `${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}`;
+        }
+        return {
+          ...a,
+          createdAtDisplay: a.created_at ? new Date(a.created_at).toLocaleDateString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit', weekday: 'short' }) : '',
+          _dateCn: dateCn
+        };
+      });
       const hasMultipleAnnounces = announces.length > 1;
       this.setData({
         announces,
@@ -802,8 +811,24 @@ Page({
   },
 
   // 公告只对舞栖会员开放，游客无权查看
-  onAnnounceTap() {
+  // classic：堆叠公告弹窗（顶部翻页栏）；paper/volt：点击公告列表标题走皮肤化单条弹窗
+  onAnnounceTap(e) {
     if (!auth.checkLogin()) return;
+    const skinId = this.data.skinId;
+    if (skinId && skinId !== 'classic') {
+      const id = e && e.currentTarget ? e.currentTarget.dataset.id : '';
+      const list = this.data.announces || [];
+      const pick = (id ? list.find(a => a._id === id) : null) || list[0];
+      if (!pick) return;
+      this.setData({
+        popupAnnounce: {
+          ...pick,
+          createdAtDisplay: pick.created_at ? new Date(pick.created_at).toLocaleDateString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit', weekday: 'short' }) : ''
+        },
+        showAnnouncePopup: true
+      });
+      return;
+    }
     wx.pageScrollTo({ scrollTop: 0, duration: 0 });
     this.setData({ showAnnounceModal: true, announceSwiperIndex: 0 });
     this.updateStackLayout();

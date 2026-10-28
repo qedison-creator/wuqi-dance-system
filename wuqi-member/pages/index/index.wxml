@@ -245,7 +245,7 @@
         </view>
         <view class="pi-sec-rule"></view>
         <block wx:if="{{announces.length > 0}}">
-          <view class="pi-notice" wx:for="{{announces}}" wx:key="_id" wx:if="{{index < 3}}" bindtap="onAnnounceTap">
+          <view class="pi-notice" wx:for="{{announces}}" wx:key="_id" wx:if="{{index < 3}}" data-id="{{item._id}}" bindtap="onAnnounceTap">
             <text class="pi-n-no">0{{index + 1}}</text>
             <text class="pi-n-t">{{item.title || item.content}}</text>
             <text class="pi-n-tag" wx:if="{{index === 0}}">新</text>
@@ -342,6 +342,24 @@
           <text class="vi-brand-en">WUQI DANCE CLUB</text>
         </view>
       </view>
+      <!-- 公告区：列表呈现标题，点击走皮肤化公告弹窗（VOLT） -->
+      <view class="vi-notice-sec">
+        <view class="vi-notice-head">
+          <view class="vi-notice-badge">NOTICE</view>
+          <text class="vi-notice-t">公告</text>
+          <text class="vi-notice-cnt" wx:if="{{announces.length > 0}}">{{announces.length < 10 ? '0' + announces.length : announces.length}}</text>
+        </view>
+        <block wx:if="{{announces.length > 0}}">
+          <view class="vi-notice-row" wx:for="{{announces}}" wx:key="_id" wx:if="{{index < 3}}" data-id="{{item._id}}" bindtap="onAnnounceTap">
+            <text class="vi-n-no">0{{index + 1}}</text>
+            <text class="vi-n-title">{{item.title || item.content}}</text>
+            <text class="vi-n-new" wx:if="{{index === 0}}">NEW</text>
+            <text class="vi-n-date">{{item._dateCn}}</text>
+            <text class="vi-n-arrow">→</text>
+          </view>
+        </block>
+        <view class="vi-notice-empty" wx:else>NO NOTICE · 近期暂无公告</view>
+      </view>
       <view class="vi-rhythm">
         <view class="vi-rhythm-head">
           <text class="vi-rhythm-t">你的节奏</text>
@@ -363,7 +381,9 @@
           <view class="vi-bill-badge">{{item.sessionLabel}}</view>
           <text class="vi-bill-wd">{{item.weekday}} {{item.dateCn}}</text>
           <text class="vi-bill-time">{{item.timeVisible ? item.start_time : '??:??'}}-{{item.timeVisible ? item.end_time : '??'}}</text>
-          <text class="vi-bill-name">{{item.course_name}}</text>
+          <view class="vi-bill-name">
+            <text class="vi-bill-name-txt {{item.course_name.length > 11 ? 'vi-bill-roll' : ''}}">{{item.course_name}}{{item.course_name.length > 11 ? '　　　' + item.course_name + '　　　' : ''}}</text>
+          </view>
           <text class="vi-bill-spark">✺</text>
         </view>
       </block>
@@ -546,6 +566,6 @@
     </view>
   </view>
   <!-- 公告自动弹窗（一般/重要/永久三种类型，样式见 components/announce-popup） -->
-  <announce-popup visible="{{showAnnouncePopup}}" announce="{{popupAnnounce}}" bind:close="onAnnouncePopupClose"></announce-popup>
+  <announce-popup visible="{{showAnnouncePopup}}" announce="{{popupAnnounce}}" skinId="{{skinId}}" bind:close="onAnnouncePopupClose"></announce-popup>
 
 <update-modal />

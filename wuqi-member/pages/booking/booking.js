@@ -49,6 +49,7 @@ Page({
     loading: false,
     showStoreModal: false,
     showActivateModal: false,
+    activationCountdown: 0,
     pendingPackage: null,
     activating: false,
     isOfficial: false,
@@ -146,11 +147,13 @@ Page({
     this._stopAutoRefresh();
     // 离开页面时断开 WebSocket，清理定时器
     wsClient.disconnect();
+    this._stopActivationCountdown();
   },
 
   onUnload() {
     this._stopAutoRefresh();
     wsClient.disconnect();
+    this._stopActivationCountdown();
   },
 
   // 建立 WebSocket 连接，接收课程更新推送
@@ -877,8 +880,13 @@ Page({
         const pkgCheck = await request({ url: '/packages/my', silent: true });
         const pkgData = (pkgCheck && pkgCheck.data) ? pkgCheck.data : {};
         const pending = pkgData.pending || [];
-        const active = pkgData.active || [];
-        hasPendingPackage = pending.length > 0 && active.length === 0;
+        // 仅有待激活套餐（无使用中）：提前拦截，弹「套餐激活提醒」（3 秒读秒）后再激活+预约。
+        // 否则后端预约时会静默自动激活（booking.service first_booking），会员看不到任何激活提示
+        if (pending.length > 0 && !pkgData.current) {
+          this.showActivatePackageModal(scheduleId);
+          return;
+        }
+        hasPendingPackage = pending.length > 0;
       } catch (e) { /* 忽略检查失败 */ }
 
       // 先弹消息授权弹窗，确保订阅先生效（避免后端提前发送通知导致 43101 错误）
@@ -959,10 +967,11 @@ Page({
         let pkgText = packages.map(p => `${p.package_name}(剩余${p.remaining_credits}次)`).join('、');
         this.setData({
           showCountCardModal: true,
-          countCardModalText: `您的${limitType}时间卡次数已达上限（${used}/${limit}，剩余${remaining}次）。\n\n继续预约将激活次卡：${pkgText}\n\n激活后服务有效期从今日开始计算，是否确认激活并预约本课程？`,
+          countCardModalText: `您的${limitType}时间卡次数已达上限（${used}/${limit}，剩余${remaining}次）。\n\n继续预约将激活次卡：${pkgText}\n\n是否确认激活并预约本课程？`,
           countCardModalPackages: packages,
           countCardScheduleId: scheduleId
         });
+        this._startActivationCountdown();
       } else if (errMsg.includes('套餐') && errMsg.includes('未激活')) {
         this.showActivatePackageModal(scheduleId);
       } else if (errMsg.includes('已达上限') || errMsg.includes('套餐状态') || errMsg.includes('无可用套餐') || errMsg.includes('已过期') || errMsg.includes('已用完') || errMsg.includes('剩余次数不足')) {
@@ -1002,6 +1011,7 @@ Page({
           pendingPackage: pendingPackage,
           pendingScheduleId: scheduleId
         });
+        this._startActivationCountdown();
       } else {
         wx.showModal({
           title: '无法预约',
@@ -1015,10 +1025,14 @@ Page({
   },
 
   onCloseActivateModal() {
+    this._stopActivationCountdown();
     this.setData({ showActivateModal: false, pendingPackage: null, pendingScheduleId: null });
   },
 
   async onConfirmActivate() {
+    // 3 秒读秒未结束：禁止确认（给用户时间阅读"有效期开始计算"提醒）
+    if (this.data.activationCountdown > 0) return;
+    this._stopActivationCountdown();
     const { pendingPackage, pendingScheduleId } = this.data;
     if (!pendingPackage) return;
 
@@ -1059,7 +1073,32 @@ Page({
   },
 
   onCancelActivate() {
+    this._stopActivationCountdown();
     this.setData({ showActivateModal: false, pendingPackage: null, pendingScheduleId: null });
+  },
+
+  // 激活弹窗 3 秒读秒：时间戳口径（Date.now()+3000），100ms tick，切后台不错乱
+  // 套餐激活提醒 / 时间卡次卡激活两个弹窗共用（同一时刻只弹一个）
+  _startActivationCountdown() {
+    this._stopActivationCountdown();
+    const end = Date.now() + 3000;
+    this.setData({ activationCountdown: 3 });
+    this._activationCountdownTimer = setInterval(() => {
+      const remain = Math.ceil((end - Date.now()) / 1000);
+      if (remain <= 0) {
+        this._stopActivationCountdown();
+        this.setData({ activationCountdown: 0 });
+      } else if (this.data.activationCountdown !== remain) {
+        this.setData({ activationCountdown: remain });
+      }
+    }, 100);
+  },
+
+  _stopActivationCountdown() {
+    if (this._activationCountdownTimer) {
+      clearInterval(this._activationCountdownTimer);
+      this._activationCountdownTimer = null;
+    }
   },
 
   onConfirmWaitlist() {
@@ -1766,6 +1805,7 @@ Page({
   },
 
   onCloseCountCardModal() {
+    this._stopActivationCountdown();
     this.setData({
       showCountCardModal: false,
       countCardModalText: '',
@@ -1775,6 +1815,7 @@ Page({
   },
 
   onCancelCountCard() {
+    this._stopActivationCountdown();
     this.setData({
       showCountCardModal: false,
       countCardModalText: '',
@@ -1784,6 +1825,9 @@ Page({
   },
 
   async onConfirmCountCard() {
+    // 3 秒读秒未结束：禁止确认（给用户时间阅读"有效期开始计算"提醒）
+    if (this.data.activationCountdown > 0) return;
+    this._stopActivationCountdown();
     const { countCardModalPackages, countCardScheduleId } = this.data;
     if (!countCardModalPackages || countCardModalPackages.length === 0) return;
 

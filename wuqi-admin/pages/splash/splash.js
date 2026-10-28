@@ -13,17 +13,19 @@ Page({
   },
 
   waitAppReady() {
-    // app.js 中 onLaunch 会设置 globalData._initPromise
-    const initPromise = app.globalData._initPromise || Promise.resolve();
-
     // 验证 token 有效性（有 token 时）
+    // 注意：splash 是启动首屏，请求必须"快速失败"——
+    // timeout 8s + 不重试（retry:0）+ silent（失败由 catch 跳登录页处理）。
+    // 此前沿用默认配置（15s 超时 × GET 重试 2 次），弱网/服务器响应慢时
+    // 本页最长停留约 48s，是"真机经常性白屏"的主要来源。
     const token = wx.getStorageSync('admin_token');
     const verifyToken = token
-      ? request({ url: '/auth/me', method: 'GET' }).then(() => true).catch(() => false)
+      ? request({ url: '/auth/me', method: 'GET', timeout: 8000, retry: 0, silent: true })
+          .then(() => true).catch(() => false)
       : Promise.resolve(false);
 
-    Promise.all([initPromise, verifyToken]).then((results) => {
-      const hasValidToken = results[1];
+    Promise.all([verifyToken]).then((results) => {
+      const hasValidToken = results[0];
       // 保留极短的 logo 淡入动画（500ms），让用户感知到品牌过渡
       this.setData({ ready: true });
       setTimeout(() => {

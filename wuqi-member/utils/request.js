@@ -52,7 +52,8 @@ const _rawRequest = (options) => {
               app.globalData.token = '';
               app.globalData.userInfo = null;
             }
-            if (!silent) {
+            // 仅当请求发出时携带 token 才提示登录失效；游客态请求静默 reject
+            if (!silent && token) {
               wx.showToast({ title: '请重新登录', icon: 'none' });
             }
             reject(res.data);
@@ -64,6 +65,10 @@ const _rawRequest = (options) => {
           // 401: token 失效/过期/账号禁用，需清除 token 并触发重登
           // skipAuthRedirect=true 时仅清除 token 并 reject，由调用方决定后续处理（如自动重登）
           const skipAuthRedirect = options.skipAuthRedirect === true;
+          // 仅当请求发出时本地携带 token 才视为"登录失效"；
+          // 游客态（无 token）请求受保护接口返回 401 时静默 reject，
+          // 避免 WebSocket 降级轮询等残留回调在退出登录后反复触发"跳启动页"循环
+          const hadToken = !!token;
           saveAccountBlock(res.data && res.data.data);
           // 先清除本地 token，避免后续请求携带失效 token
           wx.removeStorageSync('token');
@@ -74,7 +79,7 @@ const _rawRequest = (options) => {
               app.globalData.userInfo = null;
             }
           }
-          if (!skipAuthRedirect) {
+          if (!skipAuthRedirect && hadToken) {
             // 默认行为：强制登出并回到启动页，防止被删除会员继续浏览本地缓存数据
             const message = (res.data && res.data.message) || '账号已失效，请重新登录';
             if (app && typeof app.forceLogoutAndRedirect === 'function') {

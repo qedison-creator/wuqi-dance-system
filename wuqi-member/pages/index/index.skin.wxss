@@ -1,7 +1,8 @@
 /* 首页皮肤样式（纸上舞台 / VOLT）—— 由 index.wxss 通过 @import 引入 */
 
-/* ==================== 纸上舞台（首页） ==================== */
-.pi-wrap { padding: 24rpx 30rpx 60rpx; }
+/* 纸上舞台（首页）：左右边距 44rpx（≈22px），贴合纸质排版的留白气质，
+   避免公告/教练/课程区内容贴屏幕边 */
+.pi-wrap { padding: 24rpx 44rpx 60rpx; }
 .pi-holiday {
   border-left: 6rpx solid #B93A26;
   background: #FCFAF4;
@@ -445,21 +446,41 @@
 .vi-ghost { letter-spacing: 0; opacity: 1; }
 
 /* ---------- 近期登场报幕条（预览 .dd 直译：24px 下方登台 · 70ms 间隔 · 0.5s spring 过冲） ---------- */
-.vi-bill { display: flex; align-items: center; justify-content: center; height: 72rpx; margin: 14rpx 30rpx 0; background: #FFFFFF; border: 4rpx solid #111310; border-radius: 24rpx; box-shadow: 6rpx 6rpx 0 #111310; opacity: 0; animation: vi-bill-in 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; }
 .vi-bill:active { transform: scale(0.98); }
 /* 白卡家族（与你的节奏卡同语言）：白底墨描边硬影，能量靠青柠块/墨数字/重课名，黑只留给进行中反转态 */
-.vi-bill { display: flex; align-items: center; justify-content: center; gap: 14rpx; height: 80rpx; margin: 14rpx 30rpx 0; background: #FFFFFF; border: 3rpx solid #111310; border-radius: 24rpx; box-shadow: 6rpx 6rpx 0 #111310; opacity: 0; animation: vi-bill-in 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; }
+/* 左右 padding 20rpx：保证内容永不贴卡片描边；justify-content 保持居中 */
+.vi-bill { display: flex; align-items: center; justify-content: center; gap: 14rpx; height: 80rpx; margin: 14rpx 30rpx 0; padding: 0 20rpx; box-sizing: border-box; background: #FFFFFF; border: 3rpx solid #111310; border-radius: 24rpx; box-shadow: 6rpx 6rpx 0 #111310; opacity: 0; animation: vi-bill-in 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; }
 .vi-bill:active { transform: scale(0.98); }
 /* 序数块：青柠底墨字（BPM/?/! 徽章家族） */
 .vi-bill-badge { flex-shrink: 0; background: #D7FF3B; color: #111310; font-size: 22rpx; font-weight: 900; padding: 4rpx 14rpx; border-radius: 8rpx; transform: rotate(-3deg); }
 .vi-bill-wd { flex-shrink: 0; font-size: 22rpx; font-weight: 600; color: #9C9D93; }
 .vi-bill-time { flex-shrink: 0; font-family: 'GroteskV', sans-serif; font-weight: 800; font-size: 28rpx; color: #111310; letter-spacing: -0.01em; }
-.vi-bill-name { font-size: 26rpx; font-weight: 900; color: #111310; max-width: 300rpx; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* 课名：超长名（≈11 字阈值，见 WXML）以无缝跑马灯完整滚动展示（内容整组重复两份 + translateX(-50%)），短名原样居中 */
+.vi-bill-name { flex: 0 1 auto; min-width: 0; max-width: 320rpx; overflow: hidden; }
+.vi-bill-name-txt { display: inline-block; white-space: nowrap; font-size: 26rpx; font-weight: 900; color: #111310; }
+.vi-bill-roll { animation: vi-bill-roll 9s linear infinite; }
+@keyframes vi-bill-roll { to { transform: translateX(-50%); } }
 .vi-bill-spark { flex-shrink: 0; font-size: 24rpx; font-weight: 900; color: #111310; }
 /* 进行中：唯一出现的黑卡反转态（墨底 + 青柠序数 + 骨白文字）——稀有即信号 */
 .vi-bill.live { background: #111310; border-color: #111310; }
 .vi-bill.live .vi-bill-wd { color: #9C9D93; }
 .vi-bill.live .vi-bill-time { color: #F2F1ED; }
-.vi-bill.live .vi-bill-name { color: #F2F1ED; }
+.vi-bill.live .vi-bill-name-txt { color: #F2F1ED; }
 .vi-bill.live .vi-bill-spark { color: #D7FF3B; }
 @keyframes vi-bill-in { from { opacity: 0; transform: translateY(48rpx); } to { opacity: 1; transform: translateY(0); } }
+
+/* ==================== 公告区（NOTICE）：白卡家族同语言 ==================== */
+.vi-notice-sec { margin: 36rpx 30rpx 0; background: #FFFFFF; border: 3rpx solid #111310; border-radius: 28rpx; box-shadow: 6rpx 6rpx 0 #111310; padding: 26rpx 26rpx 14rpx; overflow: hidden; }
+.vi-notice-head { display: flex; align-items: center; gap: 14rpx; margin-bottom: 8rpx; }
+.vi-notice-badge { background: #D7FF3B; color: #111310; font-size: 20rpx; font-weight: 900; letter-spacing: 0.18em; padding: 4rpx 14rpx; border-radius: 8rpx; border: 2rpx solid #111310; transform: rotate(-2deg); }
+.vi-notice-t { font-size: 30rpx; font-weight: 900; color: #111310; letter-spacing: 0.06em; }
+.vi-notice-cnt { margin-left: auto; font-family: 'GroteskV', sans-serif; font-weight: 800; font-size: 24rpx; color: #9C9D93; }
+.vi-notice-row { display: flex; align-items: center; gap: 14rpx; padding: 20rpx 4rpx; border-bottom: 2rpx dashed rgba(17, 19, 16, 0.14); }
+.vi-notice-row:last-child { border-bottom: none; }
+.vi-notice-row:active { background: rgba(215, 255, 59, 0.25); }
+.vi-n-no { flex-shrink: 0; font-family: 'GroteskV', sans-serif; font-weight: 800; font-size: 24rpx; color: #9C9D93; }
+.vi-n-title { flex: 1; font-size: 26rpx; font-weight: 800; color: #111310; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vi-n-new { flex-shrink: 0; background: #D7FF3B; color: #111310; border: 2rpx solid #111310; font-size: 16rpx; font-weight: 900; letter-spacing: 0.12em; padding: 3rpx 10rpx; border-radius: 6rpx; }
+.vi-n-date { flex-shrink: 0; font-family: 'GroteskV', sans-serif; font-weight: 700; font-size: 22rpx; color: #9C9D93; }
+.vi-n-arrow { flex-shrink: 0; font-size: 26rpx; font-weight: 900; color: #111310; }
+.vi-notice-empty { padding: 24rpx 4rpx 16rpx; font-size: 24rpx; font-weight: 600; color: #9C9D93; text-align: center; letter-spacing: 0.04em; }

@@ -199,6 +199,11 @@ function disconnect() {
 
   _closeSocketTask();
 
+  // 清空回调引用：退出登录后残留的页面回调不应再被触发（防止无 token 请求引发 401 跳转循环）
+  messageHandlers = {};
+  fallbackPollCallback = null;
+  onStatusChange = null;
+
   isConnected = false;
   isConnecting = false;
   isHandlingDisconnect = false;
@@ -312,6 +317,16 @@ function _handleDisconnect() {
 
   // 主动断开时不触发重连
   if (isDisconnecting) {
+    isHandlingDisconnect = false;
+    return;
+  }
+
+  // 已退出登录（无 token）：不再重连/降级轮询，清空残留回调，
+  // 避免游客态以无 token 身份请求受保护接口（401 跳转循环）
+  if (!wx.getStorageSync('token')) {
+    messageHandlers = {};
+    fallbackPollCallback = null;
+    onStatusChange = null;
     isHandlingDisconnect = false;
     return;
   }

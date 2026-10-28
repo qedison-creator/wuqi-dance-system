@@ -261,10 +261,11 @@
   <view class="modal-mask" wx:if="{{showActivationModal && skinId === 'classic'}}" bindtap="onCancelActivation">
     <view class="modal-content" catchtap="onModalTap">
       <view class="mc-title">套餐待激活</view>
-      <view class="mc-body">您有未激活的套餐，首次预约将自动激活套餐</view>
+      <view class="mc-body">您有未激活的套餐，确认预约后套餐将立即激活</view>
+      <view class="mc-warn">⚠ 重要提醒：激活后套餐服务有效期将自激活日起开始计算</view>
       <view class="mc-footer">
         <view class="mcf-btn secondary" bindtap="onCancelActivation">取消</view>
-        <view class="mcf-btn primary" bindtap="onConfirmActivation">确认预约</view>
+        <view class="mcf-btn primary {{activationCountdown > 0 ? 'disabled' : ''}}" bindtap="onConfirmActivation">{{activationCountdown > 0 ? '确认预约（' + activationCountdown + '）' : '确认预约'}}</view>
       </view>
     </view>
   </view>
@@ -275,10 +276,11 @@
       <text class="bk-cfm-kicker" wx:if="{{skinId === 'paper'}}">BOOKING NOTICE</text>
       <text class="bk-cfm-title">套餐待激活</text>
       <view class="bk-cfm-line"></view>
-      <text class="bk-cfm-body">您有未激活的套餐，首次预约将自动激活套餐</text>
+      <text class="bk-cfm-body">您有未激活的套餐，确认预约后套餐将立即激活</text>
+      <text class="bk-cfm-warn">⚠ 重要提醒：激活后套餐服务有效期将自激活日起开始计算</text>
       <view class="bk-cfm-actions">
         <view class="bk-cfm-cancel" bindtap="onCancelActivation">取消</view>
-        <view class="bk-cfm-ok" bindtap="onConfirmActivation">确认预约</view>
+        <view class="bk-cfm-ok {{activationCountdown > 0 ? 'counting' : ''}}" bindtap="onConfirmActivation">{{activationCountdown > 0 ? '确认预约（' + activationCountdown + '）' : '确认预约'}}</view>
       </view>
     </view>
   </view>

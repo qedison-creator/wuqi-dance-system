@@ -521,7 +521,7 @@
 
     <!-- 纸上舞台 / VOLT：套餐票根 -->
     <block wx:if="{{skinId !== 'classic' && userInfo.member_status === 'official'}}">
-      <view class="pkg-skin-sec" wx:if="{{activePackages.length > 0}}">
+      <view class="pkg-skin-sec" wx:if="{{activePackages.length > 0 || pendingPackages.length > 0}}">
         <view class="pkg-sk-head">
           <text class="pkg-sk-title">{{skinId === 'paper' ? '我的套餐' : 'MEMBERSHIP'}}</text>
           <text class="pkg-sk-en">{{skinId === 'paper' ? 'PACKAGES' : '套餐'}}</text>
@@ -562,8 +562,44 @@
           </view>
           <view class="pkt-barcode" wx:if="{{skinId === 'volt'}}"><view class="pkb-bar"></view><view class="pkb-bar pkb-w2"></view><view class="pkb-bar pkb-w3"></view><view class="pkb-bar"></view><view class="pkb-bar pkb-w2"></view><view class="pkb-bar"></view><view class="pkb-bar pkb-w3"></view><view class="pkb-bar pkb-w2"></view><view class="pkb-bar"></view><view class="pkb-bar pkb-w3"></view><view class="pkb-bar"></view><view class="pkb-bar pkb-w2"></view><view class="pkb-bar pkb-w3"></view><view class="pkb-bar"></view><view class="pkb-bar pkb-w2"></view><view class="pkb-bar"></view><view class="pkb-bar pkb-w3"></view><view class="pkb-bar pkb-w2"></view><view class="pkb-bar"></view><view class="pkb-bar pkb-w3"></view></view>
         </view>
+      <!-- 待激活票面：套餐已录入但未激活（静待开启），有效期自激活起计算 -->
+      <view class="pkg-ticket {{skinId === 'paper' ? 'pt' : 'vt'}} pending" wx:for="{{pendingPackages}}" wx:key="_id">
+        <view class="pkt-left">
+          <block wx:if="{{skinId === 'paper'}}">
+            <text class="pkt-k">MEMBERSHIP · {{item._typeLabel || '套餐'}}</text>
+            <text class="pkt-name">{{item._isBonus ? '赠送课时' : (item.package_type === 'time_card' ? '时间卡' : '次卡')}}</text>
+            <text class="pkt-source" wx:if="{{item._isBonus && item._sourceText}}">{{item._sourceText}}</text>
+            <text class="pkt-meta pkt-pending-hint">{{item.is_bonus ? '随主套餐激活后生效' : '首次预约后激活 · 有效期开始计算'}}</text>
+            <text class="pkt-meta" wx:if="{{item._autoActivateDate}}">{{item._autoActivateDate}} 自动激活</text>
+            <view class="pkt-stores">
+              <view class="pkt-store"><view class="pkt-store-dot"></view><text>{{item._storeName || '舞栖'}}</text></view>
+              <view class="pkt-store" wx:if="{{item._crossStore}}"><view class="pkt-store-dot pkt-store-dot-2"></view><text>跨店通用</text></view>
+            </view>
+          </block>
+          <block wx:else>
+            <text class="pkt-k">MEMBERSHIP · {{item._typeLabel || '套餐'}}</text>
+            <text class="pkt-name">{{item._isBonus ? '赠送课时' : (item.package_type === 'time_card' ? '时间卡' : '次卡')}}</text>
+            <text class="pkt-source" wx:if="{{item._isBonus && item._sourceText}}">{{item._sourceText}}</text>
+            <text class="pkt-meta pkt-pending-hint">{{item.is_bonus ? '随主套餐激活后生效' : '首次预约后激活 · 有效期开始计算'}}</text>
+            <text class="pkt-meta" wx:if="{{item._autoActivateDate}}">{{item._autoActivateDate}} 自动激活</text>
+          </block>
+        </view>
+        <view class="pkt-right">
+          <block wx:if="{{item.package_type === 'count_card'}}">
+            <text class="pkt-big">{{item.total_credits || 0}}</text>
+            <text class="pkt-lab">总次数</text>
+          </block>
+          <block wx:else>
+            <text class="pkt-big">--</text>
+            <text class="pkt-lab">待激活</text>
+          </block>
+          <view class="pkt-seal pkt-seal-pending" wx:if="{{skinId === 'paper'}}">启</view>
+          <view class="pkt-pending-badge" wx:if="{{skinId === 'volt'}}">PENDING</view>
+        </view>
+        <view class="pkt-barcode" wx:if="{{skinId === 'volt'}}"><view class="pkb-bar"></view><view class="pkb-bar pkb-w2"></view><view class="pkb-bar pkb-w3"></view><view class="pkb-bar"></view><view class="pkb-bar pkb-w2"></view><view class="pkb-bar"></view><view class="pkb-bar pkb-w3"></view><view class="pkb-bar pkb-w2"></view><view class="pkb-bar"></view><view class="pkb-bar pkb-w3"></view><view class="pkb-bar"></view><view class="pkb-bar pkb-w2"></view><view class="pkb-bar pkb-w3"></view><view class="pkb-bar"></view><view class="pkb-bar pkb-w2"></view><view class="pkb-bar"></view><view class="pkb-bar pkb-w3"></view><view class="pkb-bar pkb-w2"></view><view class="pkb-bar"></view><view class="pkb-bar pkb-w3"></view></view>
       </view>
-      <view class="pkg-skin-empty" wx:if="{{activePackages.length === 0}}">
+      </view>
+      <view class="pkg-skin-empty" wx:if="{{activePackages.length === 0 && pendingPackages.length === 0}}">
         <text>暂无使用中的套餐 · 请联系门店录入</text>
       </view>
     </block>

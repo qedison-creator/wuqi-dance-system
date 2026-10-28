@@ -16,7 +16,9 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  opacity: 0;
+  /* 默认即显示 logo：弱网下 verifyToken 可能长达数秒，
+     若默认 opacity:0 会造成整页纯白（真机弱网白屏的主要观感来源） */
+  opacity: 1;
   transform: scale(0.8);
   transition: opacity 0.4s ease-out, transform 0.4s ease-out;
 }
@@ -24,6 +26,14 @@
 .logo-wrapper.logo-show {
   opacity: 1;
   transform: scale(1);
+}
+
+/* 加载提示：验证登录态期间给用户可感知的反馈（弱网下此页可能停留数秒） */
+.splash-loading {
+  margin-top: 48rpx;
+  font-size: 26rpx;
+  color: #B8AF9E;
+  letter-spacing: 0.1em;
 }
 
 .logo-img {
