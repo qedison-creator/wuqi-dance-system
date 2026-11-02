@@ -151,7 +151,9 @@ Page({
       });
       const checkedInCount = records.filter(r => r.checked_in).length;
       const pendingCount = records.filter(r => !r.checked_in && r.status !== 'cancelled').length;
-      this.setData({ records, checkedInCount, pendingCount });
+      // 预约总数排除现场补签自动生成的记录（source='onsite'，非会员预约）
+      const bookedTotal = records.filter(r => r.source !== 'onsite').length;
+      this.setData({ records, checkedInCount, pendingCount, bookedTotal });
       wx.hideLoading();
     }).catch(() => {
       wx.hideLoading();

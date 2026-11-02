@@ -33,7 +33,7 @@
 
   <view class="stats-bar card" wx:if="{{records.length > 0}}">
     <view class="stat-item">
-      <text class="stat-num">{{records.length}}</text>
+      <text class="stat-num">{{bookedTotal}}</text>
       <text class="stat-label">预约总数</text>
     </view>
     <view class="stat-item checked">
