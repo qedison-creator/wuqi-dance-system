@@ -99,7 +99,7 @@
         </view>
         <view class="card-right">
           <view class="card-right-actions">
-            <view class="course-book-btn {{item.r.bookBtnClass}}" data-course="{{item}}" catchtap="onBookCourse">
+            <view class="course-book-btn {{item.r.bookBtnClass}}" data-course="{{item}}" data-action="{{item.r.bookBtnType === 'full' ? 'waitlist' : ''}}" catchtap="onBookCourse">
               <text>{{item.r.bookBtnText}}</text>
             </view>
             <view class="course-book-btn waitlist-btn" wx:if="{{item.r.showWaitlistBtn}}" data-course="{{item}}" data-action="waitlist" catchtap="onBookCourse">
@@ -149,7 +149,10 @@
             </view>
             <text class="bk-sc-time">{{item.r.showTime ? item.start_time : '??:??'}}<text class="bk-sc-time-end">- {{item.r.showTime ? item.end_time : '??'}}</text></text>
           </view>
-          <text class="bk-sc-name">{{item.course_name || '课程'}}</text>
+          <view class="bk-sc-name-row">
+            <text class="bk-sc-name">{{item.course_name || '课程'}}</text>
+            <view class="bk-exempt-seal" wx:if="{{item.r.exemptLockTag}}">不可豁免取消</view>
+          </view>
           <text class="bk-sc-meta">{{item.r.coachName}}{{item.r.showRoom ? ' · ' + item.r.room : ''}}</text>
           <view class="bk-sc-notes" wx:if="{{item.r.autoCancelText || item.r.showDeadline}}">
             <text class="bk-sc-autocancel" wx:if="{{item.r.autoCancelText}}">{{item.r.autoCancelText}}</text>
@@ -163,7 +166,7 @@
               </view>
               <view class="bk-sc-line"><view class="bk-sc-line-fill"></view></view>
             </view>
-            <view class="bk-btn {{item.r.bookBtnType}}" data-course="{{item}}" catchtap="onBookCourse">
+            <view class="bk-btn {{item.r.bookBtnType}}" data-course="{{item}}" data-action="{{item.r.bookBtnType === 'full' ? 'waitlist' : ''}}" catchtap="onBookCourse">
               <text>{{item.r.bookBtnType === 'book' ? t.btnBook : item.r.bookBtnText}}</text>
             </view>
           </view>
@@ -183,6 +186,7 @@
           <view class="bk-v-top">
             <view class="bk-v-tag bk-v-live" wx:if="{{item._ongoing}}"><view class="bk-v-live-dot"></view>LIVE</view>
             <view class="bk-v-tag" wx:elif="{{item.r.danceStyle}}">{{item.r.danceStyle}}</view>
+            <view class="bk-v-tag bk-v-exempt" wx:if="{{item.r.exemptLockTag}}">不可豁免取消</view>
             <view class="bk-v-time"><text class="bk-v-wd" wx:if="{{item.r.weekday}}">{{item.r.weekday}}</text>{{item.r.showTime ? item.start_time : '??:??'}}<text class="bk-v-time-end">- {{item.r.showTime ? item.end_time : '??'}}</text></view>
           </view>
           <view class="bk-v-body">
@@ -428,9 +432,15 @@
     <view class="bk-cfm-handle" wx:if="{{skinId === 'volt'}}"></view>
     <view class="bk-cfm-seal" wx:if="{{skinId === 'paper'}}">栖</view>
     <text class="bk-cfm-kicker" wx:if="{{skinId === 'paper'}}">BOOKING NOTICE</text>
-    <text class="bk-cfm-title">加入候补队列</text>
+    <text class="bk-cfm-title">加入候补队列<text class="bk-cfm-q" wx:if="{{skinId === 'volt'}}">?</text></text>
     <view class="bk-cfm-line"></view>
-    <text class="bk-cfm-body">{{waitlistModalText}}</text>
+    <block wx:if="{{waitlistCfm}}">
+      <view class="bk-cfm-row"><text>加入候补</text><text class="bk-cfm-strong">「{{waitlistCfm.name}}」</text></view>
+      <view class="bk-cfm-row"><text>{{waitlistCfm.date}} {{waitlistCfm.weekDay}} {{waitlistCfm.time}}</text></view>
+      <view class="bk-cfm-row"><text>当有名额释放时，按排队顺序通知您</text></view>
+      <view class="bk-cfm-row"><text class="bk-cfm-hl">候补转正后 {{waitlistCfm.deductText}}</text></view>
+    </block>
+    <text class="bk-cfm-body" wx:else>{{waitlistModalText}}</text>
     <view class="bk-cfm-actions">
       <view class="bk-cfm-cancel" bindtap="onCancelWaitlist">取消</view>
       <view class="bk-cfm-ok" bindtap="onConfirmWaitlist">确认候补</view>

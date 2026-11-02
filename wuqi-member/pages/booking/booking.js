@@ -1,7 +1,7 @@
 const app = getApp();
 const { request } = require('../../utils/request');
 const { getBeijingDate } = require('../../utils/helpers');
-const { normalizeImageUrl, pickEffectivePackage, getCreditUnitInfo } = require('../../utils/util');
+const { normalizeImageUrl, pickEffectivePackage, getCreditUnitInfo, isPkgDateValid, isPkgUsable } = require('../../utils/util');
 const config = require('../../config/index.js');
 const SERVER_BASE = config.serverBase;
 const auth = require('../../utils/auth');
@@ -111,7 +111,7 @@ Page({
     fetchTemplates(true).catch(() => {});
 
     if (typeof this.getTabBar === 'function' && this.getTabBar()) {
-      this.getTabBar().setData({ selected: 1, active: 'booking', skinId: skin.getSkinId() });
+      this.getTabBar().syncTab(1, 'booking', skin.getSkinId());
     }
     const storeList = app.globalData.storeList || [];
     const currentStore = app.globalData.currentStore || (storeList.length > 0 ? storeList[0] : null);
@@ -277,11 +277,11 @@ Page({
     if (packages.length === 0) {
       return '您暂无可用套餐，请联系门店开通';
     }
-    // 检查是否有有效套餐（active且未过期且未用完，或pending）
+    // 检查是否有有效套餐（active 未停卡且日期有效 / 错标 expired 但日期仍有效，或 pending）
+    // 日期口径：有效期只按日期、不精确到时刻，到期日当天全天有效（与后端一致）
     const hasValid = packages.some(pkg => {
       if (pkg.status === 'pending') return true;
-      if (pkg.status !== 'active' || pkg.is_suspended) return false;
-      if (pkg.is_activated && pkg.end_date && new Date() > new Date(pkg.end_date)) return false;
+      if (!isPkgUsable(pkg)) return false;
       if (pkg.package_type === 'count_card' && (pkg.remaining_credits || 0) === 0) return false;
       return true;
     });
@@ -295,7 +295,7 @@ Page({
     const hasExpired = packages.some(pkg => {
       if (pkg.status !== 'active') return false;
       if (pkg.is_suspended) return false;
-      return pkg.is_activated && pkg.end_date && new Date() > new Date(pkg.end_date);
+      return pkg.is_activated && pkg.end_date && !isPkgDateValid(pkg.end_date);
     });
     if (hasExpired) return '您的套餐已过期，请续费或联系门店';
     const hasCountCardUsedUp = packages.some(pkg => {
@@ -345,9 +345,7 @@ Page({
     // 才能查看该店每节课的预约人数/预约情况（无跨店套餐看其他门店显示"已约?/?"）
     const coveredStoreIds = new Set();
     allPackages.forEach(pkg => {
-      const isValid = pkg.status === 'pending' ||
-        (pkg.status === 'active' && !pkg.is_suspended &&
-          !(pkg.is_activated && pkg.end_date && new Date() > new Date(pkg.end_date)));
+      const isValid = isPkgUsable(pkg);
       if (!isValid) return;
       if (pkg.store_id) {
         const sid = typeof pkg.store_id === 'string' ? pkg.store_id : (pkg.store_id._id || pkg.store_id);
@@ -1051,7 +1049,7 @@ Page({
     try {
       await request({
         url: `/packages/${pendingPackage._id}/activate`,
-        method: 'POST',
+        method: 'PUT',
         data: { activation_type: 'manual_member' }
       });
 
@@ -1136,7 +1134,7 @@ Page({
   },
 
   onCancelWaitlist() {
-    this.setData({ showWaitlistModal: false, waitlistCourse: null, waitlistModalText: '' });
+    this.setData({ showWaitlistModal: false, waitlistCourse: null, waitlistModalText: '', waitlistCfm: null });
   },
 
   onConfirmBookingModal() {
@@ -1356,11 +1354,25 @@ Page({
     // 加入候补按钮通过 data-action="waitlist" 单独放行
     const action = e.currentTarget.dataset.action;
     const btnType = course.r && course.r.bookBtnType;
-    if (action !== 'waitlist' && ['ended', 'cancelled', 'done', 'ongoing', 'not_open', 'waitlisted', 'full'].indexOf(btnType) !== -1) {
+    if (action !== 'waitlist' && ['ended', 'cancelled', 'done', 'ongoing', 'not_open', 'waitlisted', 'full', 'waitlist_closed'].indexOf(btnType) !== -1) {
       // 未开放场次按钮仍显示「立即锁定」，点击给出开抢时间提示（不静默）
       if (btnType === 'not_open') {
         const grab = course.r && course.r.openGrab;
         wx.showToast({ title: grab ? `该场次 ${grab} 开抢` : '该场次暂未开放预约', icon: 'none' });
+      }
+      // 距开课不足30分钟，候补已截止（与后端时间闸一致）
+      if (btnType === 'waitlist_closed') {
+        wx.showToast({ title: '距开课不足30分钟，候补已截止', icon: 'none' });
+      }
+      // 候补中：会员可能想退出候补，原生弹窗引导去课程详情页操作（与已预约提示一致）
+      if (btnType === 'waitlisted') {
+        wx.showModal({
+          title: '候补排队中',
+          content: '您已加入该课程的候补队列，如需取消候补，请进入课程详情页操作。',
+          showCancel: false,
+          confirmText: '知道了',
+          confirmColor: skinUtil.confirmColor()
+        });
       }
       return;
     }
@@ -1400,10 +1412,24 @@ Page({
         return;
       }
       auth.requireMember(() => {
+        // 候补转正按正常预约扣费：弹窗明示扣除数，口径与预约确认弹窗一致
+        const pkgData = this.data._packagesData || {};
+        const act = pkgData.history || pkgData.packages || [];
+        const unitInfo = getCreditUnitInfo(pickEffectivePackage(act, course), course.credits_cost || 1);
+        const wlDate = course.date || '';
+        const wlD = wlDate ? new Date(String(wlDate).replace(/-/g, '/')) : null;
         this.setData({
           showWaitlistModal: true,
           waitlistCourse: course,
-          waitlistModalText: `「${course.course_name}」已达到人数上限，是否加入候补队列？\n\n当有名额释放时，系统会按排队顺序通知您。`
+          waitlistModalText: `「${course.course_name}」已达到人数上限，是否加入候补队列？\n\n当有名额释放时，系统会按排队顺序通知您。\n\n候补成功转正后：${unitInfo.deductText}`,
+          // paper/volt 结构化票面（对齐预约确认弹窗版式）
+          waitlistCfm: {
+            name: course.course_name || '课程',
+            date: wlDate,
+            weekDay: wlD ? '周' + '日一二三四五六'.charAt(wlD.getDay()) : '',
+            time: (course.start_time || '') + '-' + (course.end_time || ''),
+            deductText: unitInfo.deductText
+          }
         });
       });
       return;
@@ -1626,10 +1652,22 @@ Page({
         bookBtnText = '候补中';
         bookBtnClass = 'waitlist-btn waitlisted';
       } else if (course.status === 'full') {
-        bookBtnType = 'full';
-        bookBtnText = '已满';
-        bookBtnClass = 'state-full';
-        showWaitlistBtn = !isWaitlisted;
+        // 约满：主按钮即"加入候补"入口（与 volt 皮肤一致，不额外渲染第二个候补按钮）；
+        // data-action 由 wxml 按 bookBtnType === 'full' 注入 'waitlist'
+        // 距开课 ≤30 分钟候补截止（与后端 joinWaitlist 时间闸口径一致）
+        const wlStart = new Date(String(course.date).replace(/-/g, '/') + 'T' + (course.start_time || '00:00'));
+        const minsToStart = isNaN(wlStart.getTime()) ? Infinity : Math.floor((wlStart.getTime() - Date.now()) / 60000);
+        if (minsToStart <= 30) {
+          bookBtnType = 'waitlist_closed';
+          bookBtnText = '候补已截止';
+          bookBtnClass = 'disabled';
+          showWaitlistBtn = false;
+        } else {
+          bookBtnType = 'full';
+          bookBtnText = '加入候补';
+          bookBtnClass = 'waitlist-btn';
+          showWaitlistBtn = false;
+        }
       } else if (!course.bookingOpen) {
         bookBtnType = 'not_open';
         bookBtnText = '未开放预约';

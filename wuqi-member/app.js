@@ -227,6 +227,7 @@ App({
     if (!forceRefresh && this.globalData.userInfo &&
         (now - this.globalData.userInfoLastFetch < cacheTimeout)) {
       console.log('[App] 使用缓存的用户信息');
+      this.globalData._userInfoReady = true;
       return Promise.resolve(this.globalData.userInfo);
     }
 
@@ -242,6 +243,8 @@ App({
     }).then(res => {
       this.globalData.userInfo = res.data;
       this.globalData.userInfoLastFetch = Date.now(); // 更新缓存时间
+      // 用户信息已就绪：门店列表后到时可安全执行所属门店匹配
+      this.globalData._userInfoReady = true;
       // 账号可用：清除限制/冻结拦截缓存
       try { wx.removeStorageSync('account_block'); } catch (e) { /* 忽略 */ }
       this._tryMatchStoreForUser();
@@ -297,6 +300,20 @@ App({
     }
     this.globalData._pendingStoreMatch = false;
 
+    // 所属门店纠偏：管理员修改会员所属门店后，会员端启动/用户信息刷新时自动跟随新门店。
+    // 会员手动切换过门店则不强制纠正（尊重用户选择）
+    const userInfo = this.globalData.userInfo;
+    if (userInfo && userInfo.member_status === 'official' && !this.globalData.userManuallySelectedStore) {
+      const userStoreId = userInfo.store_id
+        ? (typeof userInfo.store_id === 'object' ? userInfo.store_id._id : userInfo.store_id)
+        : null;
+      const currentStore = this.globalData.currentStore;
+      if (userStoreId && currentStore && String(currentStore._id) !== String(userStoreId)) {
+        this.determineDefaultStore(true);
+        return;
+      }
+    }
+
     // 统一走 determineDefaultStore 进行门店匹配
     this.determineDefaultStore();
   },
@@ -324,7 +341,13 @@ App({
       if (this.globalData._pendingStoreMatch) {
         this._tryMatchStoreForUser();
       } else if (!this.globalData.defaultStoreSet) {
-        this.determineDefaultStore();
+        if (!this.globalData._userInfoReady) {
+          // 用户信息未就绪：挂起等待 /auth/me 返回后再匹配，
+          // 避免"最近门店"兜底抢先定店、把会员所属门店匹配卡死在 L359 的跳过条件上
+          this.globalData._pendingStoreMatch = true;
+        } else {
+          this.determineDefaultStore();
+        }
       }
       return list;
     }).catch((err) => {
@@ -406,6 +429,7 @@ App({
 
   getActivePackageStores() {
     const { request } = require('./utils/request');
+    const { isPkgUsable } = require('./utils/util');
     return request({ url: '/packages/my', silent: true }).then(res => {
       const data = res.data || {};
       const packages = [];
@@ -415,10 +439,9 @@ App({
       }
 
       const activePackages = packages.filter(p => {
-        if (p.status !== 'active' || p.is_suspended) return false;
-        // 过滤已过期套餐（end_date 已过）
-        if (p.is_activated && p.end_date && new Date() > new Date(p.end_date)) return false;
-        return true;
+        // 日期口径：到期日当天全天有效；错标 expired 但日期仍有效的套餐一并计入（与后端一致）
+        if (p.status === 'pending') return false;  // 待激活不参与门店匹配
+        return isPkgUsable(p);
       });
       const storeIds = [...new Set(
         activePackages

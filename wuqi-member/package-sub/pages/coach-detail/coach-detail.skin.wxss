@@ -92,7 +92,7 @@
   background: #ECE5D6; border-radius: 2rpx; overflow: hidden;
 }
 .chp-c-bar-fill { display: block; height: 100%; background: #221D15; }
-.chp-c-row .cd-course-action { margin-left: 0; }
+.chp-c-row .cd-course-action { margin-left: 0; align-self: flex-end; }
 /* 预约按钮（预览 .cbtn：34px 高 / 16px 内边距 / 12px 字） */
 .chp-c-row .cd-book-btn { height: 68rpx; padding: 0 32rpx; }
 .chp-c-row .cd-book-btn text { font-size: 24rpx; }
@@ -140,12 +140,20 @@
 .skin-paper .cd-book-btn.booked { background: var(--sk-ink); }
 .skin-paper .cd-book-btn.disabled,
 .skin-paper .cd-book-btn.disabled-clickable { background: #ECE5D6; color: var(--sk-hint); box-shadow: none; }
-.skin-paper .cd-book-btn.waitlist-btn,
+/* 约满候补（纸上舞台）：朱砂钤印描边 —— 同「不可豁免取消」印章语言，区别于实心朱砂的「预约」 */
+.skin-paper .cd-book-btn.waitlist-btn {
+  background: rgba(185, 58, 38, 0.07);
+  border: 3rpx solid #B93A26;
+  box-shadow: 2rpx 3rpx 0 rgba(185, 58, 38, 0.22);
+}
+.skin-paper .cd-book-btn.waitlist-btn text { color: #B93A26; }
+/* 候补中：墨色描边（排队状态，非行动号召） */
 .skin-paper .cd-book-btn.waitlisted { background: transparent; border: 2rpx solid var(--sk-ink); color: var(--sk-ink); }
+.skin-paper .cd-book-btn.waitlisted text { color: var(--sk-ink); }
 /* 按钮文字统一用纸面奶油色（覆盖经典的白色），描边/灰底按钮另行覆盖为墨色/纸灰 */
 .skin-paper .cd-book-btn text { color: var(--sk-btn-fg); }
-/* 描边/灰底按钮的内部文字色（否则继承白色，在纸底上不可见） */
-.skin-paper .cd-book-btn.waitlist-btn text,
+/* 描边/灰底按钮的内部文字色（否则继承白色，在纸底上不可见）；
+   waitlist-btn 文字色已在上方朱砂钤印规则中单独定义 */
 .skin-paper .cd-book-btn.waitlisted text,
 .skin-paper .cd-book-btn.state-done text { color: var(--sk-ink); }
 .skin-paper .cd-book-btn.disabled text,
@@ -221,7 +229,13 @@
 .skin-volt .cd-book-btn.booked { background: var(--sk-volt); color: var(--sk-ink); }
 .skin-volt .cd-book-btn.disabled,
 .skin-volt .cd-book-btn.disabled-clickable { background: transparent; color: var(--sk-hint); border-color: var(--sk-line); }
-.skin-volt .cd-book-btn.waitlist-btn,
+/* 约满候补（VOLT）：荧光绿实心 CTA —— 同 LOCKED 贴纸/「仅剩」高亮语言 */
+.skin-volt .cd-book-btn.waitlist-btn {
+  background: var(--sk-volt); color: var(--sk-ink);
+  box-shadow: 3rpx 3rpx 0 var(--sk-ink);
+}
+.skin-volt .cd-book-btn.waitlist-btn text { color: var(--sk-ink); }
+/* 候补中：透明描边（排队状态，非行动号召） */
 .skin-volt .cd-book-btn.waitlisted { background: transparent; color: var(--sk-ink); }
 
 /* ---------- 骨架屏（纸上舞台 / VOLT） ---------- */

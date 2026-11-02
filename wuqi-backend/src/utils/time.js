@@ -96,26 +96,28 @@ exports.isToday = (date) => {
 };
 
 /**
- * 判断是否已过期（北京时间）
+ * 判断是否已过期（北京时间，日期口径）
+ * 套餐有效期只按日期、不精确到时刻：到期日当天全天有效，次日 0 点起才过期
  * @param {Date|string} date 日期
  * @returns {boolean} 是否已过期
  */
 exports.isExpired = (date) => {
-  return dayjs(date).tz(BEIJING_TIMEZONE).isBefore(this.now());
+  return dayjs(date).tz(BEIJING_TIMEZONE).startOf('day').isBefore(this.dayjs().startOf('day'));
 };
 
 /**
- * 计算剩余天数（北京自然日差，与前端会员详情页口径一致）
- * 取两端日期的北京日期部分求差，避免 end_date 的 23:59:59.999 时刻
- * （最后一天全天有效）被向上取整多算一天。
+ * 计算剩余天数（北京自然日差，含到期日当天：到期日剩余 1 天）
+ * 与「有效期只按日期、不精确到时刻」的口径配套：
+ *   到期日=今天 → 1；过期次日 → 0；再往后为负。
+ * 取两端日期的北京日期部分求差，避免 end_date 的 23:59:59.999 时刻影响。
  * @param {Date|string|number} endDate 到期日
- * @returns {number|null} 自然日差（可负，表示已过期）；无到期日返回 null
+ * @returns {number|null} 剩余天数（可负，表示已过期）；无到期日返回 null
  */
 exports.diffDays = (endDate) => {
   if (!endDate) return null;
   const end = dayjs(endDate).tz(BEIJING_TIMEZONE).startOf('day');
   const today = dayjs().tz(BEIJING_TIMEZONE).add(serverTimeOffset, 'millisecond').startOf('day');
-  return end.diff(today, 'day');
+  return end.diff(today, 'day') + 1;
 };
 
 /**

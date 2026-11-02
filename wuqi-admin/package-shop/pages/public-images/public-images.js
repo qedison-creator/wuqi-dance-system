@@ -59,10 +59,13 @@ Page({
       if (this.data.filterShowHome !== '') params.show_on_home = this.data.filterShowHome;
 
       // 教练列表加载全部教练（不按门店过滤）
-      const [imageRes, coachRes] = await Promise.all([
+      // 下标取值代替数组解构（规避 SWC helper 缺失白屏）
+      const pairRes = await Promise.all([
         api.images.getList(params),
         api.coaches.getList({ pageSize: 100 })
       ]);
+      const imageRes = pairRes[0];
+      const coachRes = pairRes[1];
       const rawImages = imageRes.data || {};
       let list = rawImages.list || rawImages.data || [];
       const serverBase = config.serverBase || '';

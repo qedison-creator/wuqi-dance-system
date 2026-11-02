@@ -9,6 +9,7 @@ const Package = require('../models/Package');
 const Image = require('../models/Image');
 const imageService = require('../services/image.service');
 const { resolveStoreConfig } = require('../services/coach.service');
+const scheduleService = require('../services/schedule.service');
 const User = require('../models/User');
 const Booking = require('../models/Booking');
 const UserPackage = require('../models/UserPackage');
@@ -56,6 +57,20 @@ router.get('/member', async (req, res, next) => {
       }
       return obj;
     });
+
+    // 约满状态读取时修正：以真实有效预约人数（booked+completed 去重用户）为准，
+    // 管理员调整上限后存量 status 滞后会导致首页卡片按钮停留在"可预约"；
+    // 同时刷新 current_bookings 展示并异步回写治愈存量数据
+    if (hotCourses.length > 0) {
+      const countRows = await Booking.aggregate([
+        { $match: { schedule_id: { $in: hotCourses.map(c => c._id) }, status: { $in: ['booked', 'completed'] } } },
+        { $group: { _id: '$schedule_id', users: { $addToSet: '$user_id' } } },
+      ]);
+      const countMap = {};
+      countRows.forEach(r => { countMap[String(r._id)] = (r.users || []).length; });
+      hotCourses.forEach(c => { c.current_bookings = countMap[String(c._id)] || 0; });
+      scheduleService.normalizeFullStatus(hotCourses);
+    }
 
     // 舞种列表
     const danceStyles = await DanceStyle.find({ status: 'active' })

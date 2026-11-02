@@ -225,24 +225,62 @@
 .tab-bar.skin-paper .tb-paper { background: #FCFAF4; }
 .tab-bar.skin-paper { background: #FCFAF4; border-top: 2rpx solid #DFD6C2; }
 
-/* VOLT */
-.tb-volt .tb-item {
+/* VOLT：原生动画生长方案（wx.createAnimation）
+   - 胶囊永远静态停在自己 tab（无过渡，首帧即正确），不做跨页滑动
+   - 尺寸变化由 JS 写入的动画数据驱动（见 index.js growPillAnim），不依赖 CSS 动画时钟，
+     第二次及以后的切换同样完整播放
+   - 外层只负责定位（translateX），内层只负责尺寸（width 74% → 100%），互不干扰 */
+.tb-volt-track {
+  position: relative;
+  flex: 1;
+  display: flex;
+}
+.tb-volt-indicator {
+  position: absolute;
+  top: 12rpx;
+  left: 0;
+  width: calc(100% / 3);
+  height: 84rpx;
+}
+/* 内层绝对定位：预置起点为 scaleX(0.72)，onShow 后由原生动画长到 1 */
+.tb-volt-indicator-inner {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
   border-radius: 999rpx;
+  background: #111310;
+}
+/* 方向锚点（类名由 JS 写入 dir-left / dir-right）：
+   往右切 → 锚左边缘、从左向右展开；往左切 → 锚右边缘、从右向左展开 */
+.tb-volt-indicator-inner.dir-left {
+  transform-origin: left center;
+}
+.tb-volt-indicator-inner.dir-right {
+  left: auto;
+  right: 0;
+  transform-origin: right center;
+}
+.tb-volt .tb-item {
+  flex: 1;
+  position: relative;
+  z-index: 1;
   height: 84rpx;
   flex-direction: row; gap: 10rpx;
   align-self: center;
-  margin-top: 12rpx;
-  transition: background 200ms;
+  border-radius: 999rpx;
 }
-.tb-volt .tb-item.active { background: #111310; }
 .tb-volt .tb-dot {
   width: 8rpx; height: 8rpx; border-radius: 2rpx;
   background: transparent;
+  transition: background-color 180ms ease;
 }
 .tb-volt .tb-item.active .tb-dot { background: #D7FF3B; }
 .tb-volt .tb-text {
   font-size: 24rpx; font-weight: 700; letter-spacing: 0.1em;
   color: #77786F;
+  transition: color 180ms ease;
 }
 .tb-volt .tb-item.active .tb-text { color: #D7FF3B; }
 .tab-bar.skin-volt { background: #F2F1ED; border-top: 3rpx solid #111310; }

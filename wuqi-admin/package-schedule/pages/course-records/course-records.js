@@ -95,7 +95,10 @@ Page({
   async generateMonthCalendar(monthKey) {
     if (!monthKey) return;
 
-    const [year, month] = monthKey.split('-').map(Number);
+    // 下标取值代替数组解构（规避 SWC helper 缺失白屏）
+    const ym = monthKey.split('-').map(Number);
+    const year = ym[0];
+    const month = ym[1];
 
     // 获取当月第一天和最后一天
 
@@ -193,7 +196,10 @@ Page({
     if (!currentStoreId || !monthKey) return;
 
     try {
-      const [year, month] = monthKey.split('-').map(Number);
+      // 下标取值代替数组解构（规避 SWC helper 缺失白屏）
+      const ym = monthKey.split('-').map(Number);
+      const year = ym[0];
+      const month = ym[1];
       const lastDay = new Date(year, month, 0).getDate();
       const startDate = `${year}-${String(month).padStart(2, '0')}-01`;
       const endDate = `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;

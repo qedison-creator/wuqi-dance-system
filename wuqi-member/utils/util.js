@@ -248,8 +248,30 @@ const getCreditUnitInfo = (pkg, creditsCost) => {
   };
 };
 
+// 套餐有效期是否覆盖今天（北京日历日口径，与后端 timeUtil.diffDays 一致）：
+// 有效期只按日期、不精确到时刻——到期日当天全天有效（剩余 ≥1 天），次日 0 点起过期
+const isPkgDateValid = (endDate) => {
+  if (!endDate) return true;
+  const bjDay = (d) => new Date(new Date(d).getTime() + 8 * 60 * 60 * 1000).toISOString().split('T')[0];
+  return bjDay(endDate) >= bjDay(new Date());
+};
+
+// 套餐当前是否可用（预约/签到预检口径）：
+// - active：未停卡且日期有效
+// - pending：待激活（预约路径可自动激活）
+// - expired 但日期仍在有效期内：历史时刻口径错标的数据，前端放行（后端预约/签到路径会自动恢复为 active）
+const isPkgUsable = (pkg) => {
+  if (!pkg) return false;
+  if (pkg.is_suspended) return false;
+  if (pkg.status === 'pending') return true;
+  if (pkg.status === 'active' || pkg.status === 'expired') return isPkgDateValid(pkg.end_date);
+  return false;
+};
+
 module.exports = {
   getBeijingDate,
+  isPkgDateValid,
+  isPkgUsable,
   formatDate,
   formatTime,
   formatDateTime,

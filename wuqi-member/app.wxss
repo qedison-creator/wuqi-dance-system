@@ -894,6 +894,7 @@ page {
 .bk-v-top { display: flex; justify-content: space-between; align-items: center; padding: 28rpx 36rpx; border-bottom: 3rpx dashed #DCDAD0; }
 .bk-v-tag { font-size: 23rpx; font-weight: 700; border: 3rpx solid #111310; border-radius: 999rpx; padding: 10rpx 26rpx; color: #111310; background: #FFFFFF; }
 .bk-v-tag.bk-v-live { background: #111310; color: #D7FF3B; display: inline-flex; align-items: center; gap: 10rpx; font-family: 'AntonV', 'Anton', sans-serif; letter-spacing: 0.1em; }
+.bk-v-tag.bk-v-exempt { background: #D7FF3B; color: #1A1A17; font-family: 'GroteskV', sans-serif; font-weight: 800; letter-spacing: 0.02em; }
 .bk-v-live-dot { width: 10rpx; height: 10rpx; border-radius: 50%; background: #D7FF3B; animation: bk-v-blink 1.2s infinite; }
 @keyframes bk-v-blink { 50% { opacity: 0.25; } }
 .bk-v-time { display: block; margin-right: -12rpx; font-size: 46rpx; font-weight: 700; letter-spacing: -0.01em; color: #111310; font-family: 'GroteskV', sans-serif; white-space: nowrap; line-height: 1.2; position: relative; z-index: 2; }
@@ -920,7 +921,9 @@ page {
 .bk-v-btn { height: 72rpx; padding: 0 40rpx; display: flex; align-items: center; justify-content: center; border-radius: 999rpx; font-size: 25rpx; font-weight: 800; letter-spacing: 0.08em; border: 3rpx solid #111310; flex-shrink: 0; }
 .bk-v-btn.book { background: #111310; color: #D7FF3B; }
 .bk-v-btn.booked { background: #D7FF3B; color: #111310; }
-.bk-v-btn.waitlisted, .bk-v-btn.full { background: transparent; color: #111310; }
+.bk-v-btn.waitlisted { background: transparent; color: #111310; }
+/* 约满候补（VOLT）：荧光绿实心 CTA —— 同 LOCKED 贴纸/「仅剩」高亮语言（预约页已有同名覆盖，此处供教练详情等无覆盖页使用） */
+.bk-v-btn.full { background: #D7FF3B; color: #111310; box-shadow: 3rpx 3rpx 0 #111310; }
 .bk-v-btn.done { background: #ECEAE2; color: #9C9D93; border-color: #DCDAD0; }
 .bk-v-btn.ongoing, .bk-v-btn.ended, .bk-v-btn.cancelled, .bk-v-btn.cannot_book, .bk-v-btn.not_open { background: transparent; color: #9C9D93; border-color: #DCDAD0; }
 .bk-v-locked { position: absolute; top: -16rpx; left: 24rpx; z-index: 3; display: inline-flex; align-items: center; background: #D7FF3B; color: #111310; border: 3rpx solid #111310; border-radius: 12rpx; padding: 4rpx 18rpx; font-family: 'AntonV', 'Anton', sans-serif; font-size: 22rpx; letter-spacing: 0.12em; line-height: 1.4; }

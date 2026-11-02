@@ -431,10 +431,12 @@ Page({
   generateMonthCalendar(monthKey) {
     if (!monthKey) return;
     
-    const [year, month] = monthKey.split('-').map(Number);
-    
-    // 获取当月第一天和最后一天
+    // 下标取值代替数组解构：规避 SWC helper _array_with_holes 缺失导致的白屏
+    const ym = monthKey.split('-').map(Number);
+    const year = ym[0];
+    const month = ym[1];
 
+    // 获取当月第一天和最后一天
     const firstDay = getBeijingDate(new Date(year, month - 1, 1));
     const lastDay = getBeijingDate(new Date(year, month, 0));
     
@@ -1228,7 +1230,10 @@ Page({
   calculateEndTime(startTime, duration) {
     if (!startTime || !duration) return;
     
-    const [hours, minutes] = startTime.split(':').map(Number);
+    // 下标取值代替数组解构（规避 SWC helper 缺失白屏）
+    const hm = startTime.split(':').map(Number);
+    const hours = hm[0];
+    const minutes = hm[1];
     const startDate = getBeijingDate();
     startDate.setHours(hours, minutes, 0);
     

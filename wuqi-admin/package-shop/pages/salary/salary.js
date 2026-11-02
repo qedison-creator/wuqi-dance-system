@@ -151,6 +151,10 @@ Page({
       });
       if (res.data) {
         const hasData = (res.data.months || []).length > 0;
+        // 每月总课时：汇总该月各教练课时数（月份行右侧展示）
+        (res.data.months || []).forEach(m => {
+          m.totalClasses = (m.coaches || []).reduce((sum, c) => sum + (c.total_classes || 0), 0);
+        });
         this.setData({
           classHoursYears: hasData ? [res.data] : [],
           hoursOrphanCount: res.data.orphan_count || 0,
@@ -678,7 +682,10 @@ Page({
   onStatStartDateChange(e) {
     const startDate = e.detail.value;
     // 选择开始日期后，结束日期自动预选为当月最末一天
-    const [year, month] = startDate.split('-').map(Number);
+    // 下标取值代替数组解构（规避 SWC helper 缺失白屏）
+    const ym = startDate.split('-').map(Number);
+    const year = ym[0];
+    const month = ym[1];
     const lastDay = new Date(year, month, 0).getDate();
     const endDate = `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
     this.setData({

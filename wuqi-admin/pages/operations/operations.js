@@ -181,7 +181,11 @@ Page({
     const { monthList } = this.data;
     if (!monthList || monthList.length === 0) return monthList;
     const baseDate = new Date();
-    const [targetYear, targetMonth] = targetMonthKey.split('-').map(Number);
+    // 不用数组解构：SWC 编译该写法需注入 _array_with_holes 运行时 helper，
+    // 开发者工具偶发未生成该模块导致页面白屏（module not defined）
+    const targetYm = targetMonthKey.split('-').map(Number);
+    const targetYear = targetYm[0];
+    const targetMonth = targetYm[1];
     const targetDate = new Date(targetYear, targetMonth - 1, 1);
     const first = monthList[0];
     const last = monthList[monthList.length - 1];
@@ -394,7 +398,9 @@ Page({
     if (!currentStoreId || !monthKey) return;
 
     try {
-      const [year, month] = monthKey.split('-').map(Number);
+      const ym = monthKey.split('-').map(Number);
+      const year = ym[0];
+      const month = ym[1];
       const lastDay = new Date(year, month, 0).getDate();
       const startDate = `${year}-${String(month).padStart(2, '0')}-01`;
       const endDate = `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
@@ -446,7 +452,9 @@ Page({
 
   generateMonthCalendar(monthKey) {
     if (!monthKey) return;
-    const [year, month] = monthKey.split('-').map(Number);
+    const ym = monthKey.split('-').map(Number);
+    const year = ym[0];
+    const month = ym[1];
     const firstDay = new Date(year, month - 1, 1);
     const lastDay = new Date(year, month, 0);
     let startWeekday = firstDay.getDay();

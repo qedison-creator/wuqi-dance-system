@@ -399,8 +399,6 @@
   box-sizing: border-box;
 }
 .pf-mi-ico-txt { font-family: var(--sk-serif); font-size: 22rpx; font-weight: 700; color: var(--sk-ink); }
-.pf-mi-ico-skin { flex-direction: row; gap: 4rpx; }
-.pf-mi-ico-skin .sd-dot { width: 10rpx; height: 10rpx; border-radius: 3rpx; border-width: 1rpx; }
 .pf-mi-name { flex: 1; font-size: 27rpx; color: var(--sk-ink); font-weight: 500; }
 .skin-paper .pf-mi-name { font-family: var(--sk-serif); }
 .pf-mi-en { font-size: 18rpx; letter-spacing: 0.22em; color: var(--sk-hint); font-weight: 700; }

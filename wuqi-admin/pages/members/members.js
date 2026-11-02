@@ -1,5 +1,6 @@
 const app = getApp();
 const { request } = require('../../utils/request');
+const { getBeijingDate } = require('../../utils/util');
 
 // 规范化头像 URL：相对路径补全 serverBase，完整 URL 直接返回
 const normalizeAvatarUrl = (url) => {
@@ -635,6 +636,21 @@ Page({
     if (member.member_status === 'official' && member.packages && member.packages.length > 0) {
       // 展示排序：使用中 > 已停卡 > 待激活 > 已用完 > 已过期 > 已作废
       const statusOrder = { active: 0, suspended: 1, pending: 2, exhausted: 3, expired: 4, voided: 5 };
+      // 状态显示纠偏（北京日历日口径，与会员详情页一致：有效期只按日期、不精确到时刻，
+      // 到期日当天全天有效剩余 ≥1 天）。后端存量的 status 可能仍被旧时刻口径错标，
+      // 这里按 end_date 与今天北京的日历差直接纠正内存中的 status（仅本页展示用，不回写后端）
+      member.packages.forEach((pkg) => {
+        if (!pkg.end_date || pkg.is_suspended) return;
+        if (pkg.status !== 'active' && pkg.status !== 'expired') return;
+        const endDay = getBeijingDate(pkg.end_date);
+        const today = getBeijingDate();
+        const diff = Math.round(
+          (new Date(endDay.getFullYear(), endDay.getMonth(), endDay.getDate())
+            - new Date(today.getFullYear(), today.getMonth(), today.getDate())) / (1000 * 60 * 60 * 24)
+        ) + 1;
+        if (diff >= 1 && pkg.status === 'expired') pkg.status = 'active';
+        else if (diff < 1 && pkg.status === 'active') pkg.status = 'expired';
+      });
       const getPkgOrder = (p) => {
         if (p.status === 'voided') return statusOrder.voided;
         if (p.status === 'active' && p.is_suspended) return statusOrder.suspended;
@@ -730,27 +746,21 @@ Page({
     // 处理门店标签
     // 福永店使用蓝色系标签，与其他门店（棕色系）视觉区分
     const isFuyongStore = (name) => (name || '').indexOf('福永') !== -1;
+    const labelOf = (id, name) => ({ id, name, isFuyong: isFuyongStore(name) });
+    // 所属门店以会员档案 store_id 为准（与会员详情页一致）：
+    // 管理员改过所属门店后，旧门店的历史套餐（含已作废）不应再贡献门店标签
     let storeLabels = [];
-    if (member.packages && member.packages.length > 0) {
+    if (member.store_id && member.store_id._id && member.store_id.name) {
+      storeLabels = [labelOf(member.store_id._id, member.store_id.name)];
+    } else if (member.packages && member.packages.length > 0) {
+      // 兜底：会员档案缺失所属门店时，从非作废套餐聚合
       const storeMap = new Map();
       member.packages.forEach(pkg => {
-        if (pkg.store_id && pkg.store_id._id && pkg.store_id.name) {
-          if (!storeMap.has(pkg.store_id._id)) {
-            storeMap.set(pkg.store_id._id, {
-              id: pkg.store_id._id,
-              name: pkg.store_id.name,
-              isFuyong: isFuyongStore(pkg.store_id.name)
-            });
-          }
+        if (pkg.status !== 'voided' && pkg.store_id && pkg.store_id._id && pkg.store_id.name && !storeMap.has(pkg.store_id._id)) {
+          storeMap.set(pkg.store_id._id, labelOf(pkg.store_id._id, pkg.store_id.name));
         }
       });
       storeLabels = Array.from(storeMap.values());
-    } else if (member.store_id && member.store_id._id && member.store_id.name) {
-      storeLabels = [{
-        id: member.store_id._id,
-        name: member.store_id.name,
-        isFuyong: isFuyongStore(member.store_id.name)
-      }];
     }
 
     let displayStatus = 'inactive';

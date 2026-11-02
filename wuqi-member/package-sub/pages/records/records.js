@@ -234,6 +234,12 @@ Page({
           storeName: schedule && schedule.store_id ? schedule.store_id.name : '门店'
         };
       });
+      // 活跃排队在前，已结束排队（closed）的记录殿后展示
+      records.sort((a, b) => {
+        const aActive = (a.status === 'waiting' || a.status === 'notified') ? 0 : 1;
+        const bActive = (b.status === 'waiting' || b.status === 'notified') ? 0 : 1;
+        return aActive - bActive;
+      });
       this.setData({ records, loading: false, hasMore: false });
     }).catch((err) => {
       console.error('加载排队记录失败:', err);

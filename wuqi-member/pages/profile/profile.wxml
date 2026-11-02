@@ -627,11 +627,7 @@
       <view class="menu-card">
         <view class="menu-item" bindtap="onSkinSettings">
           <view class="menu-icon-wrap gold">
-            <view class="skin-dots-icon">
-              <view class="sd-dot" style="background:#D4786E;"></view>
-              <view class="sd-dot" style="background:#B93A26;"></view>
-              <view class="sd-dot" style="background:#111310;"></view>
-            </view>
+            <image class="menu-icon" src="/images/icons/palette.svg" mode="aspectFit"></image>
           </view>
           <text class="menu-item-title">皮肤外观</text>
           <view class="menu-item-arrow"></view>

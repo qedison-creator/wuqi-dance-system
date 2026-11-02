@@ -387,7 +387,8 @@ exports.getDashboardData = async (storeId) => {
       const isTimeCardHit = timeCardCfg.mode === 'percent'
         ? remainingPercent < timeCardCfg.percent
         : remainingDays <= timeCardCfg.days;
-      const isExpiring = remainingDays >= 0 && isTimeCardHit;
+      // 剩余天数口径含到期日当天（到期日=1），未过期 ⇔ 剩余 ≥ 1；过期次日为 0，不应再进「即将到期」
+      const isExpiring = remainingDays >= 1 && isTimeCardHit;
 
       return {
         user_id: pkg.user_id?._id,

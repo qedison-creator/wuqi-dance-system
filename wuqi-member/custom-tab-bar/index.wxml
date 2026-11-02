@@ -41,20 +41,25 @@
     </view>
   </block>
 
-  <!-- VOLT：胶囊选中 -->
+  <!-- VOLT：原生动画生长（胶囊静态停在自己 tab，尺寸由 wx.createAnimation 驱动） -->
   <block wx:if="{{skinId === 'volt'}}">
     <view class="tb-bar-capsule tb-volt">
-      <view class="tb-item {{active === 'index' ? 'active' : ''}}" data-path="/pages/index/index" data-index="0" bindtap="onTabTap">
-        <view class="tb-dot"></view>
-        <text class="tb-text">首页</text>
-      </view>
-      <view class="tb-item {{active === 'booking' ? 'active' : ''}}" data-path="/pages/booking/booking" data-index="1" bindtap="onTabTap">
-        <view class="tb-dot"></view>
-        <text class="tb-text">约课</text>
-      </view>
-      <view class="tb-item {{active === 'profile' ? 'active' : ''}}" data-path="/pages/profile/profile" data-index="2" bindtap="onTabTap">
-        <view class="tb-dot"></view>
-        <text class="tb-text">我的</text>
+      <view class="tb-volt-track">
+        <view class="tb-volt-indicator" style="transform: translateX({{pillIndex * 100}}%);">
+          <view class="tb-volt-indicator-inner {{pillDir}}" animation="{{pillAnim}}"></view>
+        </view>
+        <view class="tb-item {{active === 'index' ? 'active' : ''}}" data-path="/pages/index/index" data-index="0" bindtap="onTabTap">
+          <view class="tb-dot"></view>
+          <text class="tb-text">首页</text>
+        </view>
+        <view class="tb-item {{active === 'booking' ? 'active' : ''}}" data-path="/pages/booking/booking" data-index="1" bindtap="onTabTap">
+          <view class="tb-dot"></view>
+          <text class="tb-text">约课</text>
+        </view>
+        <view class="tb-item {{active === 'profile' ? 'active' : ''}}" data-path="/pages/profile/profile" data-index="2" bindtap="onTabTap">
+          <view class="tb-dot"></view>
+          <text class="tb-text">我的</text>
+        </view>
       </view>
     </view>
   </block>

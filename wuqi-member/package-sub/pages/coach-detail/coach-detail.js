@@ -3,7 +3,7 @@ const { request } = require('../../../utils/request');
 const { checkLogin } = require('../../../utils/auth');
 const auth = require('../../../utils/auth');
 const config = require('../../../config/index.js');
-const { normalizeImageUrl, pickEffectivePackage, getCreditUnitInfo } = require('../../../utils/util');
+const { normalizeImageUrl, pickEffectivePackage, getCreditUnitInfo, isPkgDateValid, isPkgUsable } = require('../../../utils/util');
 const wsClient = require('../../../utils/websocket-client');
 const skinUtil = require('../../../utils/skin.js');
 
@@ -237,9 +237,7 @@ Page({
       // 有效套餐（待激活/正常使用中未暂停未过期）覆盖的门店集合，用于逐课判断预约人数可见性
       const validStoreIds = new Set();
       packages.forEach(pkg => {
-        const isValid = pkg.status === 'pending' ||
-          (pkg.status === 'active' && !pkg.is_suspended &&
-            !(pkg.is_activated && pkg.end_date && new Date() > new Date(pkg.end_date)));
+        const isValid = isPkgUsable(pkg);
         if (!isValid) return;
         if (pkg.store_id) {
           const sid = typeof pkg.store_id === 'string' ? pkg.store_id : (pkg.store_id._id || pkg.store_id);
@@ -316,10 +314,10 @@ Page({
     if (packages.length === 0) {
       return '您暂无可用套餐，请联系门店开通';
     }
+    // 日期口径：到期日当天全天有效；错标 expired 但日期仍有效放行（与后端一致）
     const hasValid = packages.some(pkg => {
       if (pkg.status === 'pending') return true;
-      if (pkg.status !== 'active' || pkg.is_suspended) return false;
-      if (pkg.is_activated && pkg.end_date && new Date() > new Date(pkg.end_date)) return false;
+      if (!isPkgUsable(pkg)) return false;
       if (pkg.package_type === 'count_card' && (pkg.remaining_credits || 0) === 0) return false;
       return true;
     });
@@ -332,7 +330,7 @@ Page({
     const hasExpired = packages.some(pkg => {
       if (pkg.status !== 'active') return false;
       if (pkg.is_suspended) return false;
-      return pkg.is_activated && pkg.end_date && new Date() > new Date(pkg.end_date);
+      return pkg.is_activated && pkg.end_date && !isPkgDateValid(pkg.end_date);
     });
     if (hasExpired) return '您的套餐已过期，请续费或联系门店';
     const hasCountCardUsedUp = packages.some(pkg => {
@@ -476,12 +474,18 @@ Page({
     const currentMin = now.getHours() * 60 + now.getMinutes();
     const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
     
-    const schedulesPromise = Promise.all([bookingWindowPromise, request({ url: '/schedules', data: { coach_id: id, status: 'all', start_date: today, end_date: endDateStr, limit: 50 } })]).then(([bookingWindowDays, res]) => {
+    // 只看本店：当前门店（教练可能跨门店执教，其他门店课程不在本页展示）
+    const currentStoreId = app.globalData.currentStore ? String(app.globalData.currentStore._id) : '';
+
+    const schedulesPromise = Promise.all([bookingWindowPromise, request({ url: '/schedules', data: { coach_id: id, status: 'all', start_date: today, end_date: endDateStr, limit: 50, store_id: currentStoreId || undefined } })]).then(([bookingWindowDays, res]) => {
       const data = res.data || {};
       const allSchedules = data.list || (Array.isArray(data) ? data : []);
       const courses = allSchedules.filter(s => {
         if (!s.date) return false;
         if (s.status === 'cancelled' || s.status === 'offline') return false;
+        // 前端双保险：课程门店必须等于当前门店
+        const sid = s.store_id ? (typeof s.store_id === 'object' ? (s.store_id._id || s.store_id) : s.store_id) : null;
+        if (currentStoreId && String(sid || '') !== currentStoreId) return false;
         return s.date >= today && s.date <= endDateStr;
       }).map(schedule => {
         const danceStyleName = schedule.dance_style_id && schedule.dance_style_id.name ? schedule.dance_style_id.name : '';
@@ -509,6 +513,8 @@ Page({
         const _started = isToday && startMin !== null && currentMin >= startMin;
         const _ended = isToday && endMin !== null && currentMin >= endMin;
         const _ongoing = _started && !_ended;
+        // 距开课 ≤30 分钟候补截止（与后端 joinWaitlist 时间闸口径一致；非今日课程不受限）
+        const _wlClosed = isToday && startMin !== null && (startMin - currentMin) <= 30;
         // 判断课程门店是否匹配会员套餐门店
         const courseStoreId = schedule.store_id ? (typeof schedule.store_id === 'string' ? schedule.store_id : (schedule.store_id._id || schedule.store_id)) : '';
         const courseStoreMatched = !courseStoreId || this.data.memberPackageStoreIds.includes(String(courseStoreId));
@@ -576,6 +582,7 @@ Page({
           _started,
           _ended,
           _ongoing,
+          wlClosed: _wlClosed,
           courseStoreMatched,
           courseStyleMatched,
           weekdayMatched,
@@ -722,12 +729,39 @@ Page({
         wx.showToast({ title: '您已预约该课程。如需取消，请在课程详情页面中操作', icon: 'none' });
         return;
       }
-      
+
+      // 已在候补队列：原生弹窗引导去课程详情页退出候补（与已预约提示一致的引导）
+      if (this.cmpContains(this.data.waitlistedScheduleIds, course._id)) {
+        wx.showModal({
+          title: '候补排队中',
+          content: '您已加入该课程的候补队列，如需取消候补，请进入课程详情页操作。',
+          showCancel: false,
+          confirmText: '知道了',
+          confirmColor: skinUtil.confirmColor()
+        });
+        return;
+      }
+
       if (course.status === 'full') {
+        // 候补转正按正常预约扣费：弹窗明示扣除数，口径与预约确认弹窗一致
+        const wlPkgData = this._packagesData || {};
+        const wlPkgList = wlPkgData.history || wlPkgData.packages || [];
+        const wlUnitInfo = getCreditUnitInfo(pickEffectivePackage(wlPkgList, course), course.credits_cost || 1);
+        const wlDate = course.date || '';
+        const wlD = wlDate ? new Date(String(wlDate).replace(/-/g, '/')) : null;
         this.setData({
           showWaitlistModal: true,
           waitlistCourse: course,
-          waitlistModalText: `确认加入「${course.course_name}」的候补队列？\n时间：${course.date} ${course.start_time} - ${course.end_time}\n教练：${course.coach_id ? course.coach_id.name : '待定'}`
+          waitlistModalText: `确认加入「${course.course_name}」的候补队列？\n时间：${course.date} ${course.start_time} - ${course.end_time}\n教练：${course.coach_id ? course.coach_id.name : '待定'}\n\n候补成功转正后：${wlUnitInfo.deductText}`,
+          // paper/volt 结构化票面（对齐预约确认弹窗版式）
+          waitlistCfm: {
+            name: course.course_name || '课程',
+            coach: course.coach_id && course.coach_id.name ? course.coach_id.name : '待定',
+            date: wlDate,
+            weekDay: wlD ? WEEKDAYS[wlD.getDay()] : '',
+            time: (course.start_time || '') + '-' + (course.end_time || ''),
+            deductText: wlUnitInfo.deductText
+          }
         });
         return;
       }
@@ -796,7 +830,7 @@ Page({
   },
 
   onCancelWaitlist() {
-    this.setData({ showWaitlistModal: false, waitlistCourse: null, waitlistModalText: '' });
+    this.setData({ showWaitlistModal: false, waitlistCourse: null, waitlistModalText: '', waitlistCfm: null });
   },
 
   onConfirmBookingModal() {
@@ -909,12 +943,18 @@ Page({
     const currentMin = now.getHours() * 60 + now.getMinutes();
     const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
     
-    return request({ url: '/schedules', data: { coach_id: coachId, limit: 50 } }).then(res => {
+    // 只看本店：与首屏加载同口径
+    const refreshStoreId = app.globalData.currentStore ? String(app.globalData.currentStore._id) : '';
+
+    return request({ url: '/schedules', data: { coach_id: coachId, limit: 50, store_id: refreshStoreId || undefined } }).then(res => {
       const data = res.data || {};
       const allSchedules = data.list || (Array.isArray(data) ? data : []);
       const courses = allSchedules.filter(s => {
         if (!s.date) return false;
         if (s.status === 'cancelled' || s.status === 'offline') return false;
+        // 前端双保险：课程门店必须等于当前门店
+        const sid = s.store_id ? (typeof s.store_id === 'object' ? (s.store_id._id || s.store_id) : s.store_id) : null;
+        if (refreshStoreId && String(sid || '') !== refreshStoreId) return false;
         return s.date >= today && s.date <= endDateStr;
       }).map(schedule => {
         const danceStyleName = schedule.dance_style_id && schedule.dance_style_id.name ? schedule.dance_style_id.name : '';
@@ -936,6 +976,8 @@ Page({
         const _started = isToday && startMin !== null && currentMin >= startMin;
         const _ended = isToday && endMin !== null && currentMin >= endMin;
         const _ongoing = _started && !_ended;
+        // 距开课 ≤30 分钟候补截止（与后端 joinWaitlist 时间闸口径一致；非今日课程不受限）
+        const _wlClosed = isToday && startMin !== null && (startMin - currentMin) <= 30;
         // 判断课程门店是否匹配
         const courseStoreId = schedule.store_id ? (typeof schedule.store_id === 'string' ? schedule.store_id : (schedule.store_id._id || schedule.store_id)) : '';
         const courseStoreMatched = !courseStoreId || this.data.memberPackageStoreIds.includes(String(courseStoreId));
@@ -1004,6 +1046,7 @@ Page({
           _started,
           _ended,
           _ongoing,
+          wlClosed: _wlClosed,
           courseStoreMatched,
           courseStyleMatched,
           weekdayMatched,

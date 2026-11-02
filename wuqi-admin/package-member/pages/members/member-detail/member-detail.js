@@ -398,16 +398,18 @@ Page({
         } else if (pkg.is_activated && pkg.end_date) {
           const now = getBeijingDate();
           const end = getBeijingDate(pkg.end_date);
-          // 纯自然日差（与会员端个人中心口径一致）：取两端北京日期部分计算，
-          // 避免 end_date 的 23:59:59.999 时刻（最后一天全天有效）导致向上取整多算一天
+          // 北京日历日口径（与后端 timeUtil.diffDays 一致，含到期日当天：到期日剩余 1 天，
+          // 有效期只按日期、不精确到时刻，到期日当天不过期）
           const nowDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
           const endDay = new Date(end.getFullYear(), end.getMonth(), end.getDate());
-          const diff = Math.round((endDay - nowDay) / (1000 * 60 * 60 * 24));
+          const diff = Math.round((endDay - nowDay) / (1000 * 60 * 60 * 24)) + 1;
           pkg.remaining_days = diff;
-          // 动态修正状态：已激活但有效期已过的，标记为已过期
+          // 动态修正状态：有效期已过（剩余 < 1）标为已过期；被时刻口径错标过期的（剩余 ≥ 1）恢复为有效
 
-          if (diff < 0 && (pkg.status === 'active' || pkg.status !== 'expired')) {
+          if (diff < 1 && pkg.status !== 'expired') {
             pkg._displayStatus = 'expired';
+          } else if (diff >= 1 && pkg.status === 'expired') {
+            pkg._displayStatus = 'active';
           }
         } else {
           pkg.remaining_days = null;

@@ -30,7 +30,7 @@ function getDanceTagColor(styleName) {
 
 const app = getApp();
 const { request } = require('../../../utils/request');
-const { formatDate, getWeekDay, normalizeImageUrl, pickEffectivePackage, getCreditUnitInfo } = require('../../../utils/util');
+const { formatDate, getWeekDay, normalizeImageUrl, pickEffectivePackage, getCreditUnitInfo, isPkgDateValid, isPkgUsable } = require('../../../utils/util');
 const auth = require('../../../utils/auth');
 const config = require('../../../config/index.js');
 const wsClient = require('../../../utils/websocket-client');
@@ -225,12 +225,22 @@ Page({
         _ended = true;
       }
       const _cancelled = course.status === 'cancelled';
-      this.setData({ 
-        course, 
+      // 距开课 ≤30 分钟候补截止（与后端 joinWaitlist 时间闸口径一致；非今日课程不受限）
+      let _wlClosed = false;
+      if (course.dateStr === todayStr && course.start_time) {
+        const s = String(course.start_time).split(':');
+        if (s.length >= 2) {
+          const wlStartMin = parseInt(s[0], 10) * 60 + parseInt(s[1], 10);
+          _wlClosed = (wlStartMin - currentMin) <= 30;
+        }
+      }
+      this.setData({
+        course,
         loading: false,
         isEnded: _ended,
         isOngoing: _ongoing,
-        isCancelled: _cancelled
+        isCancelled: _cancelled,
+        isWlClosed: _wlClosed
       });
       this._checkBookingWindow(course.dateStr, course.store_id);
       this._updateCourseStoreMatched();
@@ -261,9 +271,7 @@ Page({
     }
     const packages = (pkgData.history || pkgData.packages || []);
     const canView = (Array.isArray(packages) ? packages : []).some(pkg => {
-      const isValid = pkg.status === 'pending' ||
-        (pkg.status === 'active' && !pkg.is_suspended &&
-          !(pkg.is_activated && pkg.end_date && new Date() > new Date(pkg.end_date)));
+      const isValid = isPkgUsable(pkg);
       if (!isValid) return false;
       if (pkg.store_id) {
         const sid = typeof pkg.store_id === 'string' ? pkg.store_id : (pkg.store_id._id || pkg.store_id);
@@ -427,10 +435,10 @@ Page({
     if (packages.length === 0) {
       return '您暂无可用套餐，请联系门店开通';
     }
+    // 日期口径：到期日当天全天有效；错标 expired 但日期仍有效放行（与后端一致）
     const hasValid = packages.some(pkg => {
       if (pkg.status === 'pending') return true;
-      if (pkg.status !== 'active' || pkg.is_suspended) return false;
-      if (pkg.is_activated && pkg.end_date && new Date() > new Date(pkg.end_date)) return false;
+      if (!isPkgUsable(pkg)) return false;
       if (pkg.package_type === 'count_card' && (pkg.remaining_credits || 0) === 0) return false;
       return true;
     });
@@ -443,7 +451,7 @@ Page({
     const hasExpired = packages.some(pkg => {
       if (pkg.status !== 'active') return false;
       if (pkg.is_suspended) return false;
-      return pkg.is_activated && pkg.end_date && new Date() > new Date(pkg.end_date);
+      return pkg.is_activated && pkg.end_date && !isPkgDateValid(pkg.end_date);
     });
     if (hasExpired) return '您的套餐已过期，请续费或联系门店';
     const hasCountCardUsedUp = packages.some(pkg => {
@@ -686,9 +694,21 @@ Page({
         return;
       }
 
+      // 候补转正按正常预约扣费：弹窗明示扣除数，口径与预约确认弹窗一致
+      const wlPkgs = this.data.userPackages || {};
+      const wlPkgList = (wlPkgs && (wlPkgs.history || wlPkgs.packages)) || [];
+      const wlUnitInfo = getCreditUnitInfo(pickEffectivePackage(wlPkgList, course), course.creditsCost || course.credits_cost || 1);
       this.setData({
         showWaitlistModal: true,
-        bookingModalText: `课程已满员，是否加入候补排队？\n课程：${course.course_name}\n时间：${course.dateStr} ${course.weekDayStr} ${course.start_time}-${course.end_time}\n\n有人取消预约时，将按排队顺序通知您`
+        bookingModalText: `课程已满员，是否加入候补排队？\n课程：${course.course_name}\n时间：${course.dateStr} ${course.weekDayStr} ${course.start_time}-${course.end_time}\n\n有人取消预约时，将按排队顺序通知您\n\n候补成功转正后：${wlUnitInfo.deductText}`,
+        // paper/volt 结构化票面（对齐预约确认弹窗版式）
+        waitlistCfm: {
+          name: course.course_name || '课程',
+          date: course.dateStr || '',
+          weekDay: course.weekDayStr || '',
+          time: (course.start_time || '') + '-' + (course.end_time || ''),
+          deductText: wlUnitInfo.deductText
+        }
       });
     });
   },

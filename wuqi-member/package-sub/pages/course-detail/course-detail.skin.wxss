@@ -132,6 +132,19 @@
 }
 .cdp-note-t { display: block; font-family: var(--sk-serif); font-size: 24rpx; font-weight: 700; color: var(--sk-ink); margin-bottom: 8rpx; letter-spacing: 0.1em; }
 .cdp-note-b { display: block; font-size: 22rpx; color: var(--sk-sub); line-height: 1.9; }
+/* 约课须知标题行 + 不可豁免取消印章（朱砂空心章，轻钤印角度） */
+.cdp-note-head { display: flex; align-items: center; justify-content: space-between; gap: 16rpx; }
+.cdp-exempt-seal {
+  flex-shrink: 0;
+  padding: 4rpx 14rpx;
+  border: 3rpx solid #C4452F;
+  border-radius: 8rpx;
+  background: rgba(196, 69, 47, 0.06);
+  color: #C4452F;
+  font-family: var(--sk-serif);
+  font-size: 20rpx; font-weight: 700; letter-spacing: 0.08em;
+  transform: rotate(-2deg);
+}
 
 /* 约课须知下方：消耗 | 我的状态 */
 .cdp-grid2 {
@@ -212,6 +225,18 @@
 }
 .cdv-note-t { display: block; font-size: 25rpx; font-weight: 900; color: var(--sk-ink); margin-bottom: 8rpx; letter-spacing: 0.05em; }
 .cdv-note-b { display: block; font-size: 22rpx; color: var(--sk-sub); line-height: 1.9; }
+/* 开抢规则标题行 + 不可豁免取消 pill（荧光绿实心黑字，精确无倾斜） */
+.cdv-note-head { display: flex; align-items: center; justify-content: space-between; gap: 16rpx; }
+.cdv-exempt-pill {
+  flex-shrink: 0;
+  border: 3rpx solid #111310;
+  border-radius: 999rpx;
+  padding: 6rpx 22rpx;
+  background: #D7FF3B;
+  color: #1A1A17;
+  font-family: 'GroteskV', sans-serif;
+  font-size: 20rpx; font-weight: 800; letter-spacing: 0.02em;
+}
 .cdv-grid2 {
   display: grid; grid-template-columns: 1fr 1fr;
   margin: 24rpx 30rpx 0;

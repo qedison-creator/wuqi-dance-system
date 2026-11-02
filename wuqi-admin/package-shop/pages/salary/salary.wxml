@@ -35,6 +35,7 @@
           <view class="hours-month-header" bindtap="onToggleHoursMonth" data-yi="{{yi}}" data-mi="{{mi}}">
             <text class="hours-month-toggle {{month._expanded ? 'expanded' : ''}}">▸</text>
             <text class="hours-month-label">{{month.monthLabel}}</text>
+            <text class="hours-month-total">{{month.totalClasses}}节课</text>
           </view>
 
           <!-- 展开：教练卡片 -->

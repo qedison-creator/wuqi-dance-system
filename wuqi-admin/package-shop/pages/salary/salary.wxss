@@ -749,6 +749,14 @@
   color: var(--text-primary);
 }
 
+/* 月份行右侧总课时 */
+.hours-month-total {
+  margin-left: auto;
+  font-size: 26rpx;
+  font-weight: 700;
+  color: var(--color-primary);
+}
+
 /* 教练卡片 */
 .hours-month-coaches {
   padding: 16rpx 0 0 20rpx;

@@ -1,10 +1,28 @@
 <view class="page skin-root skin-{{skinId}}">
+  <!-- 页眉题签：纸上舞台（刊物题签）/ VOLT（卡包题头 + 条码） -->
+  <view class="pkg-ed-header" wx:if="{{(skinId === 'paper' || skinId === 'volt') && packages.length > 0}}">
+    <block wx:if="{{skinId === 'paper'}}">
+      <text class="pkg-ed-kicker">MEMBERSHIP · 我的套餐</text>
+      <text class="pkg-ed-sub">每一张课卡，都是一段舞程的入场券</text>
+    </block>
+    <block wx:else>
+      <view class="pkg-ed-volt-top">
+        <text class="pkg-ed-volt-kicker">MY PASSES · 我的套餐</text>
+        <view class="pkg-ed-volt-chip"></view>
+      </view>
+      <text class="pkg-ed-volt-sub">每一堂课，都是一次登场</text>
+      <view class="pkg-ed-volt-barcode"></view>
+    </block>
+  </view>
   <view class="package-list" wx:if="{{packages.length > 0}}">
     <view class="pkg-card {{item.status}}" wx:for="{{packages}}" wx:key="_id">
       <view class="pkg-top-bar"></view>
       <view class="pkg-hd">
-        <view class="pkg-type-badge">
-          <text>{{item.package_type === 'count_card' ? '次卡' : '时间卡'}}</text>
+        <view class="pkg-hd-left">
+          <view class="pkg-type-badge {{item.is_bonus ? 'bonus' : ''}}">
+            <text>{{item.is_bonus ? '赠课' : (item.package_type === 'count_card' ? '次卡' : '时间卡')}}</text>
+          </view>
+          <text class="pkg-source-tag" wx:if="{{item.is_bonus && item._sourceText}}">{{item._sourceText}}</text>
         </view>
         <view class="pkg-status-badge {{item.is_suspended ? (item.suspend_type === 'freeze' ? 'frozen' : 'suspended') : (item._displayStatus || item.status)}}">
           <text>{{item.is_suspended ? (item.suspend_type === 'freeze' ? '已冻结' : '停卡中') : ((item._displayStatus || item.status) === 'pending' ? '待激活' : ((item._displayStatus || item.status) === 'active' ? '使用中' : ((item._displayStatus || item.status) === 'expired' ? '已过期' : '已用完')))}}</text>
@@ -48,7 +66,7 @@
           <text class="pkg-val" wx:elif="{{item.start_date}}">{{item.start_date_display || formatDateFn(item.start_date)}} 至 {{item.end_date_display || formatDateFn(item.end_date)}}</text>
           <text class="pkg-val" wx:else>-</text>
         </view>
-        <view class="pkg-row" wx:if="{{item.remaining_days !== null && item.remaining_days !== undefined}}">
+        <view class="pkg-row {{skinId === 'paper' ? 'pkg-row-days' : ''}}" wx:if="{{item.remaining_days > 0}}">
           <text class="pkg-label"></text>
           <text class="pkg-val accent">剩余 {{item.remaining_days}} 天</text>
         </view>

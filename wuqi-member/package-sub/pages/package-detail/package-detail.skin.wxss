@@ -1,20 +1,45 @@
 /* package-detail 皮肤覆盖（纸上舞台 / VOLT）—— 由 package-detail.wxss 通过 @import 引入 */
 
 /* 我的套餐列表：纸上舞台 / VOLT 完整覆盖 */
-.skin-root.skin-paper.page { background: #F5F1E8; }
-.skin-paper .pkg-card { background: #FCFAF4; border: 2rpx solid #DFD6C2; border-radius: 8rpx; box-shadow: none; }
-.skin-paper .pkg-top-bar, .skin-paper .pkg-card.active .pkg-top-bar { background: #B93A26; }
-.skin-paper .pkg-card.expired .pkg-top-bar { background: #C9C0B0; }
-.skin-paper .pkg-card.paused .pkg-top-bar { background: #A0802E; }
-.skin-paper .pkg-type-badge { background: #F5EBE3; color: #B93A26; border-radius: 4rpx; font-family: 'Noto Serif SC', serif; font-weight: 700; }
-/* 状态章（替换豆沙玫瑰的绿/橙/粉配色） */
-.skin-paper .pkg-status-badge { border-radius: 4rpx; font-family: 'Noto Serif SC', serif; font-weight: 700; }
-.skin-paper .pkg-status-badge.active { background: #F5EBE3; color: #B93A26; }
-.skin-paper .pkg-status-badge.pending { background: #F3EAD3; color: #A0802E; }
+.skin-root.skin-paper.page { background: radial-gradient(120% 60% at 50% 0%, #F7F3EA 0%, #F5F1E8 55%, #EFEADF 100%); }
+/* 纸感卡片：米白纸面自上而下微暖（旧纸自然色阶），细线轮廓 */
+.skin-paper .pkg-card { background: linear-gradient(180deg, #FDFBF6 0%, #FCFAF4 40%, #F8F4E9 100%); border: 2rpx solid #DFD6C2; border-radius: 8rpx; box-shadow: none; }
+/* 顶栏墨条：与朱砂印同源的三段墨色 */
+.skin-paper .pkg-top-bar, .skin-paper .pkg-card.active .pkg-top-bar { background: linear-gradient(90deg, #C4452F 0%, #B93A26 45%, #A93020 100%); }
+.skin-paper .pkg-card.expired .pkg-top-bar { background: linear-gradient(90deg, #D2CAC0 0%, #C9C0B0 100%); }
+.skin-paper .pkg-card.paused .pkg-top-bar { background: linear-gradient(90deg, #AE8C38 0%, #A0802E 100%); }
+/* 类型章：实底朱砂印章（墨色渐变 + 内嵌奶白细线双框 + 盖印微阴影 + 手盖斜度，替代平面红字标签） */
+.skin-paper .pkg-type-badge {
+  background: linear-gradient(160deg, #C4452F 0%, #B93A26 55%, #A93020 100%);
+  color: #FBF4E6;
+  border-radius: 6rpx;
+  font-family: 'Noto Serif SC', serif;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  transform: rotate(-2deg);
+  box-shadow: inset 0 0 0 2rpx rgba(251, 244, 230, 0.5), 1rpx 2rpx 3rpx rgba(34, 29, 21, 0.28);
+}
+/* 赠课章：赭金实底印，同构不同色，反向斜盖（一正一反似两次落印） */
+.skin-paper .pkg-type-badge.bonus {
+  background: linear-gradient(160deg, #B08A38 0%, #A0802E 55%, #8F7126 100%);
+  transform: rotate(2.5deg);
+  box-shadow: inset 0 0 0 2rpx rgba(251, 244, 230, 0.5), 1rpx 2rpx 3rpx rgba(34, 29, 21, 0.28);
+}
+.skin-paper .pkg-source-tag { color: #A08450; font-family: 'Noto Serif SC', serif; }
+/* —— 刊物页眉：题签 + 情绪副题（纸上舞台专属） —— */
+.skin-paper .pkg-ed-header { padding: 4rpx 6rpx 24rpx; display: flex; flex-direction: column; }
+.skin-paper .pkg-ed-kicker { font-family: 'Noto Serif SC', serif; font-size: 22rpx; font-weight: 700; letter-spacing: 0.22em; color: #B93A26; }
+.skin-paper .pkg-ed-sub { margin-top: 8rpx; font-size: 20rpx; letter-spacing: 0.05em; color: #8A8070; }
+/* —— 剩余天数：全卡情绪主数值，衬线加重 —— */
+.skin-paper .pkg-row-days .pkg-val.accent { font-size: 30rpx; font-weight: 900; letter-spacing: 0.03em; }
+/* 状态章：钤印式空心章（描边 + 轻微手盖斜度，与左侧实底类型章一虚一实、一正一反） */
+.skin-paper .pkg-status-badge { border-radius: 4rpx; font-family: 'Noto Serif SC', serif; font-weight: 700; transform: rotate(1.5deg); }
+.skin-paper .pkg-status-badge.active { background: transparent; color: #B93A26; border: 2rpx solid rgba(185, 58, 38, 0.55); }
+.skin-paper .pkg-status-badge.pending { background: transparent; color: #A0802E; border: 2rpx solid rgba(160, 128, 46, 0.5); }
 .skin-paper .pkg-status-badge.expired,
-.skin-paper .pkg-status-badge.depleted { background: transparent; color: #A79D89; border: 2rpx dashed #DFD6C2; }
-.skin-paper .pkg-status-badge.paused { background: #F3EAD3; color: #A0802E; }
-.skin-paper .pkg-status-badge.suspended { background: #F3EAD3; color: #A0802E; }
+.skin-paper .pkg-status-badge.depleted { background: transparent; color: #A79D89; border: 2rpx dashed #C9C0B0; }
+.skin-paper .pkg-status-badge.paused,
+.skin-paper .pkg-status-badge.suspended { background: transparent; color: #A0802E; border: 2rpx solid rgba(160, 128, 46, 0.5); }
 .skin-paper .pkg-status-badge.frozen { background: transparent; color: #6C6353; border: 2rpx dashed #C9C0B0; }
 .skin-paper .pkg-suspend-note { background: #F3EAD3; color: #A0802E; border-radius: 4rpx; font-family: 'Noto Serif SC', serif; }
 .skin-paper .pkg-suspend-note.frozen { background: #EFECE3; color: #6C6353; }
@@ -25,15 +50,42 @@
 .skin-paper .pkg-val.dance-limit { color: #6C6353; }
 .skin-paper .pkg-val.accent { color: #B93A26; font-family: 'Noto Serif SC', serif; font-weight: 700; }
 .skin-paper .btn-primary { background: #B93A26; border-radius: 6rpx; font-family: 'Noto Serif SC', serif; box-shadow: 2rpx 3rpx 0 rgba(34, 29, 21, 0.18); }
-.skin-root.skin-volt.page { background: #F2F1ED; }
+.skin-root.skin-volt.page { background: radial-gradient(120% 50% at 50% 0%, #EFF0E6 0%, #F2F1ED 55%, #ECEBE4 100%); }
 .skin-volt .pkg-card { background: #FFFFFF; border: 3rpx solid #111310; border-radius: 24rpx; box-shadow: 5rpx 5rpx 0 #111310; }
 .skin-volt .pkg-top-bar, .skin-volt .pkg-card.active .pkg-top-bar { background: #D7FF3B; }
 .skin-volt .pkg-card.expired .pkg-top-bar { background: #DCDAD0; }
 .skin-volt .pkg-card.paused .pkg-top-bar { background: #77786F; }
-.skin-volt .pkg-status-badge.suspended { background: #111310; color: #F2F1ED; border-radius: 999rpx; font-weight: 800; }
-.skin-volt .pkg-status-badge.frozen { background: #77786F; color: #F2F1ED; border-radius: 999rpx; font-weight: 800; }
 .skin-volt .pkg-suspend-note { background: #111310; color: #D7FF3B; border-radius: 14rpx; font-weight: 700; }
 .skin-volt .pkg-suspend-note.frozen { background: #77786F; color: #F2F1ED; }
-.skin-volt .pkg-type-badge { background: #111310; color: #D7FF3B; border-radius: 999rpx; }
+.skin-volt .pkg-type-badge { background: #111310; color: #D7FF3B; border-radius: 999rpx; letter-spacing: 0.06em; font-weight: 800; }
+/* 赠课徽章沿用主套餐黑底绿字，不单独反转 */
+.skin-volt .pkg-source-tag { color: #55564E; font-family: 'GroteskV', sans-serif; font-weight: 700; letter-spacing: 0.02em; }
 .skin-volt .pkg-val.accent { color: #111310; font-family: 'GroteskV', sans-serif; font-weight: 700; }
 .skin-volt .btn-primary { background: #111310; color: #D7FF3B; border-radius: 999rpx; font-weight: 800; box-shadow: none; }
+/* 状态章：荧光绿实心 pill（使用中）+ 硬边黑描边（待激活）—— volt 专属状态语言，坚决不倾斜 */
+.skin-volt .pkg-status-badge { border-radius: 999rpx; font-weight: 800; }
+.skin-volt .pkg-status-badge.active { background: #D7FF3B; color: #111310; }
+.skin-volt .pkg-status-badge.pending { background: transparent; color: #111310; border: 3rpx solid #111310; }
+.skin-volt .pkg-status-badge.expired,
+.skin-volt .pkg-status-badge.depleted { background: #DCDAD0; color: #77786F; }
+.skin-volt .pkg-status-badge.paused,
+.skin-volt .pkg-status-badge.suspended { background: #111310; color: #F2F1ED; }
+.skin-volt .pkg-status-badge.frozen { background: #77786F; color: #F2F1ED; }
+
+/* ==================== VOLT 整体升级：卡包题头 + 硬边行语言 ==================== */
+/* 页眉容器（与纸上舞台共用结构，风格分治） */
+.skin-volt .pkg-ed-header { padding: 4rpx 6rpx 26rpx; display: flex; flex-direction: column; }
+/* 题头行：粗黑体卡包标题 + 青柠色块收尾 */
+.skin-volt .pkg-ed-volt-top { display: flex; align-items: center; gap: 14rpx; }
+.skin-volt .pkg-ed-volt-kicker { font-family: 'GroteskV', sans-serif; font-size: 34rpx; font-weight: 900; letter-spacing: 0.06em; color: #111310; }
+.skin-volt .pkg-ed-volt-chip { width: 18rpx; height: 18rpx; background: #D7FF3B; border: 3rpx solid #111310; }
+/* 登场文案：俱乐部语气 */
+.skin-volt .pkg-ed-volt-sub { display: block; margin-top: 8rpx; font-size: 22rpx; font-weight: 700; letter-spacing: 0.04em; color: #55564E; }
+/* 条码：俱乐部会员卡语言（纯 CSS 重复渐变，无需节点堆叠） */
+.skin-volt .pkg-ed-volt-barcode { margin-top: 16rpx; height: 20rpx; opacity: 0.9; background: repeating-linear-gradient(90deg, #111310 0 6rpx, transparent 6rpx 10rpx, #111310 10rpx 13rpx, transparent 13rpx 21rpx, #111310 21rpx 25rpx, transparent 25rpx 33rpx, #111310 33rpx 36rpx, transparent 36rpx 42rpx); }
+/* 行语言：硬边实线（虚线留给纸上舞台），值黑标签灰，纪律感 */
+.skin-volt .pkg-row { border-bottom: 2rpx solid #E8E6E0; }
+.skin-volt .pkg-label { color: #77786F; font-weight: 500; }
+.skin-volt .pkg-val { color: #2A2A26; font-weight: 600; }
+/* 剩余天数：荧光笔划重点——volt 的情绪笔触 */
+.skin-volt .pkg-row-days .pkg-val.accent { font-size: 32rpx; font-weight: 900; padding: 0 8rpx; background: linear-gradient(transparent 58%, #D7FF3B 58%, #D7FF3B 94%, transparent 94%); }

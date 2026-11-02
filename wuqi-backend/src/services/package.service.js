@@ -495,6 +495,22 @@ exports.getMyPackage = async (userId) => {
   const now = new Date();
   const toSave = [];
   packages = packages.map(pkg => {
+    // 赠课卡：附加来源主套餐文本（我的套餐页来源行展示，与会员端详情口径一致）
+    if (pkg.is_bonus) {
+      const src = pkg.bonus_source_id && typeof pkg.bonus_source_id === 'object' ? pkg.bonus_source_id : null;
+      // 主套餐名兜底：快照名缺失（录入套餐不挂模板时快照 name 为空）→ 用类型+规格描述
+      const srcTypeText = (s) => {
+        if (!s) return '';
+        if (s.package_type === 'time_card') {
+          const limit = s.daily_limit ? `每日${s.daily_limit}次` : s.weekly_limit ? `每周${s.weekly_limit}次` : s.monthly_limit ? `每月${s.monthly_limit}次` : '不限次数';
+          return `时间卡·${limit}`;
+        }
+        return `次卡·${(s.total_credits || 0)}次`;
+      };
+      const srcName = (src && src.package_snapshot && src.package_snapshot.name) || (src ? srcTypeText(src) : '');
+      // 仅当关联丢失（赠课卡无主卡引用）才显示"主套餐已删除"
+      pkg._sourceText = src ? `主套餐：${srcName || '主套餐'}` : '主套餐已删除';
+    }
     if (pkg.status === 'active' && pkg.is_activated && pkg.end_date && now > new Date(pkg.end_date)) {
       pkg.status = 'expired';
       toSave.push(pkg.save());

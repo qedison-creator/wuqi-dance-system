@@ -63,14 +63,16 @@ Page({
         if (pkg.end_date) {
           pkg.end_date_display = this.formatDateFn(pkg.end_date);
           // 已激活的套餐计算剩余天数（包括已过期的，用于显示"已超X天"）
+          // 北京日历日口径（与后端 timeUtil.diffDays 一致，含到期日当天：到期日剩余 1 天）
           if (pkg.is_activated && !pkg.is_suspended) {
-            const now = new Date();
-            const end = new Date(pkg.end_date);
-            const diff = Math.ceil((end - now) / (1000 * 60 * 60 * 24));
+            const bjDay = (d) => new Date(new Date(d).getTime() + 8 * 60 * 60 * 1000).toISOString().split('T')[0];
+            const diff = Math.round((new Date(bjDay(pkg.end_date)) - new Date(bjDay(new Date()))) / (1000 * 60 * 60 * 24)) + 1;
             pkg.remaining_days = diff;
-            // 动态修正：已激活但有效期已过的，标记为已过期
-            if (diff < 0 && pkg.status === 'active') {
+            // 动态修正：有效期已过（剩余 < 1）标为已过期；被时刻口径错标过期的（剩余 ≥ 1）恢复为有效
+            if (diff < 1 && pkg.status === 'active') {
               pkg._displayStatus = 'expired';
+            } else if (diff >= 1 && pkg.status === 'expired') {
+              pkg._displayStatus = 'active';
             }
           }
         }

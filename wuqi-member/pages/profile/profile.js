@@ -1,5 +1,6 @@
 const app = getApp();
 const { request } = require('../../utils/request');
+const { isPkgDateValid } = require('../../utils/util');
 const { requireLogin, checkLogin } = require('../../utils/auth');
 const config = require('../../config/index.js');
 const drawQrcode = require('../../utils/weapp.qrcode');
@@ -154,7 +155,7 @@ Page({
     // 皮肤状态（纯前端偏好，仅影响外观）
     const skin = require('../../utils/skin.js');
     if (typeof this.getTabBar === 'function' && this.getTabBar()) {
-      this.getTabBar().setData({ selected: 2, active: 'profile', skinId: skin.getSkinId() });
+      this.getTabBar().syncTab(2, 'profile', skin.getSkinId());
     }
     this.setData(skin.pageState());
     // 自绘标题栏：状态栏高度（与场次预约页取值方式一致，保证标题栏与内容位置完全对齐）
@@ -359,13 +360,10 @@ Page({
           if (pkg.end_date) {
             pkg.end_date_display = getBeijingDateStr(pkg.end_date);
             // 激活的套餐计算剩余天数（含停卡套餐，停卡时end_date已顺延，剩余天数保持冻结值）
+            // 北京日历日口径（含到期日当天：到期日剩余 1 天；有效期只按日期、不精确到时刻）
             if (pkg.is_activated && pkg.status === 'active') {
-              var now = new Date();
-              var end = new Date(pkg.end_date);
-              if (now <= end) {
-                var diff = diffBeijingDays(now, end);
-                pkg.remaining_days = Math.max(0, diff);
-              }
+              var diff = diffBeijingDays(new Date(), pkg.end_date) + 1;
+              pkg.remaining_days = Math.max(0, diff);
             }
           }
         });
@@ -1024,8 +1022,10 @@ Page({
       pkg._sourceText = pkg.is_bonus ? (pkg._sourceText || '') : '';  // 后端附加的来源主套餐文本
       pkg._pendingHint = '';
 
-      // 状态文案（情绪价值表达，无emoji）      // 动态修正：已激活但有效期已过的，标记为已过期
-      var isExpired = pkg.is_activated && pkg.end_date && new Date() > new Date(pkg.end_date);
+      // 状态文案（情绪价值表达，无emoji）；日期口径：到期日当天全天有效（与后端一致），
+      // 错标 expired 但日期仍有效的套餐显示为畅享中（与后端/管理端纠偏口径一致）
+      var dateValid = isPkgDateValid(pkg.end_date);
+      var isExpired = pkg.is_activated && pkg.end_date && !dateValid;
       if (pkg.is_suspended) {
         pkg._statusText = pkg.suspend_type === 'freeze' ? '已冻结' : '停卡中';
         // 停卡说明：复卡后继续（纸上/VOLT 票根与经典卡片共用）
@@ -1040,6 +1040,8 @@ Page({
           pkg._suspendEndDisplay = sy + '-' + sm + '-' + sday;
           pkg._suspendNote = '停卡中 · ' + pkg._suspendEndDisplay + ' 自动复卡';
         }
+      } else if (pkg.status === 'expired' && dateValid) {
+        pkg._statusText = '畅享中';  // 时刻口径错标纠偏
       } else if (isExpired || pkg.status === 'expired') {
         pkg._statusText = '已过期';
       } else if (pkg.status === 'active') {

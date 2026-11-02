@@ -4,7 +4,8 @@ const waitlistSchema = new mongoose.Schema({
   user_id: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   schedule_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Schedule', required: true },
   store_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Store', required: true },
-  status: { type: String, enum: ['waiting', 'notified', 'booked', 'expired', 'cancelled'], required: true, default: 'waiting' },
+  // closed = 临近开课统一结束排队（未候补成功），区别于 expired（课程取消/人数不足解散）
+  status: { type: String, enum: ['waiting', 'notified', 'booked', 'expired', 'cancelled', 'closed'], required: true, default: 'waiting' },
   position: { type: Number, default: 1 },
   notified_at: { type: Date },
   expire_at: { type: Date },

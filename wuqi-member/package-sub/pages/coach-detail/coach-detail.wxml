@@ -150,6 +150,7 @@
           <view class="bk-v-top">
             <view class="bk-v-tag bk-v-live" wx:if="{{item._ongoing}}"><view class="bk-v-live-dot"></view>LIVE</view>
             <view class="bk-v-tag" wx:elif="{{item.danceStyleName}}">{{item.danceStyleName}}</view>
+            <view class="bk-v-tag bk-v-exempt" wx:if="{{item.exemptLockTag}}">不可豁免取消</view>
             <view class="bk-v-time"><text class="bk-v-wd" wx:if="{{item.weekday}}">{{item.weekday}}</text>{{item.capacityVisible ? item.start_time : '??:??'}}<text class="bk-v-time-end">- {{item.capacityVisible ? item.end_time : '??'}}</text></view>
           </view>
           <view class="bk-v-body">
@@ -191,6 +192,7 @@
             <view class="bk-v-btn ended" wx:elif="{{item._ended || item._ongoing}}"><text>NEXT TIME</text></view>
             <view class="bk-v-btn booked" wx:elif="{{cmp.contains(bookedScheduleIds, item._id)}}" data-course="{{item}}" catchtap="onBookTap"><text>舞社见</text></view>
             <view class="bk-v-btn waitlisted" wx:elif="{{cmp.contains(waitlistedScheduleIds, item._id)}}"><text>排队中</text></view>
+            <view class="bk-v-btn ended" wx:elif="{{item.status === 'full' && item.wlClosed}}"><text>候补截止</text></view>
             <view class="bk-v-btn full" wx:elif="{{item.status === 'full'}}" data-course="{{item}}" catchtap="onBookTap"><text>候补排队</text></view>
             <view class="bk-v-btn not_open" wx:elif="{{!item.bookingOpen}}" data-course="{{item}}" catchtap="onBookTap"><text>未开放预约</text></view>
             <view class="bk-v-btn cannot_book" wx:elif="{{item.courseStoreMatched === false || item.courseStyleMatched === false || item.weekdayMatched === false || item.timeMatched === false}}"><text>不可预约</text></view>
@@ -260,14 +262,12 @@
               <view class="cd-book-btn waitlist-btn waitlisted" wx:elif="{{cmp.contains(waitlistedScheduleIds, item._id)}}">
                 <text>候补中</text>
               </view>
-              <block wx:elif="{{item.status === 'full'}}">
-                <view class="cd-book-btn state-full">
-                  <text>已满</text>
-                </view>
-                <view class="cd-book-btn waitlist-btn" wx:if="{{!cmp.contains(waitlistedScheduleIds, item._id)}}" data-course="{{item}}" catchtap="onBookTap">
-                  <text>加入候补</text>
-                </view>
-              </block>
+              <view class="cd-book-btn disabled" wx:elif="{{item.status === 'full' && item.wlClosed}}">
+                <text>候补已截止</text>
+              </view>
+              <view class="cd-book-btn waitlist-btn" wx:elif="{{item.status === 'full'}}" data-course="{{item}}" catchtap="onBookTap">
+                <text>加入候补</text>
+              </view>
               <view class="cd-book-btn disabled-clickable" wx:elif="{{!item.bookingOpen}}">
                 <text>未开放预约</text>
               </view>
@@ -377,14 +377,12 @@
               <view class="cd-book-btn waitlist-btn waitlisted" wx:elif="{{cmp.contains(waitlistedScheduleIds, item._id)}}">
                 <text>候补中</text>
               </view>
-              <block wx:elif="{{item.status === 'full'}}">
-                <view class="cd-book-btn state-full">
-                  <text>已满</text>
-                </view>
-                <view class="cd-book-btn waitlist-btn" wx:if="{{!cmp.contains(waitlistedScheduleIds, item._id)}}" data-course="{{item}}" catchtap="onBookTap">
-                  <text>加入候补</text>
-                </view>
-              </block>
+              <view class="cd-book-btn disabled" wx:elif="{{item.status === 'full' && item.wlClosed}}">
+                <text>候补已截止</text>
+              </view>
+              <view class="cd-book-btn waitlist-btn" wx:elif="{{item.status === 'full'}}" data-course="{{item}}" catchtap="onBookTap">
+                <text>加入候补</text>
+              </view>
               <view class="cd-book-btn disabled-clickable" wx:elif="{{!item.bookingOpen}}">
                 <text>未开放预约</text>
               </view>
@@ -471,9 +469,15 @@
       <view class="bk-cfm-handle" wx:if="{{skinId === 'volt'}}"></view>
       <view class="bk-cfm-seal" wx:if="{{skinId === 'paper'}}">栖</view>
       <text class="bk-cfm-kicker" wx:if="{{skinId === 'paper'}}">BOOKING NOTICE</text>
-      <text class="bk-cfm-title">加入候补</text>
+      <text class="bk-cfm-title">加入候补<text class="bk-cfm-q" wx:if="{{skinId === 'volt'}}">?</text></text>
       <view class="bk-cfm-line"></view>
-      <text class="bk-cfm-body">{{waitlistModalText}}</text>
+      <block wx:if="{{waitlistCfm}}">
+        <view class="bk-cfm-row"><text>加入候补</text><text class="bk-cfm-strong">「{{waitlistCfm.name}}」</text></view>
+        <view class="bk-cfm-row"><text>教练：{{waitlistCfm.coach}}</text></view>
+        <view class="bk-cfm-row"><text>{{waitlistCfm.date}} {{waitlistCfm.weekDay}} {{waitlistCfm.time}}</text></view>
+        <view class="bk-cfm-row"><text class="bk-cfm-hl">候补转正后 {{waitlistCfm.deductText}}</text></view>
+      </block>
+      <text class="bk-cfm-body" wx:else>{{waitlistModalText}}</text>
       <view class="bk-cfm-actions">
         <view class="bk-cfm-cancel" bindtap="onCancelWaitlist">取消</view>
         <view class="bk-cfm-ok" bindtap="onConfirmWaitlist">确定</view>

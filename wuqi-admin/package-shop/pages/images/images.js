@@ -78,10 +78,13 @@ Page({
       // 固定加载当前门店画册
       params.store_id = shopStoreId;
 
-      const [imageRes, coachRes] = await Promise.all([
+      // 下标取值代替数组解构（规避 SWC helper 缺失白屏）
+      const pairRes = await Promise.all([
         api.images.getList(params),
         api.coaches.getList({ pageSize: 100, store_id: shopStoreId })
       ]);
+      const imageRes = pairRes[0];
+      const coachRes = pairRes[1];
       const rawImages = imageRes.data || {};
       let list = rawImages.list || rawImages.data || [];
       const serverBase = config.serverBase || '';

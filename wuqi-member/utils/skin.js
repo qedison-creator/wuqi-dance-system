@@ -11,8 +11,8 @@ const SKIN_IDS = ['classic', 'paper', 'volt'];
 const SKINS = {
   classic: {
     id: 'classic',
-    name: '经典 · 豆沙玫瑰',
-    desc: '现用外观 · 柔和暖色',
+    name: '经典皮肤',
+    desc: '渐变绚彩 · 柔和暖色',
     swatches: ['#D4786E', '#FBFAF8', '#2A2122'],
     nav: { bg: '#FBFAF8', text: 'black' },
     t: {

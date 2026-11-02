@@ -56,12 +56,33 @@ dayjs.extend(isoWeek);
 
 const BEIJING_TZ = 'Asia/Shanghai';
 
+// 候补时间闸（方案确认 2026-11：常量集中定义，调整只需改这里）
+// 开课前30分钟起不可再加入候补（临近开课加入后若被转正，会员来不及到店）
+const WAITLIST_JOIN_CUTOFF_MIN = 30;
+// 开课前25分钟统一结束排队：此后任何路径释放的名额不再转正候补
+const WAITLIST_CLOSE_MIN = 25;
+
 function bjNow() {
   return dayjs().tz(BEIJING_TZ);
 }
 
 function bjDate(dateStr) {
   return dayjs.tz(dateStr, BEIJING_TZ);
+}
+
+// 套餐过期判断（北京日期口径，与 utils/time.isExpired 一致）：
+// 有效期只按日期、不精确到时刻——到期日当天全天有效，次日 0 点起才过期
+function pkgExpired(endDate) {
+  if (!endDate) return false;
+  return bjDate(endDate).startOf('day').isBefore(bjNow().startOf('day'));
+}
+
+// 套餐有效期是否覆盖课程日期（北京日历日口径，转换路径与 pkgExpired 一致）。
+// 铁律：超出服务有效期的课程一律不可用套餐预约/候补（无论何种方式），
+// 除非管理员为该套餐延长有效期
+function pkgCoversDate(pkg, dateStr) {
+  if (!pkg || !pkg.end_date || !dateStr) return true;
+  return bjDate(pkg.end_date).format('YYYY-MM-DD') >= String(dateStr).slice(0, 10);
 }
 
 // 豁免取消拦截判定（展示与执行共用同一口径）：
@@ -373,7 +394,7 @@ async function restoreTimeCardShrink(booking) {
     const now = new Date();
     const patch = { end_date: newEnd };
     // 已过期套餐恢复后天数回到未来 → 复活为 active（与次卡 exhausted 恢复口径一致）
-    if (pkg.status === 'expired' && newEnd > now) patch.status = 'active';
+    if (pkg.status === 'expired' && !pkgExpired(newEnd)) patch.status = 'active';
     const res = await UserPackage.updateOne(
       { _id: booking.user_package_id, end_date: oldEnd },
       { $set: patch }
@@ -578,6 +599,21 @@ exports.createBooking = async (userId, scheduleId) => {
       status: 'active',
       is_suspended: false,
     });
+    // 日期口径纠偏：状态被标为过期、但按北京日期口径仍在有效期内的套餐（此前被时刻口径错标），恢复为 active
+    const misExpiredPkgs = await UserPackage.find({
+      user_id: userId,
+      $or: [{ store_id: scheduleStoreId }, { extra_store_ids: scheduleStoreId }],
+      status: 'expired',
+      is_suspended: false,
+      end_date: { $ne: null },
+    });
+    for (const pkg of misExpiredPkgs) {
+      if (!pkgExpired(pkg.end_date)) {
+        pkg.status = 'active';
+        await pkg.save();
+        storeActivePackages.push(pkg);
+      }
+    }
     // 本门店套餐优先：store_id 匹配当前门店的排在前面，跨门店授权套餐排在后面
     // 避免跨门店套餐被误优先选中，确保优先消耗本门店套餐的用量
     storeActivePackages.sort((a, b) => {
@@ -638,10 +674,10 @@ exports.createBooking = async (userId, scheduleId) => {
     }
 
     let currentPackage = null;
-    const timeCard = storeActivePackages.find(p => p.package_type === 'time_card' && (!p.end_date || new Date() <= p.end_date) && packageMatchesDanceStyle(p, scheduleDanceStyleId) && packageMatchesWeekday(p, schedule.date) && packageMatchesTimeWindow(p, schedule.start_time));
+    const timeCard = storeActivePackages.find(p => p.package_type === 'time_card' && pkgCoversDate(p, schedule.date) && packageMatchesDanceStyle(p, scheduleDanceStyleId) && packageMatchesWeekday(p, schedule.date) && packageMatchesTimeWindow(p, schedule.start_time));
     // 次卡选卡：赠课卡优先（先扣赠送/临期先用），多张按到期近优先，再按录入先后
     const matchedCountCards = storeActivePackages
-      .filter(p => p.package_type === 'count_card' && p.remaining_credits > 0 && (!p.end_date || new Date() <= p.end_date) && packageMatchesDanceStyle(p, scheduleDanceStyleId) && packageMatchesWeekday(p, schedule.date) && packageMatchesTimeWindow(p, schedule.start_time))
+      .filter(p => p.package_type === 'count_card' && p.remaining_credits > 0 && pkgCoversDate(p, schedule.date) && packageMatchesDanceStyle(p, scheduleDanceStyleId) && packageMatchesWeekday(p, schedule.date) && packageMatchesTimeWindow(p, schedule.start_time))
       .sort((a, b) => {
         if (!!a.is_bonus !== !!b.is_bonus) return a.is_bonus ? -1 : 1;
         const ae = a.end_date ? new Date(a.end_date).getTime() : Infinity;
@@ -658,7 +694,14 @@ exports.createBooking = async (userId, scheduleId) => {
     }
 
     if (!currentPackage) {
-      const expiredPkgs = storeActivePackages.filter(p => p.end_date && new Date() > p.end_date);
+      // 服务有效期铁律：存在今天仍有效的套餐，但有效期无法覆盖课程日期 → 明确拦截
+      const todayValidPkgs = storeActivePackages.filter(p => !p.end_date || !pkgExpired(p.end_date));
+      if (todayValidPkgs.length > 0 && !todayValidPkgs.some(p => pkgCoversDate(p, schedule.date))) {
+        const ends = todayValidPkgs.filter(p => p.end_date).map(p => bjDate(p.end_date).format('YYYY-MM-DD')).sort();
+        const latestEnd = ends.length > 0 ? ends[ends.length - 1] : '';
+        throw new Error(`您的套餐有效期${latestEnd ? '至 ' + latestEnd : ''}，无法预约该日期的课程，请联系管理员延长有效期`);
+      }
+      const expiredPkgs = storeActivePackages.filter(p => p.end_date && pkgExpired(p.end_date));
       for (const pkg of expiredPkgs) {
         pkg.status = 'expired';
         await pkg.save();
@@ -700,10 +743,14 @@ exports.createBooking = async (userId, scheduleId) => {
       });
     }
 
-    if (currentPackage.end_date && new Date() > currentPackage.end_date) {
+    if (currentPackage.end_date && pkgExpired(currentPackage.end_date)) {
       currentPackage.status = 'expired';
       await currentPackage.save();
       throw new Error('套餐已过期，请联系管理员');
+    }
+    // 服务有效期铁律兜底：套餐有效期必须覆盖课程日期（含 pending 激活后新计算的 end_date）
+    if (!pkgCoversDate(currentPackage, schedule.date)) {
+      throw new Error(`您的套餐有效期至 ${bjDate(currentPackage.end_date).format('YYYY-MM-DD')}，无法预约该日期的课程，请联系管理员延长有效期`);
     }
     if (currentPackage.package_type === 'count_card' && currentPackage.remaining_credits < (schedule.credits_cost || 1)) {
       // 如果是从时间卡限额满切换过来的，给出更友好的错误信息
@@ -730,7 +777,7 @@ exports.createBooking = async (userId, scheduleId) => {
           status: 'active',
           is_suspended: false,
           remaining_credits: { $gt: 0 },
-        }).sort({ end_date: 1, created_at: 1 })).filter(p => packageMatchesDanceStyle(p, scheduleDanceStyleId) && packageMatchesWeekday(p, schedule.date) && packageMatchesTimeWindow(p, schedule.start_time))
+        }).sort({ end_date: 1, created_at: 1 })).filter(p => pkgCoversDate(p, schedule.date) && packageMatchesDanceStyle(p, scheduleDanceStyleId) && packageMatchesWeekday(p, schedule.date) && packageMatchesTimeWindow(p, schedule.start_time))
           .sort((a, b) => {
             if (!!a.is_bonus !== !!b.is_bonus) return a.is_bonus ? -1 : 1;
             const ae = a.end_date ? new Date(a.end_date).getTime() : Infinity;
@@ -746,7 +793,7 @@ exports.createBooking = async (userId, scheduleId) => {
           status: 'pending',
           is_suspended: false,
           is_bonus: { $ne: true },  // 赠课卡随主套餐联动激活，不参与兜底激活
-        }).sort({ created_at: 1 })).filter(p => packageMatchesDanceStyle(p, scheduleDanceStyleId) && packageMatchesWeekday(p, schedule.date) && packageMatchesTimeWindow(p, schedule.start_time));
+        }).sort({ created_at: 1 })).filter(p => pkgCoversDate(p, schedule.date) && packageMatchesDanceStyle(p, scheduleDanceStyleId) && packageMatchesWeekday(p, schedule.date) && packageMatchesTimeWindow(p, schedule.start_time));
 
         if (availableCountCards.length > 0) {
           // 有已激活的次卡，直接使用次卡
@@ -1583,6 +1630,14 @@ exports.joinWaitlist = async (userId, scheduleId) => {
     throw new Error('该课程当前不可候补');
   }
 
+  // 加入候补时间闸：距开课 ≤ WAITLIST_JOIN_CUTOFF_MIN（30分钟）不可再加入
+  {
+    const wlClassStart = dayjs.tz(schedule.date + ' ' + schedule.start_time, BEIJING_TZ);
+    if (wlClassStart.isValid() && !bjNow().isBefore(wlClassStart.subtract(WAITLIST_JOIN_CUTOFF_MIN, 'minute'))) {
+      throw new Error(`候补已截止（开课前${WAITLIST_JOIN_CUTOFF_MIN}分钟起不可加入）`);
+    }
+  }
+
   // 检查是否已在候补中
   // 注意：Waitlist 存在 {user_id, schedule_id} 唯一索引，取消候补仅标记 status='cancelled' 不删记录，
   // 因此查重需不限状态；再次排队时复用历史记录恢复为 waiting，避免触发唯一索引冲突
@@ -1619,6 +1674,11 @@ exports.joinWaitlist = async (userId, scheduleId) => {
     // 可用时段限制：与自助预约同口径，全部套餐均不覆盖课程开课时间时不允许排队候补
     if (myStorePkgs.length > 0 && !myStorePkgs.some(p => packageMatchesTimeWindow(p, schedule.start_time))) {
       throw new Error(`您的套餐仅可预约${timeWindowUnionText(myStorePkgs)}开课的课程，无法预约该课程`);
+    }
+    // 服务有效期限制（铁律）：所有套餐有效期均无法覆盖课程日期时不允许排队候补
+    //（pending 套餐激活时才计算有效期，由预约路径的兜底校验拦截）
+    if (myStorePkgs.length > 0 && !myStorePkgs.some(p => pkgCoversDate(p, schedule.date))) {
+      throw new Error('您的套餐有效期无法覆盖该课程日期，无法候补该课程');
     }
   }
 
@@ -1696,9 +1756,11 @@ exports.cancelWaitlist = async (userId, waitlistId) => {
 // 获取我的候补列表
 exports.getMyWaitlist = async (userId) => {
   const Waitlist = require('../models/Waitlist');
+  // waiting/notified = 活跃排队；closed = 临近开课统一结束排队（未候补成功），
+  // 会员端排队记录页需展示「排队结束」结果，故一并返回（cancelled/expired 仍不返回）
   const list = await Waitlist.find({
     user_id: userId,
-    status: { $in: ['waiting', 'notified'] },
+    status: { $in: ['waiting', 'notified', 'closed'] },
   })
     .populate({
       path: 'schedule_id',
@@ -1848,8 +1910,8 @@ exports.promoteWaitlist = async (waitlistId, operatorId) => {
   // 套餐选择：时间卡优先，限额满时 fallback 到次卡（按舞种限制过滤）
   let currentPackage = null;
   let timeCardShrinkDays = 0;  // 时间卡按天口径缩期天数（预约后立即缩短end_date）
-  const timeCard = storeActivePackages.find(p => p.package_type === 'time_card' && (!p.end_date || new Date() <= p.end_date) && packageMatchesDanceStyle(p, promoteDanceStyleId));
-  const countCard = storeActivePackages.find(p => p.package_type === 'count_card' && p.remaining_credits > 0 && (!p.end_date || new Date() <= p.end_date) && packageMatchesDanceStyle(p, promoteDanceStyleId));
+  const timeCard = storeActivePackages.find(p => p.package_type === 'time_card' && pkgCoversDate(p, schedule.date) && packageMatchesDanceStyle(p, promoteDanceStyleId));
+  const countCard = storeActivePackages.find(p => p.package_type === 'count_card' && p.remaining_credits > 0 && pkgCoversDate(p, schedule.date) && packageMatchesDanceStyle(p, promoteDanceStyleId));
 
   if (timeCard) {
     const creditsCost = schedule.credits_cost || 1;
@@ -1897,10 +1959,14 @@ exports.promoteWaitlist = async (waitlistId, operatorId) => {
   }
 
   // 检查时间卡过期
-  if (currentPackage.end_date && new Date() > currentPackage.end_date) {
+  if (currentPackage.end_date && pkgExpired(currentPackage.end_date)) {
     currentPackage.status = 'expired';
     await currentPackage.save();
     throw new Error('该会员套餐已过期，请联系管理员');
+  }
+  // 服务有效期铁律兜底：套餐有效期必须覆盖课程日期（含 pending 激活后新计算的 end_date）
+  if (!pkgCoversDate(currentPackage, schedule.date)) {
+    throw new Error(`该会员套餐有效期至 ${bjDate(currentPackage.end_date).format('YYYY-MM-DD')}，无法转正该日期的课程，请联系管理员延长有效期`);
   }
 
   // 检查时间冲突：仅拦截同一门店完全重合时段
@@ -2037,6 +2103,15 @@ exports.notifyWaitlistUsers = async (scheduleId) => {
   const schedule = await Schedule.findById(scheduleId).populate('coach_id', 'name').populate('store_id', 'name');
   if (!schedule) return;
 
+  // 转正时间闸：距开课 ≤ WAITLIST_CLOSE_MIN（25分钟）不再转正任何候补。
+  // 本函数是全部转正路径的唯一入口（会员取消/管理员取消/豁免取消/候补过期），
+  // 在此处拦截即可覆盖所有释放名额的场景——临近开课转正会员来不及到店。
+  // 剩余排队由定时任务统一结束（closeWaitlistsNearClassStart）。
+  const wlClassStart = dayjs.tz(schedule.date + ' ' + schedule.start_time, BEIJING_TZ);
+  if (wlClassStart.isValid() && !bjNow().isBefore(wlClassStart.subtract(WAITLIST_CLOSE_MIN, 'minute'))) {
+    return { promoted_count: 0, closed_by_deadline: true };
+  }
+
   const availableSlots = schedule.max_bookings - schedule.current_bookings;
   if (availableSlots <= 0) return;
 
@@ -2091,8 +2166,8 @@ exports.notifyWaitlistUsers = async (scheduleId) => {
       // 套餐选择：时间卡优先，限额满时 fallback 次卡（按舞种限制过滤）
       let currentPackage = null;
       let timeCardShrinkDays = 0;  // 时间卡按天口径缩期天数（预约后立即缩短end_date）
-      const timeCard = storeActivePackages.find(p => p.package_type === 'time_card' && (!p.end_date || new Date() <= p.end_date) && packageMatchesDanceStyle(p, notifyDanceStyleId));
-      const countCard = storeActivePackages.find(p => p.package_type === 'count_card' && p.remaining_credits > 0 && packageMatchesDanceStyle(p, notifyDanceStyleId));
+      const timeCard = storeActivePackages.find(p => p.package_type === 'time_card' && pkgCoversDate(p, schedule.date) && packageMatchesDanceStyle(p, notifyDanceStyleId));
+      const countCard = storeActivePackages.find(p => p.package_type === 'count_card' && p.remaining_credits > 0 && pkgCoversDate(p, schedule.date) && packageMatchesDanceStyle(p, notifyDanceStyleId));
 
       if (timeCard) {
         const creditsCost = schedule.credits_cost || 1;
@@ -2120,10 +2195,15 @@ exports.notifyWaitlistUsers = async (scheduleId) => {
       }
 
       // 检查过期
-      if (currentPackage.end_date && new Date() > currentPackage.end_date) {
+      if (currentPackage.end_date && pkgExpired(currentPackage.end_date)) {
         currentPackage.status = 'expired';
         await currentPackage.save();
         console.warn('自动转正候补失败: 套餐已过期, 候补ID:', item._id);
+        continue;
+      }
+      // 服务有效期铁律兜底：套餐有效期必须覆盖课程日期
+      if (!pkgCoversDate(currentPackage, schedule.date)) {
+        console.warn('自动转正候补失败: 套餐有效期无法覆盖课程日期, 候补ID:', item._id);
         continue;
       }
 
@@ -2223,6 +2303,44 @@ exports.notifyWaitlistUsers = async (scheduleId) => {
   return { promoted_count: promotedCount };
 };
 
+// 统一结束排队：距开课 ≤ WAITLIST_CLOSE_MIN（25分钟）的课程，把所有排队中候补
+// 置为 closed（排队结束未成功）并推送「排队结束」订阅消息（模板 ID 配置后生效）。
+// 由每分钟定时任务调用；只扫今天的课（25分钟线只对当日课程有意义）。
+exports.closeWaitlistsNearClassStart = async () => {
+  const now = bjNow();
+  const today = now.format('YYYY-MM-DD');
+  // 不按 status 过滤：进行中/已签到结课（completed）的课程同样要结束排队，
+  // 否则结课后 waiting 候补会永久残留（4点清理任务要次日才跑）。
+  const candidates = await Schedule.find({
+    date: today,
+  }).select('_id course_name date start_time store_id').populate('store_id', 'name');
+  if (candidates.length === 0) return 0;
+
+  let closedCount = 0;
+  for (const schedule of candidates) {
+    const classStart = dayjs.tz(schedule.date + ' ' + schedule.start_time, BEIJING_TZ);
+    if (!classStart.isValid()) continue;
+    if (now.isBefore(classStart.subtract(WAITLIST_CLOSE_MIN, 'minute'))) continue;
+
+    const waitlistItems = await Waitlist.find({ schedule_id: schedule._id, status: 'waiting' });
+    for (const item of waitlistItems) {
+      item.status = 'closed';
+      item.remark = '临近开课，排队结束未候补成功';
+      await item.save();
+      closedCount += 1;
+      try {
+        const closeUser = await User.findById(item.user_id);
+        if (closeUser && closeUser.openid) {
+          await wechatMessageService.sendWaitlistClosed(closeUser, schedule);
+        }
+      } catch (notifyErr) {
+        console.error('推送排队结束通知失败:', notifyErr.message);
+      }
+    }
+  }
+  return closedCount;
+};
+
 // 候补用户确认预约（会员端手动确认候补）
 // 套餐选择逻辑与 createBooking 保持一致
 exports.confirmWaitlistBooking = async (userId, waitlistId) => {
@@ -2242,13 +2360,21 @@ exports.confirmWaitlistBooking = async (userId, waitlistId) => {
   const scheduleStoreId = scheduleStoreIdRaw ? new mongoose.Types.ObjectId(scheduleStoreIdRaw.toString()) : null;
   const waitlistDanceStyleId = schedule.dance_style_id ? (schedule.dance_style_id._id || schedule.dance_style_id) : null;
 
-  // 查找同门店套餐
-  const storeActivePackages = await UserPackage.find({
+  // 查找同门店套餐（含错标 expired：日期口径纠偏恢复，与预约路径一致）
+  const storeAllPackages = await UserPackage.find({
     user_id: userId,
     $or: [{ store_id: scheduleStoreId }, { extra_store_ids: scheduleStoreId }],
-    status: 'active',
+    status: { $in: ['active', 'expired'] },
     is_suspended: false,
   });
+  for (const p of storeAllPackages) {
+    if (p.status === 'expired' && !pkgExpired(p.end_date)) {
+      p.status = 'active';
+      await p.save();
+    }
+  }
+  // 转正选套餐同样受服务有效期铁律约束：有效期无法覆盖课程日期的套餐不参与转正
+  const storeActivePackages = storeAllPackages.filter(p => p.status === 'active' && pkgCoversDate(p, schedule.date));
   // 本门店套餐优先：store_id 匹配当前门店的排在前面，跨门店授权套餐排在后面
   storeActivePackages.sort((a, b) => {
     const aIsHomeStore = a.store_id && a.store_id.toString() === String(scheduleStoreId);
@@ -2278,8 +2404,8 @@ exports.confirmWaitlistBooking = async (userId, waitlistId) => {
   // 套餐选择：时间卡优先，限额满时 fallback 次卡（按舞种限制过滤）
   let currentPackage = null;
   let timeCardShrinkDays = 0;  // 时间卡按天口径缩期天数（预约后立即缩短end_date）
-  const timeCard = storeActivePackages.find(p => p.package_type === 'time_card' && (!p.end_date || new Date() <= p.end_date) && packageMatchesDanceStyle(p, waitlistDanceStyleId));
-  const countCard = storeActivePackages.find(p => p.package_type === 'count_card' && p.remaining_credits > 0 && (!p.end_date || new Date() <= p.end_date) && packageMatchesDanceStyle(p, waitlistDanceStyleId));
+  const timeCard = storeActivePackages.find(p => p.package_type === 'time_card' && (!p.end_date || !pkgExpired(p.end_date)) && packageMatchesDanceStyle(p, waitlistDanceStyleId));
+  const countCard = storeActivePackages.find(p => p.package_type === 'count_card' && p.remaining_credits > 0 && (!p.end_date || !pkgExpired(p.end_date)) && packageMatchesDanceStyle(p, waitlistDanceStyleId));
 
   if (timeCard) {
     const creditsCost = schedule.credits_cost || 1;
@@ -2321,7 +2447,7 @@ exports.confirmWaitlistBooking = async (userId, waitlistId) => {
   }
 
   // 检查过期
-  if (currentPackage.end_date && new Date() > currentPackage.end_date) {
+  if (currentPackage.end_date && pkgExpired(currentPackage.end_date)) {
     currentPackage.status = 'expired';
     await currentPackage.save();
     throw new Error('套餐已过期，请联系管理员');
@@ -2521,7 +2647,7 @@ exports.checkIn = async (scheduleId, userId, operatorId = null, isOnsite = false
         // 并优先选择舞种匹配的套餐，避免误用其他门店套餐
         const packageQuery = {
           user_id: userId,
-          status: { $in: ['active', 'suspended'] },
+          status: { $in: ['active', 'suspended', 'expired'] },
         };
         if (checkInStoreId) {
           packageQuery.$or = [
@@ -2531,6 +2657,13 @@ exports.checkIn = async (scheduleId, userId, operatorId = null, isOnsite = false
         }
         // 按创建时间倒序取最新套餐；后续会做舞种过滤
         let candidates = await UserPackage.find(packageQuery).sort({ created_at: -1 });
+        // 日期口径纠偏：被旧时刻口径错标 expired、按北京日历仍在有效期内的套餐，恢复为 active（与预约路径一致）
+        for (const p of candidates) {
+          if (p.status === 'expired' && !pkgExpired(p.end_date)) {
+            p.status = 'active';
+            await p.save();
+          }
+        }
         // 优先选择舞种匹配的套餐；若无匹配则回退到不限舞种的套餐
         const matchingDance = candidates.filter(p => packageMatchesDanceStyle(p, checkInDanceStyleId));
         const userPackage = matchingDance.length > 0 ? matchingDance[0] : (candidates.length > 0 ? candidates[0] : null);
@@ -2908,7 +3041,7 @@ exports.onsiteCheckIn = async (scheduleId, userId, operatorId = null, userPackag
     }
 
     // 检查套餐是否过期
-    if (pkg.end_date && new Date() > new Date(pkg.end_date)) {
+    if (pkg.end_date && pkgExpired(pkg.end_date)) {
       pushCheckInFailed(userId, CHECK_IN_ERROR_CODE.PACKAGE_EXPIRED, '套餐已过期，请联系门店续费', 'package expired: ' + pkg.end_date, true);
       throw new Error('套餐过期，无法补签到');
     }

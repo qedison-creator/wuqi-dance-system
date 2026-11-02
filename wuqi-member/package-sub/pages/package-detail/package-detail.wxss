@@ -137,6 +137,27 @@
   font-weight: 500;
 }
 
+/* 卡头左组：类型徽章 + 赠课来源辅助小字 */
+.pkg-hd-left {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  min-width: 0;
+}
+
+/* 赠课来源小字（classic 皮肤）：占据剩余宽度，超长省略 */
+.pkg-source-tag {
+  display: block;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 20rpx;
+  color: #C5744B;
+  font-weight: 500;
+}
+
 .pkg-actions {
   padding: 0 28rpx 28rpx;
 }

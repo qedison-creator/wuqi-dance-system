@@ -120,7 +120,14 @@
 .bk-btn.book { background: var(--sk-acc); color: var(--sk-btn-fg); }
 .bk-btn.booked { background: var(--sk-ink); color: var(--sk-btn-fg); }
 .bk-btn.waitlisted { background: transparent; border: 2rpx solid var(--sk-ink); color: var(--sk-ink); }
-.bk-btn.full { background: transparent; border: 2rpx solid var(--sk-ink); color: var(--sk-ink); }
+/* 约满候补（纸上舞台）：朱砂钤印描边 —— 同「不可豁免取消」印章语言，
+   与实心朱砂的「预约」区分，保留票面硬阴影 */
+.bk-btn.full {
+  background: rgba(185, 58, 38, 0.07);
+  border: 3rpx solid #B93A26;
+  color: #B93A26;
+  box-shadow: 2rpx 3rpx 0 rgba(185, 58, 38, 0.22);
+}
 .bk-btn.ongoing { background: var(--sk-ink); color: var(--sk-btn-fg); }
 .bk-btn.done { background: #ECE5D6; color: var(--sk-hint); }
 .bk-btn.ended, .bk-btn.cancelled, .bk-btn.not_open,
@@ -189,7 +196,12 @@
 }
 .bk-v-btn.book, .bk-v-btn.not_open { background: var(--sk-ink); color: var(--sk-acc-fg); }
 .bk-v-btn.booked { background: var(--sk-volt); color: var(--sk-ink); }
-.bk-v-btn.waitlisted, .bk-v-btn.full { background: transparent; color: var(--sk-ink); }
+.bk-v-btn.waitlisted { background: transparent; color: var(--sk-ink); }
+/* 约满候补（VOLT）：荧光绿实心 CTA —— 同 LOCKED 贴纸/「仅剩」高亮语言 */
+.bk-v-btn.full {
+  background: var(--sk-volt); color: var(--sk-ink);
+  box-shadow: 3rpx 3rpx 0 var(--sk-ink);
+}
 .bk-v-btn.done { background: #ECEAE2; color: var(--sk-hint); border-color: var(--sk-line); }
 .bk-v-btn.ongoing, .bk-v-btn.ended, .bk-v-btn.cancelled,
 .bk-v-btn.cannot_book, .bk-v-btn.cannot_book_dance_style,
@@ -475,6 +487,31 @@
 .bk-v-name { font-size: 46rpx; }
 .bk-v-meta-row { margin-top: 6rpx; }
 .bk-v-meta { display: inline; margin-top: 0; margin-left: 12rpx; font-size: 24rpx; color: #111310; }
+
+/* ---------- 不可豁免取消标识（paper 印章 / volt 荧光绿 pill） ---------- */
+/* 纸上舞台：朱砂空心印章，衬线小字 + 轻钤印角度，同「我的套餐」印章语言 */
+.bk-sc-name-row { display: flex; align-items: center; gap: 16rpx; min-width: 0; }
+.bk-sc-name-row .bk-sc-name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bk-exempt-seal {
+  flex-shrink: 0;
+  margin-left: auto;
+  padding: 6rpx 16rpx;
+  border: 3rpx solid #C4452F;
+  border-radius: 8rpx;
+  background: rgba(196, 69, 47, 0.06);
+  color: #C4452F;
+  font-family: var(--sk-serif);
+  font-size: 21rpx; font-weight: 700; letter-spacing: 0.08em;
+  transform: rotate(-2deg);
+}
+/* VOLT：荧光绿实心 pill + 黑字（与「使用中」章同语言），精确无倾斜 */
+.bk-v-tag.bk-v-exempt {
+  background: #D7FF3B;
+  color: #1A1A17;
+  font-family: 'GroteskV', sans-serif;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
 .bk-v-coach { font-size: 26rpx; color: #111310; }
 .bk-v-foot { padding: 24rpx 36rpx 32rpx; gap: 28rpx; }
 

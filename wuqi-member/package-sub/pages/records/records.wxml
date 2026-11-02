@@ -210,7 +210,8 @@
           <view class="rc-top">
             <text class="rc-name">{{item.courseName || '课程名称'}}</text>
             <view class="rc-position-tag">
-              <text>排队 {{item.position}}</text>
+              <text wx:if="{{item.status === 'closed'}}">排队结束</text>
+              <text wx:else>排队 {{item.position}}</text>
             </view>
           </view>
           <view class="rc-info">
@@ -241,7 +242,7 @@
       <view class="rd-volt" wx:for="{{records}}" wx:key="_id">
         <view class="rdv-head">
           <text class="rdv-name">{{item.courseName || '课程名称'}}</text>
-          <text class="rdv-badge on">排队 {{item.position}}</text>
+          <text class="rdv-badge {{item.status === 'closed' ? 'off' : 'on'}}">{{item.status === 'closed' ? '排队结束' : '排队 ' + item.position}}</text>
         </view>
         <view class="rdv-rows">
           <view class="rdv-row"><text class="rdv-k">日期</text><text class="rdv-v">{{item.dateStr}}<text class="rdv-s"> {{item.weekDayStr}}</text></text></view>
@@ -249,7 +250,7 @@
           <view class="rdv-row"><text class="rdv-k">教练</text><text class="rdv-v">{{item.coachName || '教练'}}</text></view>
           <view class="rdv-row"><text class="rdv-k">门店</text><text class="rdv-v">{{item.storeName || '门店'}}</text></view>
         </view>
-        <view class="rdv-actions">
+        <view class="rdv-actions" wx:if="{{item.status !== 'closed'}}">
           <view class="rdv-cancel" data-id="{{item._id}}" catchtap="onCancelWaitlistTap">取消排队</view>
         </view>
       </view>

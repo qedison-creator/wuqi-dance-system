@@ -3053,7 +3053,8 @@ function drawColumnDataPoints(series, opts, config, context) {
               if(item.y > zeroPoints){
                 columnOption.barBorderRadius = [0, 0,width / 2, width / 2];
               }
-              let [r0, r1, r2, r3] = columnOption.barBorderRadius;
+              let radiusArr = columnOption.barBorderRadius;
+              let r0 = radiusArr[0], r1 = radiusArr[1], r2 = radiusArr[2], r3 = radiusArr[3];
               let minRadius = Math.min(width/2,height/2);
               r0 = r0 > minRadius ? minRadius : r0;
               r1 = r1 > minRadius ? minRadius : r1;
@@ -3136,7 +3137,8 @@ function drawColumnDataPoints(series, opts, config, context) {
                 if (columnOption.barBorderCircle) {
                   columnOption.barBorderRadius = [width / 2, width / 2, 0, 0];
                 }
-                let [r0, r1, r2, r3] = columnOption.barBorderRadius;
+                let radiusArr = columnOption.barBorderRadius;
+              let r0 = radiusArr[0], r1 = radiusArr[1], r2 = radiusArr[2], r3 = radiusArr[3];
                 let minRadius = Math.min(width/2,height/2);
                 r0 = r0 > minRadius ? minRadius : r0;
                 r1 = r1 > minRadius ? minRadius : r1;
@@ -3275,7 +3277,8 @@ function drawMountDataPoints(series, opts, config, context) {
               if(item.y > zeroPoints){
                 mountOption.barBorderRadius = [0, 0,width / 2, width / 2];
               }
-              let [r0, r1, r2, r3] = mountOption.barBorderRadius;
+              let radiusArr = mountOption.barBorderRadius;
+            let r0 = radiusArr[0], r1 = radiusArr[1], r2 = radiusArr[2], r3 = radiusArr[3];
               let minRadius = Math.min(width/2,height/2);
               r0 = r0 > minRadius ? minRadius : r0;
               r1 = r1 > minRadius ? minRadius : r1;
@@ -3503,7 +3506,8 @@ function drawBarDataPoints(series, opts, config, context) {
               if (columnOption.barBorderCircle) {
                 columnOption.barBorderRadius = [width / 2, width / 2, 0, 0];
               }
-              let [r0, r1, r2, r3] = columnOption.barBorderRadius;
+              let radiusArr = columnOption.barBorderRadius;
+              let r0 = radiusArr[0], r1 = radiusArr[1], r2 = radiusArr[2], r3 = radiusArr[3];
               let minRadius = Math.min(width/2,height/2);
               r0 = r0 > minRadius ? minRadius : r0;
               r1 = r1 > minRadius ? minRadius : r1;
@@ -4271,7 +4275,8 @@ function drawMixDataPoints(series, opts, config, context) {
             if (columnOption.barBorderCircle) {
               columnOption.barBorderRadius = [width / 2, width / 2, 0, 0];
             }
-            let [r0, r1, r2, r3] = columnOption.barBorderRadius;
+            let radiusArr = columnOption.barBorderRadius;
+            let r0 = radiusArr[0], r1 = radiusArr[1], r2 = radiusArr[2], r3 = radiusArr[3];
             let minRadius = Math.min(width/2,height/2);
             r0 = r0 > minRadius ? minRadius : r0;
             r1 = r1 > minRadius ? minRadius : r1;

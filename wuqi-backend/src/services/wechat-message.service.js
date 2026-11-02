@@ -42,7 +42,7 @@ const ensureTemplateMappings = async () => {
     bookingCancel:     { name:'课程取消通知', id: msgConfig.getMessageTemplates?.()?.bookingCancelTemplateId     || msgConfig.bookingCancelTemplateId     || '', mappings:[{wx:'thing1',biz:'courseName'},{wx:'date4',biz:'courseTime'},{wx:'name5',biz:'coachName'},{wx:'thing2',biz:'cancelReason'},{wx:'thing7',biz:'storeName'}] },
     bookingCancelByUser:{ name:'预约取消通知', id: msgConfig.getMessageTemplates?.()?.bookingCancelByUserTemplateId|| msgConfig.bookingCancelByUserTemplateId|| '', mappings:[{wx:'thing10',biz:'courseName'},{wx:'name4',biz:'coachName'},{wx:'time13',biz:'courseTime'},{wx:'thing7',biz:'cancelReason'},{wx:'thing12',biz:'storeName'}] },
     classReminder:      { name:'上课提醒',     id: msgConfig.getMessageTemplates?.()?.classReminderTemplateId      || msgConfig.classReminderTemplateId      || '', mappings:[{wx:'thing1',biz:'courseName'},{wx:'time2',biz:'courseTime'},{wx:'name3',biz:'coachName'},{wx:'thing5',biz:'tipMessage'},{wx:'thing4',biz:'storeName'}] },
-    waitlistAvailable:  { name:'候补成功通知', id: msgConfig.getMessageTemplates?.()?.waitlistAvailableTemplateId  || msgConfig.waitlistAvailableTemplateId  || '', mappings:[{wx:'thing1',biz:'courseName'},{wx:'time2',biz:'courseTime'},{wx:'thing3',biz:'storeName'}] },
+    waitlistAvailable:  { name:'候补结果通知', id: msgConfig.getMessageTemplates?.()?.waitlistAvailableTemplateId  || msgConfig.waitlistAvailableTemplateId  || '', mappings:[{wx:'phrase3',biz:'cancelReason'},{wx:'thing4',biz:'courseName'},{wx:'time2',biz:'courseTime'},{wx:'thing5',biz:'storeName'}] },
     packageExpiring:    { name:'套餐到期提醒', id: msgConfig.getMessageTemplates?.()?.packageExpiringTemplateId    || msgConfig.packageExpiringTemplateId    || '', mappings:[{wx:'thing1',biz:'remindType'},{wx:'date2',biz:'expireDate'},{wx:'thing5',biz:'packageName'},{wx:'thing4',biz:'remindReason'}] },
     packageActivated:   { name:'套餐激活通知', id: msgConfig.getMessageTemplates?.()?.packageActivatedTemplateId   || msgConfig.packageActivatedTemplateId   || '', mappings:[{wx:'thing1',biz:'packageName'},{wx:'time2',biz:'expireDate'},{wx:'thing3',biz:'storeName'}] },
     countCardLowRemind: { name:'次卡次数提醒', id: msgConfig.getMessageTemplates?.()?.countCardLowRemindTemplateId || msgConfig.countCardLowRemindTemplateId || '', mappings:[{wx:'thing1',biz:'remindType'},{wx:'number2',biz:'remainCount'},{wx:'thing3',biz:'packageName'}] },
@@ -104,6 +104,7 @@ const bizFieldAliases = {
   '上课时间': 'courseTime',
   '取消原因': 'cancelReason',
   '提示信息': 'cancelReason',
+  '结果': 'cancelReason',
   '温馨提示': 'cancelReason',
   'tipMessage': 'cancelReason',
   '门店': 'storeName',
@@ -325,7 +326,8 @@ exports.sendClassReminder = async (user, schedule, clientType = 'member', remind
   await sendByTemplateKey(user.openid, 'classReminder', bizData, 'package-sub/pages/records/records', clientType);
 };
 
-// 候补成功通知
+// 候补成功通知（与排队结束共用「课程候补结果通知」模板，key=waitlistAvailable）
+// 模板字段：结果(phrase,≤5字) / 课程名称(thing) / 时间(time) / 门店(thing)
 exports.sendWaitlistAvailable = async (user, schedule, clientType = 'member') => {
   if (!user.openid) return;
 
@@ -333,7 +335,24 @@ exports.sendWaitlistAvailable = async (user, schedule, clientType = 'member') =>
     courseName: schedule.course_name || '舞蹈课程',
     courseTime: `${schedule.date} ${schedule.start_time}`,
     storeName: schedule.store_id?.name || '舞栖舞蹈',
-    tipMessage: '候补成功！记得准时去上课哦',
+    // 管理端「提示信息/结果」biz_field 均解析到 cancelReason；phrase 上限 5 字
+    cancelReason: '候补成功',
+    tipMessage: '候补成功',
+  };
+
+  await sendByTemplateKey(user.openid, 'waitlistAvailable', bizData, 'package-sub/pages/records/records', clientType);
+};
+
+// 排队结束通知：临近开课统一结束排队，候补未成功（共用同一模板，仅结果文案不同）
+exports.sendWaitlistClosed = async (user, schedule, clientType = 'member') => {
+  if (!user.openid) return;
+
+  const bizData = {
+    courseName: schedule.course_name || '舞蹈课程',
+    courseTime: `${schedule.date} ${schedule.start_time}`,
+    storeName: schedule.store_id?.name || '舞栖舞蹈',
+    cancelReason: '未候补成功',
+    tipMessage: '未候补成功',
   };
 
   await sendByTemplateKey(user.openid, 'waitlistAvailable', bizData, 'package-sub/pages/records/records', clientType);

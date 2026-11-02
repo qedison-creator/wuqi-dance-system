@@ -52,6 +52,32 @@ function maskScheduleBookingInfo(schedule) {
 }
 
 /**
+ * 约满状态读取时修正（available/full）+ 异步回写治愈存量数据：
+ * status 是落库字段，仅在预约成功/取消/排课上线时按人数重算；
+ * 管理员中途调整最大人数不会自动重算，存量行 status 会滞后于真实人数
+ * （如 19/19 已满仍显示"可预约"）。读取时按当前有效预约人数校正展示状态，
+ * 并以旧状态为过滤条件异步回写，避免与并发预约写入互相覆盖。
+ * current_bookings 缺失（脱敏后）时跳过，避免误判。
+ * 入参支持单个排课对象或数组（mongoose 普通对象/lean 文档均可）。
+ */
+function normalizeFullStatus(list) {
+  const items = Array.isArray(list) ? list : [list];
+  for (const s of items) {
+    if (!s || (s.status !== SCHEDULE_STATUS.AVAILABLE && s.status !== SCHEDULE_STATUS.FULL)) continue;
+    if (s.current_bookings === undefined || s.current_bookings === null) continue;
+    const max = s.max_bookings || 20;
+    const effective = s.current_bookings >= max ? SCHEDULE_STATUS.FULL : SCHEDULE_STATUS.AVAILABLE;
+    if (effective !== s.status) {
+      const stale = s.status;
+      s.status = effective;
+      Schedule.updateOne({ _id: s._id, status: stale }, { status: effective }).catch(() => {});
+    }
+  }
+  return list;
+}
+exports.normalizeFullStatus = normalizeFullStatus;
+
+/**
  * 校验教练是否可在指定门店执教（多门店执教模型）
  * - 教练 store_ids 为空/不存在（多门店执教）：可在任何门店排课
  * - 教练 store_ids 包含该门店：可在该门店排课
@@ -661,6 +687,10 @@ exports.getScheduleList = async (query, req = null) => {
       schedule.booking_deadline_text = formatDeadlineText(schedule.booking_deadline || 120, true);
       schedule.cancel_deadline_text = formatDeadlineText(schedule.cancel_deadline || 60, true);
 
+      // 约满状态读取时修正：管理员调整上限后存量 status 可能滞后（如 19/19 仍显示"可预约"），
+      // 必须在脱敏前执行（脱敏会删除 current_bookings，导致修正跳过）
+      normalizeFullStatus(schedule);
+
       // 无覆盖查看者（游客/有效套餐不含该门店的会员）脱敏预约信息与取消原因
       if (!canViewBookingInfo(viewableStoreIds, schedule.store_id)) {
         maskScheduleBookingInfo(schedule);
@@ -747,6 +777,10 @@ exports.getScheduleById = async (id, req = null) => {
     delete scheduleObj.cancel_reason;
     delete scheduleObj.cancel_type;
   }
+
+  // 约满状态读取时修正（含异步回写治愈存量数据）；
+  // current_bookings 已按 booked+completed 去重统计或已脱敏删除（脱敏时自动跳过）
+  normalizeFullStatus(scheduleObj);
 
   return scheduleObj;
 };
@@ -1081,6 +1115,14 @@ exports.updateSchedule = async (id, data, operatorId) => {
   }
 
   Object.assign(schedule, data);
+  // 人数设置被调整时重算约满状态：status 是落库字段，只在预约/取消/上线时更新，
+  // 管理员中途改小/改大上限不会自动重算，会员端卡片按钮会停在旧状态
+  // （如 19/20 已约 19 人时上限改为 19，应立即变为 full；反之亦然）
+  if (data.max_bookings !== undefined && [SCHEDULE_STATUS.AVAILABLE, SCHEDULE_STATUS.FULL].includes(schedule.status)) {
+    schedule.status = (schedule.current_bookings || 0) >= (schedule.max_bookings || 20)
+      ? SCHEDULE_STATUS.FULL
+      : SCHEDULE_STATUS.AVAILABLE;
+  }
   await schedule.save();
 
   // 记录操作日志

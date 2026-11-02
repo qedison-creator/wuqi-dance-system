@@ -135,7 +135,7 @@ module.exports = {
             <!-- 已激活：服务有效期 + 剩余天数 -->
             <block wx:if="{{item.is_activated && item.start_date}}">
               <text class="package-expire">{{item.start_date_display}} ~ {{item.end_date_display}}</text>
-              <text class="package-expire package-remaining" wx:if="{{!item._isVoided && !item.is_suspended && item.remaining_days >= 0}}">剩余 {{item.remaining_days}} 天</text>
+              <text class="package-expire package-remaining" wx:if="{{!item._isVoided && !item.is_suspended && item.remaining_days > 0}}">剩余 {{item.remaining_days}} 天</text>
               <text class="package-expire package-expired-soon" wx:if="{{!item._isVoided && !item.is_suspended && item.remaining_days < 0}}">已超 {{0 - item.remaining_days}} 天</text>
             </block>
           </block>
@@ -152,7 +152,7 @@ module.exports = {
               <text class="package-credits">剩余 {{item.remaining_credits || 0}} / {{item.total_credits || 0}} 次</text>
               <block wx:if="{{item.start_date}}">
                 <text class="package-expire">{{item.start_date_display}} ~ {{item.end_date_display}}</text>
-                <text class="package-expire package-remaining" wx:if="{{!item._isVoided && !item.is_suspended && item.remaining_days >= 0}}">剩余 {{item.remaining_days}} 天</text>
+                <text class="package-expire package-remaining" wx:if="{{!item._isVoided && !item.is_suspended && item.remaining_days > 0}}">剩余 {{item.remaining_days}} 天</text>
                 <text class="package-expire package-expired-soon" wx:if="{{!item._isVoided && !item.is_suspended && item.remaining_days < 0}}">已超 {{0 - item.remaining_days}} 天</text>
               </block>
             </block>

@@ -154,13 +154,15 @@ exports.getMemberList = async (query) => {
     }
   } else if (package_expired === 'true' || package_expired === true) {
     // 已过期：有 expired 状态的套餐，且没有 active 套餐
-    const now = new Date();
+    // 日期口径：有效期只按日期、不精确到时刻，到期日当天全天有效（北京今天 0 点前不过期）
+    const timeUtil = require('../utils/time');
+    const todayStart = timeUtil.dayjs().startOf('day').toDate();
     const expiredPkgs = await UserPackage.find({
-      $or: [{ status: 'expired' }, { end_date: { $lt: now } }],
+      $or: [{ status: 'expired' }, { end_date: { $lt: todayStart } }],
     }).distinct('user_id');
     const activePkgs = await UserPackage.find({
       status: 'active',
-      $or: [{ end_date: { $gte: now } }, { end_date: null }],
+      $or: [{ end_date: { $gte: todayStart } }, { end_date: null }],
     }).distinct('user_id');
     const expiredUserIds = expiredPkgs.map(id => id.toString());
     const activeUserIds = activePkgs.map(id => id.toString());
@@ -682,20 +684,22 @@ exports.getMemberFilterCounts = async (query) => {
       : { store_id };
   }
 
-  const now = new Date();
+  // 日期口径：到期日当天全天有效（北京今天 0 点前不过期），与套餐过期统一口径
+  const timeUtil = require('../utils/time');
+  const todayStart = timeUtil.dayjs().startOf('day').toDate();
   const [activePkgUsers, anyActiveUsers, activeValidDateUsers, suspendedUsers, frozenUsers, expiredUsers, pendingUsers, exhaustedUsers, crossStorePkgUsers] = await Promise.all([
     // 使用中：active 且未停卡
     UserPackage.find({ status: 'active', is_suspended: { $ne: true } }).distinct('user_id'),
     // 全部 active（pending/exhausted 分支的排除集合）
     UserPackage.find({ status: 'active' }).distinct('user_id'),
     // active 且有效期未过（expired 分支的排除集合，对应 getMemberList 的日期条件）
-    UserPackage.find({ status: 'active', $or: [{ end_date: { $gte: now } }, { end_date: null }] }).distinct('user_id'),
+    UserPackage.find({ status: 'active', $or: [{ end_date: { $gte: todayStart } }, { end_date: null }] }).distinct('user_id'),
     // 已停卡：active 且请假停卡（历史空类型按 leave 处理）
     UserPackage.find({ status: 'active', is_suspended: true, suspend_type: { $ne: 'freeze' } }).distinct('user_id'),
     // 已冻结：active 且权益冻结
     UserPackage.find({ status: 'active', is_suspended: true, suspend_type: 'freeze' }).distinct('user_id'),
-    // 已过期：expired 或有效期已过
-    UserPackage.find({ $or: [{ status: 'expired' }, { end_date: { $lt: now } }] }).distinct('user_id'),
+    // 已过期：expired 或有效期已过（按北京日期口径）
+    UserPackage.find({ $or: [{ status: 'expired' }, { end_date: { $lt: todayStart } }] }).distinct('user_id'),
     // 待激活：pending
     UserPackage.find({ status: 'pending' }).distinct('user_id'),
     // 已用完：exhausted 的次卡

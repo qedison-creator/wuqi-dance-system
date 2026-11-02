@@ -103,9 +103,12 @@ const startScheduler = () => {
   cron.schedule('0 3 * * *', async () => {
     try {
       console.log('[Scheduler] 开始执行: 检查过期套餐');
+      const timeUtil = require('./time');
+      // 日期口径：到期日当天全天有效（不精确到时刻），北京「明天 0 点」前不标过期
+      const expireBoundary = timeUtil.dayjs().add(1, 'day').startOf('day').toDate();
       const expiredPackages = await UserPackage.find({
         status: 'active',
-        end_date: { $lte: new Date(), $ne: null },
+        end_date: { $lt: expireBoundary, $ne: null },
       });
       let count = 0;
       for (const pkg of expiredPackages) {
@@ -114,6 +117,21 @@ const startScheduler = () => {
         count++;
       }
       console.log(`[Scheduler] 过期套餐检查完成: ${count}个套餐已标记为过期`);
+      // 纠偏恢复：此前被时刻口径错标为 expired、按日期口径仍在有效期内的套餐，恢复为 active
+      const misExpiredPackages = await UserPackage.find({
+        status: 'expired',
+        is_suspended: false,
+        end_date: { $ne: null },
+      });
+      let restoredCount = 0;
+      for (const pkg of misExpiredPackages) {
+        if (!timeUtil.isExpired(pkg.end_date)) {
+          pkg.status = 'active';
+          await pkg.save();
+          restoredCount++;
+        }
+      }
+      if (restoredCount > 0) console.log(`[Scheduler] 日期口径纠偏: ${restoredCount}个被错标过期的套餐已恢复为有效`);
     } catch (err) {
       console.error('[Scheduler] 过期套餐检查任务执行失败:', err.message);
     }
@@ -488,6 +506,21 @@ const startScheduler = () => {
       }
     } catch (err) {
       console.error('[Scheduler] PendingTask 清理失败:', err.message);
+    }
+  });
+
+  // 任务15: 每分钟统一结束排队——距开课 ≤25 分钟的课程，排队中候补置为
+  // closed（排队结束未成功）并推送「排队结束」订阅消息。
+  // 与 notifyWaitlistUsers 的 25 分钟转正闸配套：过线后不再转正、也不再挂着队列。
+  cron.schedule('* * * * *', async () => {
+    try {
+      const bookingService = require('../services/booking.service');
+      const closed = await bookingService.closeWaitlistsNearClassStart();
+      if (closed > 0) {
+        console.log(`[Scheduler] 临近开课统一结束排队: ${closed}条候补已关闭`);
+      }
+    } catch (err) {
+      console.error('[Scheduler] 统一结束排队任务执行失败:', err.message);
     }
   });
 

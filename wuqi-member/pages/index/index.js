@@ -94,7 +94,7 @@ Page({
     // 皮肤状态（纯前端偏好，仅影响外观）
     const skin = require('../../utils/skin.js');
     if (typeof this.getTabBar === 'function' && this.getTabBar()) {
-      this.getTabBar().setData({ selected: 0, active: 'index', skinId: skin.getSkinId() });
+      this.getTabBar().syncTab(0, 'index', skin.getSkinId());
     }
     this.setData(skin.pageState({ nav: false }));
     // 更新正式会员状态（控制课程时间等敏感信息显示）
