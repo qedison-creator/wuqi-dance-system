@@ -1149,12 +1149,9 @@ Page({
       }
 
       if (editPackageForm.package_type === 'count_card') {
-        // 已激活次卡：仅发送 total_credits，remaining_credits 由后端按实际签到用量自动计算
-        // 未激活次卡：发送 total_credits + remaining_credits（管理员初始化设置）
+        // 次卡：仅发送 total_credits；remaining_credits 一律由后端按「新总次数-实际消耗」联动重算
+        // （未激活无消耗，剩余=总次数），变更记录统一只记「总次数」
         postData.total_credits = parseInt(editPackageForm.total_credits);
-        if (!isActivated) {
-          postData.remaining_credits = parseInt(editPackageForm.remaining_credits);
-        }
       }
 
       // 时间卡可以修改限制次数

@@ -846,12 +846,7 @@ module.exports = {
         <input class="input-field" type="number" placeholder="请输入次数" value="{{editPackageForm.total_credits}}" data-field="total_credits" bindinput="onEditPackageInput" />
       </view>
 
-      <!-- 次卡：剩余次数（仅未激活时可设置；已激活由后端按实际签到用量自动计算） -->
-      <view class="form-group" wx:if="{{!editingPackage.is_activated && editPackageForm.package_type === 'count_card'}}">
-        <text class="form-label">剩余次数 *</text>
-        <input class="input-field" type="number" placeholder="请输入剩余次数" value="{{editPackageForm.remaining_credits}}" data-field="remaining_credits" bindinput="onEditPackageInput" />
-      </view>
-
+      <!-- 次卡：剩余次数由后端按「总次数-实际消耗」自动联动，不提供手动输入 -->
       <!-- 有效时长（未激活套餐：通过时长设置有效期） -->
       <view class="form-group" wx:if="{{!editingPackage.is_activated}}">
         <text class="form-label">有效时长 *</text>

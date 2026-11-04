@@ -1214,10 +1214,11 @@ exports.updatePackage = async (id, data, operatorId = null) => {
   const hasExplicitEndDate = data.end_date !== undefined && data.end_date !== null && data.end_date !== '';
   const hasExplicitStartDate = data.start_date !== undefined && data.start_date !== null && data.start_date !== '';
 
-  // 已激活次卡修改 total_credits 时，自动同步 remaining_credits
-  // 消耗次数从 Booking 表精确查询（credits_deducted - credits_refunded），不依赖 oldTotal-oldRemaining
-  // 这样即使 remaining_credits 被历史 bug 污染，也能修正为真实消耗
-  if (isActivated && userPackage.package_type === 'count_card' && data.total_credits !== undefined) {
+  // 次卡修改 total_credits 时，自动同步 remaining_credits（未激活/已激活统一处理）
+  // 消耗次数从 Booking 表精确查询（credits_deducted - credits_refunded），不依赖 oldTotal-oldRemaining；
+  // 未激活套餐不可能有消耗（不可预约），公式自然得出 剩余=新总次数，
+  // 修复：激活前管理员调整总次数后剩余次数不同步，导致激活后显示如 21/26 的差额问题
+  if (userPackage.package_type === 'count_card' && data.total_credits !== undefined) {
     const newTotal = Number(data.total_credits);
     if (newTotal < 0) throw new Error('总次数不能小于0');
 
@@ -1239,6 +1240,8 @@ exports.updatePackage = async (id, data, operatorId = null) => {
 
     // 新 remaining = 新 total - 实际已消耗次数（不小于0）
     data.remaining_credits = Math.max(0, newTotal - consumed);
+    // 标记：本次剩余变更为系统联动重算，变更记录不单独立「剩余次数」条目（统一只记「总次数」）
+    data._remaining_from_total_sync = true;
     console.log(`[Package] 次卡改总次数: 旧total=${userPackage.total_credits}, 新total=${newTotal}, 原始录入=${userPackage.original_total_credits}, 实际消耗=${consumed}, 新remaining=${data.remaining_credits}`);
   }
 
@@ -1276,6 +1279,9 @@ exports.updatePackage = async (id, data, operatorId = null) => {
           old_value: oldArr || '无',
           new_value: newArr || '无'
         });
+      } else if (key === 'remaining_credits' && data._remaining_from_total_sync) {
+        // 系统联动重算的剩余次数：应用值但不产生变更记录（变更记录统一只表述「总次数」）
+        userPackage[key] = data[key];
       } else if (String(oldValue) !== String(newValue)) {
         changes.push({
           field: key,
