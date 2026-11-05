@@ -250,8 +250,8 @@
   margin: 0 30rpx; padding: 26rpx;
   text-align: center;
   font-size: 22rpx; color: var(--sk-sub);
-  border: 2rpx dashed var(--sk-line);
-  border-radius: 8rpx;
+  border: none;
+  border-radius: 0;
 }
 .pkg-skin-history { margin-top: 16rpx; border: none; }
 
@@ -536,8 +536,10 @@
 
 /* ==================== 五轮：重建后补齐（最近一课 / 青柠票根 / 条码） ==================== */
 /* VOLT：最近一课 */
-.pf-last-sec { margin: 30rpx 30rpx 0; }
+.pf-last-sec { margin: 30rpx 0 0; }
 .pf-last-head { display: flex; align-items: baseline; margin-bottom: 16rpx; }
+/* 卡片内缩由容器转移到自身，标题竖条与「功能/历史套餐」左缘对齐（均贴页面 28rpx 边距） */
+.pf-last-card { margin: 0 30rpx; }
 .pf-last-t { font-size: 30rpx; font-weight: 900; color: var(--sk-ink); }
 .pf-last-en { margin-left: auto; font-size: 18rpx; letter-spacing: 0.25em; color: var(--sk-sub); font-weight: 700; }
 .pf-last-card {
@@ -642,6 +644,60 @@
 .pkt-pending-badge {
   position: absolute; right: 16rpx; bottom: 14rpx;
   background: #D7FF3B; color: #111310; border: 2rpx solid #111310;
+  font-size: 16rpx; font-weight: 900; letter-spacing: 0.18em;
+  padding: 6rpx 12rpx; line-height: 1; border-radius: 4rpx;
+}
+
+/* ==================== 历史套餐折叠条（与分节标题同语言，覆盖 classic 白胶囊样式） ==================== */
+/* 两皮肤统一：皮肤色竖条（section-left-bar）+ 粗黑标题 + 右对齐灰色大写英文角标 + 细箭头 */
+/* 基础覆盖：清掉 .phs-toggle 的白胶囊底、圆角、阴影、内边距 */
+.skin-paper .phs-sk, .skin-volt .phs-sk {
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  padding: 0;
+  margin: 4rpx 0 20rpx;
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+}
+/* 标题：与 section-title 同规格 */
+.phs-sk .phs-sk-title { font-size: 32rpx; font-weight: 900; color: var(--sk-ink); }
+.skin-paper .phs-sk .phs-sk-title { font-family: var(--sk-serif); letter-spacing: 0.06em; }
+/* 英文角标：与 pkg-sk-en 同规格 */
+.phs-sk .phs-sk-en {
+  margin-left: auto;
+  font-size: 18rpx;
+  letter-spacing: 0.25em;
+  color: var(--sk-hint);
+  font-weight: 700;
+}
+/* 箭头：随角标灰色，展开旋转沿用 classic 动效 */
+.phs-sk .phs-toggle-arrow {
+  border-left-color: var(--sk-hint);
+  border-bottom-color: var(--sk-hint);
+  margin-left: 14rpx;
+}
+/* 最近一课标题：竖条在 baseline 行内垂直居中，字号与 section-title 统一 */
+.pf-last-head .pf-last-bar { align-self: center; }
+.pf-last-t { font-size: 32rpx; }
+
+/* ==================== 历史套餐票根（纸上舞台 / VOLT，已过期/已用完） ==================== */
+/* 整体降饱和弱化，与使用中票面拉开层次 */
+.pkg-ticket.history { opacity: 0.6; }
+.pkg-ticket.pt.history { filter: grayscale(0.5); }
+.pkg-ticket.vt.history { filter: grayscale(1); }
+/* 状态行：已过期/已用完 */
+.pkt-history-status { font-weight: 700; }
+.skin-paper .pkt-history-status { color: #B93A26; }
+.skin-volt .pkt-history-status { color: #3d4a12; }
+/* 纸上舞台「终」印章：灰印示意已结束 */
+.skin-paper .pkt-seal-history { background: transparent; border: 2rpx dashed rgba(34, 29, 21, 0.45); color: rgba(34, 29, 21, 0.6); }
+/* VOLT 徽标：空心硬边灰字，区别于 PENDING 的青柠实底 */
+.pkt-history-badge {
+  position: absolute; right: 16rpx; bottom: 14rpx;
+  background: transparent; color: rgba(17, 19, 16, 0.6); border: 2rpx solid rgba(17, 19, 16, 0.45);
   font-size: 16rpx; font-weight: 900; letter-spacing: 0.18em;
   padding: 6rpx 12rpx; line-height: 1; border-radius: 4rpx;
 }

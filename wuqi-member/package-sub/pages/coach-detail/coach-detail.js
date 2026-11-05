@@ -137,17 +137,38 @@ Page({
 
   onUnload() {
     wsClient.disconnect();
+    if (this._courseRefreshTimer) {
+      clearTimeout(this._courseRefreshTimer);
+      this._courseRefreshTimer = null;
+    }
   },
 
-  // 建立 WebSocket 连接，接收套餐变更推送，即时刷新课程卡片预约按钮状态
+  // 建立 WebSocket 连接，接收套餐/课程变更推送，即时刷新预约按钮与课程卡片
   _connectWebSocket() {
     wsClient.connect({
       onMessage: {
         package_update: () => {
           this.loadUserPackages();
+          // 套餐恢复/变更可能解除时间脱敏（后端按有效套餐实时决定），需重拉课程列表
+          this._scheduleCourseRefresh();
+        },
+        // 任何人预约/取消/现场补签 → 防抖后刷新该教练课程卡片的预约人数/状态
+        course_update: () => {
+          this._scheduleCourseRefresh();
         }
       }
     });
+  },
+
+  // course_update 防抖：密集推送合并为一次刷新
+  _scheduleCourseRefresh() {
+    if (this._courseRefreshTimer) {
+      clearTimeout(this._courseRefreshTimer);
+    }
+    this._courseRefreshTimer = setTimeout(() => {
+      this._courseRefreshTimer = null;
+      this.refreshCourses();
+    }, 800);
   },
 
   loadUserPackages() {

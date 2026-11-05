@@ -5,6 +5,7 @@ const SERVER_BASE = config.serverBase;
 const { getBeijingDate } = require('../../utils/helpers');
 const { normalizeImageUrl } = require('../../utils/util');
 const auth = require('../../utils/auth');
+const wsClient = require('../../utils/websocket-client');
 
 function getDanceTagColor(styleName) {
   if (!styleName) return { bg: '#9B89FF', text: '#FFFFFF' };
@@ -157,6 +158,9 @@ Page({
     this.checkLocationAuth();
     this.startAnnounceFlip();
     this.maybeShowAnnouncePopup();
+
+    // 建立 WebSocket 连接：课程人数变化/套餐变更实时刷新（无需手动刷新页面）
+    this._connectWebSocket();
   },
 
   // 异步等待 app.globalData.currentStore 就绪（会员场景 determineDefaultStore 异步匹配中）
@@ -200,6 +204,9 @@ Page({
       clearInterval(this._storeWaitTimer);
       this._storeWaitTimer = null;
     }
+    // 切离首页时断开 WS（其他页面会建立自己的连接并注册各自的事件处理器）
+    wsClient.disconnect();
+    this._stopCourseRefreshTimer();
   },
 
   onReady() {
@@ -212,6 +219,64 @@ Page({
 
   onUnload() {
     this.stopAnnounceFlip();
+    wsClient.disconnect();
+    this._stopCourseRefreshTimer();
+  },
+
+  // ===== WebSocket 实时刷新 =====
+  // 建立 WebSocket 连接，接收课程/套餐变更推送（连接失败自动降级为轮询）
+  _connectWebSocket() {
+    wsClient.connect({
+      onMessage: {
+        // 任何人预约/取消/现场补签/管理端排课 → 防抖后静默刷新首页课程卡片
+        course_update: () => {
+          this._scheduleCourseRefresh();
+        },
+        // 管理端套餐变更（新增/修改/恢复/撤回等）→ 先刷新正式会员标识，
+        // 再重拉课程列表（时间脱敏由后端按有效套餐实时决定，必须重新请求才能解除）
+        package_update: () => {
+          this._refreshMemberStatus().then(() => {
+            this._scheduleCourseRefresh();
+          }).catch(() => {});
+        }
+      },
+      // WS 不可用降级为 60s 轮询兜底（连接恢复后自动停止）
+      onFallback: () => {
+        if (this.data._dataLoaded) {
+          this.loadHomeData();
+        }
+      }
+    });
+  },
+
+  // course_update 防抖：密集推送（批量预约/取消等）合并为一次刷新
+  _scheduleCourseRefresh() {
+    if (this._courseRefreshTimer) {
+      clearTimeout(this._courseRefreshTimer);
+    }
+    this._courseRefreshTimer = setTimeout(() => {
+      this._courseRefreshTimer = null;
+      // 仅在首页数据已加载过的情况下静默刷新，避免冷启动时与首次加载并发
+      if (this.data._dataLoaded) {
+        this.loadHomeData();
+      }
+    }, 800);
+  },
+
+  _stopCourseRefreshTimer() {
+    if (this._courseRefreshTimer) {
+      clearTimeout(this._courseRefreshTimer);
+      this._courseRefreshTimer = null;
+    }
+  },
+
+  // 套餐变更：重新拉取会员信息并同步到全局，更新正式会员标识（控制课程时间等敏感信息显示）
+  _refreshMemberStatus() {
+    return request({ url: '/auth/me', silent: true, skipAuthRedirect: true }).then((res) => {
+      const userInfo = (res && res.data) || {};
+      app.globalData.userInfo = userInfo;
+      this.setData({ isOfficial: userInfo.member_status === 'official' });
+    }).catch(() => {});
   },
 
   startAnnounceFlip() {

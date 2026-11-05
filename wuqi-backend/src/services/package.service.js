@@ -1317,6 +1317,9 @@ exports.updatePackage = async (id, data, operatorId = null) => {
   }
   // 其他情况：保持原有 start_date/end_date 不变
 
+  // 状态自愈：管理员改回总次数后（剩余>0），曾被持久化为 exhausted 的套餐恢复为 active（系统联动，不记变更记录）
+  recoverExhaustedStatus(userPackage);
+
   await userPackage.save();
 
   // 「随主套餐」赠课卡跟随主卡当前起止（含本次编辑延长/缩短结果），与预建档编辑的同步逻辑保持一致；
@@ -2406,6 +2409,21 @@ const checkChangeUndo = async (userPackage, changeDoc) => {
   return { ok: true, assignments, preview };
 };
 
+// ========== 套餐状态自愈 ==========
+
+// 次卡状态自愈：已被持久化为 exhausted 的已激活次卡，若剩余次数>0 且未过期，恢复为 active
+// 场景：管理员把总次数调成 0 后系统将 status 置为 exhausted，随后撤回变更/改回总次数时
+// remaining 已还原，但 status 无变更记录可还原 —— 由本函数联动恢复（系统联动，不产生变更记录）
+function recoverExhaustedStatus(userPackage) {
+  if (userPackage.package_type !== 'count_card') return false;
+  if (userPackage.status !== 'exhausted') return false;
+  if (!userPackage.is_activated || userPackage.is_suspended) return false;
+  if (!(Number(userPackage.remaining_credits) > 0)) return false;
+  if (userPackage.end_date && new Date() > new Date(userPackage.end_date)) return false;
+  userPackage.status = 'active';
+  return true;
+}
+
 // 撤回预览（供会员详情列表接口附加 undoable 信息；执行时 revokePackageChange 内部会重新校验）
 exports.previewChangeUndo = async (userPackage, changeDoc) => {
   const createdAt = changeDoc.created_at ? new Date(changeDoc.created_at) : null;
@@ -2445,6 +2463,8 @@ exports.revokePackageChange = async (changeId, operatorId, operatorName, reason)
   if (result.assignments.some(a => a.key === 'end_date')) {
     userPackage.original_end_date = userPackage.end_date;
   }
+  // 状态自愈：撤回还原剩余次数后，曾被持久化为 exhausted 的套餐恢复为 active（系统联动，不记变更记录）
+  recoverExhaustedStatus(userPackage);
   await userPackage.save();
 
   // 原记录打撤回标记（防重复 + 前端展示）
@@ -2531,6 +2551,12 @@ exports.refreshPackageStatus = async (userId) => {
         await pkg.save();
         updated++;
       }
+    } else if (pkg.status === 'exhausted' && pkg.package_type === 'count_card' && Number(pkg.remaining_credits) > 0 && (!pkg.end_date || now <= pkg.end_date)) {
+      // 自愈：剩余次数>0 且未过期的已激活次卡不应停留在 exhausted
+      // （撤回变更/管理员改回总次数后 status 无变更记录可还原的存量脏数据）
+      pkg.status = 'active';
+      await pkg.save();
+      updated++;
     }
   }
 

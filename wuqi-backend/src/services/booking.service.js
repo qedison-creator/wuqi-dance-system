@@ -10,7 +10,7 @@ const memberService = require('./member.service');
 const packageService = require('./package.service');
 const packageLabel = require('../utils/packageLabel');
 const wechatMessageService = require('./wechat-message.service');
-const { broadcastToAdmins, sendToUser } = require('./websocket.service');
+const { broadcastToAdmins, broadcastCourseUpdate, sendToUser } = require('./websocket.service');
 const { CANCEL_TYPE, TIME_RULES, SCHEDULE_STATUS } = require('../constants/scheduleStatus.constants');
 
 // 签到失败错误码枚举（与会员端/管理端约定，前端按码映射通俗文案）
@@ -987,6 +987,17 @@ exports.createBooking = async (userId, scheduleId) => {
       });
     } catch (e) {}
 
+    // 实时推送：通知所有在线会员课程人数变化（首页/预约页/教练详情页课程卡实时更新）
+    try {
+      broadcastCourseUpdate({
+        action: 'booking_create',
+        schedule_id: scheduleId,
+        store_id: scheduleStoreId,
+        current_bookings: updatedSchedule.current_bookings,
+        max_bookings: updatedSchedule.max_bookings
+      });
+    } catch (e) {}
+
     return result;
   } catch (err) {
     console.error('[Booking] 创建预约失败:', err);
@@ -1215,6 +1226,17 @@ async function finalizeCancel(booking, schedule, userId, now, classStart) {
       course_name: booking.course_name || schedule.course_name,
       schedule_date: booking.booking_date,
       schedule_start_time: booking.booking_time,
+      current_bookings: updatedSchedule.current_bookings,
+      max_bookings: updatedSchedule.max_bookings
+    });
+  } catch (e) {}
+
+  // 实时推送：通知所有在线会员课程人数变化
+  try {
+    broadcastCourseUpdate({
+      action: 'booking_cancel',
+      schedule_id: schedule._id,
+      store_id: schedule.store_id,
       current_bookings: updatedSchedule.current_bookings,
       max_bookings: updatedSchedule.max_bookings
     });
@@ -1612,6 +1634,17 @@ exports.adminCancelBooking = async (bookingId, reason, operatorId) => {
       cancel_type: 'admin_cancel',
       operator_id: operatorId,
       reason: reason || '',
+      current_bookings: schedule ? schedule.current_bookings : undefined,
+      max_bookings: schedule ? schedule.max_bookings : undefined
+    });
+  } catch (e) {}
+
+  // 实时推送：管理员取消预约同样改变课程人数，通知所有在线会员
+  try {
+    broadcastCourseUpdate({
+      action: 'booking_cancel',
+      schedule_id: booking.schedule_id,
+      store_id: booking.store_id,
       current_bookings: schedule ? schedule.current_bookings : undefined,
       max_bookings: schedule ? schedule.max_bookings : undefined
     });
@@ -3146,6 +3179,11 @@ exports.onsiteCheckIn = async (scheduleId, userId, operatorId = null, userPackag
 
     // 更新排课人数
     await Schedule.findByIdAndUpdate(scheduleId, { $inc: { current_bookings: 1 } });
+
+    // 实时推送：现场补签也会增加课程人数，通知所有在线会员
+    try {
+      broadcastCourseUpdate({ action: 'booking_create', schedule_id: scheduleId });
+    } catch (e) {}
 
     // 停卡恢复：在签到成功推送中标记套餐已恢复
     if (packageResumed) {

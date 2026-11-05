@@ -221,7 +221,7 @@
     <!-- VOLT：最近一课（真实上课记录的快捷呈现；纸上舞台无此模块） -->
     <block wx:if="{{skinId === 'volt' && isOfficialMember && lastSession}}">
       <view class="pf-last-sec">
-        <view class="pf-last-head"><text class="pf-last-t">最近一课</text><text class="pf-last-en">LAST SESSION</text></view>
+        <view class="pf-last-head"><view class="section-left-bar pf-last-bar"></view><text class="pf-last-t">最近一课</text><text class="pf-last-en">LAST SESSION</text></view>
         <view class="pf-last-card">
           <view class="pfl-mark">✓</view>
           <view class="pfl-main">
@@ -602,6 +602,38 @@
       <view class="pkg-skin-empty" wx:if="{{activePackages.length === 0 && pendingPackages.length === 0}}">
         <text>暂无使用中的套餐 · 请联系门店录入</text>
       </view>
+
+      <!-- 历史套餐票根（已过期/已用完，默认折叠；放在空状态之后，仅有历史套餐时也可见） -->
+      <view class="phs-toggle phs-sk" wx:if="{{historyPackages.length > 0}}" bindtap="onTogglePackageHistory">
+        <view class="section-left-bar"></view>
+        <text class="phs-sk-title">历史套餐</text>
+        <text class="phs-sk-en">HISTORY · {{historyPackages.length}}</text>
+        <view class="phs-toggle-arrow {{showPackageHistory ? 'expanded' : ''}}"></view>
+      </view>
+      <block wx:if="{{showPackageHistory}}">
+        <view class="pkg-ticket {{skinId === 'paper' ? 'pt' : 'vt'}} history" wx:for="{{historyPackages}}" wx:key="_id" bindtap="onPackageTap" data-id="{{item._id}}">
+          <view class="pkt-left">
+            <text class="pkt-k">MEMBERSHIP · {{item._typeLabel || '套餐'}}</text>
+            <text class="pkt-name">{{item._isBonus ? '赠送课时' : (item.package_type === 'time_card' ? '时间卡' : '次卡')}}</text>
+            <text class="pkt-source" wx:if="{{item._isBonus && item._sourceText}}">{{item._sourceText}}</text>
+            <text class="pkt-meta">有效期至 {{item.end_date_display || '-'}}</text>
+            <text class="pkt-meta pkt-history-status">{{item.status === 'expired' ? '已过期' : '已用完'}}</text>
+          </view>
+          <view class="pkt-right">
+            <block wx:if="{{item.package_type === 'count_card'}}">
+              <text class="pkt-big">{{item.remaining_credits || 0}}/{{item.total_credits || 0}}</text>
+              <text class="pkt-lab">剩余/总次数</text>
+            </block>
+            <block wx:else>
+              <text class="pkt-big">--</text>
+              <text class="pkt-lab">已结束</text>
+            </block>
+            <view class="pkt-seal pkt-seal-history" wx:if="{{skinId === 'paper'}}">终</view>
+            <view class="pkt-history-badge" wx:if="{{skinId === 'volt'}}">{{item.status === 'expired' ? 'EXPIRED' : 'USED UP'}}</view>
+          </view>
+          <view class="pkt-barcode" wx:if="{{skinId === 'volt'}}"><view class="pkb-bar"></view><view class="pkb-bar pkb-w2"></view><view class="pkb-bar pkb-w3"></view><view class="pkb-bar"></view><view class="pkb-bar pkb-w2"></view><view class="pkb-bar"></view><view class="pkb-bar pkb-w3"></view><view class="pkb-bar pkb-w2"></view><view class="pkb-bar"></view><view class="pkb-bar pkb-w3"></view><view class="pkb-bar"></view><view class="pkb-bar pkb-w2"></view><view class="pkb-bar pkb-w3"></view><view class="pkb-bar"></view><view class="pkb-bar pkb-w2"></view><view class="pkb-bar"></view><view class="pkb-bar pkb-w3"></view><view class="pkb-bar pkb-w2"></view><view class="pkb-bar"></view><view class="pkb-bar pkb-w3"></view></view>
+        </view>
+      </block>
     </block>
 
     <view class="package-section" wx:if="{{userInfo.member_status !== 'official'}}">

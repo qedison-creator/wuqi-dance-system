@@ -1050,7 +1050,7 @@ Page({
         pkg._statusText = '静待开启';
         if (pkg.is_bonus) pkg._pendingHint = '随主套餐激活后生效';
       } else {
-        pkg._statusText = '已满员';
+        pkg._statusText = '已用完';  // exhausted：次数用完（与管理端/后端口径统一，原「已满员」有歧义）
       }
 
       // 预计算常用展示字段，减少 WXML 渲染层重复计算

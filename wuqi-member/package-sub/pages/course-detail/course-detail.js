@@ -148,17 +148,41 @@ Page({
   onUnload() {
     wsClient.disconnect();
     this._stopActivationCountdown();
+    if (this._courseRefreshTimer) {
+      clearTimeout(this._courseRefreshTimer);
+      this._courseRefreshTimer = null;
+    }
   },
 
-  // 建立 WebSocket 连接，接收套餐变更推送，即时刷新预约按钮状态
+  // 建立 WebSocket 连接，接收套餐/课程变更推送，即时刷新预约按钮与人数信息
   _connectWebSocket() {
     wsClient.connect({
       onMessage: {
         package_update: () => {
           this.loadUserPackages();
+          // 套餐恢复/变更可能解除时间脱敏（后端按有效套餐实时决定），需重拉课程详情
+          this._scheduleCourseRefresh();
+        },
+        // 任何人预约/取消/现场补签 → 防抖后刷新本课程人数/约满/候补状态
+        course_update: () => {
+          this._scheduleCourseRefresh();
         }
       }
     });
+  },
+
+  // course_update 防抖：密集推送合并为一次刷新
+  _scheduleCourseRefresh() {
+    if (this._courseRefreshTimer) {
+      clearTimeout(this._courseRefreshTimer);
+    }
+    this._courseRefreshTimer = setTimeout(() => {
+      this._courseRefreshTimer = null;
+      if (this.data.courseId) {
+        this.loadCourseDetail(this.data.courseId);
+        this.loadWaitlistStatus();
+      }
+    }, 800);
   },
 
   loadCourseDetail(id) {

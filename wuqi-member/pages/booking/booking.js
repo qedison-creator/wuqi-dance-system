@@ -247,6 +247,8 @@ Page({
       this.loadMyBookings();
       this.loadMyWaitlists();
       this.loadCompletedBookings();
+      // 套餐恢复/变更可能解除时间/人数脱敏（后端按有效套餐实时决定），需重拉课程列表
+      this.loadCourses(true);
     }).catch(() => {
       const userInfo = app.globalData.userInfo || {};
       const isOfficial = userInfo.member_status === 'official';
