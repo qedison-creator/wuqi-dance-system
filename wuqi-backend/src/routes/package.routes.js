@@ -117,6 +117,25 @@ router.post('/user/:id/bonus', auth, checkPermission(['super_admin', 'store_mana
   }
 });
 
+// POST /api/v1/packages/:id/penalty - 罚课（未预约未打招呼空降到店处罚，店长及以上）
+// body { booking_id, credits(1~5), reason }
+router.post('/:id/penalty', auth, checkPermission(['super_admin', 'store_manager']), storeFilter(), packageOwnershipGuard, async (req, res, next) => {
+  try {
+    const { booking_id, credits, reason } = req.body;
+    if (!booking_id) {
+      return res.status(400).json(error(400, '缺少 booking_id'));
+    }
+    const n = Number(credits);
+    if (!Number.isInteger(n) || n < 1 || n > 5) {
+      return res.status(400).json(error(400, '罚课节数须为1-5的整数'));
+    }
+    const result = await packageService.penaltyPackage(req.params.id, { booking_id, credits: n, reason }, req.user.id);
+    res.json(success(result, '罚课成功'));
+  } catch (err) {
+    next(err);
+  }
+});
+
 // ========== 套餐激活记录相关路由 ==========
 
 // GET /api/v1/packages/activation-records - 获取套餐激活记录

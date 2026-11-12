@@ -338,9 +338,12 @@ exports.undoReminderDone = async ({ memberId, alertType, periodKey }) => {
 // ===================== 7. 课时账单 =====================
 
 // 每节课明细（快照兜底：会员/教练/课程删除后信息完整）
+// credits 口径 = 课程消耗 + 罚课（罚课计入总额，管理员可与总数对上）；
+// course_credits/penalty_credits 为拆分字段，供明细行显示「课时X + 罚Y」
 function buildBillRow(b, memberInfo, typeCounts) {
   const u = b.user_id && b.user_id._id ? b.user_id : null;
   const snap = b.member_snapshot || {};
+  const penaltyCredits = b.penalty_credits || 0;
   return {
     id: String(b._id),
     member_id: (u && u._id) || b.user_id,
@@ -349,7 +352,10 @@ function buildBillRow(b, memberInfo, typeCounts) {
     date: b.booking_date,
     weekday: WEEKDAY_NAMES[dayjs(b.booking_date).day()],
     time: b.booking_time || b.schedule_start_time || '',
-    credits: b.credits_deducted || 0,
+    credits: (b.credits_deducted || 0) + penaltyCredits,
+    course_credits: b.credits_deducted || 0,
+    penalty_credits: penaltyCredits,
+    penalty_reason: penaltyCredits > 0 ? (b.penalty_reason || '') : '',
     course_name: b.course_name || '课程',
     dance_name: b.dance_style_name || '',
     coach_name: b.coach_name || '',
@@ -414,17 +420,19 @@ exports.getMemberBill = async ({ storeId, search, period, startDate, endDate, ro
     const uid = String(row.member_id);
     let g = byMember.get(uid);
     if (!g) {
-      g = { member_id: uid, name: row.member_name, code: row.member_code, credits: 0, sessions: 0, last_date: row.date, bills: [] };
+      g = { member_id: uid, name: row.member_name, code: row.member_code, credits: 0, penalty_credits: 0, sessions: 0, last_date: row.date, bills: [] };
       byMember.set(uid, g);
     }
     g.credits += row.credits;
+    g.penalty_credits += row.penalty_credits;
     g.sessions += 1;
     if (!g.last_date || row.date > g.last_date) g.last_date = row.date;
     if (g.bills.length < 50) g.bills.push(row);
 
     let dg = byDate.get(row.date);
-    if (!dg) { dg = { date: row.date, credits: 0, sessions: 0, items: [] }; byDate.set(row.date, dg); }
+    if (!dg) { dg = { date: row.date, credits: 0, penalty_credits: 0, sessions: 0, items: [] }; byDate.set(row.date, dg); }
     dg.credits += row.credits;
+    dg.penalty_credits += row.penalty_credits;
     dg.sessions += 1;
     dg.items.push(row);
   });
@@ -438,6 +446,7 @@ exports.getMemberBill = async ({ storeId, search, period, startDate, endDate, ro
   return {
     range,
     total_credits: members.reduce((s, m) => s + m.credits, 0),
+    total_penalty_credits: members.reduce((s, m) => s + (m.penalty_credits || 0), 0),
     total_sessions: docs.length,
     members,
     by_date: byDateList,

@@ -320,7 +320,7 @@ Page({
         bills: (m.bills || []).map(b => ({ ...b, weekday: WEEKD[new Date(b.date.replace(/-/g, '/')).getDay()] })),
       }));
       const billByDate = (d.by_date || []).map(g => ({ ...g, weekday: WEEKD[new Date(g.date.replace(/-/g, '/')).getDay()] }));
-      this.setData({ billMembers, billByDate, billTotals: { credits: d.total_credits, sessions: d.total_sessions }, billLoading: false });
+      this.setData({ billMembers, billByDate, billTotals: { credits: d.total_credits, sessions: d.total_sessions, penalty_credits: d.total_penalty_credits || 0 }, billLoading: false });
     }).catch(() => {
       this.setData({ billLoading: false });
     });

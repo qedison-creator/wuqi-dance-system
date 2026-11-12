@@ -49,6 +49,12 @@ const bookingSchema = new mongoose.Schema({
   // === 按天口径缩短有效期的天数（时间卡：不限次卡/每天1节卡扣N(N≥2)课时的课）===
   // 预约创建时套餐 end_date 已同步缩短 N 天；取消/退还时按此值加回。展示层据此显示"缩短有效期N天"
   shrink_days:         { type: Number },
+  // === 罚课（未预约未打招呼空降到店的处罚）===
+  // 罚课锚定到这节空降课的上课记录：penalty_credits>0 即该节被罚过（撤销罚课时清零还原）
+  penalty_credits: { type: Number, default: 0 },
+  penalty_reason:  { type: String, default: '' },
+  penalty_at:      { type: Date, default: null },
+  penalty_by:      { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
   // === 会员快照（数据中心课时账单溯源）===
   // 会员被删除后，账单仍完整显示姓名/编号/手机号
   member_snapshot: {

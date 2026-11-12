@@ -477,13 +477,27 @@ async function checkTimeCardLimit(userPackage, scheduleDate, creditsCost, exclud
     return res.length > 0 ? (res[0].total || 0) : 0;
   };
 
+  // 罚课账本占用（周期限制卡罚课按维度记账，预约校验时计入对应周期）
+  const ledgerSum = async (dim, key) => {
+    let ledger = userPackage.penalty_ledger;
+    if (!Array.isArray(ledger)) {
+      // 调用方未带出罚课账本时兜底补查
+      const doc = await UserPackage.findById(userPackage._id).select('penalty_ledger').lean();
+      ledger = (doc && doc.penalty_ledger) || [];
+    }
+    return ledger
+      .filter(e => e.dimension === dim && e.period_key === key)
+      .reduce((s, e) => s + (Number(e.credits) || 0), 0);
+  };
+
   const bookingDate = bjDate(scheduleDate);
 
   if (weeklyLimit) {
     const weekStartDate = bookingDate.startOf('isoWeek');
     const weekEndDate = bookingDate.endOf('isoWeek');
 
-    const usedThisWeek = await usedCreditsInRange(weekStartDate.format('YYYY-MM-DD'), weekEndDate.format('YYYY-MM-DD'));
+    const usedThisWeek = await usedCreditsInRange(weekStartDate.format('YYYY-MM-DD'), weekEndDate.format('YYYY-MM-DD'))
+      + await ledgerSum('weekly', weekStartDate.format('YYYY-MM-DD'));
 
     if (usedThisWeek + creditsCost > weeklyLimit) {
       const remaining = Math.max(0, weeklyLimit - usedThisWeek);
@@ -501,7 +515,7 @@ async function checkTimeCardLimit(userPackage, scheduleDate, creditsCost, exclud
   if (dailyLimit) {
     const dateStr = bookingDate.format('YYYY-MM-DD');
 
-    const usedToday = await usedCreditsInRange(dateStr, dateStr);
+    const usedToday = await usedCreditsInRange(dateStr, dateStr) + await ledgerSum('daily', dateStr);
 
     if (usedToday + creditsCost > dailyLimit) {
       const remaining = Math.max(0, dailyLimit - usedToday);
@@ -520,7 +534,8 @@ async function checkTimeCardLimit(userPackage, scheduleDate, creditsCost, exclud
     const monthStartDate = bookingDate.startOf('month');
     const monthEndDate = bookingDate.endOf('month');
 
-    const usedThisMonth = await usedCreditsInRange(monthStartDate.format('YYYY-MM-DD'), monthEndDate.format('YYYY-MM-DD'));
+    const usedThisMonth = await usedCreditsInRange(monthStartDate.format('YYYY-MM-DD'), monthEndDate.format('YYYY-MM-DD'))
+      + await ledgerSum('monthly', monthStartDate.format('YYYY-MM'));
 
     if (usedThisMonth + creditsCost > monthlyLimit) {
       const remaining = Math.max(0, monthlyLimit - usedThisMonth);

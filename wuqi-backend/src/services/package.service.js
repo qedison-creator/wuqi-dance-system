@@ -5,11 +5,12 @@ const PackageActivation = require('../models/PackageActivation');
 const PackageExtension = require('../models/PackageExtension');
 const PackageChange = require('../models/PackageChange');
 const Booking = require('../models/Booking');
+const Attendance = require('../models/Attendance');
 const User = require('../models/User');
 const Store = require('../models/Store');
 const DanceStyle = require('../models/DanceStyle');
 const logService = require('./log.service');
-const { sendToUser } = require('./websocket.service');
+const { sendToUser, broadcastToAdmins } = require('./websocket.service');
 const dayjs = require('dayjs');
 const utc = require('dayjs/plugin/utc');
 const timezone = require('dayjs/plugin/timezone');
@@ -688,17 +689,26 @@ async function calcTimeCardUsage(userPackage) {
     return res.length > 0 ? (res[0].total || 0) : 0;
   };
 
+  // 罚课账本计入周期用量：条目 {credits, dimension('daily'|'weekly'|'monthly'), period_key}
+  // period_key 口径与 penaltyPackage 一致：weekly=ISO周起始日'YYYY-MM-DD'，monthly='YYYY-MM'，daily='YYYY-MM-DD'
+  const ledger = Array.isArray(userPackage.penalty_ledger) ? userPackage.penalty_ledger : [];
+  const penaltyInPeriod = (dim, key) => ledger
+    .filter(e => e && e.dimension === dim && e.period_key === key)
+    .reduce((s, e) => s + (Number(e.credits) || 0), 0);
+
   if (userPackage.weekly_limit) {
     const weekStart = now.startOf('isoWeek');
     const weekEnd = now.endOf('isoWeek');
-    const usedThisWeek = await usedCreditsInRange(weekStart.format('YYYY-MM-DD'), weekEnd.format('YYYY-MM-DD'));
+    const usedThisWeek = await usedCreditsInRange(weekStart.format('YYYY-MM-DD'), weekEnd.format('YYYY-MM-DD'))
+      + penaltyInPeriod('weekly', weekStart.format('YYYY-MM-DD'));
     result.weekly_used = usedThisWeek;
     result.weekly_limit = userPackage.weekly_limit;
     result.weekly_remaining = Math.max(0, userPackage.weekly_limit - usedThisWeek);
 
     const nextWeekStart = now.add(1, 'week').startOf('isoWeek');
     const nextWeekEnd = now.add(1, 'week').endOf('isoWeek');
-    const usedNextWeek = await usedCreditsInRange(nextWeekStart.format('YYYY-MM-DD'), nextWeekEnd.format('YYYY-MM-DD'));
+    const usedNextWeek = await usedCreditsInRange(nextWeekStart.format('YYYY-MM-DD'), nextWeekEnd.format('YYYY-MM-DD'))
+      + penaltyInPeriod('weekly', nextWeekStart.format('YYYY-MM-DD'));
     result.next_week_used = usedNextWeek;
     result.next_week_remaining = Math.max(0, userPackage.weekly_limit - usedNextWeek);
     result.next_week_start = nextWeekStart.format('YYYY-MM-DD');
@@ -707,7 +717,7 @@ async function calcTimeCardUsage(userPackage) {
 
   if (userPackage.daily_limit) {
     const todayStr = now.format('YYYY-MM-DD');
-    const usedToday = await usedCreditsInRange(todayStr, todayStr);
+    const usedToday = await usedCreditsInRange(todayStr, todayStr) + penaltyInPeriod('daily', todayStr);
     result.daily_used = usedToday;
     result.daily_limit = userPackage.daily_limit;
     result.daily_remaining = Math.max(0, userPackage.daily_limit - usedToday);
@@ -716,7 +726,8 @@ async function calcTimeCardUsage(userPackage) {
   if (userPackage.monthly_limit) {
     const monthStart = now.startOf('month');
     const monthEnd = now.endOf('month');
-    const usedThisMonth = await usedCreditsInRange(monthStart.format('YYYY-MM-DD'), monthEnd.format('YYYY-MM-DD'));
+    const usedThisMonth = await usedCreditsInRange(monthStart.format('YYYY-MM-DD'), monthEnd.format('YYYY-MM-DD'))
+      + penaltyInPeriod('monthly', monthStart.format('YYYY-MM'));
     result.monthly_used = usedThisMonth;
     result.monthly_limit = userPackage.monthly_limit;
     result.monthly_remaining = Math.max(0, userPackage.monthly_limit - usedThisMonth);
@@ -2159,6 +2170,325 @@ exports.extendPackage = async (packageId, extendDays, operatorId, operatorName, 
 };
 
 // 撤回操作时间窗口：操作后 2 小时内可一键撤回
+// ========== 罚课（未预约未打招呼空降到店处罚）==========
+// 规则（方案 V2 已确认）：
+//   次卡：直接扣 remaining_credits，不罚出负数（不足时提示最多可罚 N 节，罚到 0 变已用完）
+//   时间卡·周期限制（每天X节X≥2/每周X次/每月X次）：按维度写 penalty_ledger 账本，锚定空降课
+//     所在周期，本周期不够顺延下周期（可跨多周期）；多维度并存时各维度独立分配
+//   时间卡·每天1节：罚 N 节 = 有效期缩短 N 天（沿用按天口径缩期机制）
+//   时间卡·不限次：不罚（入口不显示按钮）
+//   赠课卡：那节课扣的是赠课卡时，罚其主卡（bonus_source_id）
+//   罚课必关联到那节空降课的 Booking（penalty_credits/penalty_reason），同步 Attendance 快照
+//   变更走 PackageChange（含 penalty_booking_id/penalty_allocations），2小时内可撤回
+
+const PENALTY_MAX_CREDITS = 5;
+
+// 周期 key 口径：daily='YYYY-MM-DD'；weekly=ISO 周起始日 'YYYY-MM-DD'；monthly='YYYY-MM'
+function penaltyPeriodKey(dim, bjMoment) {
+  if (dim === 'daily') return bjMoment.format('YYYY-MM-DD');
+  if (dim === 'weekly') return bjMoment.startOf('isoWeek').format('YYYY-MM-DD');
+  return bjMoment.startOf('month').format('YYYY-MM');
+}
+
+function penaltyNextPeriodKey(dim, key) {
+  if (dim === 'daily') return dayjs.tz(key, BEIJING_TZ).add(1, 'day').format('YYYY-MM-DD');
+  if (dim === 'weekly') return dayjs.tz(key, BEIJING_TZ).add(7, 'day').format('YYYY-MM-DD');
+  return dayjs.tz(key + '-01', BEIJING_TZ).add(1, 'month').format('YYYY-MM');
+}
+
+// 单维度罚课分配：从锚定周期起逐周期顺延，直到分完
+// usedInPeriod(key)：该周期已占用课时（预约消耗 + 罚课账本，含被罚那节自身的消耗）
+async function allocatePenaltyInDimension(dim, anchorKey, credits, limit, usedInPeriod) {
+  const allocations = [];
+  let remaining = credits;
+  let cursor = anchorKey;
+  for (let guard = 0; remaining > 0 && guard < 1000; guard++) {
+    const used = await usedInPeriod(cursor);
+    const capacity = limit - used;
+    if (capacity > 0) {
+      const take = Math.min(capacity, remaining);
+      allocations.push({ dimension: dim, period_key: cursor, credits: take });
+      remaining -= take;
+    }
+    cursor = penaltyNextPeriodKey(dim, cursor);
+  }
+  if (remaining > 0) throw new Error('罚课分配异常，请重试');
+  return allocations;
+}
+
+// 罚课：POST /packages/:id/penalty  body { booking_id, credits(1~5), reason }
+// :id 为入口套餐卡（须属于该会员）；实际罚课目标 = 空降课 booking.user_package_id（赠课卡取其主卡）
+exports.penaltyPackage = async (packageId, { booking_id, credits, reason }, operatorId) => {
+  const n = Number(credits);
+  if (!Number.isInteger(n) || n < 1 || n > PENALTY_MAX_CREDITS) {
+    throw new Error(`罚课节数须为1-${PENALTY_MAX_CREDITS}的整数`);
+  }
+  const finalReason = (reason && String(reason).trim()) || '未预约直接到店上课';
+
+  const booking = await Booking.findById(booking_id);
+  if (!booking) throw new Error('上课记录不存在');
+  if (booking.status !== 'completed') throw new Error('仅已完成的课程可罚课');
+  if ((Number(booking.penalty_credits) || 0) > 0) throw new Error('该节课已罚过课，不可重复处罚');
+
+  if (!booking.user_package_id) throw new Error('该节课无关联套餐，无法罚课');
+  let card = await UserPackage.findById(booking.user_package_id);
+  if (!card) throw new Error('关联套餐不存在');
+  if (String(card.user_id) !== String(booking.user_id)) throw new Error('上课记录与套餐会员不匹配');
+  // 入口套餐卡须属于该会员（从主卡入口罚赠课扣的课时，入口与归属卡允许不同）
+  const entryCard = await UserPackage.findById(packageId).select('_id user_id');
+  if (!entryCard || String(entryCard.user_id) !== String(booking.user_id)) {
+    throw new Error('上课记录与该会员套餐不匹配');
+  }
+  if (card.is_bonus && card.bonus_source_id) {
+    const main = await UserPackage.findById(card.bonus_source_id);
+    if (!main) throw new Error('赠课卡的主套餐不存在，无法罚课');
+    card = main;
+  }
+  if (!card.is_activated) throw new Error('套餐未激活，无法罚课');
+  if (card.status === 'voided') throw new Error('套餐已作废，无法罚课');
+  if (card.is_suspended) throw new Error('套餐停卡中，无法罚课');
+
+  const bjBooking = dayjs.tz(booking.booking_date, BEIJING_TZ);
+  const allocations = [];
+  const changes = [];
+  let penaltyDesc = '';
+
+  if (card.package_type === 'count_card') {
+    // 次卡：直接扣剩余次数，不罚出负数
+    const oldRemaining = Number(card.remaining_credits || 0);
+    if (oldRemaining < n) {
+      throw new Error(`该套餐剩余${oldRemaining}课时，不足罚${n}节，最多可罚 ${oldRemaining} 节`);
+    }
+    card.remaining_credits = oldRemaining - n;
+    if (card.remaining_credits === 0 && card.status === 'active') {
+      card.status = 'exhausted';
+    }
+    card.penalty_credits = Number(card.penalty_credits || 0) + n;
+    allocations.push({ dimension: 'count', period_key: '', credits: n });
+    changes.push({ field: 'remaining_credits', field_label: '剩余次数', old_value: String(oldRemaining), new_value: String(card.remaining_credits) });
+    penaltyDesc = '扣减剩余课时';
+  } else {
+    const dailyLimit = Number(card.daily_limit || 0);
+    const weeklyLimit = Number(card.weekly_limit || 0);
+    const monthlyLimit = Number(card.monthly_limit || 0);
+    const isUnlimited = !dailyLimit && !weeklyLimit && !monthlyLimit;
+    const isDailyOne = dailyLimit === 1 && !weeklyLimit && !monthlyLimit;
+
+    if (isUnlimited) throw new Error('不限次套餐不适用罚课，请线下处理');
+
+    if (isDailyOne) {
+      // 每天1节：罚 N 节 = 有效期缩短 N 天
+      if (!card.end_date) throw new Error('套餐无有效期，无法罚课');
+      const oldEnd = card.end_date;
+      card.end_date = dayjs.tz(oldEnd, BEIJING_TZ).subtract(n, 'day').endOf('day').toDate();
+      card.original_end_date = card.end_date;
+      card.penalty_credits = Number(card.penalty_credits || 0) + n;
+      allocations.push({ dimension: 'days', period_key: '', credits: n });
+      changes.push({
+        field: 'end_date', field_label: '有效期至',
+        old_value: dayjs.tz(oldEnd, BEIJING_TZ).format('YYYY-MM-DD'),
+        new_value: dayjs.tz(card.end_date, BEIJING_TZ).format('YYYY-MM-DD'),
+      });
+      penaltyDesc = '有效期缩短N天';
+    } else {
+      // 周期限制卡：各维度独立分配，本周期不够顺延下周期
+      const usedInPeriod = async (dim, key) => {
+        let from, to;
+        if (dim === 'daily') { from = key; to = key; }
+        else if (dim === 'weekly') { from = key; to = dayjs.tz(key, BEIJING_TZ).add(6, 'day').format('YYYY-MM-DD'); }
+        else { from = key + '-01'; to = dayjs.tz(key + '-01', BEIJING_TZ).endOf('month').format('YYYY-MM-DD'); }
+        const agg = await Booking.aggregate([
+          { $match: {
+            user_id: card.user_id,
+            user_package_id: card._id,
+            booking_date: { $gte: from, $lte: to },
+            status: { $in: ['booked', 'completed'] },
+          } },
+          { $group: { _id: null, total: { $sum: { $ifNull: ['$credits_deducted', 0] } } } },
+        ]);
+        const bookingUsed = agg.length > 0 ? (agg[0].total || 0) : 0;
+        const ledgerUsed = (Array.isArray(card.penalty_ledger) ? card.penalty_ledger : [])
+          .filter(e => e.dimension === dim && e.period_key === key)
+          .reduce((s, e) => s + (Number(e.credits) || 0), 0);
+        return bookingUsed + ledgerUsed;
+      };
+      if (dailyLimit) {
+        allocations.push(...await allocatePenaltyInDimension('daily', penaltyPeriodKey('daily', bjBooking), n, dailyLimit, (key) => usedInPeriod('daily', key)));
+      }
+      if (weeklyLimit) {
+        allocations.push(...await allocatePenaltyInDimension('weekly', penaltyPeriodKey('weekly', bjBooking), n, weeklyLimit, (key) => usedInPeriod('weekly', key)));
+      }
+      if (monthlyLimit) {
+        allocations.push(...await allocatePenaltyInDimension('monthly', penaltyPeriodKey('monthly', bjBooking), n, monthlyLimit, (key) => usedInPeriod('monthly', key)));
+      }
+      card.penalty_ledger = [
+        ...(Array.isArray(card.penalty_ledger) ? card.penalty_ledger : []),
+        ...allocations.map(x => ({ credits: x.credits, dimension: x.dimension, period_key: x.period_key, booking_id: booking._id, at: new Date() })),
+      ];
+      card.markModified('penalty_ledger');
+      card.penalty_credits = Number(card.penalty_credits || 0) + n;
+      penaltyDesc = '占用周期额度';
+    }
+  }
+
+  // 空降课记录写入罚课标记（有迹可循：罚课直接关联到那节没预约就上课的记录）
+  booking.penalty_credits = n;
+  booking.penalty_reason = finalReason;
+  booking.penalty_at = new Date();
+  booking.penalty_by = operatorId || null;
+  await booking.save();
+
+  const attendance = await Attendance.findOne({ booking_id: booking._id });
+  if (attendance) {
+    attendance.penalty_credits = n;
+    attendance.penalty_reason = finalReason;
+    attendance.penalty_at = booking.penalty_at;
+    attendance.penalty_by = operatorId || null;
+    await attendance.save();
+  }
+
+  await card.save();
+
+  // 变更记录（含罚课专用字段，2小时内可撤回；撤回走罚课专用分支）
+  let operatorName = '系统';
+  const opId = operatorId || card.created_by;
+  if (opId) {
+    const operator = await User.findById(opId).select('real_name nick_name username');
+    if (operator) operatorName = operator.real_name || operator.nick_name || operator.username || '系统';
+  }
+  await PackageChange.create({
+    user_package_id: card._id,
+    user_id: card.user_id,
+    store_id: card.store_id,
+    operator_id: opId || null,
+    operator_name: operatorName,
+    changes,
+    remark: `罚课${n}节（${penaltyDesc}）：${finalReason}`,
+    penalty_booking_id: booking._id,
+    penalty_allocations: allocations,
+    member_snapshot: card.member_snapshot || {},
+    package_snapshot: {
+      package_type: card.package_type || '',
+      total_credits: card.total_credits || 0,
+      duration_value: card.duration_value || 0,
+      duration_unit: card.duration_unit || '',
+    },
+  });
+
+  await logService.createLog({
+    operator_id: operatorId || null,
+    action: 'penalty_package',
+    module: 'package',
+    target_id: card._id,
+    detail: `罚课${n}节: 会员(${card.user_id}), 空降课(${booking._id}), ${penaltyDesc}, 原因: ${finalReason}`,
+  });
+
+  // 推送：会员端刷新套餐数据；管理端数据中心刷新课时账单
+  try {
+    sendToUser(String(card.user_id), 'package_update', { action: 'penalty', package_id: String(card._id) });
+  } catch (e) {
+    console.error('[Package] 罚课推送会员端失败:', e.message);
+  }
+  try {
+    broadcastToAdmins('datacenter_update', { type: 'bill', store_id: card.store_id ? String(card.store_id) : null });
+  } catch (e) {
+    console.error('[Package] 罚课推送数据中心失败:', e.message);
+  }
+
+  return { package: card, booking, allocations, end_shrink_days: allocations.filter(a => a.dimension === 'days').reduce((s, a) => s + a.credits, 0) };
+};
+
+// 撤回罚课变更（罚课专用分支，不走通用 checkChangeUndo 字段还原）
+async function undoPenaltyChange(changeDoc, operatorId, operatorName, reason) {
+  const userPackage = await UserPackage.findById(changeDoc.user_package_id);
+  if (!userPackage) throw new Error('关联套餐不存在');
+  const booking = await Booking.findById(changeDoc.penalty_booking_id);
+  if (!booking) throw new Error('被罚的上课记录不存在');
+  if (!(Number(booking.penalty_credits) > 0)) throw new Error('该罚课记录已被处理，无法重复撤回');
+
+  const allocations = changeDoc.penalty_allocations || [];
+  const total = allocations.reduce((s, a) => s + (Number(a.credits) || 0), 0);
+  if (!(total > 0)) throw new Error('罚课变更数据异常，请手动调整套餐');
+
+  for (const a of allocations) {
+    if (a.dimension === 'count') {
+      // 次卡：恢复剩余次数
+      userPackage.remaining_credits = Number(userPackage.remaining_credits || 0) + Number(a.credits);
+    } else if (a.dimension === 'days') {
+      // 每天1节卡：有效期加回
+      if (userPackage.end_date) {
+        userPackage.end_date = dayjs.tz(userPackage.end_date, BEIJING_TZ).add(Number(a.credits), 'day').endOf('day').toDate();
+        userPackage.original_end_date = userPackage.end_date;
+      }
+    } else if (['daily', 'weekly', 'monthly'].includes(a.dimension)) {
+      // 周期限制卡：从账本移除对应条目
+      const before = Array.isArray(userPackage.penalty_ledger) ? userPackage.penalty_ledger.length : 0;
+      userPackage.penalty_ledger = (userPackage.penalty_ledger || []).filter(e =>
+        !(e.dimension === a.dimension && e.period_key === a.period_key
+          && Number(e.credits) === Number(a.credits)
+          && e.booking_id && String(e.booking_id) === String(booking._id))
+      );
+      if (userPackage.penalty_ledger.length !== before) userPackage.markModified('penalty_ledger');
+    }
+  }
+  userPackage.penalty_credits = Math.max(0, Number(userPackage.penalty_credits || 0) - total);
+  // 罚到 0 被持久化为 exhausted 的次卡，撤回还原后自动复活
+  recoverExhaustedStatus(userPackage);
+  await userPackage.save();
+
+  // 清除空降课的罚课标记（Booking + Attendance）
+  await Booking.updateOne(
+    { _id: booking._id },
+    { $set: { penalty_credits: 0, penalty_reason: '', penalty_at: null, penalty_by: null } }
+  );
+  await Attendance.updateOne(
+    { booking_id: booking._id },
+    { $set: { penalty_credits: 0, penalty_reason: '', penalty_at: null, penalty_by: null } }
+  );
+
+  // 原记录打撤回标记 + 写撤回记录（审计链完整）
+  await PackageChange.updateOne(
+    { _id: changeDoc._id },
+    { $set: { undone_at: new Date(), undone_by: operatorId } }
+  );
+  await PackageChange.create({
+    user_package_id: changeDoc.user_package_id,
+    user_id: changeDoc.user_id,
+    store_id: changeDoc.store_id,
+    operator_id: operatorId,
+    operator_name: operatorName || '管理员',
+    changes: changeDoc.changes || [],
+    remark: reason || '撤回罚课',
+    is_undo: true,
+    undo_of: changeDoc._id,
+    penalty_booking_id: changeDoc.penalty_booking_id,
+    penalty_allocations: changeDoc.penalty_allocations || [],
+    member_snapshot: changeDoc.member_snapshot,
+    package_snapshot: changeDoc.package_snapshot,
+  });
+
+  await logService.createLog({
+    operator_id: operatorId,
+    action: 'revoke_package_change',
+    module: 'package',
+    target_id: changeDoc.user_package_id,
+    detail: `撤回罚课${total}节: 会员(${changeDoc.user_id}), 空降课(${changeDoc.penalty_booking_id})`,
+  });
+
+  try {
+    sendToUser(String(changeDoc.user_id), 'package_update', { action: 'revoke_penalty', package_id: String(changeDoc.user_package_id) });
+  } catch (e) {
+    console.error('[Package] 撤回罚课推送会员端失败:', e.message);
+  }
+  try {
+    broadcastToAdmins('datacenter_update', { type: 'bill', store_id: changeDoc.store_id ? String(changeDoc.store_id) : null });
+  } catch (e) {
+    console.error('[Package] 撤回罚课推送数据中心失败:', e.message);
+  }
+
+  return userPackage;
+}
+
 exports.UNDO_WINDOW_MS = 2 * 60 * 60 * 1000;
 
 exports.revokePackageExtension = async (extensionId, operatorId, operatorName, reason, options = {}) => {
@@ -2432,6 +2762,14 @@ exports.previewChangeUndo = async (userPackage, changeDoc) => {
   if (!createdAt || Date.now() - createdAt.getTime() > exports.UNDO_WINDOW_MS) {
     return { undoable: false, blocked_reason: '已超过2小时撤回时限' };
   }
+  // 罚课记录走专用分支（字段与普通变更不同，不适用通用校验）
+  if (changeDoc.penalty_booking_id) {
+    const b = await Booking.findById(changeDoc.penalty_booking_id).select('penalty_credits');
+    if (!b || !(Number(b.penalty_credits) > 0)) {
+      return { undoable: false, blocked_reason: '罚课记录状态异常' };
+    }
+    return { undoable: true, blocked_reason: '', preview: [] };
+  }
   const result = await checkChangeUndo(userPackage, changeDoc);
   return { undoable: result.ok, blocked_reason: result.ok ? '' : result.reason, preview: result.preview || [] };
 };
@@ -2448,6 +2786,11 @@ exports.revokePackageChange = async (changeId, operatorId, operatorName, reason)
 
   const userPackage = await UserPackage.findById(changeDoc.user_package_id);
   if (!userPackage) throw new Error('关联套餐不存在');
+
+  // 罚课记录走专用撤回分支（还原周期账本/有效期/剩余次数 + 清空降课罚课标记）
+  if (changeDoc.penalty_booking_id) {
+    return await undoPenaltyChange(changeDoc, operatorId, operatorName, reason);
+  }
 
   const result = await checkChangeUndo(userPackage, changeDoc);
   if (!result.ok) throw new Error(result.reason);

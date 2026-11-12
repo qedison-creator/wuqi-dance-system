@@ -387,9 +387,19 @@ exports.getMemberById = async (id) => {
     // 字段变更记录 → 统一变更日志项
     const changeLogs = changes.map(ch => {
       const labels = (ch.changes || []).map(c => c.field_label).filter(Boolean);
-      const event_name = ch.is_undo
-        ? `撤回变更${labels.length > 0 ? '：' + labels.join('、') : ''}`
-        : (labels.length > 0 ? `变更${labels.join('、')}` : '套餐字段变更');
+      // 罚课记录：无字段变更，摘要直接用罚课描述（占用周期额度时 changes 为空）
+      const penaltyTotal = Array.isArray(ch.penalty_allocations)
+        ? ch.penalty_allocations.reduce((s, a) => s + (Number(a.credits) || 0), 0)
+        : 0;
+      const isPenalty = !!ch.penalty_booking_id || penaltyTotal > 0 || /罚课/.test(ch.remark || '');
+      let event_name;
+      if (isPenalty) {
+        event_name = `${ch.is_undo ? '撤回' : ''}罚课${penaltyTotal || 1}节`;
+      } else if (ch.is_undo) {
+        event_name = `撤回变更${labels.length > 0 ? '：' + labels.join('、') : ''}`;
+      } else {
+        event_name = labels.length > 0 ? `变更${labels.join('、')}` : '套餐字段变更';
+      }
       const undone = !!ch.undone_at;
       const withinWindow = !ch.is_undo && !undone && nowMs - new Date(ch.created_at).getTime() <= UNDO_WINDOW_MS;
       const log = {

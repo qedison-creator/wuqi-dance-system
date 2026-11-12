@@ -52,6 +52,18 @@ const PackageChangeSchema = new mongoose.Schema({
   is_undo: { type: Boolean, default: false },
   // 若 is_undo=true，指向被撤回的那条原始变更记录
   undo_of: { type: mongoose.Schema.Types.ObjectId, ref: 'PackageChange', default: null },
+  // ===== 罚课变更专用字段（非空 = 本条是罚课记录，撤回走罚课专用分支）=====
+  // 被罚的那节空降课（撤销罚课时据此清除 Booking/Attendance 罚课标记）
+  penalty_booking_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Booking', default: null },
+  // 罚课分配明细（撤回时按此还原周期账本/有效期/剩余次数）
+  //   count_card: [{ dimension:'count', period_key:'', credits }]
+  //   每天1节卡:  [{ dimension:'days',  period_key:'', credits }]（end_date 缩短 credits 天）
+  //   周期限制卡: [{ dimension:'daily'|'weekly'|'monthly', period_key, credits }]
+  penalty_allocations: [{
+    dimension: { type: String, default: '' },
+    period_key: { type: String, default: '' },
+    credits: { type: Number, default: 0 }
+  }],
   // 会员快照（防止会员删除后记录信息丢失）
   member_snapshot: {
     real_name: { type: String, default: '' },

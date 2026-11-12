@@ -140,6 +140,9 @@ Page({
           base.sourceLabel = CHECK_IN_METHOD_LABEL_MAP[base.checkInMethod] || SOURCE_LABEL_MAP[item.source] || '签到';
           base.checkInTime = item.check_in_time ? formatDate(item.check_in_time, 'HH:mm') : '';
           base.creditsCost = item.credits_cost || 0;
+          // 罚课（未预约空降到店处罚）：顺带在这节上课记录中体现（不单独弹窗/不标套餐详情）
+          base.penaltyCredits = item.penalty_credits || 0;
+          base.penaltyReason = base.penaltyCredits > 0 ? (item.penalty_reason || '未预约直接到店上课') : '';
           // 按天口径（不限次卡/每日1节卡）：显示占天而不是扣课时
           base.deductDays = item.deduct_days || null;
           // 签到后取消的记录：课时虽已退还，但仍保留原消耗数值（由 isCancelledAfterCheckin 控制显示为"退还"文案）

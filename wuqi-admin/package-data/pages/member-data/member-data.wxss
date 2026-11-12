@@ -146,3 +146,24 @@ page { background: #FAF8F5; }
 
 .load-more { text-align: center; font-size: 24rpx; color: #D4786E; padding: 20rpx 0 4rpx; }
 .reviewer-tip { font-size: 25rpx; color: #8A847C; text-align: center; }
+
+/* 罚课（未预约空降到店处罚）标记 */
+.bill-penalty {
+  font-size: 20rpx;
+  color: #D64545;
+}
+.b2-penalty {
+  font-size: 22rpx;
+  color: #D64545;
+  margin-top: 4rpx;
+}
+.di-penalty {
+  display: block;
+  font-size: 20rpx;
+  color: #D64545;
+  margin-top: 2rpx;
+}
+.di-penalty-num {
+  font-size: 20rpx;
+  color: #D64545;
+}

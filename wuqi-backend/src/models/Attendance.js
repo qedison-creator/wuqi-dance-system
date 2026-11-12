@@ -87,6 +87,11 @@ const AttendanceSchema = new mongoose.Schema({
     type: String,
     default: '',
   },
+  // === 罚课（随关联 Booking 同步的罚课快照，会员端"我的记录"展示用）===
+  penalty_credits: { type: Number, default: 0 },
+  penalty_reason:  { type: String, default: '' },
+  penalty_at:      { type: Date, default: null },
+  penalty_by:      { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
 }, {
   timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' },
 });

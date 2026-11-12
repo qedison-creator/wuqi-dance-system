@@ -262,6 +262,8 @@ exports.getMyAttendance = async (userId, page, pageSize) => {
         source: booking.check_in_by ? 'admin' : 'booking',
         check_in_method: booking.check_in_by ? 'scan' : 'auto',
         credits_cost: booking.credits_deducted || 0,
+        penalty_credits: booking.penalty_credits || 0,
+        penalty_reason: booking.penalty_reason || '',
         date: sch.date,
         course_name: sch.course_name || '',
         start_time: sch.start_time || '',
@@ -342,7 +344,7 @@ exports.getAttendanceByUser = async (userId) => {
   const shrinkIds = [...new Set(records.map(att => att.booking_id).filter(Boolean).map(String))];
   const bookingMetaById = new Map();
   if (shrinkIds.length > 0) {
-    const shrinkBookings = await Booking.find({ _id: { $in: shrinkIds } }).select('shrink_days package_name package_type');
+    const shrinkBookings = await Booking.find({ _id: { $in: shrinkIds } }).select('shrink_days package_name package_type user_package_id');
     shrinkBookings.forEach(b => bookingMetaById.set(String(b._id), b));
   }
   const memberTypeCounts = (await packageLabel.getMemberTypeCounts([userId]))[String(userId)] || {};
@@ -354,6 +356,7 @@ exports.getAttendanceByUser = async (userId) => {
     const shrinkDays = meta ? (meta.shrink_days || 0) : 0;
     return {
       _id: att._id,
+      booking_id: att.booking_id || null,
       schedule_id: sch ? sch._id : null,
       date: sch ? sch.date : att.date,
       course_name: sch ? sch.course_name : att.course_name,
@@ -365,6 +368,10 @@ exports.getAttendanceByUser = async (userId) => {
       check_in_method: att.check_in_method,
       source: att.source,
       credits_cost: att.credits_cost || 0,
+      // 罚课（未预约空降到店处罚）：扣的套餐卡ID供罚课入口使用
+      penalty_credits: att.penalty_credits || 0,
+      penalty_reason: att.penalty_credits > 0 ? (att.penalty_reason || '') : '',
+      user_package_id: (meta && meta.user_package_id) || null,
       ...buildDeductionInfo({ shrink_days: shrinkDays }),
       // 扣课溯源后缀：同类套餐≥2张用具体套餐名，否则用类型词
       package_label: packageLabel.resolvePackageSuffix(

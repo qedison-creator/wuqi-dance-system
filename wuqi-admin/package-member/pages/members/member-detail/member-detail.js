@@ -134,6 +134,11 @@ Page({
     showUndoModal: false,
     undoForm: { reason: '' },
     undoTargetInfo: {},
+    // 罚课弹窗（未预约未打招呼空降到店处罚，店长及以上）
+    showPenaltyModal: false,
+    penaltyTarget: null,          // { bookingId, packageId, courseName, dateStr }
+    penaltyCredits: 1,            // 罚课节数 1~5
+    penaltyReason: '未预约直接到店上课',
     // 记录TAB：booking=预约记录, attendance=上课记录
     recordTab: 'booking',
     // 上课记录
@@ -584,7 +589,11 @@ Page({
       url: `/attendance/member/${this.data.memberId}`,
       method: 'GET'
     }).then(res => {
-      this.setData({ attendanceTotal: (res.data && res.data.total) || 0 });
+      const data = res.data || {};
+      const list = data.list || [];
+      // 角标数量 = 记录条数 + 罚课节数合计（罚课也算被消耗的课次）
+      const penaltySum = list.reduce((s, a) => s + (a.penalty_credits || 0), 0);
+      this.setData({ attendanceTotal: (data.total || list.length) + penaltySum });
     }).catch(err => {
       console.error('获取上课记录总数失败', err);
     });
@@ -2049,6 +2058,12 @@ Page({
           cancelReasonText = att.remark ? '课程中因' + att.remark + '取消' : '课程中取消';
         }
 
+        // 罚课（未预约空降到店处罚）：已罚显示标记，未罚且店长及以上显示罚课入口
+        // 自动签到 = 经过预约的课，不涉及罚课；仅现场签到/管理员代签等其他方式才可能空降
+        const penaltyCredits = att.penalty_credits || 0;
+        const isPenalized = penaltyCredits > 0;
+        const isAutoCheckin = (att.check_in_method || '') === 'auto';
+
         return {
           ...att,
           dateStr,
@@ -2061,15 +2076,22 @@ Page({
           // 扣课溯源后缀（如「次卡」「时间卡」；同类套餐≥2张时为具体套餐名）
           package_label: att.package_label || '',
           packageLabel: att.package_label || '',
-          cancelReasonText
+          cancelReasonText,
+          penalty_credits: penaltyCredits,
+          penalty_reason: isPenalized ? (att.penalty_reason || '未预约直接到店上课') : '',
+          isPenalized,
+          canPenalty: !isPenalized && !isAutoCheckin && !!att.booking_id && !!att.user_package_id && this.data.canManageAccount
         };
       });
 
       // 按年月分组
       const groups = this._groupAttendanceByMonth(formatted);
 
+      // 角标数量 = 记录条数 + 罚课节数合计
+      const penaltySum = list.reduce((s, a) => s + (a.penalty_credits || 0), 0);
+
       this.setData({
-        attendanceTotal: total,
+        attendanceTotal: total + penaltySum,
         attendanceGroups: groups,
         attendanceLoading: false,
         attendanceLoaded: true
@@ -2078,6 +2100,60 @@ Page({
       console.error('加载上课记录失败', err);
       this.setData({ attendanceLoading: false, attendanceLoaded: true });
     });
+  },
+
+  // ===== 罚课（未预约未打招呼空降到店处罚，店长及以上）=====
+
+  onOpenPenaltyModal(e) {
+    if (!this.data.canManageAccount) return;
+    const ds = e.currentTarget.dataset;
+    if (!ds.bookingId || !ds.packageId) {
+      wx.showToast({ title: '该记录缺少预约关联，无法罚课', icon: 'none' });
+      return;
+    }
+    this.setData({
+      showPenaltyModal: true,
+      penaltyTarget: { bookingId: ds.bookingId, packageId: ds.packageId, courseName: ds.courseName || '', dateStr: ds.dateStr || '' },
+      penaltyCredits: 1,
+      penaltyReason: '未预约直接到店上课',
+    });
+  },
+
+  onClosePenaltyModal() {
+    this.setData({ showPenaltyModal: false, penaltyTarget: null });
+  },
+
+  onSelectPenaltyCredits(e) {
+    this.setData({ penaltyCredits: Number(e.currentTarget.dataset.index) || 1 });
+  },
+
+  onPenaltyReasonInput(e) {
+    this.setData({ penaltyReason: e.detail.value });
+  },
+
+  async onConfirmPenalty() {
+    const { penaltyTarget, penaltyCredits, penaltyReason } = this.data;
+    if (!penaltyTarget || !(penaltyCredits >= 1)) return;
+    if (this._penaltySubmitting) return;
+    this._penaltySubmitting = true;
+    wx.showLoading({ title: '提交中', mask: true });
+    try {
+      await request({
+        url: `/packages/${penaltyTarget.packageId}/penalty`,
+        method: 'POST',
+        data: { booking_id: penaltyTarget.bookingId, credits: penaltyCredits, reason: penaltyReason || '未预约直接到店上课' },
+      });
+      wx.hideLoading();
+      wx.showToast({ title: `已罚${penaltyCredits}节课`, icon: 'success' });
+      this.setData({ showPenaltyModal: false, penaltyTarget: null });
+      this.loadAttendanceRecords();
+      this.loadMemberDetail();
+    } catch (err) {
+      wx.hideLoading();
+      wx.showToast({ title: (err && err.data && err.data.message) || (err && err.message) || '罚课失败', icon: 'none' });
+    } finally {
+      this._penaltySubmitting = false;
+    }
   },
 
   /**
@@ -2100,11 +2176,15 @@ Page({
           monthKey,
           monthLabel: `${parseInt(month)}月`,
           items: [],
+          count: 0,
           expanded: false
         };
       }
       yearMap[year].months[monthKey].items.push(item);
-      yearMap[year].totalCount++;
+      // 统计权重 = 1 + 罚课节数（罚课也算被消耗的课次；预约记录无罚课字段，权重恒为1）
+      const weight = 1 + (item.penalty_credits || 0);
+      yearMap[year].months[monthKey].count += weight;
+      yearMap[year].totalCount += weight;
     });
 
     // 转为数组并排序

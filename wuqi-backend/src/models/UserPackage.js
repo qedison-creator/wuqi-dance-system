@@ -81,6 +81,19 @@ const userPackageSchema = new mongoose.Schema({
   bonus_expire_mode: { type: String, default: null },
   // 主卡字段：赠送有效期月数，待激活时暂存，激活时按自然月并入主卡 end_date
   bonus_validity_months: { type: Number, default: 0 },
+  // === 罚课（未预约空降到店处罚）===
+  // penalty_credits：累计罚课节数（仅统计展示，账单对账用）
+  // penalty_ledger：周期限制卡的罚课账本，checkTimeCardLimit 周期校验时计入对应维度
+  //   daily    → period_key='YYYY-MM-DD'；weekly → ISO 周起始日 'YYYY-MM-DD'；monthly → 'YYYY-MM'
+  //   每天1节卡的罚课不走账本（缩短 end_date N 天）；次卡/不限次卡无账本
+  penalty_credits: { type: Number, default: 0 },
+  penalty_ledger: [{
+    credits: { type: Number, default: 0 },
+    dimension: { type: String, enum: ['daily', 'weekly', 'monthly'] },
+    period_key: { type: String, default: '' },
+    booking_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Booking', default: null },
+    at: { type: Date, default: Date.now },
+  }],
 }, { timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' }, strictPopulate: false });
 
 userPackageSchema.index({ user_id: 1, status: 1 });

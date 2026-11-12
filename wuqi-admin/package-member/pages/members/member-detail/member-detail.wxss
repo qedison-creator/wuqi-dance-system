@@ -1847,6 +1847,60 @@
   background: rgba(154, 140, 141, 0.1);
   color: #9A8C8D;
 }
+
+/* 罚课（未预约空降到店处罚） */
+.attendance-header-right {
+  display: flex;
+  align-items: center;
+  gap: 10rpx;
+}
+
+.penalty-badge {
+  flex-shrink: 0;
+  padding: 6rpx 16rpx;
+  border-radius: var(--radius-xl);
+  font-size: 22rpx;
+  background: rgba(214, 69, 69, 0.1);
+  color: #D64545;
+}
+
+.penalty-btn {
+  flex-shrink: 0;
+  align-self: flex-end;
+  margin-top: 12rpx;
+  padding: 10rpx 28rpx;
+  border-radius: var(--radius-xl);
+  font-size: 24rpx;
+  background: rgba(214, 69, 69, 0.08);
+  color: #D64545;
+  border: 1rpx solid rgba(214, 69, 69, 0.35);
+}
+
+.penalty-credits-row {
+  display: flex;
+  gap: 14rpx;
+}
+
+.penalty-credit-option {
+  flex: 1;
+  height: 72rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-md);
+  background: var(--bg-secondary, #F5F6F8);
+  color: var(--text-secondary, #666);
+  font-size: 26rpx;
+  border: 2rpx solid transparent;
+}
+
+.penalty-credit-option.active {
+  background: rgba(214, 69, 69, 0.08);
+  color: #D64545;
+  border-color: #D64545;
+  font-weight: 600;
+}
+
 /* 可用星期选择 chips（新增/编辑套餐弹窗） */
 .weekday-chip-row {
   display: flex;

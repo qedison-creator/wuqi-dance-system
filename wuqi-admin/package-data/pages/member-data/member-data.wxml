@@ -114,7 +114,7 @@
     <view class="card">
       <view class="sec-title">
         课时账单
-        <text class="sec-tip" wx:if="{{billTotals}}">共 {{billTotals.credits}} 课时 / {{billTotals.sessions}} 节</text>
+        <text class="sec-tip" wx:if="{{billTotals}}">共 {{billTotals.credits}} 课时 / {{billTotals.sessions}} 节<text wx:if="{{billTotals.penalty_credits > 0}}">（含罚课 {{billTotals.penalty_credits}}）</text></text>
       </view>
       <view class="subseg">
         <view class="subseg-item {{billView === 'member' ? 'active' : ''}}" data-view="member" bindtap="onBillViewChange">按会员</view>
@@ -134,7 +134,7 @@
               <view class="mem-name"><text class="lnk" data-go="/package-member/pages/members/member-detail/member-detail?id={{item.member_id}}" catchtap="onGoMember">{{item.name}}</text><text class="code">{{item.code}}</text></view>
               <view class="mem-meta">最近上课 {{item.last_date}}</view>
             </view>
-            <view class="mem-val"><view class="c">{{item.credits}} 课时</view><view class="s">{{item.sessions}} 节</view></view>
+            <view class="mem-val"><view class="c">{{item.credits}} 课时</view><view class="s" wx:if="{{item.penalty_credits > 0}}">含罚课 {{item.penalty_credits}}</view><view class="s">{{item.sessions}} 节</view></view>
             <text class="mem-arrow {{item.expanded ? 'open' : ''}}">›</text>
           </view>
           <view class="mem-bill" wx:if="{{item.expanded}}">
@@ -142,12 +142,13 @@
               <view class="b2-top">
                 <text class="b2-date">{{b.date}} {{b.weekday}}</text>
                 <text class="b2-time">{{b.time}}</text>
-                <text class="bill-val">-{{b.credits}} 课时</text>
+                <text class="bill-val">-{{b.credits}} 课时<text class="bill-penalty" wx:if="{{b.penalty_credits > 0}}">（课时{{b.course_credits}} + 罚{{b.penalty_credits}}）</text></text>
               </view>
               <view class="b2-mid">{{b.course_name}}<text class="co"> · {{b.dance_name || '未分类'}} · {{b.coach_name}}</text><text class="co" wx:if="{{b.package_label}}"> · {{b.package_label}}</text></view>
+              <view class="b2-penalty" wx:if="{{b.penalty_credits > 0}}">罚课 {{b.penalty_credits}} 节 · {{b.penalty_reason || '未预约直接到店上课'}}</view>
               <view class="b2-meta"><text><text class="b2-ico">◷</text> 预约于 {{b.booked_at}}</text><text>{{b.check_in_label || '已签到'}}</text></view>
             </view>
-            <view class="bill-subtotal">小计 {{item.credits}} 课时 / {{item.sessions}} 节</view>
+            <view class="bill-subtotal">小计 {{item.credits}} 课时 / {{item.sessions}} 节<text wx:if="{{item.penalty_credits > 0}}">（含罚课 {{item.penalty_credits}}）</text></view>
           </view>
         </view>
         <view class="empty" wx:if="{{billMembers.length === 0}}">该时间段还没有会员消耗课时</view>
@@ -158,15 +159,16 @@
         <view class="day-group" wx:for="{{billByDate}}" wx:key="date" wx:for-item="g">
           <view class="day-head">
             <text class="day-date">{{g.date}} {{g.weekday}}</text>
-            <text class="day-sum">消耗 {{g.credits}} 课时</text>
+            <text class="day-sum">消耗 {{g.credits}} 课时<text wx:if="{{g.penalty_credits > 0}}">（含罚课 {{g.penalty_credits}}）</text></text>
           </view>
           <view class="day-item" wx:for="{{g.items}}" wx:key="id">
             <view class="di-time">{{item.time}}</view>
             <view class="di-main">
               <text class="di-course">{{item.course_name}}</text>
               <text class="di-sub">{{item.coach_name}} · {{item.member_name}}</text>
+              <text class="di-penalty" wx:if="{{item.penalty_credits > 0}}">罚课 {{item.penalty_credits}} 节 · {{item.penalty_reason || '未预约直接到店上课'}}</text>
             </view>
-            <text class="di-delta">-{{item.credits}} 课时</text>
+            <text class="di-delta">-{{item.credits}} 课时<text class="di-penalty-num" wx:if="{{item.penalty_credits > 0}}">（含罚{{item.penalty_credits}}）</text></text>
           </view>
         </view>
         <view class="empty" wx:if="{{billByDate.length === 0}}">该时间段还没有记录</view>

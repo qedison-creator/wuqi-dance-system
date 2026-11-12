@@ -161,6 +161,10 @@
               <view class="rci-icon credit"></view>
               <text class="rci-text highlight">扣除 {{item.creditsCost}} 课时{{item.packageLabel ? ' · ' + item.packageLabel : ''}}</text>
             </view>
+            <view class="rci-row" wx:if="{{item.penaltyCredits > 0}}">
+              <view class="rci-icon credit"></view>
+              <text class="rci-text">罚课 {{item.penaltyCredits}} 节 · {{item.penaltyReason}}</text>
+            </view>
           </view>
         </view>
       </view>
@@ -183,6 +187,7 @@
           <view class="rdv-row" wx:if="{{item.isCancelledAfterCheckin}}"><text class="rdv-k">退还</text><text class="rdv-v">{{item.deductDays ? '有效期 ' + item.deductDays + ' 天' : item.creditsCost + ' 课时'}}{{item.packageLabel ? ' · ' + item.packageLabel : ''}}</text></view>
           <view class="rdv-row" wx:elif="{{item.deductDays}}"><text class="rdv-k">按天</text><text class="rdv-v rdv-hl">有效期减 {{item.deductDays}} 天{{item.packageLabel ? ' · ' + item.packageLabel : ''}}</text></view>
           <view class="rdv-row" wx:elif="{{item.creditsCost > 0}}"><text class="rdv-k">扣除</text><text class="rdv-v rdv-hl">{{item.creditsCost}} 课时{{item.packageLabel ? ' · ' + item.packageLabel : ''}}</text></view>
+          <view class="rdv-row" wx:if="{{item.penaltyCredits > 0}}"><text class="rdv-k">罚课</text><text class="rdv-v">罚课 {{item.penaltyCredits}} 节 · {{item.penaltyReason}}</text></view>
         </view>
       </view>
     </block>

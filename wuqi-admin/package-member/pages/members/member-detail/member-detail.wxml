@@ -239,7 +239,7 @@ module.exports = {
                   <text class="month-toggle {{month.expanded ? 'expanded' : ''}}">▸</text>
                   <text class="month-label">{{month.monthLabel}}</text>
                 </view>
-                <text class="month-count">{{month.items.length}}节</text>
+                <text class="month-count">{{month.count}}节</text>
               </view>
               <view class="month-content" wx:if="{{month.expanded}}">
                 <view class="booking-item card" wx:for="{{month.items}}" wx:for-item="booking" wx:key="_id">
@@ -311,14 +311,17 @@ module.exports = {
                   <text class="month-toggle {{month.expanded ? 'expanded' : ''}}">▸</text>
                   <text class="month-label">{{month.monthLabel}}</text>
                 </view>
-                <text class="month-count">{{month.items.length}}节</text>
+                <text class="month-count">{{month.count}}节</text>
               </view>
               <view class="month-content" wx:if="{{month.expanded}}">
                 <view class="attendance-item card" wx:for="{{month.items}}" wx:for-item="att" wx:key="_id">
                   <view class="attendance-item-body">
                     <view class="attendance-header">
                       <text class="attendance-course">{{att.course_name || '未知课程'}}</text>
-                      <text class="attendance-source method-{{att.check_in_method}}">{{att.sourceLabel}}</text>
+                      <view class="attendance-header-right">
+                        <text class="penalty-badge" wx:if="{{att.isPenalized}}">已罚 {{att.penalty_credits}} 节</text>
+                        <text class="attendance-source method-{{att.check_in_method}}">{{att.sourceLabel}}</text>
+                      </view>
                     </view>
                     <view class="booking-details">
                       <view class="booking-detail-row">
@@ -360,12 +363,23 @@ module.exports = {
                         <text class="detail-label">课时状态</text>
                         <text class="detail-value">{{att.deduct_days ? '退还有效期' + att.deduct_days + '天' : '退还 ' + att.credits_cost + ' 课时'}}{{att.packageLabel ? ' · ' + att.packageLabel : ''}}</text>
                       </view>
+                      <view class="booking-detail-row" wx:if="{{att.penalty_credits > 0}}">
+                        <text class="detail-icon"></text>
+                        <text class="detail-label">罚课原因</text>
+                        <text class="detail-value highlight">{{att.penalty_reason}}</text>
+                      </view>
                       <view class="booking-detail-row" wx:if="{{att.cancelReasonText}}">
                         <text class="detail-icon"></text>
                         <text class="detail-label">取消原因</text>
                         <text class="detail-value">{{att.cancelReasonText}}</text>
                       </view>
                     </view>
+                    <view class="penalty-btn" wx:if="{{att.canPenalty}}"
+                      data-booking-id="{{att.booking_id}}"
+                      data-package-id="{{att.user_package_id}}"
+                      data-course-name="{{att.course_name}}"
+                      data-date-str="{{att.dateStr}}"
+                      catchtap="onOpenPenaltyModal">罚课</view>
                   </view>
                 </view>
               </view>
@@ -1186,6 +1200,59 @@ module.exports = {
       </view>
       <view class="spm-empty" wx:if="{{danceStyleList.length === 0}}">暂无舞种，请先在店务管理-舞种管理中创建</view>
     </scroll-view>
+  </view>
+</view>
+
+<!-- 罚课弹窗（未预约未打招呼空降到店处罚，店长及以上） -->
+<view class="modal-mask" wx:if="{{showPenaltyModal}}" bindtap="onClosePenaltyModal">
+  <view class="suspend-modal-content" catchtap="onModalTap">
+    <view class="modal-header">
+      <text class="modal-title">罚课处理</text>
+      <text class="modal-close" bindtap="onClosePenaltyModal">×</text>
+    </view>
+
+    <view class="suspend-rules">
+      <view class="suspend-rule-item">
+        <text class="rule-dot">•</text>
+        <text class="rule-text">空降课程：{{penaltyTarget.dateStr}} {{penaltyTarget.courseName}}</text>
+      </view>
+      <view class="suspend-rule-item">
+        <text class="rule-dot">•</text>
+        <text class="rule-text">该会员未预约、未打招呼直接到店上课，现场签到扣课外需额外罚课</text>
+      </view>
+    </view>
+
+    <view class="form-group">
+      <text class="form-label">罚课节数 *</text>
+      <view class="penalty-credits-row">
+        <view class="penalty-credit-option {{penaltyCredits === num ? 'active' : ''}}"
+              wx:for="{{[1, 2, 3, 4, 5]}}" wx:for-item="num" wx:key="*this"
+              data-index="{{num}}" bindtap="onSelectPenaltyCredits">
+          <text>{{num}}节</text>
+        </view>
+      </view>
+    </view>
+
+    <view class="form-group">
+      <text class="form-label">罚课原因</text>
+      <input class="input-field" placeholder="未预约直接到店上课" value="{{penaltyReason}}" bindinput="onPenaltyReasonInput" />
+    </view>
+
+    <view class="suspend-rules">
+      <view class="suspend-rule-item">
+        <text class="rule-dot">•</text>
+        <text class="rule-text">次卡直接扣剩余课时；周期限制卡占用周期额度（本周期不够自动顺延下周期）；每天1节卡缩短有效期</text>
+      </view>
+      <view class="suspend-rule-item">
+        <text class="rule-dot">•</text>
+        <text class="rule-text">罚课后2小时内可在套餐记录中撤回</text>
+      </view>
+    </view>
+
+    <view class="modal-actions">
+      <view class="btn-secondary" bindtap="onClosePenaltyModal"><text>取消</text></view>
+      <view class="btn-primary" bindtap="onConfirmPenalty"><text>确认罚课</text></view>
+    </view>
   </view>
 </view>
 <update-modal />
