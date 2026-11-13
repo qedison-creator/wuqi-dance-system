@@ -139,7 +139,7 @@ Page({
           userPhone: r.user_id ? (r.user_id.phone || '') : '',
           memberCode: r.user_id ? (r.user_id.member_code || '') : '',
           checkInLabel: r.checked_in
-            ? (r.attendance && r.attendance.source === 'onsite' ? '现场签到' : '已签到')
+            ? (r.attendance && r.attendance.source === 'onsite' ? '人工签到' : '已签到')
             : (r.status === 'cancelled' ? '已取消' : '待签到'),
           checkInClass: r.checked_in
             ? (r.attendance && r.attendance.source === 'onsite' ? 'onsite' : 'checked')
@@ -349,8 +349,8 @@ Page({
     const currentScheduleId = this.data.selectedSchedule
       ? this.data.selectedSchedule._id : null;
 
-    // 自动检测是否需要现场签到模式：
-    // 选中了课程 + 会员没有该课程的预约 + 会员有可用套餐 → 切换到现场签到
+    // 自动检测是否需要人工签到模式（原「现场签到模式」，即无预约会员的管理端手动选人补签）：
+    // 选中了课程 + 会员没有该课程的预约 + 会员有可用套餐 → 切换到人工签到
     if (!isOnsiteMode && currentScheduleId) {
       profileData.today_bookings = profileData.today_bookings || [];
       const hasBookingForSchedule = profileData.today_bookings.some(
@@ -381,7 +381,7 @@ Page({
           profileData.today_bookings.push({
             schedule_id: currentScheduleId,
             booking_id: currentScheduleId,
-            course_name: schedule.course_name || '现场签到',
+            course_name: schedule.course_name || '人工签到',
             start_time: schedule.start_time,
             end_time: schedule.end_time,
             coach_name: schedule.coach_name || '',

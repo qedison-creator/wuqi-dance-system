@@ -374,7 +374,10 @@ function buildBillRow(b, memberInfo, typeCounts) {
 }
 
 const CHECK_IN_LABELS = {
-  scan: '扫码签到', auto: '自动签到', onsite: '现场签到', admin: '管理员签到',
+  // 新值：scan=扫码签到（开课前）/ scan_ongoing=现场签到（进行中）/ scan_after=课后补签 / manual=人工签到
+  // 历史值：admin/onsite → 人工签到（原「管理员签到/现场签到」叫法废弃）
+  scan: '扫码签到', scan_ongoing: '现场签到', scan_after: '课后补签',
+  manual: '人工签到', auto: '自动签到', onsite: '人工签到', admin: '人工签到',
 };
 
 // 课时账单：搜索（姓名/编号/手机号模糊）→ 按会员汇总 + 每节课明细（最近50条/人）

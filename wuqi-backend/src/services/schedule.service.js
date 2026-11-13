@@ -1646,7 +1646,7 @@ exports.markAttendance = async (scheduleId, userIds, operatorId) => {
         status: 'completed',
         checked_in: true,
         check_in_time: new Date(),
-        check_in_method: 'scan',
+        check_in_method: 'manual',  // 管理端标记上课 = 人工签到（原 scan 误标）
         checked_in_by: operatorId,
       },
       { returnDocument: 'after' }
@@ -1666,7 +1666,8 @@ exports.markAttendance = async (scheduleId, userIds, operatorId) => {
             check_in_time: booking.check_in_time || new Date(),
             check_in_by: operatorId,
             source: 'admin',
-            check_in_method: 'scan',
+            check_in_method: 'manual',  // 管理端标记上课 = 人工签到
+            is_walk_in: false,
             credits_cost: booking.credits_deducted || schedule.credits_cost || 0,
             date: schedule.date,
             course_name: schedule.course_name || '',

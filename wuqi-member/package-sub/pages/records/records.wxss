@@ -252,6 +252,26 @@
   color: #4DB8A0;
 }
 
+/* 现场签到（课程进行中扫码）：橙系提示 */
+.method-scan_ongoing {
+  background: rgba(230,162,60,0.12);
+  color: #E6A23C;
+}
+
+/* 课后补签（课程结束后扫码）：中性灰 */
+.method-scan_after {
+  background: rgba(154,140,141,0.12);
+  color: #9A8C8D;
+}
+
+/* 人工签到（管理端手动选人）：中性灰 */
+.method-manual,
+.method-onsite,
+.method-admin {
+  background: rgba(154,140,141,0.12);
+  color: #9A8C8D;
+}
+
 .method-auto {
   background: rgba(212,120,110,0.1);
   color: #D4786E;

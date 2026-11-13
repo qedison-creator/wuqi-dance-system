@@ -20,7 +20,11 @@ const bookingSchema = new mongoose.Schema({
   exemption_used: { type: Boolean, default: false },
   checked_in: { type: Boolean, default: false },
   check_in_time: { type: Date },
-  check_in_method: { type: String, enum: ['scan', 'auto', 'onsite', 'admin'], default: null },
+  // scan=扫码签到（开课前）/ scan_ongoing=现场签到（进行中）/ scan_after=课后补签（已结束）
+  // manual=人工签到（管理端手动选人，吸收历史 admin/onsite）；admin/onsite 仅历史兼容，新数据不再产生
+  check_in_method: { type: String, enum: ['scan', 'scan_ongoing', 'scan_after', 'manual', 'auto', 'onsite', 'admin'], default: null },
+  // 空降标记（签到时刻现场新建预约 = 无预约到店），罚课按钮仅对空降课显示
+  is_walk_in: { type: Boolean, default: false },
   checked_in_by: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   // 关联套餐
   user_package_id: { type: mongoose.Schema.Types.ObjectId, ref: 'UserPackage' },

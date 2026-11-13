@@ -690,11 +690,11 @@ exports.createBooking = async (userId, scheduleId) => {
 
     let currentPackage = null;
     const timeCard = storeActivePackages.find(p => p.package_type === 'time_card' && pkgCoversDate(p, schedule.date) && packageMatchesDanceStyle(p, scheduleDanceStyleId) && packageMatchesWeekday(p, schedule.date) && packageMatchesTimeWindow(p, schedule.start_time));
-    // 次卡选卡：赠课卡优先（先扣赠送/临期先用），多张按到期近优先，再按录入先后
+    // 次卡选卡：主卡优先、赠课殿后（先扣正式套餐），多张按到期近优先，再按录入先后
     const matchedCountCards = storeActivePackages
-      .filter(p => p.package_type === 'count_card' && p.remaining_credits > 0 && pkgCoversDate(p, schedule.date) && packageMatchesDanceStyle(p, scheduleDanceStyleId) && packageMatchesWeekday(p, schedule.date) && packageMatchesTimeWindow(p, schedule.start_time))
+      .filter(p => p.package_type === 'count_card' && p.remaining_credits >= (schedule.credits_cost || 1) && pkgCoversDate(p, schedule.date) && packageMatchesDanceStyle(p, scheduleDanceStyleId) && packageMatchesWeekday(p, schedule.date) && packageMatchesTimeWindow(p, schedule.start_time))
       .sort((a, b) => {
-        if (!!a.is_bonus !== !!b.is_bonus) return a.is_bonus ? -1 : 1;
+        if (!!a.is_bonus !== !!b.is_bonus) return a.is_bonus ? 1 : -1;
         const ae = a.end_date ? new Date(a.end_date).getTime() : Infinity;
         const be = b.end_date ? new Date(b.end_date).getTime() : Infinity;
         if (ae !== be) return ae - be;
@@ -784,17 +784,17 @@ exports.createBooking = async (userId, scheduleId) => {
       const limitCheck = await checkTimeCardLimit(currentPackage, schedule.date, creditsCost);
       if (!limitCheck.allowed) {
         // 时间卡限额已满，查找同门店可用次卡（pending 或 active），按舞种限制 + 可用星期过滤
-        // 兜底选卡：赠课卡优先（先扣赠送），多张按到期近优先，再按录入先后
+        // 兜底选卡：主卡优先、赠课殿后，多张按到期近优先，再按录入先后
         const availableCountCards = (await UserPackage.find({
           user_id: userId,
           $or: [{ store_id: scheduleStoreId }, { extra_store_ids: scheduleStoreId }],
           package_type: 'count_card',
           status: 'active',
           is_suspended: false,
-          remaining_credits: { $gt: 0 },
+          remaining_credits: { $gte: creditsCost },
         }).sort({ end_date: 1, created_at: 1 })).filter(p => pkgCoversDate(p, schedule.date) && packageMatchesDanceStyle(p, scheduleDanceStyleId) && packageMatchesWeekday(p, schedule.date) && packageMatchesTimeWindow(p, schedule.start_time))
           .sort((a, b) => {
-            if (!!a.is_bonus !== !!b.is_bonus) return a.is_bonus ? -1 : 1;
+            if (!!a.is_bonus !== !!b.is_bonus) return a.is_bonus ? 1 : -1;
             const ae = a.end_date ? new Date(a.end_date).getTime() : Infinity;
             const be = b.end_date ? new Date(b.end_date).getTime() : Infinity;
             if (ae !== be) return ae - be;
@@ -2617,6 +2617,30 @@ exports.batchCheckLowAttendance = async (hoursBefore = 2) => {
 
 // ========== 签到功能 ==========
 
+// 按签到时刻与课程时间关系归一化签到方式（北京时间口径）：
+// 开课前 → scan（扫码签到）/ 进行中 → scan_ongoing（现场签到）/ 已结束 → scan_after（课后补签）
+// 语义前提：已预约会员开课时已被自动签到（auto），进行中/结束后还能扫码的必然是无预约空降
+const resolveScanMethod = (schedule) => {
+  const now = new Date();
+  // 北京时间（UTC+8）
+  const bj = new Date(now.getTime() + (8 * 60 + now.getTimezoneOffset()) * 60000);
+  const bjDate = bj.toISOString().slice(0, 10);
+  const toMin = (t) => {
+    if (!t) return null;
+    const [h, m] = String(t).split(':').map(Number);
+    return (h || 0) * 60 + (m || 0);
+  };
+  if (bjDate > schedule.date) return 'scan_after';
+  if (bjDate < schedule.date) return 'scan';
+  // 同日：比较北京时间分钟
+  const curMin = bj.getUTCHours() * 60 + bj.getUTCMinutes();
+  const startMin = toMin(schedule.start_time) ?? 0;
+  const endMin = toMin(schedule.end_time) ?? (startMin + 60);
+  if (curMin < startMin) return 'scan';
+  if (curMin <= endMin) return 'scan_ongoing';
+  return 'scan_after';
+};
+
 // 扫码签到
 exports.checkIn = async (scheduleId, userId, operatorId = null, isOnsite = false, checkInMethod = 'scan') => {
   // 已注销会员不可再签到（batchCheckIn 等直接调用服务层的入口一并拦截）
@@ -2683,9 +2707,11 @@ exports.checkIn = async (scheduleId, userId, operatorId = null, isOnsite = false
       credits_deducted: schedule.credits_cost || 1,
       member_snapshot: Booking.buildMemberSnapshot(await User.findById(userId).select('real_name nick_name member_code phone')),
       source: 'onsite',
+      // 空降课：签到时刻现场新建预约，签到方式按时刻归一化（不再使用 onsite）
+      check_in_method: resolveScanMethod(schedule),
+      is_walk_in: true,
       check_in_time: new Date(),
       check_in_by: operatorId,
-      check_in_method: checkInMethod,  // 签到方式（onsite/admin）
       ...buildBookingSnapshot(schedule),  // 课程快照
     });
 
@@ -2712,38 +2738,72 @@ exports.checkIn = async (scheduleId, userId, operatorId = null, isOnsite = false
             await p.save();
           }
         }
-        // 优先选择舞种匹配的套餐；若无匹配则回退到不限舞种的套餐
-        const matchingDance = candidates.filter(p => packageMatchesDanceStyle(p, checkInDanceStyleId));
-        const userPackage = matchingDance.length > 0 ? matchingDance[0] : (candidates.length > 0 ? candidates[0] : null);
+        // 候选排序：舞种匹配优先 → 主卡优先、赠课殿后 → 到期近优先 → 录入先后
+        const sortPkgsForCheckIn = (list) => list.sort((a, b) => {
+          const am = packageMatchesDanceStyle(a, checkInDanceStyleId) ? 0 : 1;
+          const bm = packageMatchesDanceStyle(b, checkInDanceStyleId) ? 0 : 1;
+          if (am !== bm) return am - bm;
+          if (!!a.is_bonus !== !!b.is_bonus) return a.is_bonus ? 1 : -1;
+          const ae = a.end_date ? new Date(a.end_date).getTime() : Infinity;
+          const be = b.end_date ? new Date(b.end_date).getTime() : Infinity;
+          if (ae !== be) return ae - be;
+          return new Date(a.created_at) - new Date(b.created_at);
+        });
+        const orderedCandidates = sortPkgsForCheckIn([...candidates]);
+
+        // 逐卡尝试：时间卡限额满 → 自动落到下一张可用卡（次卡/赠课卡兜底），与预约路径口径一致
+        let userPackage = null;
+        let lastLimitCheck = null;
+        for (const cand of orderedCandidates) {
+          if (cand.package_type === 'time_card') {
+            // 时间卡签到前校验周期限制（日/周/月），排除自身避免误判
+            const limitCheck = await checkTimeCardLimit(cand, schedule.date, booking.credits_deducted, booking._id);
+            if (!limitCheck.allowed) {
+              lastLimitCheck = limitCheck;
+              continue;
+            }
+            // 按天口径：立即缩短有效期，失败则不标记（签到场景 booking 已存在，不能回滚）
+            if (limitCheck.shrinkDays > 0) {
+              try {
+                await applyTimeCardShrink(cand._id, limitCheck.shrinkDays);
+                cand._shrinkDays = limitCheck.shrinkDays;
+              } catch (shrinkErr) {
+                console.error('[checkIn] 时间卡缩期失败，不标记shrink_days:', shrinkErr.message, 'packageId:', cand._id);
+              }
+            }
+            userPackage = cand;
+            break;
+          }
+          if (cand.package_type === 'count_card' && (cand.remaining_credits || 0) < booking.credits_deducted) {
+            continue;  // 次数不足 → 尝试下一张卡
+          }
+          userPackage = cand;
+          break;
+        }
+
+        if (!userPackage) {
+          // 所有候选卡都不可用（时间卡限额满且无可用次卡/赠课卡）：回滚 booking 并报错
+          await Booking.deleteOne({ _id: booking._id });
+          const limitErr = lastLimitCheck
+            ? new Error(lastLimitCheck.reason)
+            : new Error('暂无可用套餐完成签到');
+          limitErr._checkInFatal = true;
+          if (lastLimitCheck) {
+            const limitLabel = lastLimitCheck.limitType === 'weekly' ? '本周' : (lastLimitCheck.limitType === 'monthly' ? '本月' : (lastLimitCheck.limitType === 'occupied' ? '上课权限' : '今日'));
+            pushCheckInFailed(userId, CHECK_IN_ERROR_CODE.CREDITS_INSUFFICIENT, `${limitLabel}预约次数已达上限`, 'time card limit: ' + lastLimitCheck.reason, true);
+          }
+          throw limitErr;
+        }
 
         if (userPackage) {
           // 关联套餐到 booking，便于后续用量统计按套餐维度进行
           booking.user_package_id = userPackage._id;
+          if (userPackage._shrinkDays) {
+            booking.shrink_days = userPackage._shrinkDays;
+          }
           // 套餐快照（扣课溯源）：即使日后套餐被作废/改名，此记录仍可溯源
           Object.assign(booking, packageLabel.buildPackageFields(userPackage));
           await booking.save();
-
-          // 时间卡签到前校验周期限制（日/周/月），与 onsiteCheckIn 保持一致
-          // 注意：此处 booking 已创建，需排除自身避免误判
-          if (userPackage.package_type === 'time_card') {
-            const limitCheck = await checkTimeCardLimit(userPackage, schedule.date, booking.credits_deducted, booking._id);
-            if (!limitCheck.allowed) {
-              // 已创建的 booking 需要回滚，避免绕过限制留下已扣课时的 completed 记录
-              await Booking.deleteOne({ _id: booking._id });
-              const limitLabel = limitCheck.limitType === 'weekly' ? '本周' : (limitCheck.limitType === 'monthly' ? '本月' : (limitCheck.limitType === 'occupied' ? '上课权限' : '今日'));
-              pushCheckInFailed(userId, CHECK_IN_ERROR_CODE.CREDITS_INSUFFICIENT, `${limitLabel}预约次数已达上限`, 'time card limit: ' + limitCheck.reason, true);
-              throw new Error(limitCheck.reason);
-            } else if (limitCheck.shrinkDays > 0) {
-              // 按天口径：立即缩短有效期，失败则不标记（签到场景 booking 已存在，不能回滚）
-              try {
-                await applyTimeCardShrink(userPackage._id, limitCheck.shrinkDays);
-                booking.shrink_days = limitCheck.shrinkDays;
-                await booking.save();
-              } catch (shrinkErr) {
-                console.error('[checkIn] 时间卡缩期失败，不标记shrink_days:', shrinkErr.message, 'bookingId:', booking._id);
-              }
-            }
-          }
 
           // 请假停卡套餐自动恢复：签到即结束停卡；权益冻结（freeze）不允许签到自动解冻
           if (userPackage.is_suspended && userPackage.suspend_type !== 'freeze') {
@@ -2782,6 +2842,8 @@ exports.checkIn = async (scheduleId, userId, operatorId = null, isOnsite = false
           }
         }
       } catch (err) {
+        // 签到致命错误（候选套餐全部不可用已回滚 booking）：向上抛出，不能被静默吞掉
+        if (err && err._checkInFatal) throw err;
         console.error('onsite check-in 扣减课时失败:', err);
       }
     }
@@ -2791,19 +2853,20 @@ exports.checkIn = async (scheduleId, userId, operatorId = null, isOnsite = false
       throw new Error('已签到过');
     }
 
-    // 已预约会员签到：'onsite' 语义不适用（现场签到仅用于无预约流程的补签）
-    // 即使管理员通过"现场签到模式"操作已预约会员，实际仍为有预约流程的签到
-    // 此处重置 isOnsite/checkInMethod，确保 booking/attendance 的 source='booking'、check_in_method='admin'
+    // 已预约会员签到：管理端"现场签到模式"对已预约会员操作 → 人工签到（manual）
+    // 真实扫会员码 → 按签到时刻与课程时间归一化（开课前 scan / 进行中 scan_ongoing / 已结束 scan_after）
     if (isOnsite) {
       isOnsite = false;
-      checkInMethod = 'admin';
+      checkInMethod = 'manual';
+    } else {
+      checkInMethod = resolveScanMethod(schedule);
     }
 
     booking.status = 'completed';
     booking.check_in_time = new Date();
     booking.check_in_by = operatorId;
     booking.checked_in = true;
-    booking.check_in_method = checkInMethod;  // 签到方式（scan/admin）
+    booking.check_in_method = checkInMethod;  // 签到方式（scan/scan_ongoing/scan_after/manual）
     await booking.save();
   }
 
@@ -2819,6 +2882,7 @@ exports.checkIn = async (scheduleId, userId, operatorId = null, isOnsite = false
     check_in_by: operatorId,
     source: isOnsite ? 'onsite' : 'booking',
     check_in_method: checkInMethod,
+    is_walk_in: !!booking.is_walk_in,  // 空降标记随 booking 传递到上课记录
     credits_cost: booking.credits_deducted || schedule.credits_cost || 0,
     date: schedule.date,
     course_name: schedule.course_name || '',
@@ -3024,7 +3088,7 @@ exports.onsiteCheckIn = async (scheduleId, userId, operatorId = null, userPackag
     booking.status = 'completed';
     booking.checked_in = true;
     booking.check_in_time = new Date();
-    booking.check_in_method = 'admin';
+    booking.check_in_method = 'manual';  // 已预约会员被人工选人签到 → 人工签到（原 admin 废弃）
     booking.checked_in_by = operatorId;
     await booking.save();
   } else {
@@ -3045,6 +3109,7 @@ exports.onsiteCheckIn = async (scheduleId, userId, operatorId = null, userPackag
     const UserPackage = require('../models/UserPackage');
     const scheduleStoreId = schedule.store_id ? (new mongoose.Types.ObjectId(schedule.store_id._id || schedule.store_id.toString())) : null;
     let pkg;
+    let timeCardShrinkDays = 0;  // 时间卡按天口径缩期天数（预约后立即缩短end_date）
     if (userPackageId) {
       pkg = await UserPackage.findOne({
         _id: userPackageId,
@@ -3058,22 +3123,64 @@ exports.onsiteCheckIn = async (scheduleId, userId, operatorId = null, userPackag
       }
     } else {
       // 查找可用套餐：包含停卡中的套餐（签到后自动恢复停卡）
-      // 本门店套餐优先，避免跨门店套餐被误优先选中
+      // 本门店套餐优先，避免跨门店套餐被误优先选中；主卡优先、赠课殿后，同组到期近优先
+      const onsiteDanceStyleId = schedule.dance_style_id ? (schedule.dance_style_id._id || schedule.dance_style_id) : null;
       const onsiteCandidates = await UserPackage.find({
         user_id: userId,
         $or: [{ store_id: scheduleStoreId }, { extra_store_ids: scheduleStoreId }],
         status: { $in: ['active', 'suspended'] },
         is_activated: true,
       }).sort({ package_type: 1, created_at: -1 });
-      // 本门店套餐（store_id 匹配）排在前面
       onsiteCandidates.sort((a, b) => {
         const aIsHomeStore = a.store_id && a.store_id.toString() === String(scheduleStoreId);
         const bIsHomeStore = b.store_id && b.store_id.toString() === String(scheduleStoreId);
-        if (aIsHomeStore && !bIsHomeStore) return -1;
-        if (!aIsHomeStore && bIsHomeStore) return 1;
-        return 0;
+        if (aIsHomeStore !== bIsHomeStore) return aIsHomeStore ? -1 : 1;
+        const am = packageMatchesDanceStyle(a, onsiteDanceStyleId) ? 0 : 1;
+        const bm = packageMatchesDanceStyle(b, onsiteDanceStyleId) ? 0 : 1;
+        if (am !== bm) return am - bm;
+        if (!!a.is_bonus !== !!b.is_bonus) return a.is_bonus ? 1 : -1;
+        const ae = a.end_date ? new Date(a.end_date).getTime() : Infinity;
+        const be = b.end_date ? new Date(b.end_date).getTime() : Infinity;
+        if (ae !== be) return ae - be;
+        return new Date(b.created_at) - new Date(a.created_at);
       });
-      pkg = onsiteCandidates.length > 0 ? onsiteCandidates[0] : null;
+
+      // 逐卡尝试：过期/舞种不符/次数不足/时间卡限额满 → 自动落到下一张可用卡（与预约路径口径一致）
+      pkg = null;
+      let lastLimitCheck = null;
+      for (const cand of onsiteCandidates) {
+        if (cand.end_date && pkgExpired(cand.end_date)) continue;
+        if (!packageMatchesDanceStyle(cand, onsiteDanceStyleId)) continue;
+        if (cand.package_type === 'count_card') {
+          const checkCredits = cand.is_suspended ? (cand.frozen_remaining_credits || 0) : cand.remaining_credits;
+          if (checkCredits < (schedule.credits_cost || 1)) continue;
+          pkg = cand;
+          break;
+        }
+        if (cand.package_type === 'time_card') {
+          const limitCheck = await checkTimeCardLimit(cand, schedule.date, schedule.credits_cost || 1);
+          if (!limitCheck.allowed) {
+            lastLimitCheck = limitCheck;
+            continue;
+          }
+          timeCardShrinkDays = limitCheck.shrinkDays || 0;
+          pkg = cand;
+          break;
+        }
+        // 其他类型套餐：默认可用
+        pkg = cand;
+        break;
+      }
+      if (!pkg) {
+        pushCheckInFailed(
+          userId,
+          lastLimitCheck ? CHECK_IN_ERROR_CODE.CREDITS_INSUFFICIENT : CHECK_IN_ERROR_CODE.NO_AVAILABLE_PACKAGE,
+          lastLimitCheck ? '所有套餐均不可用（时间卡限额已满且无可用次卡）' : '无可用套餐，请联系门店处理',
+          lastLimitCheck ? 'all candidates unusable: ' + lastLimitCheck.reason : 'no available package',
+          true
+        );
+        throw new Error(lastLimitCheck ? lastLimitCheck.reason : '无可用套餐，无法补签到');
+      }
     }
 
     if (!pkg) {
@@ -3081,39 +3188,41 @@ exports.onsiteCheckIn = async (scheduleId, userId, operatorId = null, userPackag
       throw new Error('无可用套餐，无法补签到');
     }
 
-    // 舞种限制校验：套餐限制了舞种时，课程舞种必须在限制范围内
-    const onsiteDanceStyleId = schedule.dance_style_id ? (schedule.dance_style_id._id || schedule.dance_style_id) : null;
-    if (!packageMatchesDanceStyle(pkg, onsiteDanceStyleId)) {
-      pushCheckInFailed(userId, CHECK_IN_ERROR_CODE.NO_AVAILABLE_PACKAGE, '您的套餐不支持该舞种课程，无法签到', 'dance style not allowed', true);
-      throw new Error('您的套餐不支持该舞种课程，无法签到');
-    }
-
-    // 检查套餐是否过期
-    if (pkg.end_date && pkgExpired(pkg.end_date)) {
-      pushCheckInFailed(userId, CHECK_IN_ERROR_CODE.PACKAGE_EXPIRED, '套餐已过期，请联系门店续费', 'package expired: ' + pkg.end_date, true);
-      throw new Error('套餐过期，无法补签到');
-    }
-
-    // 次卡检查次数
-    if (pkg.package_type === 'count_card') {
-      // 停卡套餐先恢复冻结课时再校验
-      const checkCredits = pkg.is_suspended ? (pkg.frozen_remaining_credits || 0) : pkg.remaining_credits;
-      if (checkCredits < (schedule.credits_cost || 1)) {
-        pushCheckInFailed(userId, CHECK_IN_ERROR_CODE.CREDITS_INSUFFICIENT, '套餐课时不足，请联系门店充值', 'credits insufficient: ' + checkCredits + '/' + (schedule.credits_cost || 1), true);
-        throw new Error('次卡套餐次数不够');
+    // 指定套餐路径：保留严格校验（不自动换卡，管理员明确指定了扣哪张卡）
+    if (userPackageId) {
+      // 舞种限制校验：套餐限制了舞种时，课程舞种必须在限制范围内
+      const onsiteDanceStyleId = schedule.dance_style_id ? (schedule.dance_style_id._id || schedule.dance_style_id) : null;
+      if (!packageMatchesDanceStyle(pkg, onsiteDanceStyleId)) {
+        pushCheckInFailed(userId, CHECK_IN_ERROR_CODE.NO_AVAILABLE_PACKAGE, '您的套餐不支持该舞种课程，无法签到', 'dance style not allowed', true);
+        throw new Error('您的套餐不支持该舞种课程，无法签到');
       }
-    }
 
-    // 时间卡检查日/周/月限制
-    let timeCardShrinkDays = 0;  // 时间卡按天口径缩期天数（预约后立即缩短end_date）
-    if (pkg.package_type === 'time_card') {
-      const limitCheck = await checkTimeCardLimit(pkg, schedule.date, schedule.credits_cost || 1);
-      if (!limitCheck.allowed) {
-        const limitLabel = limitCheck.limitType === 'weekly' ? '本周' : (limitCheck.limitType === 'monthly' ? '本月' : (limitCheck.limitType === 'occupied' ? '上课权限' : '今日'));
-        pushCheckInFailed(userId, CHECK_IN_ERROR_CODE.CREDITS_INSUFFICIENT, `${limitLabel}预约次数已达上限`, 'time card limit: ' + limitCheck.reason, true);
-        throw new Error(limitCheck.reason);
+      // 检查套餐是否过期
+      if (pkg.end_date && pkgExpired(pkg.end_date)) {
+        pushCheckInFailed(userId, CHECK_IN_ERROR_CODE.PACKAGE_EXPIRED, '套餐已过期，请联系门店续费', 'package expired: ' + pkg.end_date, true);
+        throw new Error('套餐过期，无法补签到');
       }
-      timeCardShrinkDays = limitCheck.shrinkDays || 0;
+
+      // 次卡检查次数
+      if (pkg.package_type === 'count_card') {
+        // 停卡套餐先恢复冻结课时再校验
+        const checkCredits = pkg.is_suspended ? (pkg.frozen_remaining_credits || 0) : pkg.remaining_credits;
+        if (checkCredits < (schedule.credits_cost || 1)) {
+          pushCheckInFailed(userId, CHECK_IN_ERROR_CODE.CREDITS_INSUFFICIENT, '套餐课时不足，请联系门店充值', 'credits insufficient: ' + checkCredits + '/' + (schedule.credits_cost || 1), true);
+          throw new Error('次卡套餐次数不够');
+        }
+      }
+
+      // 时间卡检查日/周/月限制
+      if (pkg.package_type === 'time_card') {
+        const limitCheck = await checkTimeCardLimit(pkg, schedule.date, schedule.credits_cost || 1);
+        if (!limitCheck.allowed) {
+          const limitLabel = limitCheck.limitType === 'weekly' ? '本周' : (limitCheck.limitType === 'monthly' ? '本月' : (limitCheck.limitType === 'occupied' ? '上课权限' : '今日'));
+          pushCheckInFailed(userId, CHECK_IN_ERROR_CODE.CREDITS_INSUFFICIENT, `${limitLabel}预约次数已达上限`, 'time card limit: ' + limitCheck.reason, true);
+          throw new Error(limitCheck.reason);
+        }
+        timeCardShrinkDays = limitCheck.shrinkDays || 0;
+      }
     }
 
     // 请假停卡会员：签到后终止停卡期限，恢复正常服务；权益冻结不允许签到自动解冻
@@ -3170,7 +3279,9 @@ exports.onsiteCheckIn = async (scheduleId, userId, operatorId = null, userPackag
       status: 'completed',
       checked_in: true,
       check_in_time: new Date(),
-      check_in_method: 'onsite',
+      // 无预约现场补签 = 人工签到 + 空降（原 onsite 废弃）
+      check_in_method: 'manual',
+      is_walk_in: true,
       checked_in_by: operatorId,
       credits_deducted: creditsDeducted,
       user_package_id: pkg._id,
@@ -3214,8 +3325,8 @@ exports.onsiteCheckIn = async (scheduleId, userId, operatorId = null, userPackag
   }
 
   // 创建 attendance 记录
-  // 已预约会员签到：source='booking'、check_in_method='admin'
-  // 无预约现场补签：source='onsite'、check_in_method='onsite'
+  // 已预约会员人工签：source='booking'、check_in_method='manual'
+  // 无预约现场补签：source='onsite'、check_in_method='manual'、is_walk_in=true
   try {
     const attendanceService = require('./attendance.service');
     await attendanceService.createAttendance({
@@ -3228,7 +3339,8 @@ exports.onsiteCheckIn = async (scheduleId, userId, operatorId = null, userPackag
       check_in_time: booking.check_in_time,
       check_in_by: operatorId,
       source: hadExistingBooking ? 'booking' : 'onsite',
-      check_in_method: hadExistingBooking ? 'admin' : 'onsite',
+      check_in_method: 'manual',
+      is_walk_in: !hadExistingBooking,
       credits_cost: booking.credits_deducted || schedule.credits_cost || 0,
       date: schedule.date,
       course_name: schedule.course_name || '',

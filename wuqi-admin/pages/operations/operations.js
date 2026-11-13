@@ -710,14 +710,13 @@ Page({
           checkInTime: item.check_in_time ? formatDateTime(item.check_in_time) : '',
           checkedIn: item.checked_in || status === 'checked_in' || status === 'completed',
           isCompleted: status === 'completed',
-          // 签到方式文本：现场签到 / 扫码签到 / 自动签到 / 管理员签到
-          // 仅通过 source='onsite' 判断现场签到（无预约流程），check_in_method 不作为现场签到判断依据
-          checkInMethodText: item.source === 'onsite'
-            ? '现场签到'
-            : (item.check_in_method === 'scan' ? '扫码签到'
-              : (item.check_in_method === 'auto' ? '自动签到'
-                : (item.check_in_method === 'admin' ? '管理员签到'
-                  : (item.check_in_method === 'onsite' ? '管理员签到' : '已签到')))),
+          // 签到方式文本：按 check_in_method 归一化（scan 按时刻三分；manual/历史 admin/onsite → 人工签到）
+          checkInMethodText: item.check_in_method === 'scan' ? '扫码签到'
+            : (item.check_in_method === 'scan_ongoing' ? '现场签到'
+              : (item.check_in_method === 'scan_after' ? '课后补签'
+                : (item.check_in_method === 'auto' ? '自动签到'
+                  : (item.check_in_method === 'manual' || item.check_in_method === 'admin' || item.check_in_method === 'onsite' ? '人工签到'
+                    : (item.source === 'onsite' ? '人工签到' : '已签到'))))),
           cancelType: item.cancel_type,
           cancelReason: item.cancel_reason || '',
           creditsRefunded: item.credits_refunded || 0,

@@ -88,11 +88,11 @@ exports.createAttendance = async (data) => {
   // 原子 upsert：存在则返回，不存在则创建，消除 TOCTOU 竞态
   // 快照字段（coach_id/coach_name/store_id/store_name/start_time/end_time/duration/course_name/date）
   // 使用 $set 而非 $setOnInsert，确保旧记录的缺失快照能被修复
-  const { schedule_id, user_id, check_in_time, check_in_by, source, check_in_method, credits_cost, booking_id, ...snapshotFields } = data;
+  const { schedule_id, user_id, check_in_time, check_in_by, source, check_in_method, is_walk_in, credits_cost, booking_id, ...snapshotFields } = data;
   const attendance = await Attendance.findOneAndUpdate(
     { schedule_id: data.schedule_id, user_id: data.user_id },
     {
-      $setOnInsert: { schedule_id, user_id, check_in_time, check_in_by, source, check_in_method, credits_cost, booking_id },
+      $setOnInsert: { schedule_id, user_id, check_in_time, check_in_by, source, check_in_method, is_walk_in: !!is_walk_in, credits_cost, booking_id },
       $set: snapshotFields,
     },
     { upsert: true, returnDocument: 'after' }
@@ -238,7 +238,9 @@ exports.getMyAttendance = async (userId, page, pageSize) => {
           dance_style_id: sch.dance_style_id,
           check_in_time: booking.check_in_time || new Date(),
           source: booking.check_in_by ? 'admin' : 'booking',
-          check_in_method: booking.check_in_by ? 'scan' : 'auto',
+          // 补建沿用 booking 实际签到方式与空降标记（不再硬编码 scan/auto）
+          check_in_method: booking.check_in_method || (booking.check_in_by ? 'scan' : 'auto'),
+          is_walk_in: !!booking.is_walk_in,
           credits_cost: booking.credits_deducted || sch.credits_cost || 0,
           date: sch.date,
           course_name: sch.course_name || '',
@@ -260,7 +262,8 @@ exports.getMyAttendance = async (userId, page, pageSize) => {
         user_id: booking.user_id,
         check_in_time: booking.check_in_time || new Date(),
         source: booking.check_in_by ? 'admin' : 'booking',
-        check_in_method: booking.check_in_by ? 'scan' : 'auto',
+        check_in_method: booking.check_in_method || (booking.check_in_by ? 'scan' : 'auto'),
+        is_walk_in: !!booking.is_walk_in,
         credits_cost: booking.credits_deducted || 0,
         penalty_credits: booking.penalty_credits || 0,
         penalty_reason: booking.penalty_reason || '',
@@ -366,6 +369,7 @@ exports.getAttendanceByUser = async (userId) => {
       store_name: sch && sch.store_id ? sch.store_id.name : att.store_name,
       check_in_time: att.check_in_time,
       check_in_method: att.check_in_method,
+      is_walk_in: !!att.is_walk_in,
       source: att.source,
       credits_cost: att.credits_cost || 0,
       // 罚课（未预约空降到店处罚）：扣的套餐卡ID供罚课入口使用

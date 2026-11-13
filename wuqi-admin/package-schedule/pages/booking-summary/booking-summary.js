@@ -369,9 +369,12 @@ Page({
   getCheckInMethodText(method) {
     const map = {
       'scan': '扫码签到',
+      'scan_ongoing': '现场签到',
+      'scan_after': '课后补签',
+      'manual': '人工签到',
       'auto': '自动签到',
-      'admin': '管理员签到',
-      'onsite': '现场签到'
+      'admin': '人工签到',
+      'onsite': '人工签到'
     };
     return map[method] || '已签到';
   },
@@ -601,7 +604,7 @@ Page({
                 const latestCheckIn = checkInRecords[0];
                 mg._checkInCredits = latestCheckIn.credits_deducted || 0;
                 mg._checkInDeductDays = latestCheckIn.deduct_days || null;
-                const method = latestCheckIn.check_in_method || (latestCheckIn.source === 'onsite' ? 'onsite' : 'scan');
+                const method = latestCheckIn.check_in_method || (latestCheckIn.source === 'onsite' ? 'manual' : 'scan');
                 mg._checkInMethodText = this.getCheckInMethodText(method);
               }
             });

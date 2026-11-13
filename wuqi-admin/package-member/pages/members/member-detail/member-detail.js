@@ -27,20 +27,24 @@ const getBookingStatusText = (status) => {
   return BOOKING_STATUS_TEXT_MAP[status] || '已取消';
 };
 
-// 签到方式文案映射
+// 签到方式文案映射（scan 按时刻：开课前/进行中/结束后；管理端手动选人=人工签到）
+// 历史 admin/onsite 值统一显示「人工签到」
 const CHECK_IN_METHOD_LABEL_MAP = {
   scan: '扫码签到',
+  scan_ongoing: '现场签到',
+  scan_after: '课后补签',
+  manual: '人工签到',
   auto: '自动签到',
-  onsite: '现场签到',
-  admin: '后台签到',
+  onsite: '人工签到',
+  admin: '人工签到',
   exempt_cancel: '豁免取消',
   cancelled_after_checkin: '课程中取消'
 };
 const SOURCE_LABEL_MAP = {
   member: '正常签到',
   booking: '正常签到',
-  onsite: '现场签到',
-  admin: '后台签到'
+  onsite: '人工签到',
+  admin: '人工签到'
 };
 
 Page({
@@ -2059,10 +2063,14 @@ Page({
         }
 
         // 罚课（未预约空降到店处罚）：已罚显示标记，未罚且店长及以上显示罚课入口
-        // 自动签到 = 经过预约的课，不涉及罚课；仅现场签到/管理员代签等其他方式才可能空降
+        // 仅空降课可罚：进行中/结束后扫码、人工补签（含历史 onsite）必然空降；
+        // 开课前扫码需 is_walk_in 标记区分（有预约早到 vs 无预约空降）
         const penaltyCredits = att.penalty_credits || 0;
         const isPenalized = penaltyCredits > 0;
-        const isAutoCheckin = (att.check_in_method || '') === 'auto';
+        const method = att.check_in_method || '';
+        const isWalkIn = !!att.is_walk_in
+          || ['onsite', 'scan_ongoing', 'scan_after'].includes(method);
+        const canPenalize = method !== 'auto' && isWalkIn;
 
         return {
           ...att,
@@ -2080,7 +2088,7 @@ Page({
           penalty_credits: penaltyCredits,
           penalty_reason: isPenalized ? (att.penalty_reason || '未预约直接到店上课') : '',
           isPenalized,
-          canPenalty: !isPenalized && !isAutoCheckin && !!att.booking_id && !!att.user_package_id && this.data.canManageAccount
+          canPenalty: !isPenalized && canPenalize && !!att.booking_id && !!att.user_package_id && this.data.canManageAccount
         };
       });
 

@@ -1515,7 +1515,7 @@ Page({
             courses.push({
               course_name: data.course_name || '课程',
               time: (data.start_time || '') + (data.end_time ? ' - ' + data.end_time : ''),
-              source: data.source === 'onsite' ? '现场签到' : '正常签到'
+              source: data.source === 'onsite' ? '人工签到' : '正常签到'
             });
           }
           self.setData({
@@ -1698,7 +1698,7 @@ Page({
             return {
               course_name: c.course_name || '课程',
               time: (c.start_time || '') + (c.end_time ? ' - ' + c.end_time : ''),
-              source: c.source === 'onsite' ? '现场签到' : '正常签到'
+              source: c.source === 'onsite' ? '人工签到' : '正常签到'
             };
           });
           this.setData({

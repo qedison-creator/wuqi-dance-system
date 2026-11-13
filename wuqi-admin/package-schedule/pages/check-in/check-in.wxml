@@ -86,7 +86,7 @@
           </view>
           <view class="detail-row" wx:if="{{item.attendance}}">
             <text class="detail-label">签到来源</text>
-            <text class="detail-value">{{item.attendance.source === 'onsite' ? '现场签到' : '预约签到'}}</text>
+            <text class="detail-value">{{item.attendance.source === 'onsite' ? '人工签到' : '预约签到'}}</text>
           </view>
           <view class="detail-row" wx:if="{{item.deduct_days}}">
             <text class="detail-label">消耗课时</text>

@@ -2229,6 +2229,10 @@ exports.penaltyPackage = async (packageId, { booking_id, credits, reason }, oper
   if (!booking) throw new Error('上课记录不存在');
   if (booking.status !== 'completed') throw new Error('仅已完成的课程可罚课');
   if ((Number(booking.penalty_credits) || 0) > 0) throw new Error('该节课已罚过课，不可重复处罚');
+  // 罚课仅针对空降课（无预约到店）；有预约的课不可能空降，后端同步校验防绕过前端
+  if (!booking.is_walk_in && !['onsite', 'scan_ongoing', 'scan_after'].includes(booking.check_in_method)) {
+    throw new Error('仅无预约空降到店的课程可罚课');
+  }
 
   if (!booking.user_package_id) throw new Error('该节课无关联套餐，无法罚课');
   let card = await UserPackage.findById(booking.user_package_id);

@@ -301,9 +301,12 @@ Page({
   getCheckInMethodText(method) {
     const map = {
       'scan': '扫码签到',
+      'scan_ongoing': '现场签到',
+      'scan_after': '课后补签',
+      'manual': '人工签到',
       'auto': '自动签到',
-      'admin': '管理员签到',
-      'onsite': '现场签到',
+      'admin': '人工签到',
+      'onsite': '人工签到',
       'exempt_cancel': '未上课(豁免取消)'
     };
     return map[method] || '扫码签到';
