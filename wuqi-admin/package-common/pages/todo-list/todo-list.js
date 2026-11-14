@@ -31,7 +31,12 @@ Page({
       // 并行加载各项待办数据
 
       const results = await Promise.all([
-        request({ url: '/home/admin', method: 'GET' }).catch(() => ({ data: {} })),
+        request({
+          url: '/home/admin',
+          method: 'GET',
+          // 区分门店：与首页看板一致，按当前门店过滤
+          data: { store_id: app.globalData.currentStore ? app.globalData.currentStore._id : '' }
+        }).catch(() => ({ data: {} })),
         request({ 
           url: '/stats/dashboard', 
           method: 'GET',

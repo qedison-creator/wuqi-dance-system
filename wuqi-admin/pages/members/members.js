@@ -145,10 +145,12 @@ Page({
       app.globalData.currentStoreId = defaultStoreId;
     } else {
       // 超管/审核员/多门店店长
-      // 会员管理保留"全部门店"作为独立查询状态，不跟随首页/店务管理的默认选中逻辑
-      // 已初始化过门店选择时，优先复用本页上次选中（含"全部门店"空字符串状态），避免被其他页面覆盖
+      // 门店选择跟随全局单店选择：其他页面（首页/运营/店务）切换门店后进入本页，默认显示该门店；
+      // "全部门店"仅是本页临时视图，不写入全局（不影响仅单店的页面）
       const storeList = app.globalData.storeList || [];
-      if (this._storeSelectionInited) {
+      const globalShopId = app.globalData.shopStoreId || '';
+      if (this._storeSelectionInited && String(globalShopId) === String(this._lastGlobalShopStoreId || '')) {
+        // 全局门店未变化：保留本页上次选择（含"全部门店"空值状态）
         const prevStoreId = this.data.currentStoreId;
         if (prevStoreId === '') {
           currentStoreId = '';
@@ -164,33 +166,18 @@ Page({
           }
         }
       } else {
-        // 首次进入本页：恢复上次手动选择的门店（本地持久化）；无记录时默认"全部门店"视图
-        let savedStoreId = '';
-        try { savedStoreId = wx.getStorageSync('members_selected_store_id') || ''; } catch (e) { /* 忽略读取失败 */ }
-        if (savedStoreId) {
-          if (storeList.length > 0) {
-            const found = storeList.find(s => String(s._id) === String(savedStoreId));
-            if (found) {
-              currentStoreId = found._id;
-              currentStoreName = found.name;
-            } else {
-              // 上次选择的门店已不存在：清除记忆并回退"全部门店"
-              try { wx.removeStorageSync('members_selected_store_id'); } catch (e) { /* 忽略 */ }
-              currentStoreId = '';
-              currentStoreName = '全部门店';
-            }
-          } else {
-            // 全局门店列表尚未就绪：先保留选择，名称由 loadStoreList 完成后回填
-            currentStoreId = savedStoreId;
-            currentStoreName = '';
-          }
+        // 首次进入本页、或其他页面刚切换过门店：跟随全局门店；全局未定时默认"全部门店"
+        const found = globalShopId ? storeList.find(s => String(s._id) === String(globalShopId)) : null;
+        if (globalShopId) {
+          currentStoreId = found ? found._id : globalShopId;
+          currentStoreName = found ? found.name : '';
         } else {
-          // "全部门店"：不设门店过滤，展示全平台会员
           currentStoreId = '';
           currentStoreName = '全部门店';
         }
-        this._storeSelectionInited = true;
       }
+      this._storeSelectionInited = true;
+      this._lastGlobalShopStoreId = globalShopId;
     }
 
     let activeFilter = this.data.activeFilter;
@@ -425,19 +412,15 @@ Page({
   onStoreFilterChange(e) {
     const { id } = e.currentTarget.dataset;
     const storeList = this.data.storeList;
-    const currentStore = id ? storeList.find(s => s._id === id) : null;
-    app.globalData.currentStore = currentStore;
-    app.globalData.currentStoreId = id;
-    // 同步到全局统一门店选择（与首页/店务管理/运营管理共享）
-    app.globalData.shopStoreId = id;
-    // 持久化本页手动选择的门店：选"全部门店"时清除记忆（下次进入即默认全部）
-    try {
-      if (id) {
-        wx.setStorageSync('members_selected_store_id', id);
-      } else {
-        wx.removeStorageSync('members_selected_store_id');
-      }
-    } catch (e) { /* 忽略存储失败 */ }
+    const currentStore = id ? storeList.find(s => String(s._id) === String(id)) : null;
+    if (id) {
+      // 选择具体门店：回写全局统一门店选择（与首页/店务管理/运营管理共享），其他页面跟随
+      app.globalData.currentStore = currentStore || null;
+      app.globalData.currentStoreId = id;
+      app.globalData.shopStoreId = id;
+    }
+    // 选"全部门店"：仅本页临时视图，不写全局（不影响仅单店的页面）
+    this._lastGlobalShopStoreId = app.globalData.shopStoreId || '';
     this.setData({
       currentStoreId: id,
       currentStoreName: currentStore ? currentStore.name : '全部门店',

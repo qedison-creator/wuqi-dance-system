@@ -1151,7 +1151,8 @@ Page({
       const res = await request({
         url: '/members',
         method: 'GET',
-        data: { member_status: 'registered', page: 1, limit: 20 }
+        // 区分门店：只拉取当前门店的待审核会员（服务端支持 store_id 过滤）
+        data: { member_status: 'registered', page: 1, limit: 20, store_id: this.data.currentStore ? this.data.currentStore._id : '' }
       });
       const result = res.data || {};
       const list = result.list || (Array.isArray(result) ? result : []);

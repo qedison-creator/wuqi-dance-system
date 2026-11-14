@@ -747,7 +747,6 @@ Page({
   },
 
   async doJoinWaitlist() {
-    let loadingShown = false;
     try {
       // 检查是否有可用套餐（已激活或待激活）
       const { userPackages, course } = this.data;
@@ -793,19 +792,18 @@ Page({
       }
 
       const { fetchTemplates, requestWaitlistAndBookingSubscribe, getAcceptedTemplates } = require('../../../utils/subscribe-message');
+      // 感官提速：授权/请求前立即出 loading
+      wx.showLoading({ title: '加入候补...', mask: true });
       await fetchTemplates();
       // 候补通知 + 预约相关通知合并授权（只弹1次窗）
       const subscribeResult = await requestWaitlistAndBookingSubscribe();
       const acceptedTemplates = getAcceptedTemplates(subscribeResult);
 
-      wx.showLoading({ title: '加入候补...' });
-      loadingShown = true;
-
       const api = require('../../utils/api');
       await api.bookings.joinWaitlist({ schedule_id: this.data.courseId });
 
+      // 先弹成功提示，数据刷新放后台
       wx.hideLoading();
-      loadingShown = false;
       wx.showToast({ title: '已加入候补排队', icon: 'success' });
 
       this.loadWaitlistStatus();
@@ -813,9 +811,7 @@ Page({
       this.loadUserBookings();
       this.loadUserPackages();
     } catch (err) {
-      if (loadingShown) {
-        wx.hideLoading();
-      }
+      wx.hideLoading();
       wx.showToast({ title: err.message || '加入候补失败', icon: 'none' });
     }
   },
@@ -1105,6 +1101,8 @@ Page({
     }
 
     try {
+      // 感官提速：立即出 loading，授权/请求全程有反馈
+      wx.showLoading({ title: '取消中...', mask: true });
       // 先弹消息授权弹窗，确保订阅先生效
       try {
         const { requestCancelSubscribe } = require('../../../utils/subscribe-message');
@@ -1119,12 +1117,11 @@ Page({
         method: 'PUT'
       });
       
-      // 更新页面数据和按钮状态
-      this.loadCourseDetail(this.data.courseId);
-      this.loadUserBookings();
-      this.loadUserPackages();
+      // 本地乐观更新：按钮立即切回"预约"，后台刷新随后对账
+      this.setData({ isBooked: false });
       
-      // 最后弹成功提示（paper/volt 皮肤用动效层，classic 保持原 toast）
+      // 先弹成功提示（paper/volt 皮肤用动效层，classic 保持原 toast），数据刷新放后台
+      wx.hideLoading();
       const cdDone = this.data.course || {};
       const cdPkgs = this.data.userPackages || {};
       const cdRefund = getCreditUnitInfo(pickEffectivePackage(cdPkgs.history || cdPkgs.packages, cdDone), cdDone.creditsCost || 1);
@@ -1136,7 +1133,12 @@ Page({
       } else {
         wx.showToast({ title: '已取消预约', icon: 'success' });
       }
+      // 后台刷新：课程人数/预约列表/套餐余额
+      this.loadCourseDetail(this.data.courseId);
+      this.loadUserBookings();
+      this.loadUserPackages();
     } catch (err) {
+      wx.hideLoading();
       const errMsg = err.message || '取消失败，请重试';
       // 拦截原因等长文案用弹窗展示，避免 toast 截断
       if (errMsg.length > 15) {
@@ -1198,16 +1200,12 @@ Page({
   },
 
   async doBook() {
+    // 感官提速：点确认后立即出 loading，授权/请求全程有反馈
+    wx.showLoading({ title: '预约中...', mask: true });
     try {
-      // 检查是否有待激活套餐，如果有则连同套餐激活通知一起授权
-      let hasPendingPackage = false;
-      try {
-        const pkgCheck = await request({ url: '/packages/my', silent: true });
-        const pkgData = (pkgCheck && pkgCheck.data) ? pkgCheck.data : {};
-        const pending = pkgData.pending || [];
-        const active = pkgData.active || [];
-        hasPendingPackage = pending.length > 0 && active.length === 0;
-      } catch (e) { /* 忽略检查失败 */ }
+      // 待激活判断直接用页面已加载的套餐数据（省一次网络往返；后端有兜底校验）
+      const up = this.data.userPackages || {};
+      const hasPendingPackage = !!(up.pending && up.pending.length > 0);
 
       // 先弹消息授权弹窗，确保订阅先生效（避免后端提前发送通知导致 43101 错误）
       // requestBookingSubscribe 内部已调用 fetchTemplates()（缓存），无需重复调用
@@ -1223,12 +1221,11 @@ Page({
         data: { schedule_id: this.data.courseId }
       });
       
-      // 更新页面数据和按钮状态
-      this.loadCourseDetail(this.data.courseId);
-      this.loadUserBookings();
-      this.loadUserPackages();
+      // 本地乐观更新：按钮立即变为"已预约"，后台刷新随后对账
+      this.setData({ isBooked: true });
       
-      // 最后弹成功提示（paper/volt 皮肤用盖章/拳入动效层，classic 保持原提示）
+      // 先弹成功提示（paper/volt 皮肤用盖章/拳入动效层，classic 保持原提示），数据刷新放后台静默执行
+      wx.hideLoading();
       const skinUtil = require('../../../utils/skin.js');
       const cf = this.data.cfmInfo || {};
       const cdCourse = this.data.course || {};
@@ -1257,7 +1254,12 @@ Page({
       } else {
         wx.showToast({ title: '预约成功', icon: 'success' });
       }
+      // 后台刷新：课程人数/预约列表/套餐余额，成功反馈不等待网络
+      this.loadCourseDetail(this.data.courseId);
+      this.loadUserBookings();
+      this.loadUserPackages();
     } catch (err) {
+      wx.hideLoading();
       const errMsg = err.message || '预约失败，请重试';
       if (errMsg.includes('已达上限') || errMsg.includes('套餐状态') || errMsg.includes('无可用套餐') || errMsg.includes('已过期') || errMsg.includes('已用完') || errMsg.includes('剩余次数不足')) {
         this.setData({

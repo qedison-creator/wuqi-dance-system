@@ -159,6 +159,15 @@ Page({
       const found = storeList.find(s => String(s._id) === String(defaultStoreId));
       updateData.currentStoreId = defaultStoreId;
       updateData.currentStoreName = found ? found.name : '';
+    } else if (!isSingleStore && !this._storeTouched && !this.data.currentStoreId) {
+      // 多门店角色首次进入：默认跟随全局门店（首页/运营/店务选过的店）；全局未定则"全部门店"
+      const globalShopId = app.globalData.shopStoreId || '';
+      if (globalShopId) {
+        const storeList = app.globalData.storeList || [];
+        const found = storeList.find(s => String(s._id) === String(globalShopId));
+        updateData.currentStoreId = globalShopId;
+        updateData.currentStoreName = found ? found.name : '';
+      }
     }
     this.setData(updateData);
     this.loadList();
@@ -461,10 +470,18 @@ Page({
   // 门店筛选
   onStoreFilterChange(e) {
     const id = e.currentTarget.dataset.id;
-    const store = this.data.storeList.find(s => s._id === id);
+    const store = this.data.storeList.find(s => String(s._id) === String(id));
+    if (id) {
+      // 选择具体门店：回写全局统一门店选择，其他页面（首页/运营/店务/会员）跟随
+      app.globalData.currentStore = store || null;
+      app.globalData.currentStoreId = id;
+      app.globalData.shopStoreId = id;
+    }
+    // 选"全部门店"：仅本页视图，不写全局（不影响仅单店的页面）
+    this._storeTouched = true;
     this.setData({
       currentStoreId: id,
-      currentStoreName: store ? store.name : '',
+      currentStoreName: store ? store.name : '全部门店',
       page: 1,
       hasMore: true,
       visibleCount: 5,

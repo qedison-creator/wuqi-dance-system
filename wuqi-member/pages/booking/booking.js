@@ -207,7 +207,7 @@ Page({
   },
 
   refreshUserInfo() {
-    Promise.all([
+    return Promise.all([
       request({ url: '/auth/me', silent: true }),
       request({ url: '/packages/my', silent: true })
     ]).then(([authRes, pkgRes]) => {
@@ -873,21 +873,20 @@ Page({
   },
 
   async doBook(scheduleId) {
+    // 感官提速：点确认后立即出 loading，授权/请求全程有反馈
+    wx.showLoading({ title: '预约中...', mask: true });
     try {
-      // 检查是否有待激活套餐，如果有则连同套餐激活通知一起授权
-      let hasPendingPackage = false;
-      try {
-        const pkgCheck = await request({ url: '/packages/my', silent: true });
-        const pkgData = (pkgCheck && pkgCheck.data) ? pkgCheck.data : {};
-        const pending = pkgData.pending || [];
-        // 仅有待激活套餐（无使用中）：提前拦截，弹「套餐激活提醒」（3 秒读秒）后再激活+预约。
-        // 否则后端预约时会静默自动激活（booking.service first_booking），会员看不到任何激活提示
-        if (pending.length > 0 && !pkgData.current) {
-          this.showActivatePackageModal(scheduleId);
-          return;
-        }
-        hasPendingPackage = pending.length > 0;
-      } catch (e) { /* 忽略检查失败 */ }
+      // 待激活判断直接用页面已加载的套餐数据（refreshUserInfo 缓存于 _packagesData，省一次网络往返；后端有兜底校验）：
+      // 仅有待激活套餐（无使用中）：提前拦截，弹「套餐激活提醒」（3 秒读秒）后再激活+预约。
+      // 否则后端预约时会静默自动激活（booking.service first_booking），会员看不到任何激活提示
+      const up = this.data._packagesData || {};
+      const pending = up.pending || [];
+      if (pending.length > 0 && !up.current) {
+        wx.hideLoading();
+        this.showActivatePackageModal(scheduleId);
+        return;
+      }
+      const hasPendingPackage = pending.length > 0;
 
       // 先弹消息授权弹窗，确保订阅先生效（避免后端提前发送通知导致 43101 错误）
       const { requestBookingSubscribe, requestBookingAndActivationSubscribe, getAcceptedTemplates } = require('../../utils/subscribe-message');
@@ -910,21 +909,9 @@ Page({
           this._updateCoursesButtonState();
         });
       }
-      request({ url: '/packages/my', silent: true }).then(pkgRes => {
-        if (pkgRes && pkgRes.data) {
-          const pkgData = pkgRes.data;
-          const authData = app.globalData.userInfo || {};
-          const restrictedReason = this._computeRestrictedReason(authData, pkgData);
-          this.setData({ isRestrictedUser: !!restrictedReason, restrictedReason }, () => {
-            this._updateCoursesButtonState();
-          });
-        }
-      }).catch(() => {});
-      setTimeout(() => {
-        this.loadCourses(true);
-      }, 300);
 
-      // 最后弹成功提示（paper/volt 皮肤用盖章/拳入动效层，classic 保持原提示）
+      // 先弹成功提示（paper/volt 皮肤用盖章/拳入动效层，classic 保持原提示），数据刷新放后台静默执行
+      wx.hideLoading();
       const skinUtil = require('../../utils/skin.js');
       const bkCf = this.data.cfmInfo || {};
       const bkCourse = this._ticketCourse || {};
@@ -953,7 +940,23 @@ Page({
       } else {
         wx.showToast({ title: '预约成功', icon: 'success' });
       }
+
+      // 后台刷新：套餐余额/受限状态 + 课程剩余名额（成功反馈不等待网络）
+      request({ url: '/packages/my', silent: true }).then(pkgRes => {
+        if (pkgRes && pkgRes.data) {
+          const pkgData = pkgRes.data;
+          const authData = app.globalData.userInfo || {};
+          const restrictedReason = this._computeRestrictedReason(authData, pkgData);
+          this.setData({ isRestrictedUser: !!restrictedReason, restrictedReason }, () => {
+            this._updateCoursesButtonState();
+          });
+        }
+      }).catch(() => {});
+      setTimeout(() => {
+        this.loadCourses(true);
+      }, 300);
     } catch (err) {
+      wx.hideLoading();
       const errMsg = err.message || '预约失败';
       const errCode = err.code || '';
 
@@ -1061,6 +1064,8 @@ Page({
       wx.showToast({ title: '套餐已激活', icon: 'success' });
 
       if (pendingScheduleId) {
+        // 先刷新缓存的套餐数据（_packagesData），doBook 依赖它判断待激活状态，避免拿到激活前旧数据误拦截
+        try { await this.refreshUserInfo(); } catch (e) { /* 忽略刷新失败 */ }
         setTimeout(() => {
           this.doBook(pendingScheduleId);
         }, 500);
@@ -1903,8 +1908,8 @@ Page({
 
       wx.showToast({ title: '次卡已激活', icon: 'success' });
 
-      // 刷新套餐信息
-      this.refreshUserInfo();
+      // 先刷新缓存的套餐数据（_packagesData），doBook 依赖它判断待激活状态，避免拿到激活前旧数据误拦截
+      try { await this.refreshUserInfo(); } catch (e) { /* 忽略刷新失败 */ }
 
       // 重新发起预约
       if (countCardScheduleId) {

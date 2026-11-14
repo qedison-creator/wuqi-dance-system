@@ -92,7 +92,10 @@ Page({
         });
       } else {
         const storeList = [{ _id: '', name: '全部' }].concat(list);
-        this.setData({ storeList });
+        // 默认跟随全局门店（首页/运营/店务选过的店）；全局未定则"全部门店"
+        const globalShopId = app.globalData.shopStoreId || '';
+        const activeStoreId = globalShopId && list.some(s => String(s._id) === String(globalShopId)) ? globalShopId : '';
+        this.setData({ storeList, activeStoreId });
       }
     } catch (err) {
       console.error('加载门店失败', err);
@@ -108,6 +111,16 @@ Page({
   // ========== 门店筛选 ==========
   onStoreFilter(e) {
     const storeId = e.currentTarget.dataset.id;
+    if (storeId) {
+      // 选择具体门店：回写全局统一门店选择，其他页面（首页/运营/店务/会员）跟随
+      const found = this.data.storeList.find(s => String(s._id) === String(storeId));
+      if (found) {
+        app.globalData.currentStore = found;
+        app.globalData.currentStoreId = found._id;
+      }
+      app.globalData.shopStoreId = storeId;
+    }
+    // 选"全部"：仅本页视图，不写全局（不影响仅单店的页面）
     this.setData({ activeStoreId: storeId, yearGroups: [] });
     this.loadBookings();
   },

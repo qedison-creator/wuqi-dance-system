@@ -362,7 +362,10 @@ Page({
       const originalStoreId = this.data.currentStoreId;
       let storeId = originalStoreId;
       if (!storeId || !list.find(s => s._id === storeId)) {
-        storeId = list.length > 0 ? list[0]._id : '';
+        // 页面未带门店时：默认跟随全局门店（首页/运营/店务选过的店），再兜底第一个门店
+        const globalShopId = app.globalData.shopStoreId || '';
+        const globalFound = globalShopId && list.find(s => String(s._id) === String(globalShopId));
+        storeId = globalFound ? globalFound._id : (list.length > 0 ? list[0]._id : '');
       }
       
       this.setData({
@@ -439,7 +442,15 @@ Page({
   },
 
   onSwitchStore(e) {
-    this.setData({ currentStoreId: e.currentTarget.dataset.id }, () => {
+    const storeId = e.currentTarget.dataset.id;
+    // 本页仅单店视角：切换后回写全局统一门店选择，其他页面（首页/运营/店务/会员）跟随
+    const found = this.data.stores.find(s => String(s._id) === String(storeId));
+    if (found) {
+      app.globalData.currentStore = found;
+      app.globalData.currentStoreId = found._id;
+    }
+    app.globalData.shopStoreId = storeId;
+    this.setData({ currentStoreId: storeId }, () => {
       this.loadHolidays();
       this.loadSchedules();
       // 重新加载月课程

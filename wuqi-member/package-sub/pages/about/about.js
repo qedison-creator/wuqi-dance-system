@@ -6,6 +6,6 @@ Page({
   },
 
   data: {
-    version: 'V1.2.3'
+    version: 'V1.3.0'
   }
 });

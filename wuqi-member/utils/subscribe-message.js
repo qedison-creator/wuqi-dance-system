@@ -265,7 +265,8 @@ const requestBookingSubscribe = async () => {
     return Promise.resolve({});
   }
   // 第一次请求：预约成功 + 上课提醒 + 取消通知
-  const result = await requestSubscribeMessage(ids, 'booking');
+  // 预约主链路跳过自建引导弹窗，直接调微信原生授权弹窗，减少一次点击、提升预约响应速度
+  const result = await requestSubscribeMessage(ids, 'booking', true);
   // 为30分钟上课提醒补充请求第2次CLASS_REMINDER授权
   // 微信一次性订阅每个模板每次授权仅能发送1条消息，1小时提醒会消耗第1次授权
   // 已勾选"总是保持"的用户此调用静默通过不弹窗；未勾选的用户可能弹第2次窗
@@ -294,7 +295,8 @@ const requestBookingAndActivationSubscribe = async () => {
   if (ids.length === 0) {
     return Promise.resolve({});
   }
-  const result = await requestSubscribeMessage(ids, 'booking');
+  // 同预约场景：跳过自建引导弹窗，直接调微信原生授权弹窗
+  const result = await requestSubscribeMessage(ids, 'booking', true);
   // 为30分钟上课提醒补充请求第2次CLASS_REMINDER授权
   if (SUBSCRIBE_TEMPLATES.CLASS_REMINDER) {
     try {

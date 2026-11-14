@@ -123,23 +123,27 @@ router.get('/admin', auth, storeFilter(), async (req, res, next) => {
       status: 'booked',
     });
 
-    // 本月预约统计
+    // 本月预约统计（区分门店）
     const monthBookings = await Booking.countDocuments({
+      ...storeFilter,
       booking_date: { $gte: thisMonthStart },
     });
     const monthCompleted = await Booking.countDocuments({
+      ...storeFilter,
       booking_date: { $gte: thisMonthStart },
       status: 'completed',
     });
     const monthCancelled = await Booking.countDocuments({
+      ...storeFilter,
       booking_date: { $gte: thisMonthStart },
       status: 'cancelled',
     });
 
-    // 待办事项
+    // 待办事项（区分门店：只统计注册时归属当前门店的待审核会员）
     const pendingReview = await User.countDocuments({
       user_type: 'member',
       member_status: 'registered',
+      ...storeFilter,
     });
 
     // 今日排课列表（排除已删除和已取消，带动态状态修正）
