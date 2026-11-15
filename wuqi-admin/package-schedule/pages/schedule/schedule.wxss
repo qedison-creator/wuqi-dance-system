@@ -412,19 +412,33 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 16rpx;
+  /* 课程名过长时允许标签组整体换行，避免挤压变形 */
+  flex-wrap: wrap;
+  row-gap: 12rpx;
 }
 
 .course-name {
   font-size: 32rpx;
   color: var(--text-primary);
   font-weight: bold;
+  /* 名称过长时截断省略，标签保持一行完整显示 */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .schedule-header-tags {
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   gap: 8rpx;
+  /* 标签放不下时在组内整齐换行（右对齐），标签文字不压缩变形 */
+  flex-wrap: wrap;
+  row-gap: 8rpx;
+}
+
+.schedule-header-tags text {
+  white-space: nowrap;
 }
 
 .schedule-source-tag {
@@ -470,6 +484,11 @@
 .schedule-status.completed {
   background-color: rgba(77, 184, 160, 0.1);
   color: #4DB8A0;
+}
+
+.schedule-status.in_progress {
+  background-color: var(--color-info-bg);
+  color: var(--color-info);
 }
 
 .schedule-status.history-status {

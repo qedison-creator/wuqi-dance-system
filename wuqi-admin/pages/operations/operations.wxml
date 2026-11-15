@@ -26,7 +26,7 @@
           </view>
         </view>
         <view class="card-right">
-          <view class="schedule-status {{item.status}}">
+          <view class="schedule-status {{item.displayStatus || item.status}}">
           <text>{{item.statusText}}</text>
         </view>
           <text class="card-progress-text" wx:if="{{item.status !== 'cancelled' && item.status !== 'offline'}}">{{(item.status === 'completed' ? item.checkedInCount : item.bookedCount) || 0}}/{{item.max_bookings || 20}} {{item.status === 'completed' ? '已签到' : '已预约'}}</text>
@@ -125,7 +125,7 @@
           <text class="card-name">{{item.course_name || item.dance_style_name || '课程'}}</text>
           <text class="card-time">{{item.start_time}} - {{item.end_time}}</text>
         </view>
-        <view class="schedule-status {{item.status}}">
+        <view class="schedule-status {{item.displayStatus || item.status}}">
           <text>{{item.statusText}}</text>
         </view>
       </view>

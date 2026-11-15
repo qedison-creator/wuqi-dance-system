@@ -2,7 +2,7 @@ const app = getApp();
 const { request } = require('../../../utils/request');
 const { COURSE_DURATIONS, DEFAULT_DURATION } = require('../../../utils/config');
 const { getBeijingDate, getWeekday } = require('../../../utils/helpers');
-const { getScheduleStatusText, getCancelReasonText, cropImageSafe } = require('../../../utils/util');
+const { getScheduleStatusText, getCancelReasonText, cropImageSafe, computeScheduleDisplayStatus } = require('../../../utils/util');
 const { MAX_IMAGE_SIZE, getUploadErrorMessage } = require('../../utils/schedule-helpers');
 
 Page({
@@ -10,6 +10,9 @@ Page({
     stores: [],
     currentStoreId: '',
     currentStoreName: '',
+    // 预约开放窗口（天）：与会员端同源配置（/config/public/booking-window），
+    // 窗口外的 available/full 课程对外展示为"未开放"
+    bookingWindowDays: 7,
     currentDate: '',
     dateList: [],
     schedules: [],
@@ -630,6 +633,8 @@ Page({
       currentStoreId: newStoreId,
       currentStoreName: newStoreName
     }, async () => {
+      // 门店就绪后同步预约开放窗口配置（会员端同源，影响"未开放"标签换算）
+      this.loadBookingWindowDays();
       // 只有当门店ID变化时才重新加载模板，避免不必要的请求
       if (storeChanged) {
         // 切换门店时先清空 weekTemplate，避免 loadSchedules 使用旧门店模板显示预览
@@ -643,9 +648,39 @@ Page({
     });
   },
 
+  // 拉取预约开放窗口配置（与会员端 /pages/booking 同源），用于课程状态标签的"未开放"换算
+  // 按门店记忆化：同一门店只请求一次，列表加载前 await 确保窗口天数已就绪
+  loadBookingWindowDays() {
+    const storeId = this.data.currentStoreId;
+    if (!storeId) return Promise.resolve();
+    if (this._bookingWindowStoreId === storeId && this._bookingWindowPromise) {
+      return this._bookingWindowPromise;
+    }
+    this._bookingWindowStoreId = storeId;
+    this._bookingWindowPromise = request({
+      url: '/config/public/booking-window',
+      method: 'GET',
+      data: { store_id: storeId }
+    }).then(res => {
+      // 后端返回字段为 booking_window_days（与会员端 booking.js 同款读取方式）
+      const days = parseInt(res.data && res.data.booking_window_days, 10);
+      if (this._isDestroyed) return;
+      if (days > 0 && days !== this.data.bookingWindowDays) {
+        this.setData({ bookingWindowDays: days });
+      }
+    }).catch(err => {
+      // 配置拉取失败时保留默认 7 天，不阻断页面
+      console.error('加载预约窗口配置失败', err);
+    });
+    return this._bookingWindowPromise;
+  },
+
   async loadSchedules() {
     const { viewMode, currentStoreId, currentDate, dateList, weekTemplate } = this.data;
     if (!currentStoreId) return;
+
+    // 确保预约窗口配置已就绪（记忆化请求），避免首屏用默认窗口天数换算出错误标签
+    await this.loadBookingWindowDays();
 
     // 星期视图使用本地模板数据
 
@@ -722,10 +757,14 @@ Page({
 
       const processedList = list.map(item => {
         const status = item.status || 'available';
+        // 对外展示状态：与会员端预约窗口口径一致（窗口外 available/full → 未开放）
+        const display = computeScheduleDisplayStatus(status, item.date, this.data.bookingWindowDays);
         return {
           ...item,
           status,
-          statusText: getScheduleStatusText(status),
+          // displayStatus 仅用于状态标签展示（class/文案），不改动原 status（卡片样式/操作按钮仍依赖它）
+          displayStatus: display.status,
+          statusText: display.statusText,
           cancelReasonText: item.cancel_reason ? getCancelReasonText(item.cancel_reason) : '',
           isHistory: isCurrentPast,
           from_template: item.from_template === true,

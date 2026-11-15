@@ -84,7 +84,7 @@
           <text class="schedule-source-tag" wx:if="{{viewMode === 'month' && !item.isTemplatePreview && item.from_template}}">来自排课设置</text>
           <text class="schedule-source-tag temp-tag" wx:if="{{viewMode === 'month' && !item.isTemplatePreview && !item.from_template}}">临时增设</text>
           <text class="schedule-source-tag exempt-lock-tag" wx:if="{{viewMode === 'month' && !item.isTemplatePreview && item.exempt_cancel_locked}}">已禁豁免取消</text>
-          <text class="schedule-status {{item.status}} {{item.isHistory ? 'history-status' : ''}} {{item.isTemplatePreview ? 'template-status' : ''}} {{item.hasScheduled ? 'scheduled-status' : ''}}">{{item.statusText}}</text>
+          <text class="schedule-status {{item.displayStatus || item.status}} {{item.isHistory ? 'history-status' : ''}} {{item.isTemplatePreview ? 'template-status' : ''}} {{item.hasScheduled ? 'scheduled-status' : ''}}">{{item.statusText}}</text>
         </view>
       </view>
       <view class="schedule-info">

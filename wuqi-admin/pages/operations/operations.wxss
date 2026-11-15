@@ -239,6 +239,11 @@
   color: #4DB8A0;
 }
 
+.schedule-status.in_progress {
+  background-color: var(--color-info-bg);
+  color: var(--color-info);
+}
+
 .card-stats {
   display: flex;
   gap: 32rpx;

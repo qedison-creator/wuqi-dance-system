@@ -1,6 +1,6 @@
 const app = getApp();
 const { request } = require('../../utils/request');
-const { getScheduleStatusText, formatDateTime, fixImageUrl } = require('../../utils/util');
+const { getScheduleStatusText, computeScheduleDisplayStatus, formatDateTime, fixImageUrl } = require('../../utils/util');
 
 // 课程取消类型集合（管理员/系统取消，非用户自行取消）
 const COURSE_CANCEL_TYPES = ['admin_cancel', 'min_bookings_not_met', 'holiday', 'after_checkin_cancel'];
@@ -88,6 +88,9 @@ Page({
     monthSchedules: {},
     holidays: [],
     dateSchedules: [],
+    // 预约开放窗口（天）：与会员端同源配置（/config/public/booking-window），
+    // 窗口外的 available/full 课程对外展示为"未开放"
+    bookingWindowDays: 7,
     weekdays: ['一', '二', '三', '四', '五', '六', '日'],
     showBookingPanel: false,
     panelSchedule: null,
@@ -265,6 +268,8 @@ Page({
       this.setData({ stores: list, currentStoreId: storeId, currentStoreName: storeName }, () => {
         // 门店就绪后重拉放假（loadHolidays 依赖门店），避免冷启动竞态漏掉门店级放假
         this.loadHolidays();
+        // 同步刷新预约开放窗口配置（会员端同源，窗口影响课程状态标签显示）
+        this.loadBookingWindowDays();
         if (storeId !== originalStoreId) {
           this.loadTodaySchedules();
           this.loadMonthSchedules(this.data.currentMonth);
@@ -274,6 +279,32 @@ Page({
       console.error('加载门店失败', err);
       wx.showToast({ title: '加载门店失败', icon: 'none' });
     }
+  },
+
+  // 拉取预约开放窗口配置（与会员端 /pages/booking 同源），用于课程状态标签的"未开放"换算
+  // 按门店记忆化：同一门店只请求一次，列表加载前 await 确保窗口天数已就绪
+  loadBookingWindowDays() {
+    const storeId = this.data.currentStoreId;
+    if (!storeId) return Promise.resolve();
+    if (this._bookingWindowStoreId === storeId && this._bookingWindowPromise) {
+      return this._bookingWindowPromise;
+    }
+    this._bookingWindowStoreId = storeId;
+    this._bookingWindowPromise = request({
+      url: '/config/public/booking-window',
+      method: 'GET',
+      data: { store_id: storeId }
+    }).then(res => {
+      // 后端返回字段为 booking_window_days（与会员端 booking.js 同款读取方式）
+      const days = parseInt(res.data && res.data.booking_window_days, 10);
+      if (days > 0 && days !== this.data.bookingWindowDays) {
+        this.setData({ bookingWindowDays: days });
+      }
+    }).catch(err => {
+      // 配置拉取失败时保留默认 7 天，不阻断页面
+      console.error('加载预约窗口配置失败', err);
+    });
+    return this._bookingWindowPromise;
   },
 
   onStoreSwitcherTap() {
@@ -293,6 +324,7 @@ Page({
         if (id === currentStoreId && name === this.data.currentStoreName) return;
         this.setData({ currentStoreId: id, currentStoreName: name }, () => {
           this.loadHolidays();
+          this.loadBookingWindowDays();
           this.loadTodaySchedules();
           this.loadMonthSchedules(this.data.currentMonth);
           if (currentDate !== todayDate) {
@@ -602,6 +634,9 @@ Page({
     const { currentStoreId, holidays } = this.data;
     if (!currentStoreId || !date) return;
 
+    // 确保预约窗口配置已就绪（记忆化请求），避免首屏用默认窗口天数换算出错误标签
+    await this.loadBookingWindowDays();
+
     const isHoliday = holidays.some(h => h.date === date);
     if (isHoliday) {
       this.setData({ dateSchedules: [] });
@@ -630,13 +665,17 @@ Page({
       const enrichedList = list.map((schedule, i) => {
         const bookingStats = statsResults[i];
         const status = schedule.status || 'available';
+        // 对外展示状态：与会员端预约窗口口径一致（窗口外 available/full → 未开放）
+        const display = computeScheduleDisplayStatus(status, schedule.date, this.data.bookingWindowDays);
         const isCompleted = status === 'completed';
         const bookedCount = bookingStats.booked || 0;
         const checkedInCount = bookingStats.checkedIn || 0;
         return {
           ...schedule,
           status,
-          statusText: getScheduleStatusText(status),
+          // displayStatus 仅用于状态标签展示（class/文案），不改动原 status（卡片样式/操作按钮仍依赖它）
+          displayStatus: display.status,
+          statusText: display.statusText,
           course_name: schedule.course_name || (schedule.dance_style_name || '课程'),
           dance_style_name: schedule.dance_style_name || '',
           coach_name: schedule.coach_name || (schedule.coach_id && schedule.coach_id.name || ''),

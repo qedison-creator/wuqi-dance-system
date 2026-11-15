@@ -124,6 +124,33 @@ const getScheduleStatusText = (status) => {
   return STATUS_TEXT_MAP[status] || status || '';
 };
 
+// 计算课程对外展示状态（对齐会员端预约窗口口径）
+// 会员端：课程日期不在 [今天, 今天+窗口天数) 内时显示"未开放预约"（booking.js _isDateInBookingWindow），
+// 后端 Schedule.status 始终是 available，管理端需在前端按同一窗口配置换算展示状态。
+// available/full 且窗口外 → not_open/未开放；其他状态原样透传（进行中/已完成/已取消等优先）。
+const computeScheduleDisplayStatus = (status, dateStr, windowDays) => {
+  const s = status || 'available';
+  if (s !== 'available' && s !== 'full') {
+    return { status: s, statusText: getScheduleStatusText(s) };
+  }
+  if (!dateStr || !windowDays || windowDays <= 0) {
+    return { status: s, statusText: getScheduleStatusText(s) };
+  }
+  // 用年月日构造日期对象，消除时分秒对天数差计算的干扰（与会员端口径一致）
+  const today = getBeijingDate();
+  const todayDate = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  const parts = String(dateStr).split('-');
+  if (parts.length !== 3) {
+    return { status: s, statusText: getScheduleStatusText(s) };
+  }
+  const target = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+  const diffDays = Math.floor((target - todayDate) / (1000 * 60 * 60 * 24));
+  if (diffDays < 0 || diffDays >= windowDays) {
+    return { status: 'not_open', statusText: STATUS_TEXT_MAP['not_open'] };
+  }
+  return { status: s, statusText: getScheduleStatusText(s) };
+};
+
 // 获取课程取消原因文案
 
 const getCancelReasonText = (reason) => {
@@ -336,6 +363,7 @@ module.exports = {
   CANCEL_REASON_TEXT_MAP,
   CANCEL_TYPE_TEXT_MAP,
   getScheduleStatusText,
+  computeScheduleDisplayStatus,
   getCancelReasonText,
   getCancelTypeText,
   getStatusText,
