@@ -9,6 +9,7 @@ const Waitlist = require('../models/Waitlist');
 const PendingTask = require('../models/PendingTask');
 const logService = require('./log.service');
 const attendanceService = require('./attendance.service');
+const { broadcastToAdmins } = require('./websocket.service');
 const { buildDeductionInfo, restoreTimeCardShrink } = require('./booking.service');
 const coachAttendanceService = require('./coachAttendance.service');
 const packageService = require('./package.service');
@@ -1687,6 +1688,21 @@ exports.markAttendance = async (scheduleId, userIds, operatorId) => {
     try {
       require('./datacenter.service').notifyDataChanged('consume', schedule.store_id, { date: schedule.date });
     } catch (e) { /* 通知失败不影响签到 */ }
+  }
+
+  // 实时推送：通知管理端签到人数变化（运营/预约记录页实时刷新）
+  if (updates.length > 0) {
+    try {
+      broadcastToAdmins('booking_checkin', {
+        schedule_id: scheduleId,
+        user_ids: userIds,
+        count: updates.length,
+        store_id: schedule ? schedule.store_id : null,
+        course_name: schedule ? (schedule.course_name || '') : '',
+        schedule_date: schedule ? schedule.date : null,
+        schedule_start_time: schedule ? schedule.start_time : null
+      });
+    } catch (e) {}
   }
   return updates;
 };

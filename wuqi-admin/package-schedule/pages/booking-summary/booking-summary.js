@@ -2,6 +2,7 @@ const { request } = require('../../../utils/request');
 const { getBeijingDate } = require('../../../utils/helpers');
 const { fixImageUrl } = require('../../../utils/util');
 const config = require('../../../config/index.js');
+const wsClient = require('../../../utils/websocket-client');
 const app = getApp();
 
 function getDateStr(d) {
@@ -41,10 +42,49 @@ Page({
     // 先确保门店列表加载完成（单门店角色需要锁定所属门店），再加载数据
     await this.loadStores();
     this.loadBookings();
+    this._connectWebSocket();
+  },
+
+  onHide() {
+    this._disconnectWebSocket();
+  },
+
+  onUnload() {
+    this._disconnectWebSocket();
+    if (this._wsRefreshTimer) {
+      clearTimeout(this._wsRefreshTimer);
+      this._wsRefreshTimer = null;
+    }
   },
 
   onPullDownRefresh() {
     this.loadBookings().finally(() => wx.stopPullDownRefresh());
+  },
+
+  // ========== WebSocket 实时推送 ==========
+  _connectWebSocket() {
+    wsClient.connect({
+      onMessage: {
+        // 预约/取消/签到 -> 刷新预约记录汇总
+        booking_create: () => this._refreshRealtime(),
+        booking_cancel: () => this._refreshRealtime(),
+        booking_checkin: () => this._refreshRealtime()
+      },
+      onFallback: () => this._refreshRealtime()
+    });
+  },
+
+  _disconnectWebSocket() {
+    wsClient.disconnect();
+  },
+
+  // 实时刷新（防抖：连续推送只触发一次刷新）
+  _refreshRealtime() {
+    if (this._wsRefreshTimer) return;
+    this._wsRefreshTimer = setTimeout(() => {
+      this._wsRefreshTimer = null;
+      this.loadBookings();
+    }, 600);
   },
 
   initDates() {

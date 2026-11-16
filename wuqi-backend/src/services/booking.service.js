@@ -2934,6 +2934,19 @@ exports.checkIn = async (scheduleId, userId, operatorId = null, isOnsite = false
     require('./datacenter.service').notifyDataChanged('consume', schedule.store_id, { date: schedule.date });
   } catch (e) { /* 通知失败不影响签到 */ }
 
+  // 实时推送：通知管理端签到人数变化（运营/预约记录页实时刷新）
+  try {
+    broadcastToAdmins('booking_checkin', {
+      booking_id: booking._id,
+      schedule_id: scheduleId,
+      user_id: userId,
+      store_id: schedule.store_id,
+      course_name: schedule.course_name || '',
+      schedule_date: schedule.date,
+      schedule_start_time: schedule.start_time
+    });
+  } catch (e) {}
+
   return booking;
 };
 
@@ -2984,6 +2997,20 @@ exports.autoCheckIn = async (scheduleId) => {
       results.errors.push(`用户${booking.user_id}: ${err.message}`);
       results.processed++;
     }
+  }
+
+  // 实时推送：自动签到完成后通知管理端刷新（仅当有实际签到）
+  if (results.checked_in > 0) {
+    try {
+      broadcastToAdmins('booking_checkin', {
+        schedule_id: scheduleId,
+        store_id: schedule.store_id,
+        count: results.checked_in,
+        course_name: schedule.course_name || '',
+        schedule_date: schedule.date,
+        schedule_start_time: schedule.start_time
+      });
+    } catch (e) {}
   }
 
   // 课程结束后标记为已完成（保护机制：确保即使class_complete任务失败，课程状态也能正确更新）
@@ -3309,6 +3336,19 @@ exports.onsiteCheckIn = async (scheduleId, userId, operatorId = null, userPackag
     // 实时推送：现场补签也会增加课程人数，通知所有在线会员
     try {
       broadcastCourseUpdate({ action: 'booking_create', schedule_id: scheduleId });
+    } catch (e) {}
+
+    // 实时推送：通知管理端签到人数变化（运营/预约记录页实时刷新）
+    try {
+      broadcastToAdmins('booking_checkin', {
+        booking_id: booking._id,
+        schedule_id: scheduleId,
+        user_id: userId,
+        store_id: schedule.store_id,
+        course_name: schedule.course_name || '',
+        schedule_date: schedule.date,
+        schedule_start_time: schedule.start_time
+      });
     } catch (e) {}
 
     // 停卡恢复：在签到成功推送中标记套餐已恢复

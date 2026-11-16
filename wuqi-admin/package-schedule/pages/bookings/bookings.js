@@ -75,6 +75,13 @@ Page({
             this.loadBookingList();
             this.loadScheduleInfo();
           }
+        },
+        // 签到（扫码/现场补签/标记上课/自动签到）-> 刷新签到人数
+        booking_checkin: (data) => {
+          if (!data || !data.schedule_id || data.schedule_id === this.data.scheduleId) {
+            this.loadBookingList();
+            this.loadScheduleInfo();
+          }
         }
       },
       onFallback: () => {

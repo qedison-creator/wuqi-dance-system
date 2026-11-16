@@ -1,6 +1,7 @@
 const app = getApp();
 const { request } = require('../../utils/request');
 const { getScheduleStatusText, computeScheduleDisplayStatus, formatDateTime, fixImageUrl } = require('../../utils/util');
+const wsClient = require('../../utils/websocket-client');
 
 // 课程取消类型集合（管理员/系统取消，非用户自行取消）
 const COURSE_CANCEL_TYPES = ['admin_cancel', 'min_bookings_not_met', 'holiday', 'after_checkin_cancel'];
@@ -122,6 +123,19 @@ Page({
 
     this.loadStores();
     this.loadHolidays();
+    this._connectWebSocket();
+  },
+
+  onHide() {
+    this._disconnectWebSocket();
+  },
+
+  onUnload() {
+    this._disconnectWebSocket();
+    if (this._wsRefreshTimer) {
+      clearTimeout(this._wsRefreshTimer);
+      this._wsRefreshTimer = null;
+    }
   },
 
   onPullDownRefresh() {
@@ -131,6 +145,48 @@ Page({
     ]).finally(() => {
       wx.stopPullDownRefresh();
     });
+  },
+
+  // ========== WebSocket 实时推送 ==========
+  _connectWebSocket() {
+    wsClient.connect({
+      onMessage: {
+        // 会员预约成功 -> 刷新课程人数
+        booking_create: () => this._refreshRealtime(),
+        // 会员/管理员取消预约 -> 刷新课程人数
+        booking_cancel: () => this._refreshRealtime(),
+        // 签到（扫码/现场补签/标记上课/自动签到）-> 刷新签到人数
+        booking_checkin: () => this._refreshRealtime()
+      },
+      onFallback: () => this._refreshRealtime()
+    });
+  },
+
+  _disconnectWebSocket() {
+    wsClient.disconnect();
+  },
+
+  // 实时刷新当前视图（防抖：批量签到等连续推送只触发一次刷新）
+  _refreshRealtime() {
+    if (this._wsRefreshTimer) return;
+    this._wsRefreshTimer = setTimeout(() => {
+      this._wsRefreshTimer = null;
+      const jobs = [this.loadTodaySchedules()];
+      // 月视图课程数
+      if (this.data.currentMonth) {
+        jobs.push(this.loadMonthSchedules(this.data.currentMonth));
+      }
+      // 选中了非今天的日期
+      if (this.data.currentDate && this.data.currentDate !== this.data.todayDate &&
+          (this.data.dateSchedules || []).length) {
+        jobs.push(this.loadDateSchedules(this.data.currentDate));
+      }
+      // 预约面板打开中
+      if (this.data.showBookingPanel && this.data.panelSchedule) {
+        jobs.push(this.loadBookingList(this.data.panelSchedule._id));
+      }
+      Promise.all(jobs).catch(() => {});
+    }, 600);
   },
 
   initDates() {

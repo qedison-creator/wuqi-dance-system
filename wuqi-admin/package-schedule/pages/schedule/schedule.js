@@ -4,6 +4,7 @@ const { COURSE_DURATIONS, DEFAULT_DURATION } = require('../../../utils/config');
 const { getBeijingDate, getWeekday } = require('../../../utils/helpers');
 const { getScheduleStatusText, getCancelReasonText, cropImageSafe, computeScheduleDisplayStatus } = require('../../../utils/util');
 const { MAX_IMAGE_SIZE, getUploadErrorMessage } = require('../../utils/schedule-helpers');
+const wsClient = require('../../../utils/websocket-client');
 
 Page({
   data: {
@@ -125,15 +126,22 @@ Page({
       this.generateMonthCalendar(this.data.currentMonth);
     }
     this._startAutoRefresh();
+    this._connectWebSocket();
   },
 
   onHide() {
     this._stopAutoRefresh();
+    this._disconnectWebSocket();
   },
 
   onUnload() {
     this._isDestroyed = true;
     this._stopAutoRefresh();
+    this._disconnectWebSocket();
+    if (this._wsRefreshTimer) {
+      clearTimeout(this._wsRefreshTimer);
+      this._wsRefreshTimer = null;
+    }
   },
 
   _startAutoRefresh() {
@@ -148,6 +156,32 @@ Page({
       clearInterval(this._autoRefreshTimer);
       this._autoRefreshTimer = null;
     }
+  },
+
+  // ========== WebSocket 实时推送 ==========
+  _connectWebSocket() {
+    wsClient.connect({
+      onMessage: {
+        // 预约/取消/签到 -> 立即刷新课程列表（平时由 30 秒轮询兜底）
+        booking_create: () => this._refreshRealtime(),
+        booking_cancel: () => this._refreshRealtime(),
+        booking_checkin: () => this._refreshRealtime()
+      },
+      onFallback: () => this._refreshRealtime()
+    });
+  },
+
+  _disconnectWebSocket() {
+    wsClient.disconnect();
+  },
+
+  // 实时刷新（防抖：批量签到等连续推送只触发一次刷新）
+  _refreshRealtime() {
+    if (this._wsRefreshTimer) return;
+    this._wsRefreshTimer = setTimeout(() => {
+      this._wsRefreshTimer = null;
+      this.loadSchedules();
+    }, 600);
   },
 
   // 全局网络恢复回调（由 app.js 的 onNetworkStatusChange 触发）
