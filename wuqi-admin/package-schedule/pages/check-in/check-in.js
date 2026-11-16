@@ -504,7 +504,7 @@ Page({
   },
 
   doConfirmCheckIn() {
-    const { checkedBookingIds, isOnsiteMode, profileData, selectedSchedule } = this.data;
+    const { checkedBookingIds, isOnsiteMode, profileData, selectedSchedule, encryptedToken } = this.data;
 
     this.setData({ checkInLoading: true });
 
@@ -527,6 +527,9 @@ Page({
         schedule_ids: scheduleIds,
         user_id: profileData.member._id,
         onsite: isOnsiteMode,
+        // 扫会员二维码进入时携带凭证：后端据此区分「扫码签到」（scan 系，按时刻归一化）
+        // 与「人工选人签到」（manual）。搜索会员号进入时 encryptedToken 为空 → 人工签到
+        encrypted_token: encryptedToken || undefined,
       }
     }).then(() => {
       this.setData({
@@ -537,6 +540,7 @@ Page({
         checkedBookingIds: [],
         isOnsiteMode: false,
         memberCode: '',
+        encryptedToken: null,
       });
       wx.showToast({ title: `签到成功（${scheduleIds.length}节）`, icon: 'success' });
       if (selectedSchedule) {

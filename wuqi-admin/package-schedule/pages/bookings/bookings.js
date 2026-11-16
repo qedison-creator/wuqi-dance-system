@@ -138,6 +138,10 @@ Page({
         const status = item.status;
         const cancelType = item.cancel_type;
         const isExempted = status === 'exempted' || item.is_exempted;
+        // 签到方式（全局口径表）：历史 admin/onsite 归一为 manual（样式类统一）；
+        // 极早期无 method 的历史记录按 source 兜底（onsite→人工签到，否则→扫码签到）
+        const rawMethod = item.check_in_method || (item.source === 'onsite' ? 'manual' : 'scan');
+        const checkInMethod = rawMethod === 'admin' || rawMethod === 'onsite' ? 'manual' : rawMethod;
         const booking = {
           _id: item._id,
           userId: item.user_id?._id ? String(item.user_id._id) : '',
@@ -155,6 +159,9 @@ Page({
           checkedIn: item.checked_in || status === 'checked_in' || status === 'completed',
           isCompleted: status === 'completed',
           isOnsite: item.source === 'onsite',
+          // 签到方式标签（全局口径表）：统一按 check_in_method 映射，与运营管理/会员详情一致
+          methodText: this.getCheckInMethodText(rawMethod),
+          checkInMethod: checkInMethod,
           cancelType: cancelType,
           cancelReason: item.cancel_reason || '',
           isExempted: isExempted,
@@ -271,13 +278,15 @@ Page({
         const displayName = realName || nickName || '未知用户';
         const nickNameDisplay = realName && nickName && nickName !== realName ? nickName : '';
         const att = item.attendance;
+        // 签到方式（全局口径表）：优先 Attendance.check_in_method，其次 Booking.check_in_method 兜底，
+        // 都缺失时才按 source 推导（booking→自动签到，否则→扫码签到）
         let method = 'scan';
-        if (att) {
-          if (att.check_in_method) method = att.check_in_method;
-          else if (att.source === 'booking') method = 'auto';
-          else method = 'scan';
+        if (att && att.check_in_method) {
+          method = att.check_in_method;
         } else if (item.check_in_method) {
           method = item.check_in_method;
+        } else if (att && att.source === 'booking') {
+          method = 'auto';
         }
         return {
           _id: item.booking_id || item._id,

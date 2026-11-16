@@ -260,7 +260,7 @@
           <view class="booking-actions">
             <text class="booking-credits" wx:if="{{item.deductDays}}">缩短有效期{{item.deductDays}}天</text>
             <text class="booking-credits" wx:else>扣{{item.creditsDeducted}}{{item.creditsUnit}}</text>
-            <text class="checked-in-method-tag">{{item.checkInMethodText}}</text>
+            <text class="checked-in-method-tag {{item.checkInMethodClass ? 'method-' + item.checkInMethodClass : ''}}">{{item.checkInMethodText}}</text>
           </view>
         </view>
         <view class="sheet-empty" wx:if="{{checkedInList.length === 0}}">

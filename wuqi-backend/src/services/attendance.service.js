@@ -144,10 +144,12 @@ exports.getAttendanceBySchedule = async (scheduleId) => {
       attendance: att ? {
         id: att._id,
         source: att.source,
+        check_in_method: att.check_in_method, // 签到方式（全局口径表），前端统一映射显示
         check_in_time: att.check_in_time,
         check_in_by: att.check_in_by,
         credits_cost: att.credits_cost,
       } : null,
+      check_in_method: b.check_in_method, // Booking 侧兜底（极早期无 Attendance check_in_method 的记录）
       checked_in: isCompleted || !!att || b.checked_in,
       credits_deducted: b.credits_deducted || 0,
       ...buildDeductionInfo(b),

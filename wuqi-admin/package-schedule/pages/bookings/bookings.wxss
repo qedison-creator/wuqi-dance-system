@@ -200,11 +200,6 @@
   color: #1976D2;
 }
 
-.status-tag.onsite-tag {
-  background: #E3F2FD;
-  color: #1976D2;
-}
-
 .status-tag.exempt-tag {
   background: #F3E5F5;
   color: #8E24AA;
@@ -300,6 +295,7 @@
 }
 
 .check-in-method {
+  display: inline-block;
   font-size: 24rpx;
   padding: 8rpx 20rpx;
   border-radius: var(--radius-sm);
@@ -313,6 +309,22 @@
 .check-in-method.method-auto {
   background-color: rgba(212, 120, 110, 0.1);
   color: #D4786E;
+}
+
+/* 签到方式全局口径表新增值：manual/scan_ongoing/scan_after（配色与会员详情页对齐） */
+.check-in-method.method-manual {
+  background-color: rgba(123, 158, 179, 0.1);
+  color: #7B9EB3;
+}
+
+.check-in-method.method-scan_ongoing {
+  background-color: rgba(232, 152, 94, 0.1);
+  color: #E8985E;
+}
+
+.check-in-method.method-scan_after {
+  background-color: rgba(149, 117, 205, 0.1);
+  color: #9575CD;
 }
 
 .check-in-method.method-exempt_cancel {

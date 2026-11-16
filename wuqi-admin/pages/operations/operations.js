@@ -805,13 +805,17 @@ Page({
           checkInTime: item.check_in_time ? formatDateTime(item.check_in_time) : '',
           checkedIn: item.checked_in || status === 'checked_in' || status === 'completed',
           isCompleted: status === 'completed',
-          // 签到方式文本：按 check_in_method 归一化（scan 按时刻三分；manual/历史 admin/onsite → 人工签到）
+          // 签到方式（全局口径表）：文本与样式类统一映射（历史 admin/onsite 归一为 manual）；
+          // 无 method 且非空降的极早期记录兜底显示「已签到」，样式类为空（中性色）
           checkInMethodText: item.check_in_method === 'scan' ? '扫码签到'
             : (item.check_in_method === 'scan_ongoing' ? '现场签到'
               : (item.check_in_method === 'scan_after' ? '课后补签'
                 : (item.check_in_method === 'auto' ? '自动签到'
                   : (item.check_in_method === 'manual' || item.check_in_method === 'admin' || item.check_in_method === 'onsite' ? '人工签到'
                     : (item.source === 'onsite' ? '人工签到' : '已签到'))))),
+          checkInMethodClass: (item.check_in_method === 'scan' || item.check_in_method === 'scan_ongoing' || item.check_in_method === 'scan_after' || item.check_in_method === 'auto' || item.check_in_method === 'manual')
+            ? item.check_in_method
+            : ((item.check_in_method === 'admin' || item.check_in_method === 'onsite' || item.source === 'onsite') ? 'manual' : ''),
           cancelType: item.cancel_type,
           cancelReason: item.cancel_reason || '',
           creditsRefunded: item.credits_refunded || 0,

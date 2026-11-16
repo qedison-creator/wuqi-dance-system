@@ -658,6 +658,8 @@ Page({
                 mg._checkInCredits = latestCheckIn.credits_deducted || 0;
                 mg._checkInDeductDays = latestCheckIn.deduct_days || null;
                 const method = latestCheckIn.check_in_method || (latestCheckIn.source === 'onsite' ? 'manual' : 'scan');
+                // 样式类（全局口径表）：历史 admin/onsite 归一为 manual，与其他页面配色统一
+                mg._checkInMethodClass = (method === 'admin' || method === 'onsite') ? 'manual' : method;
                 mg._checkInMethodText = this.getCheckInMethodText(method);
               }
             });

@@ -1829,13 +1829,30 @@
 }
 
 .attendance-source.method-auto {
-  background: var(--color-primary-bg);
-  color: var(--color-primary);
+  background: rgba(212, 120, 110, 0.1);
+  color: #D4786E;
 }
 
-.attendance-source.method-onsite {
+/* 签到方式全局口径表新增值：manual/scan_ongoing/scan_after */
+.attendance-source.method-manual {
+  background: rgba(123, 158, 179, 0.1);
+  color: #7B9EB3;
+}
+
+.attendance-source.method-scan_ongoing {
   background: rgba(232, 152, 94, 0.1);
   color: #E8985E;
+}
+
+.attendance-source.method-scan_after {
+  background: rgba(149, 117, 205, 0.1);
+  color: #9575CD;
+}
+
+/* 历史 onsite/admin 存储值按口径表显示「人工签到」，配色与 manual 统一 */
+.attendance-source.method-onsite {
+  background: rgba(123, 158, 179, 0.1);
+  color: #7B9EB3;
 }
 
 .attendance-source.method-admin {

@@ -2621,10 +2621,11 @@ exports.batchCheckLowAttendance = async (hoursBefore = 2) => {
 // 开课前 → scan（扫码签到）/ 进行中 → scan_ongoing（现场签到）/ 已结束 → scan_after（课后补签）
 // 语义前提：已预约会员开课时已被自动签到（auto），进行中/结束后还能扫码的必然是无预约空降
 const resolveScanMethod = (schedule) => {
-  const now = new Date();
-  // 北京时间（UTC+8）
-  const bj = new Date(now.getTime() + (8 * 60 + now.getTimezoneOffset()) * 60000);
-  const bjDate = bj.toISOString().slice(0, 10);
+  // 北京时间统一用 dayjs.tz（与项目其他处一致）。
+  // 旧实现手工平移时区（now + (8*60 + offset)）再读 getUTCHours，该公式只在 UTC 服务器上正确：
+  // 在 UTC+8 服务器上会差 8 小时，把"课中扫码"误判成"开课前扫码"（scan_ongoing 被写成 scan）。
+  const bj = bjNow();
+  const bjDate = bj.format('YYYY-MM-DD');
   const toMin = (t) => {
     if (!t) return null;
     const [h, m] = String(t).split(':').map(Number);
@@ -2633,7 +2634,7 @@ const resolveScanMethod = (schedule) => {
   if (bjDate > schedule.date) return 'scan_after';
   if (bjDate < schedule.date) return 'scan';
   // 同日：比较北京时间分钟
-  const curMin = bj.getUTCHours() * 60 + bj.getUTCMinutes();
+  const curMin = bj.hour() * 60 + bj.minute();
   const startMin = toMin(schedule.start_time) ?? 0;
   const endMin = toMin(schedule.end_time) ?? (startMin + 60);
   if (curMin < startMin) return 'scan';
@@ -2641,8 +2642,8 @@ const resolveScanMethod = (schedule) => {
   return 'scan_after';
 };
 
-// 扫码签到
-exports.checkIn = async (scheduleId, userId, operatorId = null, isOnsite = false, checkInMethod = 'scan') => {
+// 扫码/人工签到
+exports.checkIn = async (scheduleId, userId, operatorId = null, isOnsite = false, checkInMethod = 'manual') => {
   // 已注销会员不可再签到（batchCheckIn 等直接调用服务层的入口一并拦截）
   const checkInMember = await User.findById(userId).select('is_deleted').lean();
   if (checkInMember && checkInMember.is_deleted) {
@@ -2695,6 +2696,13 @@ exports.checkIn = async (scheduleId, userId, operatorId = null, isOnsite = false
       }
     }
 
+    // 空降课：签到时刻现场新建预约。
+    // 签到方式（全局口径表）：扫码进入（encrypted_token）→ 按时刻归一化 scan/scan_ongoing/scan_after；
+    // 人工选人 → manual 人工签到。（历史上人工选人也被无条件归一化成扫码系，是三页标签不一致的根因之一）
+    if (checkInMethod === 'scan') {
+      checkInMethod = resolveScanMethod(schedule);
+    }
+
     booking = await Booking.create({
       user_id: userId,
       schedule_id: scheduleId,
@@ -2707,8 +2715,7 @@ exports.checkIn = async (scheduleId, userId, operatorId = null, isOnsite = false
       credits_deducted: schedule.credits_cost || 1,
       member_snapshot: Booking.buildMemberSnapshot(await User.findById(userId).select('real_name nick_name member_code phone')),
       source: 'onsite',
-      // 空降课：签到时刻现场新建预约，签到方式按时刻归一化（不再使用 onsite）
-      check_in_method: resolveScanMethod(schedule),
+      check_in_method: checkInMethod,
       is_walk_in: true,
       check_in_time: new Date(),
       check_in_by: operatorId,
@@ -2853,12 +2860,14 @@ exports.checkIn = async (scheduleId, userId, operatorId = null, isOnsite = false
       throw new Error('已签到过');
     }
 
-    // 已预约会员签到：管理端"现场签到模式"对已预约会员操作 → 人工签到（manual）
-    // 真实扫会员码 → 按签到时刻与课程时间归一化（开课前 scan / 进行中 scan_ongoing / 已结束 scan_after）
+    // 已预约会员签到（全局口径表）：
+    //   - 扫码进入（encrypted_token）→ 按签到时刻归一化（开课前 scan / 进行中 scan_ongoing / 已结束 scan_after）
+    //   - 人工选人（现场模式勾选或课程日志代签，无 encrypted_token）→ manual 人工签到
+    //   现场模式对已预约会员操作时仅是"人工入口"，会员走过预约流程，source 仍记 'booking'（不影响已预约统计）
     if (isOnsite) {
       isOnsite = false;
-      checkInMethod = 'manual';
-    } else {
+    }
+    if (checkInMethod === 'scan') {
       checkInMethod = resolveScanMethod(schedule);
     }
 

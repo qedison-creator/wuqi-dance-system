@@ -84,7 +84,7 @@
           <view class="user-name-row">
             <text class="user-name">{{item.userName}}</text>
             <text class="status-tag completed-tag" wx:if="{{item.isCompleted}}">已完成</text>
-            <text class="status-tag onsite-tag" wx:if="{{item.isOnsite}}">现场签到</text>
+            <text class="check-in-method method-{{item.checkInMethod}}" wx:if="{{item.methodText}}">{{item.methodText}}</text>
           </view>
           <view class="user-phone-row" wx:if="{{item.userWechatPhone || item.userReservePhone}}">
             <text class="user-phone-item" wx:if="{{item.userWechatPhone}}">微信:{{item.userWechatPhone}}</text>

@@ -951,6 +951,33 @@
   border-radius: 8rpx;
 }
 
+/* 签到方式标签配色（全局口径表，与其他页面统一）：
+   扫码=绿 / 自动=粉 / 人工(含历史 admin/onsite)=蓝灰 / 现场=橙 / 补签=紫 */
+.checked-in-method-tag.method-scan {
+  background: rgba(77, 184, 160, 0.1);
+  color: #4DB8A0;
+}
+
+.checked-in-method-tag.method-auto {
+  background: rgba(212, 120, 110, 0.1);
+  color: #D4786E;
+}
+
+.checked-in-method-tag.method-manual {
+  background: rgba(123, 158, 179, 0.1);
+  color: #7B9EB3;
+}
+
+.checked-in-method-tag.method-scan_ongoing {
+  background: rgba(232, 152, 94, 0.1);
+  color: #E8985E;
+}
+
+.checked-in-method-tag.method-scan_after {
+  background: rgba(149, 117, 205, 0.1);
+  color: #9575CD;
+}
+
 .course-cancelled-tag {
   font-size: 24rpx;
   color: #C44B4B;

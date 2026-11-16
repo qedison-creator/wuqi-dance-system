@@ -198,14 +198,12 @@ router.post('/check-in', auth, checkPermission(['super_admin', 'store_manager', 
       return res.status(400).json({ code: 400, message: '缺少schedule_id参数', data: null });
     }
 
-    // 区分签到方式：
-    //   - onsite=true：现场临时签到（无预约，管理员补签）→ 'onsite'
-    //   - 有 encrypted_token：扫码签到（管理员扫会员二维码）→ 'scan'
-    //   - 其他：管理员代签（已预约会员，课程日志直接点签到）→ 'admin'
+    // 签到方式判定（全局口径表）：
+    //   - 带 encrypted_token（管理员扫了会员二维码进入）→ 'scan'，service 内再按签到时刻归一化为 scan/scan_ongoing/scan_after
+    //   - 其他（人工选人，无论有无预约、是否现场模式）→ 'manual' 人工签到
+    //   - onsite=true 仅表示允许无预约空降补签，不代表签到方式
     const isOnsiteFlag = !!onsite;
-    const checkInMethod = isOnsiteFlag
-      ? 'onsite'
-      : (encrypted_token ? 'scan' : 'admin');
+    const checkInMethod = encrypted_token ? 'scan' : 'manual';
 
     const results = [];
     for (const sid of ids) {
