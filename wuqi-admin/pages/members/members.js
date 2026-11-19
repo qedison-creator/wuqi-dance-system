@@ -418,8 +418,13 @@ Page({
       app.globalData.currentStore = currentStore || null;
       app.globalData.currentStoreId = id;
       app.globalData.shopStoreId = id;
+    } else {
+      // 选"全部门店"：同步写全局空值（全局契约：shopStoreId='' = 全部门店），跨页跟随；
+      // 单门店角色无门店切换器，不受影响
+      app.globalData.currentStore = null;
+      app.globalData.currentStoreId = '';
+      app.globalData.shopStoreId = '';
     }
-    // 选"全部门店"：仅本页临时视图，不写全局（不影响仅单店的页面）
     this._lastGlobalShopStoreId = app.globalData.shopStoreId || '';
     this.setData({
       currentStoreId: id,

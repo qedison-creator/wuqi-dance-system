@@ -159,8 +159,13 @@ Page({
         app.globalData.currentStoreId = found._id;
       }
       app.globalData.shopStoreId = storeId;
+    } else {
+      // 选"全部"：同步写全局空值（全局契约：shopStoreId='' = 全部门店），跨页跟随；
+      // 单门店角色无门店切换器，不受影响
+      app.globalData.currentStore = null;
+      app.globalData.currentStoreId = '';
+      app.globalData.shopStoreId = '';
     }
-    // 选"全部"：仅本页视图，不写全局（不影响仅单店的页面）
     this.setData({ activeStoreId: storeId, yearGroups: [] });
     this.loadBookings();
   },
