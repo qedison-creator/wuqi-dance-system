@@ -31,6 +31,14 @@
           <text class="hero-since">加入{{memberSinceDays}}天</text>
         </view>
         <view class="hero-action" wx:if="{{userInfo.member_status === 'official'}}">
+          <!-- 站内信入口：胶囊按钮（与会员码同款） + 红点角标 -->
+          <view class="msg-entry" bindtap="onGoMessages">
+            <text class="msg-entry-glyph">✉</text>
+            <text class="msg-entry-text">消息</text>
+            <view class="msg-entry-badge" wx:if="{{msgUnread > 0}}">
+              <text class="msg-entry-badge-num">{{msgUnread > 99 ? '99+' : msgUnread}}</text>
+            </view>
+          </view>
           <view class="qr-btn" bindtap="onShowQRCode">
             <view class="qr-btn-icon"></view>
             <text class="qr-btn-text">会员码</text>
@@ -54,6 +62,13 @@
     <!-- 纸上舞台：会员志（纸底直排） -->
     <block wx:if="{{skinId === 'paper' && isOfficialMember}}">
       <view class="pf-hero-paper">
+        <!-- 站内信入口：方形「信」字框（与功能菜单图标同款） + 朱红数字章 -->
+        <view class="pfp-mail" bindtap="onGoMessages">
+          <text class="pfp-mail-txt">信</text>
+          <view class="pfp-mail-stamp" wx:if="{{msgUnread > 0}}">
+            <text class="pfp-mail-stamp-num">{{msgUnread > 99 ? '99+' : msgUnread}}</text>
+          </view>
+        </view>
         <view class="pfp-row">
           <view class="pfp-ava">
             <image class="pfp-ava-img" src="{{avatarSrc}}" binderror="onImgError" data-type="avatar" data-id="user" mode="aspectFill" />
@@ -75,6 +90,13 @@
     <!-- VOLT：护照名片 -->
     <block wx:if="{{skinId === 'volt' && isOfficialMember}}">
       <view class="pf-hero-volt">
+        <!-- 站内信入口：方形描边钮 + 黑色实心角标 -->
+        <view class="pfv-mail" bindtap="onGoMessages">
+          <text class="pfv-mail-glyph">✉</text>
+          <view class="pfv-mail-badge" wx:if="{{msgUnread > 0}}">
+            <text class="pfv-mail-badge-num">{{msgUnread > 99 ? '99+' : msgUnread}}</text>
+          </view>
+        </view>
         <view class="pfv-row">
           <view class="pfv-ava">
             <image class="pfv-ava-img" src="{{avatarSrc}}" binderror="onImgError" data-type="avatar" data-id="user" mode="aspectFill" />
@@ -704,6 +726,12 @@
           <text class="pf-mi-en">PASS</text>
           <text class="pf-mi-arr">→</text>
         </view>
+        <view class="pf-mi" bindtap="onSkinSettings">
+          <view class="pf-mi-ico"></view>
+          <text class="pf-mi-name">皮肤外观</text>
+          <text class="pf-mi-en">SKIN</text>
+          <text class="pf-mi-arr">→</text>
+        </view>
         <view class="pf-mi" bindtap="onMyBookings">
           <view class="pf-mi-ico"></view>
           <text class="pf-mi-name">我的记录</text>
@@ -726,12 +754,6 @@
           <view class="pf-mi-ico"></view>
           <text class="pf-mi-name">个人信息</text>
           <text class="pf-mi-en">PROFILE</text>
-          <text class="pf-mi-arr">→</text>
-        </view>
-        <view class="pf-mi" bindtap="onSkinSettings">
-          <view class="pf-mi-ico"></view>
-          <text class="pf-mi-name">皮肤外观</text>
-          <text class="pf-mi-en">SKIN</text>
           <text class="pf-mi-arr">→</text>
         </view>
         <view class="pf-mi" bindtap="onGoGallery">
@@ -765,6 +787,12 @@
           <text class="pf-mi-en">PASS</text>
           <text class="pf-mi-arr">→</text>
         </view>
+        <view class="pf-mi" bindtap="onSkinSettings">
+          <view class="pf-mi-ico"></view>
+          <text class="pf-mi-name">皮肤外观</text>
+          <text class="pf-mi-en">SKIN</text>
+          <text class="pf-mi-arr">→</text>
+        </view>
         <view class="pf-mi" bindtap="onMyBookings">
           <view class="pf-mi-ico"></view>
           <text class="pf-mi-name">我的记录</text>
@@ -787,12 +815,6 @@
           <view class="pf-mi-ico"></view>
           <text class="pf-mi-name">个人信息</text>
           <text class="pf-mi-en">PROFILE</text>
-          <text class="pf-mi-arr">→</text>
-        </view>
-        <view class="pf-mi" bindtap="onSkinSettings">
-          <view class="pf-mi-ico"></view>
-          <text class="pf-mi-name">皮肤外观</text>
-          <text class="pf-mi-en">SKIN</text>
           <text class="pf-mi-arr">→</text>
         </view>
         <view class="pf-mi" bindtap="onGoGallery">

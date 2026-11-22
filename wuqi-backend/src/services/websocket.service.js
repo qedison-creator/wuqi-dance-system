@@ -386,6 +386,35 @@ function broadcastToAdmins(event, data = {}) {
 }
 
 /**
+ * 仅向会员端在线连接广播事件
+ * 用于公告发布/新站内信等事件通知会员端实时刷新（公告栏、弹窗、未读角标、消息列表）
+ *
+ * @param {string} event - 事件类型，如 announcement_new / message_update
+ * @param {Object} data - 推送数据
+ */
+function broadcastToMembers(event, data = {}) {
+  const message = JSON.stringify({
+    event,
+    updateTime: new Date().toISOString(),
+    data
+  });
+
+  let sentCount = 0;
+  for (const conns of connectionPool.values()) {
+    for (const ws of conns) {
+      if (ws._userType === 'member' && ws.readyState === 1) {
+        ws.send(message);
+        sentCount++;
+      }
+    }
+  }
+  if (sentCount > 0) {
+    console.log(`[WS] broadcastToMembers ${event}: ${sentCount}个会员连接`);
+  }
+  return sentCount;
+}
+
+/**
  * 向指定用户推送消息（自动注入 version + event_id，保证幂等防乱序）
  * @param {string} userId - 用户ID
  * @param {string} event - 事件类型
@@ -493,6 +522,7 @@ module.exports = {
   initWebSocketServer,
   broadcastCourseUpdate,
   broadcastToAdmins,
+  broadcastToMembers,
   sendToUser,
   broadcastMemberCountUpdate,
   broadcastAccountOnlineStatus,

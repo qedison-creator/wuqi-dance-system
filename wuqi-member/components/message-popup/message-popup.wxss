@@ -1,0 +1,226 @@
+/* 站内信弹窗 —— 三皮肤（classic / paper / volt） */
+
+.mp-mask {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(30, 22, 20, 0.5);
+  z-index: 3000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 60rpx;
+  box-sizing: border-box;
+}
+
+.mp-card {
+  width: 100%;
+  max-width: 620rpx;
+  background: #FFFFFF;
+  border-radius: 28rpx;
+  padding: 36rpx 32rpx 28rpx;
+  box-sizing: border-box;
+  box-shadow: 0 20rpx 60rpx rgba(30, 22, 20, 0.25);
+}
+
+/* ---------- 头部 ---------- */
+.mp-head {
+  display: flex;
+  align-items: center;
+  gap: 14rpx;
+  padding-bottom: 24rpx;
+}
+.mp-head-title {
+  font-size: 34rpx;
+  font-weight: 800;
+  color: #2A2122;
+}
+.mp-head-badge {
+  padding: 4rpx 14rpx;
+  background: #FBF1EC;
+  border-radius: 999rpx;
+}
+.mp-head-badge-text {
+  font-size: 20rpx;
+  color: #C5744B;
+  font-weight: 700;
+}
+
+/* ---------- 列表 ---------- */
+.mp-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8rpx;
+}
+.mp-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 16rpx;
+  padding: 20rpx 8rpx;
+  border-top: 2rpx solid #F6F0EA;
+}
+.mp-item:first-child {
+  border-top: none;
+}
+.mp-item-dot {
+  width: 14rpx;
+  height: 14rpx;
+  border-radius: 50%;
+  margin-top: 12rpx;
+  flex-shrink: 0;
+}
+.mp-item-body {
+  flex: 1;
+  min-width: 0;
+}
+.mp-item-title-row {
+  display: flex;
+  align-items: baseline;
+  gap: 12rpx;
+  flex-wrap: wrap;
+}
+.mp-item-type {
+  font-size: 21rpx;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+.mp-item-title {
+  font-size: 28rpx;
+  font-weight: 700;
+  color: #2A2122;
+  line-height: 1.4;
+}
+.mp-item-content {
+  display: block;
+  margin-top: 6rpx;
+  font-size: 24rpx;
+  color: #8C7F80;
+  line-height: 1.5;
+}
+.mp-item-arrow {
+  flex-shrink: 0;
+  margin-top: 8rpx;
+}
+.mp-item-arrow-text {
+  font-size: 30rpx;
+  color: #C4B6B7;
+}
+
+/* ---------- 底部按钮 ---------- */
+.mp-footer {
+  margin-top: 28rpx;
+  padding: 20rpx 0;
+  background: #C5744B;
+  border-radius: 999rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.mp-footer-text {
+  font-size: 28rpx;
+  color: #FFFFFF;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+}
+
+/* ==================== 纸上舞台 ==================== */
+.mp-card-paper {
+  background: var(--sk-card, #FCFAF4);
+  border: 2rpx solid var(--sk-line, #DFD6C2);
+  border-radius: 8rpx;
+  box-shadow: 0 20rpx 60rpx rgba(34, 29, 21, 0.28);
+}
+.mp-card-paper .mp-head-title {
+  font-family: var(--sk-serif, "Songti SC", serif);
+  font-size: 36rpx;
+  font-weight: 900;
+  color: var(--sk-ink, #221D15);
+  letter-spacing: 0.3em;
+}
+.mp-card-paper .mp-head-badge {
+  background: rgba(185, 58, 38, 0.08);
+  border-radius: 4rpx;
+}
+.mp-card-paper .mp-head-badge-text {
+  font-family: var(--sk-serif, "Songti SC", serif);
+  color: var(--sk-acc, #B93A26);
+}
+.mp-card-paper .mp-item {
+  border-top: 2rpx solid var(--sk-line, #DFD6C2);
+}
+.mp-card-paper .mp-item-dot {
+  border-radius: 4rpx;
+}
+.mp-card-paper .mp-item-type,
+.mp-card-paper .mp-item-title {
+  font-family: var(--sk-serif, "Songti SC", serif);
+}
+.mp-card-paper .mp-item-title {
+  font-weight: 900;
+}
+.mp-card-paper .mp-item-content {
+  color: var(--sk-sub, #6C6353);
+}
+.mp-card-paper .mp-item-arrow-text {
+  color: var(--sk-hint, #A79D89);
+}
+.mp-card-paper .mp-footer {
+  background: var(--sk-acc, #B93A26);
+  border-radius: var(--sk-btn-radius, 6rpx);
+  box-shadow: 2rpx 3rpx 0 rgba(34, 29, 21, 0.18);
+}
+.mp-card-paper .mp-footer-text {
+  font-family: var(--sk-serif, "Songti SC", serif);
+  color: var(--sk-btn-fg, #FCF7EE);
+  letter-spacing: 0.3em;
+}
+
+/* ==================== VOLT 舞力场 ==================== */
+.mp-card-volt {
+  background: var(--sk-card, #FFFFFF);
+  border: 3rpx solid var(--sk-ink, #111310);
+  border-radius: 24rpx;
+  box-shadow: 8rpx 8rpx 0 var(--sk-ink, #111310);
+}
+.mp-card-volt .mp-head-title {
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  color: var(--sk-ink, #111310);
+}
+.mp-card-volt .mp-head-badge {
+  background: var(--sk-ink, #111310);
+  border-radius: 999rpx;
+}
+.mp-card-volt .mp-head-badge-text {
+  color: var(--sk-acc-fg, #D7FF3B);
+  font-weight: 700;
+}
+.mp-card-volt .mp-item {
+  border-top: 2rpx solid var(--sk-line, #DCDAD0);
+}
+.mp-card-volt .mp-item-dot {
+  border-radius: 4rpx;
+}
+.mp-card-volt .mp-item-title {
+  font-weight: 900;
+  color: var(--sk-ink, #111310);
+}
+.mp-card-volt .mp-item-content {
+  color: var(--sk-sub, #77786F);
+}
+.mp-card-volt .mp-item-arrow-text {
+  color: var(--sk-ink, #111310);
+  font-weight: 800;
+}
+.mp-card-volt .mp-footer {
+  background: var(--sk-ink, #111310);
+  border-radius: 999rpx;
+  border: 3rpx solid var(--sk-ink, #111310);
+}
+.mp-card-volt .mp-footer-text {
+  color: var(--sk-acc-fg, #D7FF3B);
+  font-weight: 800;
+  letter-spacing: 0.2em;
+}

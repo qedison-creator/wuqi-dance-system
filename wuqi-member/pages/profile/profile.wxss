@@ -2294,3 +2294,54 @@ page {
   font-size: 22rpx;
   color: #A0956C;
 }
+
+/* ---------- 站内信入口（classic：与会员码同款胶囊，浅暖描边） ---------- */
+.msg-entry {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10rpx;
+  background: #FBF1EC;
+  border: 2rpx solid rgba(197, 116, 75, 0.4);
+  border-radius: 28rpx;
+  padding: 14rpx 28rpx;
+  margin-bottom: 14rpx;
+  box-sizing: border-box;
+  transition: all 0.2s ease;
+}
+.msg-entry:active {
+  transform: scale(0.95);
+}
+.msg-entry-glyph {
+  font-size: 26rpx;
+  line-height: 1;
+  color: #C5744B;
+}
+.msg-entry-text {
+  font-size: 24rpx;
+  line-height: 1;
+  color: #C5744B;
+  font-weight: 700;
+}
+.msg-entry-badge {
+  position: absolute;
+  top: -10rpx;
+  right: -10rpx;
+  min-width: 34rpx;
+  height: 34rpx;
+  padding: 0 8rpx;
+  background: #E06A5A;
+  border: 2rpx solid #FFFFFF;
+  border-radius: 999rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+}
+.msg-entry-badge-num {
+  font-size: 19rpx;
+  color: #FFFFFF;
+  font-weight: 700;
+  line-height: 1;
+}

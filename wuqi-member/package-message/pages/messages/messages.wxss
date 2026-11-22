@@ -1,0 +1,368 @@
+/* 站内信消息列表页 —— 三皮肤（classic / paper / volt） */
+
+.msg-page {
+  min-height: 100vh;
+  background: #FBFAF8;
+  box-sizing: border-box;
+  padding: 24rpx 30rpx 60rpx;
+}
+
+/* ---------- 页头 ---------- */
+.msg-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10rpx 0 24rpx;
+}
+.msg-header-title {
+  font-size: 40rpx;
+  font-weight: 800;
+  color: #2A2122;
+  letter-spacing: 0.02em;
+}
+.msg-markall {
+  display: flex;
+  align-items: center;
+  gap: 10rpx;
+  padding: 12rpx 24rpx;
+  background: #FFFFFF;
+  border: 2rpx solid #C5744B;
+  border-radius: 999rpx;
+}
+.msg-markall-text {
+  font-size: 24rpx;
+  color: #C5744B;
+  font-weight: 700;
+}
+.msg-markall-disabled {
+  opacity: 0.45;
+}
+.msg-markall-badge {
+  min-width: 30rpx;
+  height: 30rpx;
+  padding: 0 8rpx;
+  background: #E06A5A;
+  border-radius: 999rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+}
+.msg-markall-badge-num {
+  font-size: 18rpx;
+  color: #FFFFFF;
+  font-weight: 700;
+}
+
+/* ---------- 筛选 Chip ---------- */
+.msg-chips {
+  display: flex;
+  gap: 16rpx;
+  padding-bottom: 24rpx;
+}
+.msg-chip {
+  padding: 10rpx 28rpx;
+  background: #FFFFFF;
+  border: 2rpx solid #EFE7DE;
+  border-radius: 999rpx;
+}
+.msg-chip-text {
+  font-size: 24rpx;
+  color: #948284;
+}
+.msg-chip-active {
+  background: #C5744B;
+  border-color: #C5744B;
+}
+.msg-chip-active .msg-chip-text {
+  color: #FFFFFF;
+  font-weight: 700;
+}
+
+/* ---------- 列表 ---------- */
+.msg-list {
+  display: flex;
+  flex-direction: column;
+  gap: 20rpx;
+}
+.msg-item {
+  background: #FFFFFF;
+  border-radius: 20rpx;
+  padding: 26rpx 28rpx;
+  box-shadow: 0 4rpx 16rpx rgba(42, 33, 34, 0.05);
+}
+.msg-item-head {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+}
+.msg-type-dot {
+  width: 14rpx;
+  height: 14rpx;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.msg-type-name {
+  font-size: 22rpx;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+.msg-time {
+  margin-left: auto;
+  font-size: 22rpx;
+  color: #B5A5A5;
+  flex-shrink: 0;
+}
+.msg-title-row {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  margin-top: 14rpx;
+}
+.msg-red-dot {
+  width: 14rpx;
+  height: 14rpx;
+  border-radius: 50%;
+  background: #E06A5A;
+  flex-shrink: 0;
+}
+.msg-title {
+  font-size: 30rpx;
+  color: #2A2122;
+  font-weight: 500;
+  line-height: 1.4;
+}
+.msg-title-unread {
+  font-weight: 800;
+}
+.msg-content {
+  display: block;
+  margin-top: 10rpx;
+  font-size: 26rpx;
+  color: #8C7F80;
+  line-height: 1.6;
+}
+.msg-item-open .msg-content {
+  color: #5C5152;
+}
+
+/* ---------- 列表脚注 ---------- */
+.msg-list-footer {
+  padding: 30rpx 0 10rpx;
+  text-align: center;
+}
+.msg-list-footer-text {
+  font-size: 22rpx;
+  color: #C4B6B7;
+}
+.msg-list-loading {
+  padding: 20rpx 0;
+  text-align: center;
+}
+.msg-list-loading-text {
+  font-size: 22rpx;
+  color: #B5A5A5;
+}
+
+/* ---------- 空状态 ---------- */
+.msg-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 140rpx 0 60rpx;
+}
+.msg-empty-icon {
+  width: 120rpx;
+  height: 120rpx;
+  border-radius: 50%;
+  background: #FFFFFF;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 6rpx 20rpx rgba(42, 33, 34, 0.06);
+}
+.msg-empty-glyph {
+  font-size: 52rpx;
+  line-height: 1;
+  color: #D8CCCB;
+}
+.msg-empty-text {
+  margin-top: 28rpx;
+  font-size: 28rpx;
+  color: #948284;
+  font-weight: 600;
+}
+.msg-empty-sub {
+  margin-top: 10rpx;
+  font-size: 22rpx;
+  color: #C4B6B7;
+}
+
+/* ==================== 纸上舞台 ==================== */
+.skin-paper.msg-page {
+  background: var(--sk-bg);
+}
+.skin-paper .msg-header-title {
+  font-family: var(--sk-serif);
+  letter-spacing: 0.08em;
+}
+.skin-paper .msg-markall {
+  background: var(--sk-card);
+  border: 2rpx solid var(--sk-acc);
+  border-radius: var(--sk-btn-radius);
+  box-shadow: 2rpx 3rpx 0 rgba(34, 29, 21, 0.18);
+}
+.skin-paper .msg-markall-text {
+  font-family: var(--sk-serif);
+  color: var(--sk-acc);
+  letter-spacing: 0.1em;
+}
+.skin-paper .msg-markall-badge {
+  background: var(--sk-acc);
+  border-radius: 4rpx;
+}
+.skin-paper .msg-chip {
+  background: var(--sk-card);
+  border: 2rpx solid var(--sk-line);
+  border-radius: var(--sk-btn-radius);
+}
+.skin-paper .msg-chip-text {
+  font-family: var(--sk-serif);
+  color: var(--sk-sub);
+  letter-spacing: 0.08em;
+}
+.skin-paper .msg-chip-active {
+  background: var(--sk-acc);
+  border-color: var(--sk-acc);
+}
+.skin-paper .msg-chip-active .msg-chip-text {
+  color: var(--sk-btn-fg);
+}
+.skin-paper .msg-item {
+  background: var(--sk-card);
+  border: 2rpx solid var(--sk-line);
+  border-radius: 8rpx;
+  box-shadow: none;
+}
+.skin-paper .msg-type-name,
+.skin-paper .msg-title {
+  font-family: var(--sk-serif);
+}
+.skin-paper .msg-title-unread {
+  font-weight: 900;
+}
+.skin-paper .msg-time {
+  color: var(--sk-hint);
+}
+.skin-paper .msg-content {
+  color: var(--sk-sub);
+}
+.skin-paper .msg-item-open .msg-content {
+  color: var(--sk-ink);
+}
+/* paper 未读：朱红斜章「未启」 */
+.msg-stamp {
+  flex-shrink: 0;
+  transform: rotate(-6deg);
+  border: 2rpx solid var(--sk-acc);
+  border-radius: 4rpx;
+  padding: 0 6rpx;
+  margin-left: 4rpx;
+}
+.msg-stamp-text {
+  font-family: var(--sk-serif);
+  font-size: 19rpx;
+  color: var(--sk-acc);
+  font-weight: 700;
+  letter-spacing: 0.15em;
+}
+
+/* ==================== VOLT 舞力场 ==================== */
+.skin-volt.msg-page {
+  background: var(--sk-bg);
+}
+.skin-volt .msg-header-title {
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+/* volt 一键已读：黑胶囊钮 */
+.skin-volt .msg-markall {
+  background: var(--sk-ink);
+  border: 3rpx solid var(--sk-ink);
+  border-radius: 999rpx;
+  box-shadow: none;
+}
+.skin-volt .msg-markall-text {
+  color: var(--sk-acc-fg);
+  font-weight: 800;
+}
+.skin-volt .msg-markall-badge {
+  background: var(--sk-acc-fg);
+  border-radius: 999rpx;
+}
+.skin-volt .msg-markall-badge-num {
+  color: var(--sk-ink);
+  font-weight: 800;
+}
+.skin-volt .msg-chip {
+  background: var(--sk-card);
+  border: 2rpx solid var(--sk-line);
+  border-radius: 999rpx;
+}
+.skin-volt .msg-chip-text {
+  font-weight: 700;
+  color: var(--sk-sub);
+}
+.skin-volt .msg-chip-active {
+  background: var(--sk-ink);
+  border-color: var(--sk-ink);
+}
+.skin-volt .msg-chip-active .msg-chip-text {
+  color: var(--sk-acc-fg);
+}
+/* volt 列表项：方形描边卡片 + 左黑条未读标识 */
+.skin-volt .msg-item {
+  background: var(--sk-card);
+  border: 3rpx solid var(--sk-ink);
+  border-radius: 20rpx;
+  border-left: 6rpx solid transparent;
+  box-shadow: none;
+}
+.skin-volt .msg-item-unread {
+  border-left-color: var(--sk-ink);
+}
+.skin-volt .msg-title-unread {
+  font-weight: 900;
+}
+.skin-volt .msg-time {
+  color: var(--sk-hint);
+  font-weight: 600;
+}
+.skin-volt .msg-content {
+  color: var(--sk-sub);
+}
+.skin-volt .msg-item-open .msg-content {
+  color: var(--sk-ink);
+}
+.skin-volt .msg-empty-icon {
+  background: var(--sk-card);
+  border: 3rpx solid var(--sk-ink);
+  border-radius: 24rpx;
+  box-shadow: 4rpx 4rpx 0 var(--sk-ink);
+}
+.skin-volt .msg-empty-glyph {
+  color: var(--sk-ink);
+}
+.skin-volt .msg-empty-text {
+  color: var(--sk-ink);
+  font-weight: 800;
+}
+.skin-volt .msg-empty-sub {
+  color: var(--sk-sub);
+}
+.skin-volt .msg-list-footer-text,
+.skin-volt .msg-list-loading-text {
+  color: var(--sk-hint);
+  font-weight: 600;
+}

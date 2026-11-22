@@ -8,6 +8,7 @@ const Config = require('../models/Config');
 const UserPackage = require('../models/UserPackage');
 const Booking = require('../models/Booking');
 const { sendByTemplateKey } = require('../services/wechat-message.service');
+const messageService = require('./message.service');
 
 const DEFAULT_EXPIRE_REMIND_DAYS = 8;
 const DEFAULT_LOW_COUNT_REMIND = 5;
@@ -137,6 +138,17 @@ async function checkPackageExpireReminders() {
 
     const daysLeft = dayjs(pkg.end_date).tz(BEIJING_TZ).diff(today, 'day');
 
+    // 站内信（套餐即将到期）：与订阅消息同阈值、独立间隔去重，不依赖订阅消息发送结果
+    const pkgName = pkg.package_type === 'count_card'
+      ? `${pkg.total_credits}次卡`
+      : `${pkg.duration_value || ''}${pkg.duration_unit === 'month' ? '个月' : '天'}时间卡`;
+    const expireDateStr = pkg.end_date ? dayjs(pkg.end_date).tz(BEIJING_TZ).format('YYYY年MM月DD日') : '即将到期';
+    await messageService.createReminderMessage(
+      pkg.user_id._id, 'package_expire', '套餐即将到期',
+      `您的${pkgName}将于${expireDateStr}到期，剩余${daysLeft}天，记得及时续费哦`,
+      pkg._id, expireRemindInterval
+    );
+
     if (pkg.package_type === 'time_card') {
       const sent = await sendPackageExpireReminder(pkg.user_id, pkg, daysLeft);
       if (sent) {
@@ -210,6 +222,14 @@ async function checkCountCardLowReminders() {
     }
 
     console.log(`[Reminder] 准备发送次卡低次数提醒: 套餐=${pkg._id}, 剩余=${pkg.remaining_credits}次, openid=${pkg.user_id.openid?.substring(0,8)}...`);
+
+    // 站内信（次卡即将耗尽）：独立间隔去重，不依赖订阅消息发送结果
+    await messageService.createReminderMessage(
+      pkg.user_id._id, 'count_low', '次卡即将耗尽',
+      `您的${pkg.total_credits}次卡仅剩${pkg.remaining_credits}次，快用完啦，记得及时续购哦`,
+      pkg._id, lowCountRemindInterval
+    );
+
     const sent = await sendLowCountReminder(pkg.user_id, pkg);
     if (sent) {
       pkg.last_low_count_reminded_at = new Date();
@@ -279,6 +299,13 @@ async function checkInactiveMemberReminders() {
     }
 
     if (daysInactive >= inactiveDays) {
+      // 站内信（上课关怀提醒）：独立间隔去重，不依赖订阅消息发送结果
+      await messageService.createReminderMessage(
+        user._id, 'inactive', '上课关怀提醒',
+        `您已经${daysInactive}天没来跳舞啦，舞栖想你啦，快来约一节课吧`,
+        user._id, inactiveRemindInterval
+      );
+
       const sent = await sendInactiveReminder(user, daysInactive, activePackage);
       if (sent) {
         user.last_inactive_reminded_at = new Date();

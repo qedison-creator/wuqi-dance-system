@@ -1,7 +1,8 @@
 {
   "usingComponents": {
     "login-modal": "/components/login-modal/login-modal",
-    "announce-popup": "/components/announce-popup/announce-popup"
+    "announce-popup": "/components/announce-popup/announce-popup",
+    "message-popup": "/components/message-popup/message-popup"
   },
   "navigationStyle": "custom",
   "navigationBarTextStyle": "white",

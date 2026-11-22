@@ -64,6 +64,8 @@ Page({
     announceAnimPhase: '',
     showAnnouncePopup: false,
     popupAnnounce: null,
+    showMsgPopup: false,
+    msgPopupList: [],
     showStoreModal: false,
     showLoginModal: false,
     showLocationAuthModal: false,
@@ -159,6 +161,10 @@ Page({
     this.startAnnounceFlip();
     this.maybeShowAnnouncePopup();
 
+    // 站内信弹窗：进小程序检查上次访问后的新未读 + 使用中 60s 轮询（与公告弹窗串行）
+    this.maybeShowMessagePopup();
+    this._startMessagePolling();
+
     // 建立 WebSocket 连接：课程人数变化/套餐变更实时刷新（无需手动刷新页面）
     this._connectWebSocket();
   },
@@ -200,6 +206,7 @@ Page({
 
   onHide() {
     this.stopAnnounceFlip();
+    this._stopMessagePolling();
     if (this._storeWaitTimer) {
       clearInterval(this._storeWaitTimer);
       this._storeWaitTimer = null;
@@ -219,6 +226,7 @@ Page({
 
   onUnload() {
     this.stopAnnounceFlip();
+    this._stopMessagePolling();
     wsClient.disconnect();
     this._stopCourseRefreshTimer();
   },
@@ -238,6 +246,18 @@ Page({
           this._refreshMemberStatus().then(() => {
             this._scheduleCourseRefresh();
           }).catch(() => {});
+        },
+        // 管理端发布新公告 → 即时刷新公告栏，并允许新公告弹出弹窗（弹窗关闭后串行轮到站内信）
+        announcement_new: () => {
+          this.loadAnnounces();
+          this._announcePopupShown = false;
+          this.maybeShowAnnouncePopup();
+        },
+        // 新站内信（候补/审核/提醒/公告）→ 延迟 300ms 弹窗检查，给公告弹窗让位（串行队列）
+        message_update: () => {
+          setTimeout(() => {
+            this.maybeShowMessagePopup();
+          }, 300);
         }
       },
       // WS 不可用降级为 60s 轮询兜底（连接恢复后自动停止）
@@ -955,6 +975,66 @@ Page({
       } catch (e) { }
     }
     this.setData({ showAnnouncePopup: false });
+    // 站内信弹窗串行队列：公告弹窗关闭后轮到站内信弹窗
+    this.maybeShowMessagePopup();
+  },
+
+  // ===== 站内信弹窗（与公告弹窗串行，同一时刻只有一个） =====
+  // 触发：进小程序检查上次访问后新未读 + 使用中 60s 轮询；每批只弹一次
+  async maybeShowMessagePopup() {
+    // 每批只弹一次：本批已弹过或正在展示时不重复弹
+    if (this._msgPopupShown || this.data.showMsgPopup) return;
+    // 让位：登录/门店/位置授权/公告弹窗正在显示时本次不弹（由轮询或公告关闭后重试）
+    if (this.data.showLoginModal || this.data.showStoreModal || this.data.showLocationAuthModal
+      || this.data.showAnnounceModal || this.data.showAnnouncePopup) return;
+    if (!auth.checkLogin()) return;
+
+    try {
+      const after = wx.getStorageSync('msg_popup_seen_at') || 0;
+      const res = await request({ url: `/messages/popup?after=${after}`, method: 'GET', silent: true });
+      const list = res.data && res.data.list ? res.data.list : [];
+      if (!list.length) return;
+
+      this._msgPopupShown = true;
+      this.setData({ msgPopupList: list, showMsgPopup: true });
+    } catch (err) {
+      // 静默：站内信弹窗失败不影响主流程
+    }
+  },
+
+  // 知道了/已知悉：不置已读，仅关闭并记录本批时间（本批不再弹，消息保持未读角标）
+  onMessagePopupClose() {
+    try { wx.setStorageSync('msg_popup_seen_at', Date.now()); } catch (e) { }
+    this._msgPopupShown = false;
+    this.setData({ showMsgPopup: false, msgPopupList: [] });
+  },
+
+  // 点弹窗单条：跳转消息列表 + 标记该条已读
+  async onMessagePopupItemTap(e) {
+    const index = e.detail.index;
+    const item = this.data.msgPopupList[index];
+    try { wx.setStorageSync('msg_popup_seen_at', Date.now()); } catch (err) { }
+    this._msgPopupShown = false;
+    this.setData({ showMsgPopup: false, msgPopupList: [] });
+    if (item && item._id) {
+      request({ url: `/messages/${item._id}/read`, method: 'POST', silent: true }).catch(() => { });
+    }
+    wx.navigateTo({ url: '/package-message/pages/messages/messages' });
+  },
+
+  // 站内信轮询：使用中每 60s 检查一次新未读
+  _startMessagePolling() {
+    if (this._msgPollTimer) return;
+    this._msgPollTimer = setInterval(() => {
+      this.maybeShowMessagePopup();
+    }, 60000);
+  },
+
+  _stopMessagePolling() {
+    if (this._msgPollTimer) {
+      clearInterval(this._msgPollTimer);
+      this._msgPollTimer = null;
+    }
   },
 
   onPreventMove() {

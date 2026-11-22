@@ -736,3 +736,92 @@
 .skin-volt .form-input { background: #FFFFFF; border: 3rpx solid #111310; border-radius: 16rpx; color: #111310; }
 .skin-volt .gp-option { background: #FFFFFF; border: 3rpx solid #111310; border-radius: 16rpx; color: #77786F; font-weight: 700; }
 .skin-volt .gp-option.active { background: #D7FF3B; border-color: #111310; color: #111310; font-weight: 900; }
+
+/* ---------- 站内信入口（paper：方形信札钮 + 朱红数字章 / volt：方形描边钮 + 黑色实心角标） ---------- */
+.pf-hero-paper { position: relative; }
+.pfp-mail {
+  position: absolute;
+  top: 44rpx;
+  right: 30rpx;
+  width: 44rpx;
+  height: 44rpx;
+  border: 2rpx solid var(--sk-sub);
+  border-radius: 4rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  background: transparent;
+}
+.pfp-mail-txt {
+  font-family: var(--sk-serif);
+  font-size: 22rpx;
+  font-weight: 700;
+  color: var(--sk-ink);
+  line-height: 1;
+}
+.pfp-mail-stamp {
+  position: absolute;
+  top: -14rpx;
+  right: -16rpx;
+  min-width: 30rpx;
+  height: 30rpx;
+  padding: 0 6rpx;
+  background: var(--sk-acc);
+  border-radius: 4rpx;
+  transform: rotate(-6deg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  box-shadow: 1rpx 2rpx 0 rgba(34, 29, 21, 0.18);
+}
+.pfp-mail-stamp-num {
+  font-family: var(--sk-serif);
+  font-size: 17rpx;
+  color: #FCF7EE;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.pf-hero-volt { position: relative; }
+.pfv-mail {
+  position: absolute;
+  top: 22rpx;
+  right: 22rpx;
+  width: 64rpx;
+  height: 64rpx;
+  background: var(--sk-card);
+  border: 3rpx solid var(--sk-ink);
+  border-radius: 16rpx;
+  box-shadow: 3rpx 3rpx 0 var(--sk-ink);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+}
+.pfv-mail-glyph {
+  font-size: 34rpx;
+  line-height: 1;
+  color: var(--sk-ink);
+}
+.pfv-mail-badge {
+  position: absolute;
+  top: -16rpx;
+  right: -16rpx;
+  min-width: 36rpx;
+  height: 36rpx;
+  padding: 0 8rpx;
+  background: var(--sk-ink);
+  border-radius: 999rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+}
+.pfv-mail-badge-num {
+  font-size: 19rpx;
+  color: var(--sk-acc-fg);
+  font-weight: 800;
+  line-height: 1;
+}

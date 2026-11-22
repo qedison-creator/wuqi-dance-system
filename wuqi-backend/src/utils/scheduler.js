@@ -263,16 +263,36 @@ const startScheduler = () => {
 
       let expiredCount = 0;
       const scheduleIdsToNotify = new Set();
+      const expiredPairs = []; // 站内信候补过期通知：{ userId, scheduleId }
 
       for (const waitlist of expiredWaitlists) {
         waitlist.status = 'expired';
         await waitlist.save();
         expiredCount++;
         scheduleIdsToNotify.add(waitlist.schedule_id.toString());
+        expiredPairs.push({ userId: waitlist.user_id, scheduleId: waitlist.schedule_id });
       }
 
       if (expiredCount > 0) {
         console.log(`[Scheduler] 候补过期检查: ${expiredCount}个候补已过期`);
+
+        // 站内信（候补排队结果：确认时间已过未候补成功）
+        const messageService = require('../services/message.service');
+        const schedCache = {};
+        for (const pair of expiredPairs) {
+          try {
+            if (!schedCache[pair.scheduleId]) {
+              schedCache[pair.scheduleId] = await Schedule.findById(pair.scheduleId)
+                .select('_id course_name date start_time store_id')
+                .populate('store_id', 'name');
+            }
+            if (schedCache[pair.scheduleId]) {
+              await messageService.createWaitlistMessage({ _id: pair.userId }, schedCache[pair.scheduleId], 'expired');
+            }
+          } catch (msgErr) {
+            console.error('[Scheduler] 生成候补过期站内信失败:', msgErr.message);
+          }
+        }
 
         const bookingService = require('../services/booking.service');
         for (const scheduleId of scheduleIdsToNotify) {
@@ -506,6 +526,16 @@ const startScheduler = () => {
       }
     } catch (err) {
       console.error('[Scheduler] PendingTask 清理失败:', err.message);
+    }
+  });
+
+  // 任务14: 每天凌晨4:45归档清理超过90天的提醒类站内信
+  cron.schedule('45 4 * * *', async () => {
+    try {
+      const messageService = require('../services/message.service');
+      await messageService.archiveOldReminderMessages();
+    } catch (err) {
+      console.error('[Scheduler] 站内信归档清理失败:', err.message);
     }
   });
 

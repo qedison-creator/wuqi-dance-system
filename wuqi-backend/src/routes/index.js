@@ -28,6 +28,7 @@ const systemRoutes = require('./system.routes');
 const attendanceRoutes = require('./attendance.routes');
 const preMemberRoutes = require('./preMember.routes');
 const scheduleExportRoutes = require('./schedule-export.routes');
+const messageRoutes = require('./message.routes');
 
 router.use('/auth', authRoutes);
 router.use('/schedules', scheduleRoutes);
@@ -55,6 +56,7 @@ router.use('/qrcode', qrcodeRoutes);
 router.use('/system', systemRoutes);
 router.use('/attendance', attendanceRoutes);
 router.use('/pre-members', preMemberRoutes);
+router.use('/messages', messageRoutes);
 router.use('/template-mappings', require('./template-mapping.routes'));
 router.use('/schedule-export', scheduleExportRoutes);
 router.use('/datacenter', require('./datacenter.routes'));

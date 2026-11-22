@@ -1,0 +1,37 @@
+<!-- 站内信弹窗：最多展示 3 条最新未读，与公告弹窗串行（页面控制先后） -->
+<view class="mp-mask" wx:if="{{visible}}" catchtouchmove="onPreventMove">
+  <view class="mp-card mp-card-{{skinId}}">
+    <view class="mp-head">
+      <text class="mp-head-title">{{skinId === 'paper' ? '栖 信' : '新消息'}}</text>
+      <view class="mp-head-badge">
+        <text class="mp-head-badge-text">{{messages.length}} 条未读</text>
+      </view>
+    </view>
+
+    <view class="mp-list">
+      <view
+        class="mp-item"
+        wx:for="{{messages}}"
+        wx:key="_id"
+        data-index="{{index}}"
+        bindtap="onItemTap"
+      >
+        <view class="mp-item-dot" style="background: {{item.color}};"></view>
+        <view class="mp-item-body">
+          <view class="mp-item-title-row">
+            <text class="mp-item-type" style="color: {{item.color}};">{{item.type_name}}</text>
+            <text class="mp-item-title">{{item.title}}</text>
+          </view>
+          <text class="mp-item-content">{{item.content}}</text>
+        </view>
+        <view class="mp-item-arrow">
+          <text class="mp-item-arrow-text">›</text>
+        </view>
+      </view>
+    </view>
+
+    <view class="mp-footer" bindtap="onClose">
+      <text class="mp-footer-text">{{skinId === 'paper' ? '已知悉' : '知道了'}}</text>
+    </view>
+  </view>
+</view>

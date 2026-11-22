@@ -231,6 +231,10 @@ Page({
             // 套餐信息变更推送（录入/编辑/删除/停卡/复卡/延长）：即时刷新套餐数据
             console.log('[Profile] 收到套餐更新事件:', data);
             this._refreshStatsAndPackages();
+          },
+          message_update: () => {
+            // 新站内信：即时刷新未读角标
+            this.fetchMsgUnread();
           }
         },
         // WebSocket 断连降级：60秒轮询兜底，确保套餐数据不丢失
@@ -294,6 +298,8 @@ Page({
             avatarImageError: false
           });
           this.loadUserData();
+          // 站内信：刷新未读数（入口角标）
+          this.fetchMsgUnread();
         } else {
       // 游客态：断开 WebSocket 并清空残留回调，防止无 token 请求触发 401 跳转循环
       try { wsClient.disconnect(); } catch (e) { /* 忽略 */ }
@@ -1447,6 +1453,20 @@ Page({
 
   onHideExemptionTip() {
     this.setData({ showExemptionTip: false });
+  },
+
+  // 站内信：未读数（用户卡片 ✉ 入口角标，封顶 99+）
+  async fetchMsgUnread() {
+    try {
+      const res = await request({ url: '/messages/unread-count', method: 'GET', silent: true });
+      const count = res.data && res.data.count ? res.data.count : 0;
+      this.setData({ msgUnread: count });
+    } catch (err) { /* 静默：角标失败不影响个人中心 */ }
+  },
+
+  // 站内信入口：跳转消息列表页
+  onGoMessages() {
+    wx.navigateTo({ url: '/package-message/pages/messages/messages' });
   },
 
   onShowQRCode() {

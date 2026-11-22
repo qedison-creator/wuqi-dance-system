@@ -10,6 +10,7 @@ const memberService = require('./member.service');
 const packageService = require('./package.service');
 const packageLabel = require('../utils/packageLabel');
 const wechatMessageService = require('./wechat-message.service');
+const messageService = require('./message.service');
 const { broadcastToAdmins, broadcastCourseUpdate, sendToUser } = require('./websocket.service');
 const { CANCEL_TYPE, TIME_RULES, SCHEDULE_STATUS } = require('../constants/scheduleStatus.constants');
 
@@ -2090,6 +2091,13 @@ exports.promoteWaitlist = async (waitlistId, operatorId) => {
   waitlist.status = 'booked';
   await waitlist.save();
 
+  // 站内信（候补排队结果：转正成功）
+  try {
+    await messageService.createWaitlistMessage(promotedUser, schedule, 'promoted');
+  } catch (msgErr) {
+    console.error('生成候补转正站内信失败:', msgErr.message);
+  }
+
   // 记录日志
   if (operatorId) {
     await logService.createLog({
@@ -2332,6 +2340,13 @@ exports.notifyWaitlistUsers = async (scheduleId) => {
       await item.save();
       promotedCount++;
 
+      // 站内信（候补排队结果：转正成功）
+      try {
+        await messageService.createWaitlistMessage(user, schedule, 'promoted');
+      } catch (msgErr) {
+        console.error('生成候补转正站内信失败:', msgErr.message);
+      }
+
       if (user && user.openid) {
         try {
           await wechatMessageService.sendWaitlistAvailable(user, schedule);
@@ -2378,8 +2393,16 @@ exports.closeWaitlistsNearClassStart = async () => {
       closedCount += 1;
       try {
         const closeUser = await User.findById(item.user_id);
-        if (closeUser && closeUser.openid) {
-          await wechatMessageService.sendWaitlistClosed(closeUser, schedule);
+        if (closeUser) {
+          // 站内信（候补排队结果：临近开课排队结束）
+          try {
+            await messageService.createWaitlistMessage(closeUser, schedule, 'closed');
+          } catch (msgErr) {
+            console.error('生成候补排队结束站内信失败:', msgErr.message);
+          }
+          if (closeUser.openid) {
+            await wechatMessageService.sendWaitlistClosed(closeUser, schedule);
+          }
         }
       } catch (notifyErr) {
         console.error('推送排队结束通知失败:', notifyErr.message);

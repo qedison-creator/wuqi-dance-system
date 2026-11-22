@@ -147,6 +147,29 @@ exports.createAnnouncement = async (data, operatorId, operatorName, reqUser) => 
       console.error('[公告服务] 日志写入失败(公告已创建):', logErr.message);
     }
 
+    // 站内信（公告通知）：为可见范围内正式会员批量生成（仅发布即生效的公告）
+    if (announcement.status === 'active') {
+      try {
+        const messageService = require('./message.service');
+        await messageService.createAnnouncementMessages(announcement);
+      } catch (msgErr) {
+        console.error('[公告服务] 公告站内信生成失败:', msgErr.message);
+      }
+
+      // WS 实时推送：通知在线会员刷新公告栏/公告弹窗/站内信（串行队列由前端控制）
+      try {
+        const { broadcastToMembers } = require('./websocket.service');
+        broadcastToMembers('announcement_new', {
+          announcement_id: announcement._id,
+          title: announcement.title,
+          popup_type: announcement.popup_type || 'none'
+        });
+        broadcastToMembers('message_update', { reason: 'announcement' });
+      } catch (wsErr) {
+        console.error('[公告服务] 公告实时推送失败:', wsErr.message);
+      }
+    }
+
     return announcement;
   } catch (err) {
     console.error('[公告服务] createAnnouncement 失败:', err.message, 'data:', { title, content, store_id, status });

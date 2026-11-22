@@ -558,6 +558,14 @@ exports.reviewMember = async (id, action, reason, operatorId, storeId) => {
     }
   });
 
+  // 站内信（资料审核通知：入会申请审核结果）
+  try {
+    const messageService = require('./message.service');
+    await messageService.createAuditMessage(id, 'member_review', action === 'approve', reason || '');
+  } catch (msgErr) {
+    console.error('生成入会审核站内信失败:', msgErr.message);
+  }
+
   return user;
 };
 
@@ -1621,6 +1629,14 @@ exports.auditInfoChange = async (userId, action, operatorId, reason = '') => {
     } catch (notifyErr) {
       console.error('发送信息修改审核通知失败:', notifyErr.message);
     }
+  }
+
+  // 站内信（资料审核通知：资料修改审核结果）
+  try {
+    const messageService = require('./message.service');
+    await messageService.createAuditMessage(userId, 'info_change', action === 'approve', reason || '');
+  } catch (msgErr) {
+    console.error('生成资料修改审核站内信失败:', msgErr.message);
   }
 
   return user;

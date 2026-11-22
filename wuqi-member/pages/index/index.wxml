@@ -568,4 +568,7 @@
   <!-- 公告自动弹窗（一般/重要/永久三种类型，样式见 components/announce-popup） -->
   <announce-popup visible="{{showAnnouncePopup}}" announce="{{popupAnnounce}}" skinId="{{skinId}}" bind:close="onAnnouncePopupClose"></announce-popup>
 
+  <!-- 站内信弹窗（最多3条最新未读；与公告弹窗串行，公告优先） -->
+  <message-popup visible="{{showMsgPopup}}" messages="{{msgPopupList}}" skinId="{{skinId}}" bind:close="onMessagePopupClose" bind:itemtap="onMessagePopupItemTap"></message-popup>
+
 <update-modal />

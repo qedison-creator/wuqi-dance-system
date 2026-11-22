@@ -22,6 +22,12 @@
         "pages/gallery/gallery",
         "pages/skin-settings/skin-settings"
       ]
+    },
+    {
+      "root": "package-message",
+      "pages": [
+        "pages/messages/messages"
+      ]
     }
   ],
   "window": {
