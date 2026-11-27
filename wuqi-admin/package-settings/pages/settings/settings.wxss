@@ -81,7 +81,7 @@
   border-radius: 8rpx;
 }
 
-.guide-btn text {
+.guide-btn .at-guide-btn-text-t {
   font-size: 24rpx;
   color: var(--color-primary);
 }
@@ -246,7 +246,7 @@
   border-color: var(--color-primary);
 }
 
-.btn-secondary text {
+.btn-secondary .at-btn-secondary-text-t {
   font-size: var(--font-md);
   color: var(--text-primary);
   font-weight: 500;
@@ -262,7 +262,7 @@
   transform: scale(0.98);
 }
 
-.btn-primary text {
+.btn-primary .at-btn-primary-text-t {
   font-size: var(--font-md);
   color: var(--text-inverse);
   font-weight: bold;

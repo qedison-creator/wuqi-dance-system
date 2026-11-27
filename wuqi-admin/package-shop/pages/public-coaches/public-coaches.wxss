@@ -178,7 +178,7 @@
   white-space: nowrap;
 }
 
-.action-btn-small text {
+.action-btn-small .at-action-btn-small-text-t {
   font-size: 24rpx;
   color: var(--color-primary);
   white-space: nowrap;
@@ -188,7 +188,7 @@
   background-color: var(--color-warning-bg);
 }
 
-.action-btn-small.danger text {
+.action-btn-small.danger .at-action-btn-small-danger-text-t {
   color: var(--color-warning);
 }
 
@@ -246,7 +246,7 @@
   margin-bottom: 10rpx;
 }
 
-.radio-label text {
+.radio-label .at-radio-label-text-t {
   font-size: 28rpx;
   color: var(--text-primary);
   margin-left: 10rpx;
@@ -268,7 +268,7 @@
   border: 2rpx solid transparent;
 }
 
-.checkbox-item text {
+.checkbox-item .at-checkbox-item-text-t {
   font-size: 28rpx;
   color: var(--text-primary);
 }
@@ -278,7 +278,7 @@
   border-color: var(--color-primary);
 }
 
-.checkbox-item.active text {
+.checkbox-item.active .at-checkbox-item-text-t {
   color: var(--color-primary);
   font-weight: bold;
 }

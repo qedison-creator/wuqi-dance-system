@@ -49,6 +49,6 @@
   margin-bottom: 16rpx;
 }
 
-.privacy-text text {
+.privacy-text .at-privacy-text-text-t {
   display: inline;
 }

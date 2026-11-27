@@ -4,18 +4,18 @@
   <view class="view-mode-bar">
     <view class="view-mode-tabs">
       <view class="view-mode-item {{viewMode === 'day' ? 'active' : ''}}" data-mode="day" bindtap="onSwitchViewMode">
-        <text>排课设置</text>
+        <text class="at-view-mode-item-text-t">排课设置</text>
       </view>
       <view class="view-mode-item {{viewMode === 'month' ? 'active' : ''}}" data-mode="month" bindtap="onSwitchViewMode">
-        <text>课程浏览</text>
+        <text class="at-view-mode-item-text-t">课程浏览</text>
       </view>
     </view>
     <!-- 月视图显示今日按钮 -->
     <view class="today-btn" wx:if="{{viewMode === 'month'}}" bindtap="onGoToToday">
-      <text>今日</text>
+      <text class="at-today-btn-text-t">今日</text>
     </view>
     <view class="manage-btn" bindtap="onShowManageModal">
-      <text>管理</text>
+      <text class="at-manage-btn-text-t">管理</text>
     </view>
   </view>
 
@@ -23,7 +23,7 @@
   <view class="export-row" bindtap="onGoToExport">
     <view class="export-row-inner">
       <image class="export-icon" src="/images/icons/shop-schedule.svg" mode="aspectFit" decoding="async"></image>
-      <text>导出课程表</text>
+      <text class="at-export-row-inner-text-t">导出课程表</text>
     </view>
     <image class="menu-arrow" src="/images/icons/chevron-right.svg" mode="aspectFit" decoding="async"></image>
   </view>
@@ -41,20 +41,20 @@
   <view class="month-section" wx:if="{{viewMode === 'month'}}">
     <view class="month-header">
       <view class="month-nav-btn" bindtap="onChangeMonth" data-direction="prev">
-        <text>◀</text>
+        <text class="at-month-nav-btn-text-t">◀</text>
       </view>
       <text class="month-title">{{currentMonthName}}</text>
       <view class="month-nav-btn" bindtap="onChangeMonth" data-direction="next">
-        <text>▶</text>
+        <text class="at-month-nav-btn-text-t">▶</text>
       </view>
     </view>
     <view class="weekday-header">
-      <text wx:for="{{weekdays}}" wx:key="index">{{item}}</text>
+      <text class="at-weekday-header-text-t" wx:for="{{weekdays}}" wx:key="index">{{item}}</text>
     </view>
     <view class="month-calendar">
       <view class="calendar-week" wx:for="{{monthCalendar}}" wx:for-item="week" wx:key="index">
         <view class="calendar-cell {{day.type}} {{day.isToday ? 'today' : ''}} {{day.isSelected ? 'selected' : ''}}" wx:for="{{week}}" wx:for-item="day" wx:key="index" data-date="{{day.date}}" bindtap="onSelectMonthDate">
-          <text wx:if="{{day.type === 'date'}}">{{day.day}}</text>
+          <text class="at-calendar-cell-text-t" wx:if="{{day.type === 'date'}}">{{day.day}}</text>
         </view>
       </view>
     </view>
@@ -62,29 +62,29 @@
 
   <!-- 月视图下方的新增排课按钮（历史日期不显示） -->
   <view class="month-add-schedule-btn" wx:if="{{viewMode === 'month' && !isCurrentDatePast}}" bindtap="onAddSchedule">
-    <text>+ 新增排课</text>
+    <text class="at-month-add-schedule-btn-text-t">+ 新增排课</text>
   </view>
 
   <!-- 历史日期提示 -->
   <view class="history-notice" wx:if="{{isCurrentDatePast}}">
-    <text>历史日期：{{currentDate}} 的课程记录</text>
+    <text class="at-history-notice-text-t">历史日期：{{currentDate}} 的课程记录</text>
   </view>
 
   <!-- 排课列表 -->
   <view class="schedule-list">
     <!-- 模板预览提示 -->
     <view class="template-preview-hint" wx:if="{{viewMode === 'month' && schedules.length > 0 && schedules[0].isTemplatePreview}}">
-          <text>以下课程来自排课设置，点击"创建此课"可生成为当日正式排课。已禁用的课程不会在批量排课中生成。</text>
+          <text class="at-template-preview-hint-text-t">以下课程来自排课设置，点击"创建此课"可生成为当日正式排课。已禁用的课程不会在批量排课中生成。</text>
         </view>
     
     <view class="schedule-item card {{item.isHistory ? 'history' : ''}} {{item.isTemplatePreview ? 'template-preview' : ''}} {{item.enabled === false ? 'template-disabled' : ''}}" wx:for="{{schedules}}" wx:key="_id">
       <view class="schedule-header">
         <text class="course-name">{{item.course_name || item.danceStyleName + '课程'}}</text>
         <view class="schedule-header-tags">
-          <text class="schedule-source-tag" wx:if="{{viewMode === 'month' && !item.isTemplatePreview && item.from_template}}">来自排课设置</text>
-          <text class="schedule-source-tag temp-tag" wx:if="{{viewMode === 'month' && !item.isTemplatePreview && !item.from_template}}">临时增设</text>
-          <text class="schedule-source-tag exempt-lock-tag" wx:if="{{viewMode === 'month' && !item.isTemplatePreview && item.exempt_cancel_locked}}">已禁豁免取消</text>
-          <text class="schedule-status {{item.displayStatus || item.status}} {{item.isHistory ? 'history-status' : ''}} {{item.isTemplatePreview ? 'template-status' : ''}} {{item.hasScheduled ? 'scheduled-status' : ''}}">{{item.statusText}}</text>
+          <text class="schedule-source-tag at-schedule-header-tags-text-t" wx:if="{{viewMode === 'month' && !item.isTemplatePreview && item.from_template}}">来自排课设置</text>
+          <text class="schedule-source-tag temp-tag at-schedule-header-tags-text-t" wx:if="{{viewMode === 'month' && !item.isTemplatePreview && !item.from_template}}">临时增设</text>
+          <text class="schedule-source-tag exempt-lock-tag at-schedule-header-tags-text-t" wx:if="{{viewMode === 'month' && !item.isTemplatePreview && item.exempt_cancel_locked}}">已禁豁免取消</text>
+          <text class="schedule-status {{item.displayStatus || item.status}} {{item.isHistory ? 'history-status' : ''}} {{item.isTemplatePreview ? 'template-status' : ''}} {{item.hasScheduled ? 'scheduled-status' : ''}} at-schedule-header-tags-text-t">{{item.statusText}}</text>
         </view>
       </view>
       <view class="schedule-info">
@@ -121,66 +121,66 @@
         <!-- 月视图模板预览：显示快捷创建按钮 -->
         <block wx:if="{{viewMode === 'month' && item.isTemplatePreview}}">
           <view class="action-btn primary" wx:if="{{item.enabled !== false}}" data-index="{{index}}" bindtap="onCreateFromTemplate">
-            <text>创建此课</text>
+            <text class="at-action-btn-text-t at-action-btn-primary-text-t">创建此课</text>
           </view>
           <view class="action-btn disabled" wx:else>
-            <text>已禁用</text>
+            <text class="at-action-btn-text-t at-action-btn-disabled-text-t">已禁用</text>
           </view>
         </block>
         <!-- 月视图正常课程 -->
         <block wx:elif="{{viewMode === 'month'}}">
           <view class="action-btn" data-id="{{item._id}}" bindtap="onViewBookings">
-            <text>{{item.isHistory ? '查看预约' : '预约名单'}}</text>
+            <text class="at-action-btn-text-t">{{item.isHistory ? '查看预约' : '预约名单'}}</text>
           </view>
           <view class="action-btn {{item.isHistory || item.status === 'cancelled' || item.status === 'offline' || item.status === 'completed' ? 'disabled' : ''}}" data-index="{{index}}" bindtap="{{item.isHistory || item.status === 'cancelled' || item.status === 'offline' || item.status === 'completed' ? '' : 'onEditSchedule'}}">
-            <text>{{item.isHistory ? '已归档' : (item.status === 'cancelled' || item.status === 'offline') ? '已取消' : (item.status === 'completed' ? '已完成' : '编辑')}}</text>
+            <text class="at-action-btn-text-t">{{item.isHistory ? '已归档' : (item.status === 'cancelled' || item.status === 'offline') ? '已取消' : (item.status === 'completed' ? '已完成' : '编辑')}}</text>
           </view>
           <!-- 已取消/已下线状态显示对应按钮 -->
           <!-- 已下线状态：显示上线 + 删除按钮 -->
           <block wx:if="{{item.status === 'offline'}}">
             <view class="action-btn primary" wx:if="{{!item.isHistory}}" data-id="{{item._id}}" bindtap="onOnlineSchedule">
-              <text>上线</text>
+              <text class="at-action-btn-text-t at-action-btn-primary-text-t">上线</text>
             </view>
             <view class="action-btn danger" data-id="{{item._id}}" data-bookings="{{item.current_bookings || 0}}" bindtap="onDeleteSchedule">
-              <text>删除</text>
+              <text class="at-action-btn-text-t at-action-btn-danger-text-t">删除</text>
             </view>
           </block>
           <!-- 已取消状态：显示删除按钮 -->
           <view class="action-btn danger" wx:elif="{{item.status === 'cancelled'}}" data-id="{{item._id}}" data-bookings="{{item.current_bookings || 0}}" bindtap="onDeleteSchedule">
-            <text>删除</text>
+            <text class="at-action-btn-text-t at-action-btn-danger-text-t">删除</text>
           </view>
           <!-- 已结束课程：查看上课记录 + 下线 -->
           <block wx:elif="{{item.isHistory || item.status === 'completed'}}">
             <view class="action-btn history-action" data-id="{{item._id}}" bindtap="onViewAttendance">
-              <text>上课记录</text>
+              <text class="at-action-btn-text-t at-action-btn-history-action-text-t">上课记录</text>
             </view>
             <view class="action-btn warning" data-id="{{item._id}}" data-bookings="{{item.current_bookings || 0}}" bindtap="onOfflineSchedule">
-              <text>下线</text>
+              <text class="at-action-btn-text-t at-action-btn-warning-text-t">下线</text>
             </view>
           </block>
           <!-- 正常状态：无预约时显示下线+取消，有预约时仅显示取消 -->
           <block wx:else>
             <view class="action-btn exempt-toggle-btn {{item.exempt_cancel_locked ? 'active' : ''}}" data-id="{{item._id}}" data-locked="{{item.exempt_cancel_locked ? 'yes' : 'no'}}" bindtap="onToggleExemptLock">
-              <text>{{item.exempt_cancel_locked ? '已禁豁免' : '禁豁免'}}</text>
+              <text class="at-action-btn-text-t">{{item.exempt_cancel_locked ? '已禁豁免' : '禁豁免'}}</text>
             </view>
             <view class="action-btn warning" wx:if="{{(item.current_bookings || 0) === 0}}" data-id="{{item._id}}" data-bookings="{{item.current_bookings || 0}}" bindtap="onOfflineSchedule">
-              <text>下线</text>
+              <text class="at-action-btn-text-t at-action-btn-warning-text-t">下线</text>
             </view>
             <view class="action-btn danger" data-id="{{item._id}}" data-bookings="{{item.current_bookings || 0}}" bindtap="onCancelSchedule">
-              <text>取消</text>
+              <text class="at-action-btn-text-t at-action-btn-danger-text-t">取消</text>
             </view>
           </block>
         </block>
         <!-- 星期视图显示启用开关、编辑、删除 -->
         <block wx:else>
           <view class="action-btn toggle-btn {{item.enabled === false ? 'disabled-toggle' : ''}}" data-index="{{index}}" bindtap="onToggleTemplateItem">
-            <text>{{item.enabled === false ? '已禁用' : '已启用'}}</text>
+            <text class="at-action-btn-text-t at-action-btn-toggle-btn-text-t">{{item.enabled === false ? '已禁用' : '已启用'}}</text>
           </view>
           <view class="action-btn" data-index="{{index}}" bindtap="onEditSchedule">
-            <text>编辑</text>
+            <text class="at-action-btn-text-t">编辑</text>
           </view>
           <view class="action-btn danger" data-index="{{index}}" bindtap="onCancelSchedule">
-            <text>删除</text>
+            <text class="at-action-btn-text-t at-action-btn-danger-text-t">删除</text>
           </view>
         </block>
       </view>
@@ -189,7 +189,7 @@
     <!-- 模板预览的批量创建按钮 -->
     <view class="template-actions-row" wx:if="{{viewMode === 'month' && schedules.length > 0 && schedules[0].isTemplatePreview}}">
       <view class="create-all-btn" bindtap="onCreateAllFromTemplate">
-        <text>批量创建所有模板课程</text>
+        <text class="at-create-all-btn-text-t">批量创建所有模板课程</text>
       </view>
     </view>
     
@@ -198,10 +198,10 @@
     </view>
     <view class="schedule-actions-row" wx:if="{{viewMode === 'day'}}">
       <view class="copy-schedule-btn" bindtap="onShowCopyModal">
-        <text>复制周排课</text>
+        <text class="at-copy-schedule-btn-text-t">复制周排课</text>
       </view>
       <view class="add-schedule-btn" bindtap="onAddSchedule">
-        <text>+ 新增排课</text>
+        <text class="at-add-schedule-btn-text-t">+ 新增排课</text>
       </view>
     </view>
   </view>
@@ -251,7 +251,7 @@
           <text class="form-label">舞种 *</text>
           <view class="select-list">
             <view class="select-item {{formData.danceStyleId === item._id ? 'active' : ''}}" wx:for="{{danceStyles}}" wx:key="_id" data-id="{{item._id}}" data-name="{{item.name}}" bindtap="onSelectDanceStyle">
-              <text>{{item.name}}</text>
+              <text class="at-select-item-text-t">{{item.name}}</text>
             </view>
           </view>
         </view>
@@ -261,7 +261,7 @@
           <text class="form-label">教练 *</text>
           <view class="select-list">
             <view class="select-item {{formData.coachId === item._id ? 'active' : ''}}" wx:for="{{coaches}}" wx:key="_id" data-id="{{item._id}}" data-name="{{item.name}}" bindtap="onSelectCoach">
-              <text>{{item.name}}</text>
+              <text class="at-select-item-text-t">{{item.name}}</text>
             </view>
           </view>
         </view>
@@ -279,10 +279,10 @@
           <text class="form-label">课程时长</text>
           <view class="duration-list">
             <view class="duration-item {{formData.duration === item.value ? 'active' : ''}}" wx:for="{{courseDurations}}" wx:key="value" data-value="{{item.value}}" bindtap="onSelectDuration">
-              <text>{{item.label}}</text>
+              <text class="at-duration-item-text-t">{{item.label}}</text>
             </view>
             <view class="duration-item {{isCustomDuration ? 'active' : ''}}" bindtap="onShowCustomDuration">
-              <text>自定义</text>
+              <text class="at-duration-item-text-t">自定义</text>
             </view>
           </view>
           <input wx:if="{{showCustomDuration}}" class="input-field" type="number" placeholder="请输入时长(分钟)" value="{{formData.customDuration}}" data-field="customDuration" bindinput="onFormInput" bindblur="onCustomDurationBlur" />
@@ -293,16 +293,16 @@
           <text class="form-label">扣除课时</text>
           <view class="credit-cost-list">
             <view class="credit-cost-item {{formData.creditsCost === 1 ? 'active' : ''}}" bindtap="onSelectCreditsCost" data-value="1">
-              <text>1课时</text>
+              <text class="at-credit-cost-item-text-t">1课时</text>
             </view>
             <view class="credit-cost-item {{formData.creditsCost === 2 ? 'active' : ''}}" bindtap="onSelectCreditsCost" data-value="2">
-              <text>2课时</text>
+              <text class="at-credit-cost-item-text-t">2课时</text>
             </view>
             <view class="credit-cost-item {{formData.creditsCost === 3 ? 'active' : ''}}" bindtap="onSelectCreditsCost" data-value="3">
-              <text>3课时</text>
+              <text class="at-credit-cost-item-text-t">3课时</text>
             </view>
             <view class="credit-cost-item {{formData.creditsCost === -1 ? 'active' : ''}}" bindtap="onSelectCreditsCost" data-value="-1">
-              <text>自定义</text>
+              <text class="at-credit-cost-item-text-t">自定义</text>
             </view>
           </view>
           <input wx:if="{{formData.creditsCost === -1}}" class="input-field" type="number" placeholder="请输入课时" value="{{formData.customCreditsCost}}" data-field="customCreditsCost" bindinput="onFormInput" />
@@ -342,16 +342,16 @@
           <text class="form-label">预约截止时间（开课前）</text>
           <view class="deadtime-list">
             <view class="deadtime-item {{formData.bookingDeadline === 180 ? 'active' : ''}}" bindtap="onSelectBookingDeadline" data-value="180">
-              <text>3小时</text>
+              <text class="at-deadtime-item-text-t">3小时</text>
             </view>
             <view class="deadtime-item {{formData.bookingDeadline === 120 ? 'active' : ''}}" bindtap="onSelectBookingDeadline" data-value="120">
-              <text>2小时</text>
+              <text class="at-deadtime-item-text-t">2小时</text>
             </view>
             <view class="deadtime-item {{formData.bookingDeadline === 60 ? 'active' : ''}}" bindtap="onSelectBookingDeadline" data-value="60">
-              <text>1小时</text>
+              <text class="at-deadtime-item-text-t">1小时</text>
             </view>
             <view class="deadtime-item {{formData.bookingDeadline === -1 ? 'active' : ''}}" bindtap="onSelectBookingDeadline" data-value="-1">
-              <text>自定义</text>
+              <text class="at-deadtime-item-text-t">自定义</text>
             </view>
           </view>
           <input wx:if="{{formData.bookingDeadline === -1}}" class="input-field" type="number" placeholder="请输入分钟数" value="{{formData.customBookingDeadline}}" data-field="customBookingDeadline" bindinput="onFormInput" />
@@ -362,16 +362,16 @@
           <text class="form-label">取消预约截止时间（开课前）</text>
           <view class="deadtime-list">
             <view class="deadtime-item {{formData.cancelBookingDeadline === 180 ? 'active' : ''}}" bindtap="onSelectCancelBookingDeadline" data-value="180">
-              <text>3小时</text>
+              <text class="at-deadtime-item-text-t">3小时</text>
             </view>
             <view class="deadtime-item {{formData.cancelBookingDeadline === 120 ? 'active' : ''}}" bindtap="onSelectCancelBookingDeadline" data-value="120">
-              <text>2小时</text>
+              <text class="at-deadtime-item-text-t">2小时</text>
             </view>
             <view class="deadtime-item {{formData.cancelBookingDeadline === 60 ? 'active' : ''}}" bindtap="onSelectCancelBookingDeadline" data-value="60">
-              <text>1小时</text>
+              <text class="at-deadtime-item-text-t">1小时</text>
             </view>
             <view class="deadtime-item {{formData.cancelBookingDeadline === -1 ? 'active' : ''}}" bindtap="onSelectCancelBookingDeadline" data-value="-1">
-              <text>自定义</text>
+              <text class="at-deadtime-item-text-t">自定义</text>
             </view>
           </view>
           <input wx:if="{{formData.cancelBookingDeadline === -1}}" class="input-field" type="number" placeholder="请输入分钟数" value="{{formData.customCancelBookingDeadline}}" data-field="customCancelBookingDeadline" bindinput="onFormInput" />
@@ -382,7 +382,7 @@
           <text class="form-label">禁止豁免取消（临时控制，仅本节课）</text>
           <view class="deadtime-list">
             <view class="deadtime-item {{formData.exempt_cancel_locked ? 'active' : ''}}" bindtap="onFormToggleExemptLock">
-              <text>{{formData.exempt_cancel_locked ? '已禁止' : '未禁止'}}</text>
+              <text class="at-deadtime-item-text-t">{{formData.exempt_cancel_locked ? '已禁止' : '未禁止'}}</text>
             </view>
           </view>
           <view class="exempt-lock-hint"><text>禁止后会员无法对该节课使用豁免取消，不影响取消时限前的正常取消</text></view>
@@ -401,8 +401,8 @@
       </scroll-view>
 
       <view class="modal-buttons">
-        <view class="btn-secondary" bindtap="onCloseModal"><text>取消</text></view>
-        <view class="btn-primary" bindtap="onSubmitSchedule"><text>确认</text></view>
+        <view class="btn-secondary" bindtap="onCloseModal"><text class="at-btn-secondary-text-t">取消</text></view>
+        <view class="btn-primary" bindtap="onSubmitSchedule"><text class="at-btn-primary-text-t">确认</text></view>
       </view>
     </view>
   </view>
@@ -478,7 +478,7 @@
           </view>
           <view class="manage-confirm-row" wx:if="{{manageClearDate}}">
             <view class="btn-danger" bindtap="onConfirmClearAfterDate">
-              <text>确认清空 {{manageClearDate}} 之后的排课</text>
+              <text class="at-btn-danger-text-t">确认清空 {{manageClearDate}} 之后的排课</text>
             </view>
           </view>
         </view>
@@ -501,8 +501,8 @@
 
       <!-- 固定底部按钮：二次确认（移出 scroll-view，避免被遮挡） -->
       <view class="manage-confirm-row manage-confirm-footer" wx:if="{{showManageConfirm}}">
-        <view class="btn-secondary" bindtap="onCancelManageConfirm"><text>取消</text></view>
-        <view class="btn-danger {{manageConfirmInput === '确认' ? '' : 'disabled'}}" bindtap="onExecuteManageClear"><text>执行清空</text></view>
+        <view class="btn-secondary" bindtap="onCancelManageConfirm"><text class="at-btn-secondary-text-t">取消</text></view>
+        <view class="btn-danger {{manageConfirmInput === '确认' ? '' : 'disabled'}}" bindtap="onExecuteManageClear"><text class="at-btn-danger-text-t">执行清空</text></view>
       </view>
     </view>
   </view>
@@ -599,13 +599,13 @@
             <text class="form-label">{{copyForm.copyMode === 'weeks' ? '复制周数' : '复制月数'}}</text>
             <view class="stepper">
               <view class="stepper-btn" bindtap="onStepperMinus">
-                <text>-</text>
+                <text class="at-stepper-btn-text-t">-</text>
               </view>
               <view class="stepper-value">
-                <text>{{copyForm.copyCount}}</text>
+                <text class="at-stepper-value-text-t">{{copyForm.copyCount}}</text>
               </view>
               <view class="stepper-btn" bindtap="onStepperPlus">
-                <text>+</text>
+                <text class="at-stepper-btn-text-t">+</text>
               </view>
             </view>
             <text class="stepper-hint">{{copyForm.copyMode === 'weeks' ? '最多24周' : '最多12个月'}}</text>
@@ -661,7 +661,7 @@
             <view class="template-weekdays">
               <view class="template-weekday-item {{copyForm.selectedWeekdayMap[item.weekday] ? 'selected' : ''}} {{!weekTemplate[item.weekday] || weekTemplate[item.weekday].length === 0 ? 'disabled' : ''}}" wx:for="{{weekdayList}}" wx:key="index" data-weekday="{{item.weekday}}" bindtap="onToggleCopyWeekday">
                 <view class="weekday-checkbox {{copyForm.selectedWeekdayMap[item.weekday] ? 'checked' : ''}}">
-                  <text wx:if="{{copyForm.selectedWeekdayMap[item.weekday]}}">✓</text>
+                  <text class="at-weekday-checkbox-text-t" wx:if="{{copyForm.selectedWeekdayMap[item.weekday]}}">✓</text>
                 </view>
                 <text class="weekday-name">{{item.name}}</text>
                 <text class="weekday-count">{{weekTemplate[item.weekday] ? weekTemplate[item.weekday].length : 0}} 节</text>
@@ -699,13 +699,13 @@
             <text class="form-label">{{copyForm.copyMode === 'weeks' ? '复制周数' : '复制月数'}}</text>
             <view class="stepper">
               <view class="stepper-btn" bindtap="onStepperMinus">
-                <text>-</text>
+                <text class="at-stepper-btn-text-t">-</text>
               </view>
               <view class="stepper-value">
-                <text>{{copyForm.copyCount}}</text>
+                <text class="at-stepper-value-text-t">{{copyForm.copyCount}}</text>
               </view>
               <view class="stepper-btn" bindtap="onStepperPlus">
-                <text>+</text>
+                <text class="at-stepper-btn-text-t">+</text>
               </view>
             </view>
             <text class="stepper-hint">{{copyForm.copyMode === 'weeks' ? '最多24周' : '最多12个月'}}</text>
@@ -721,18 +721,18 @@
       <view class="modal-buttons">
         <block wx:if="{{viewMode === 'month'}}">
           <view class="btn-secondary" bindtap="{{copyStep === 1 ? 'onCloseCopyModal' : 'onCopyPrevStep'}}">
-            <text>{{copyStep === 1 ? '取消' : '上一步'}}</text>
+            <text class="at-btn-secondary-text-t">{{copyStep === 1 ? '取消' : '上一步'}}</text>
           </view>
           <view class="btn-primary" bindtap="{{copyStep === 3 ? 'onSubmitCopy' : 'onCopyNextStep'}}">
-            <text>{{copyStep === 3 ? '确认复制' : '下一步'}}</text>
+            <text class="at-btn-primary-text-t">{{copyStep === 3 ? '确认复制' : '下一步'}}</text>
           </view>
         </block>
         <block wx:else>
           <view class="btn-secondary" bindtap="onCloseCopyModal">
-            <text>取消</text>
+            <text class="at-btn-secondary-text-t">取消</text>
           </view>
           <view class="btn-primary" bindtap="onSubmitCopy">
-            <text>确认复制</text>
+            <text class="at-btn-primary-text-t">确认复制</text>
           </view>
         </block>
       </view>
@@ -767,8 +767,8 @@
         </view>
       </scroll-view>
       <view class="modal-buttons">
-        <view class="btn-secondary" bindtap="onCloseCancelReasonModal"><text>取消</text></view>
-        <view class="btn-danger {{cancelSelectedReason ? '' : 'disabled'}}" bindtap="onConfirmCancelSchedule"><text>确认取消</text></view>
+        <view class="btn-secondary" bindtap="onCloseCancelReasonModal"><text class="at-btn-secondary-text-t">取消</text></view>
+        <view class="btn-danger {{cancelSelectedReason ? '' : 'disabled'}}" bindtap="onConfirmCancelSchedule"><text class="at-btn-danger-text-t">确认取消</text></view>
       </view>
     </view>
   </view>

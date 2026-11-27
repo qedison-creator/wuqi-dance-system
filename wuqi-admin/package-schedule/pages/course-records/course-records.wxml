@@ -4,7 +4,7 @@
     <scroll-view scroll-x class="store-scroll">
       <view class="store-list">
         <view class="store-item {{currentStoreId === item._id ? 'active' : ''}}" wx:for="{{stores}}" wx:key="_id" data-id="{{item._id}}" bindtap="onSwitchStore">
-          <text>{{item.name}}</text>
+          <text class="at-store-item-text-t">{{item.name}}</text>
         </view>
       </view>
     </scroll-view>
@@ -19,11 +19,11 @@
   <view class="month-section">
     <view class="month-header">
       <view class="month-nav-btn" bindtap="onChangeMonth" data-direction="prev">
-        <text>◀</text>
+        <text class="at-month-nav-btn-text-t">◀</text>
       </view>
       <text class="month-title">{{currentMonthName}}</text>
       <view class="month-nav-btn" bindtap="onChangeMonth" data-direction="next">
-        <text>▶</text>
+        <text class="at-month-nav-btn-text-t">▶</text>
       </view>
     </view>
     
@@ -48,12 +48,12 @@
     </view>
     
     <view class="weekday-header">
-      <text wx:for="{{weekdays}}" wx:key="index">{{item}}</text>
+      <text class="at-weekday-header-text-t" wx:for="{{weekdays}}" wx:key="index">{{item}}</text>
     </view>
     <view class="month-calendar">
       <view class="calendar-week" wx:for="{{monthCalendar}}" wx:for-item="week" wx:key="index">
         <view class="calendar-cell {{day.type}} {{day.isToday ? 'today' : ''}} {{day.isSelected ? 'selected' : ''}} {{day.isPast ? 'past' : ''}} {{day.dayStatus ? 'day-status-' + day.dayStatus : ''}}" wx:for="{{week}}" wx:for-item="day" wx:key="index" data-date="{{day.date}}" bindtap="onSelectMonthDate">
-          <text wx:if="{{day.type === 'date'}}">{{day.day}}</text>
+          <text class="at-calendar-cell-text-t" wx:if="{{day.type === 'date'}}">{{day.day}}</text>
           <view class="status-bar status-bar-{{day.dayStatus}}" wx:if="{{day.type === 'date' && day.dayStatus}}"></view>
         </view>
       </view>
@@ -96,10 +96,10 @@
       </view>
       <view class="schedule-actions">
         <view class="action-btn" data-id="{{item._id}}" bindtap="onViewBookings">
-          <text>查看预约</text>
+          <text class="at-action-btn-text-t">查看预约</text>
         </view>
         <view class="action-btn history-action" data-id="{{item._id}}" bindtap="onViewAttendance">
-          <text>上课记录</text>
+          <text class="at-action-btn-text-t at-action-btn-history-action-text-t">上课记录</text>
         </view>
       </view>
     </view>

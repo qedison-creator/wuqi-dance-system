@@ -59,7 +59,7 @@
   flex-shrink: 0;
 }
 
-.bg-btn-entry text {
+.bg-btn-entry .at-bg-btn-entry-text-t {
   font-size: 26rpx;
   font-weight: 600;
   color: #1A1A1A;
@@ -123,15 +123,7 @@
   font-weight: 600;
 }
 
-/* 重置 button 默认样式 */
-button.action-btn {
-  margin: 0;
-  line-height: normal;
-}
 
-button.action-btn::after {
-  border: none;
-}
 
 .btn-save {
   background: #E8785A;

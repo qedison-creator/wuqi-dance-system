@@ -6,8 +6,8 @@
       <text class="page-desc">{{selectedStoreName ? selectedStoreName + ' 轮播图' : '门店轮播图'}}</text>
     </view>
     <view class="add-btn" bindtap="onAddBanner">
-      <text class="add-icon">+</text>
-      <text>添加轮播图</text>
+      <text class="add-icon at-add-btn-text-t">+</text>
+      <text class="at-add-btn-text-t">添加轮播图</text>
     </view>
   </view>
 
@@ -43,13 +43,13 @@
       <view class="banner-actions">
         <!-- 多门店展示对非超管禁用操作按钮（置灰且不可点击） -->
         <view class="action-btn primary {{item.can_operate ? '' : 'action-btn-disabled'}}" data-id="{{item._id}}" bindtap="{{item.can_operate ? 'onEditBanner' : 'onDisabledBannerAction'}}">
-          <text>编辑</text>
+          <text class="at-action-btn-text-t at-action-btn-primary-text-t">编辑</text>
         </view>
         <view class="action-btn {{item.status === 'active' ? 'warning' : 'success'}} {{item.can_operate ? '' : 'action-btn-disabled'}}" data-id="{{item._id}}" data-index="{{index}}" bindtap="{{item.can_operate ? 'onToggleStatus' : 'onDisabledBannerAction'}}">
-          <text>{{item.status === 'active' ? '禁用' : '启用'}}</text>
+          <text class="at-action-btn-text-t">{{item.status === 'active' ? '禁用' : '启用'}}</text>
         </view>
         <view class="action-btn danger {{item.can_operate ? '' : 'action-btn-disabled'}}" data-id="{{item._id}}" bindtap="{{item.can_operate ? 'onDeleteBanner' : 'onDisabledBannerAction'}}">
-          <text>删除</text>
+          <text class="at-action-btn-text-t at-action-btn-danger-text-t">删除</text>
         </view>
       </view>
     </view>
@@ -61,7 +61,7 @@
     <text class="empty-title">暂无门店轮播图</text>
     <text class="empty-desc">点击上方按钮添加轮播图</text>
     <view class="empty-btn" bindtap="onAddBanner">
-      <text>添加轮播图</text>
+      <text class="at-empty-btn-text-t">添加轮播图</text>
     </view>
   </view>
 
@@ -132,8 +132,8 @@
       </scroll-view>
 
       <view class="modal-buttons">
-        <view class="btn-secondary" bindtap="onCloseModal"><text>取消</text></view>
-        <view class="btn-primary" bindtap="onSubmit"><text>保存</text></view>
+        <view class="btn-secondary" bindtap="onCloseModal"><text class="at-btn-secondary-text-t">取消</text></view>
+        <view class="btn-primary" bindtap="onSubmit"><text class="at-btn-primary-text-t">保存</text></view>
       </view>
     </view>
   </view>

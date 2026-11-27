@@ -1395,7 +1395,7 @@
   pointer-events: none;
 }
 
-.expand-toggle text {
+.expand-toggle .at-expand-toggle-text-t {
   margin-right: 10rpx;
 }
 

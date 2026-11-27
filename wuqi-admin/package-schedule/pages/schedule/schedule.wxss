@@ -32,12 +32,12 @@
   border-color: var(--color-primary);
 }
 
-.store-item text {
+.store-item .at-store-item-text-t {
   font-size: 28rpx;
   color: var(--text-primary);
 }
 
-.store-item.active text {
+.store-item.active .at-store-item-text-t {
   color: var(--color-primary);
   font-weight: bold;
 }
@@ -65,7 +65,7 @@
   border: 1rpx solid var(--border);
 }
 
-.view-mode-item text {
+.view-mode-item .at-view-mode-item-text-t {
   font-size: 26rpx;
   color: var(--text-secondary);
 }
@@ -75,7 +75,7 @@
   border-color: var(--color-primary);
 }
 
-.view-mode-item.active text {
+.view-mode-item.active .at-view-mode-item-text-t {
   color: var(--color-primary);
   font-weight: bold;
 }
@@ -87,7 +87,7 @@
   border: 1rpx solid var(--border);
 }
 
-.today-btn text {
+.today-btn .at-today-btn-text-t {
   font-size: 24rpx;
   color: var(--color-primary);
 }
@@ -260,7 +260,7 @@
   text-align: center;
 }
 
-.month-add-schedule-btn text {
+.month-add-schedule-btn .at-month-add-schedule-btn-text-t {
   font-size: 28rpx;
   color: var(--text-inverse);
   font-weight: bold;
@@ -283,7 +283,7 @@
   border-radius: 50%;
 }
 
-.month-nav-btn text {
+.month-nav-btn .at-month-nav-btn-text-t {
   font-size: 24rpx;
   color: var(--text-secondary);
 }
@@ -301,7 +301,7 @@
   border-bottom: 1rpx solid var(--border-light);
 }
 
-.weekday-header text {
+.weekday-header .at-weekday-header-text-t {
   font-size: 24rpx;
   color: var(--text-tertiary);
   width: 14.28%;
@@ -336,7 +336,7 @@
   width: calc(14.28% - 8rpx);
 }
 
-.calendar-cell.date text {
+.calendar-cell.date .at-calendar-cell-text-t {
   font-size: 28rpx;
   color: var(--text-primary);
 }
@@ -346,7 +346,7 @@
   border: 1rpx solid var(--color-primary);
 }
 
-.calendar-cell.today text {
+.calendar-cell.today .at-calendar-cell-text-t {
   color: var(--color-primary);
   font-weight: bold;
 }
@@ -355,7 +355,7 @@
   background-color: var(--color-primary);
 }
 
-.calendar-cell.selected text {
+.calendar-cell.selected .at-calendar-cell-text-t {
   color: var(--text-inverse);
   font-weight: bold;
 }
@@ -368,7 +368,7 @@
   border-radius: 8rpx;
 }
 
-.history-notice text {
+.history-notice .at-history-notice-text-t {
   font-size: 26rpx;
   color: var(--text-secondary);
 }
@@ -437,7 +437,7 @@
   row-gap: 8rpx;
 }
 
-.schedule-header-tags text {
+.schedule-header-tags .at-schedule-header-tags-text-t {
   white-space: nowrap;
 }
 
@@ -545,7 +545,7 @@
   text-align: center;
 }
 
-.action-btn text {
+.action-btn .at-action-btn-text-t {
   font-size: 26rpx;
   color: var(--text-secondary);
 }
@@ -554,7 +554,7 @@
   background-color: var(--color-primary);
 }
 
-.action-btn.primary text {
+.action-btn.primary .at-action-btn-primary-text-t {
   color: var(--text-inverse);
 }
 
@@ -562,7 +562,7 @@
   background-color: var(--color-danger-bg);
 }
 
-.action-btn.danger text {
+.action-btn.danger .at-action-btn-danger-text-t {
   color: var(--color-danger);
 }
 
@@ -570,7 +570,7 @@
   background-color: #fff7e6;
 }
 
-.action-btn.warning text {
+.action-btn.warning .at-action-btn-warning-text-t {
   color: #fa8c16;
 }
 
@@ -579,7 +579,7 @@
   opacity: 0.5;
 }
 
-.action-btn.disabled text {
+.action-btn.disabled .at-action-btn-disabled-text-t {
   color: var(--text-tertiary);
 }
 
@@ -587,7 +587,7 @@
   background-color: var(--color-completed-bg);
 }
 
-.action-btn.history-action text {
+.action-btn.history-action .at-action-btn-history-action-text-t {
   color: var(--color-completed);
 }
 
@@ -595,7 +595,7 @@
   background-color: var(--color-success-bg);
 }
 
-.action-btn.toggle-btn text {
+.action-btn.toggle-btn .at-action-btn-toggle-btn-text-t {
   color: var(--color-success);
 }
 
@@ -603,7 +603,7 @@
   background-color: var(--bg-elevated);
 }
 
-.action-btn.disabled-toggle text {
+.action-btn.disabled-toggle .at-action-btn-text-t {
   color: var(--text-tertiary);
 }
 
@@ -628,7 +628,7 @@
   margin-bottom: 20rpx;
 }
 
-.template-preview-hint text {
+.template-preview-hint .at-template-preview-hint-text-t {
   font-size: 26rpx;
   color: var(--text-secondary);
   line-height: 1.5;
@@ -646,7 +646,7 @@
   text-align: center;
 }
 
-.create-all-btn text {
+.create-all-btn .at-create-all-btn-text-t {
   font-size: 30rpx;
   color: var(--text-inverse);
   font-weight: bold;
@@ -670,8 +670,7 @@
   text-align: center;
 }
 
-.copy-schedule-btn text,
-.add-schedule-btn text {
+.copy-schedule-btn .at-copy-schedule-btn-text-t, .add-schedule-btn .at-add-schedule-btn-text-t {
   font-size: 30rpx;
   color: var(--text-inverse);
   font-weight: bold;
@@ -684,7 +683,7 @@
   border: 1rpx solid var(--border);
 }
 
-.manage-btn text {
+.manage-btn .at-manage-btn-text-t {
   font-size: 24rpx;
   color: var(--text-secondary);
 }
@@ -695,7 +694,7 @@
   border-radius: 40rpx;
 }
 
-.export-btn text {
+.export-btn .at-export-btn-text-t {
   font-size: 24rpx;
   color: #FFFFFF;
   font-weight: 600;
@@ -718,7 +717,7 @@
   gap: 16rpx;
 }
 
-.export-row-inner text {
+.export-row-inner .at-export-row-inner-text-t {
   font-size: 28rpx;
   color: var(--text-primary);
   font-weight: 600;
@@ -880,7 +879,7 @@
   border-color: var(--color-primary);
 }
 
-.btn-secondary text {
+.btn-secondary .at-btn-secondary-text-t {
   font-size: var(--font-md);
   color: var(--text-primary);
   font-weight: 500;
@@ -903,7 +902,7 @@
   transform: scale(0.98);
 }
 
-.btn-primary text {
+.btn-primary .at-btn-primary-text-t {
   font-size: var(--font-md);
   color: var(--text-inverse);
   font-weight: bold;
@@ -914,7 +913,7 @@
   box-shadow: none;
 }
 
-.btn-primary.disabled text {
+.btn-primary.disabled .at-btn-primary-text-t {
   color: var(--text-inverse);
 }
 
@@ -969,7 +968,7 @@
   border: 1rpx solid var(--border);
 }
 
-.select-item text {
+.select-item .at-select-item-text-t {
   font-size: 26rpx;
   color: var(--text-secondary);
 }
@@ -979,7 +978,7 @@
   border-color: var(--color-primary);
 }
 
-.select-item.active text {
+.select-item.active .at-select-item-text-t {
   color: var(--text-inverse);
 }
 
@@ -1004,9 +1003,7 @@
   border: 1rpx solid var(--border);
 }
 
-.duration-item text,
-.credit-cost-item text,
-.deadtime-item text {
+.duration-item .at-duration-item-text-t, .credit-cost-item .at-credit-cost-item-text-t, .deadtime-item .at-deadtime-item-text-t {
   font-size: 26rpx;
   color: var(--text-secondary);
 }
@@ -1018,9 +1015,7 @@
   border-color: var(--color-primary);
 }
 
-.duration-item.active text,
-.credit-cost-item.active text,
-.deadtime-item.active text {
+.duration-item.active .at-duration-item-text-t, .credit-cost-item.active .at-credit-cost-item-text-t, .deadtime-item.active .at-deadtime-item-text-t {
   color: var(--text-inverse);
 }
 
@@ -1171,7 +1166,7 @@
   transform: scale(0.98);
 }
 
-.btn-danger text {
+.btn-danger .at-btn-danger-text-t {
   font-size: var(--font-md);
   color: var(--text-inverse);
   font-weight: bold;
@@ -1254,7 +1249,7 @@
   margin-bottom: 24rpx;
 }
 
-.desc-hint text {
+.desc-hint .at-desc-hint-text-t {
   font-size: 24rpx;
   color: var(--text-tertiary);
   line-height: 1.5;
@@ -1279,7 +1274,7 @@
   background-color: #D4786E;
 }
 
-.weekday-checkbox text {
+.weekday-checkbox .at-weekday-checkbox-text-t {
   font-size: 22rpx;
   color: var(--text-inverse);
   font-weight: bold;
@@ -1454,7 +1449,7 @@
   border: 1rpx solid var(--border);
 }
 
-.stepper-btn text {
+.stepper-btn .at-stepper-btn-text-t {
   font-size: 36rpx;
   color: var(--text-primary);
 }
@@ -1464,7 +1459,7 @@
   text-align: center;
 }
 
-.stepper-value text {
+.stepper-value .at-stepper-value-text-t {
   font-size: 36rpx;
   color: var(--text-primary);
   font-weight: bold;

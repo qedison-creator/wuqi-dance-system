@@ -108,7 +108,7 @@
         <view class="cal-cell {{day.type}} {{day.isToday ? 'is-today' : ''}} {{day.isSelected ? 'is-selected' : ''}} {{day.dayStatus ? 'has-' + day.dayStatus : ''}}" wx:for="{{week}}" wx:for-item="day" wx:key="index" data-date="{{day.date}}" bindtap="onSelectMonthDate">
           <view class="today-circle" wx:if="{{day.isToday && !day.isSelected}}"></view>
           <view class="selected-frame" wx:if="{{day.isSelected}}"></view>
-          <text wx:if="{{day.type === 'date'}}">{{day.day}}</text>
+          <text class="at-cal-cell-text-t" wx:if="{{day.type === 'date'}}">{{day.day}}</text>
         </view>
       </view>
     </view>

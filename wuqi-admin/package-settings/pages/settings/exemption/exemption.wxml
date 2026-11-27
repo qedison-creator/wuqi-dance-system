@@ -6,11 +6,11 @@
       <text class="title-text">门店默认设置</text>
     </view>
     <view class="section-desc">
-      <text wx:if="{{currentStore}}">{{currentStore.name}} 新注册会员的默认豁免次数</text>
-      <text wx:else>默认豁免次数按门店设置，请先在上方选择门店</text>
+      <text class="at-section-desc-text-t" wx:if="{{currentStore}}">{{currentStore.name}} 新注册会员的默认豁免次数</text>
+      <text class="at-section-desc-text-t" wx:else>默认豁免次数按门店设置，请先在上方选择门店</text>
     </view>
     <view wx:if="{{currentStore && !exemptionSet}}" class="inherit-tag">
-      <text>该门店尚未设置默认豁免次数，保存后生效</text>
+      <text class="at-inherit-tag-text-t">该门店尚未设置默认豁免次数，保存后生效</text>
     </view>
     <view class="config-item">
       <view class="config-label-row">
@@ -22,7 +22,7 @@
         </view>
       </view>
       <view class="config-value">
-        <input type="number" value="{{defaultExemption}}" bindinput="onDefaultChange" placeholder="请输入次数" />
+        <input class="at-config-value-input-t" type="number" value="{{defaultExemption}}" bindinput="onDefaultChange" placeholder="请输入次数" />
         <text class="unit">次</text>
       </view>
     </view>
@@ -38,13 +38,13 @@
       <text class="title-text">会员豁免次数</text>
     </view>
     <view class="section-desc">
-      <text wx:if="{{currentStore}}">仅显示 {{currentStore.name}} 的会员</text>
-      <text wx:else>搜索并设置单个会员的豁免次数</text>
+      <text class="at-section-desc-text-t" wx:if="{{currentStore}}">仅显示 {{currentStore.name}} 的会员</text>
+      <text class="at-section-desc-text-t" wx:else>搜索并设置单个会员的豁免次数</text>
     </view>
 
     <!-- 搜索框 -->
     <view class="search-box">
-      <input type="text" placeholder="输入会员姓名或手机号搜索" value="{{searchKeyword}}" bindinput="onSearchInput" confirm-type="search" bindconfirm="searchMembers" />
+      <input class="at-search-box-input-t" type="text" placeholder="输入会员姓名或手机号搜索" value="{{searchKeyword}}" bindinput="onSearchInput" confirm-type="search" bindconfirm="searchMembers" />
       <view class="search-btn" bindtap="searchMembers">
         <text class="search-icon">🔍</text>
       </view>
@@ -72,12 +72,12 @@
 
     <!-- 空状态 -->
     <view class="empty-state" wx:if="{{hasSearched && memberList.length === 0}}">
-      <text>未找到匹配的会员</text>
+      <text class="at-empty-state-text-t">未找到匹配的会员</text>
     </view>
 
     <!-- 提示 -->
     <view class="tips">
-      <text>提示：豁免次数用于会员超时取消预约时免除扣次数</text>
+      <text class="at-tips-text-t">提示：豁免次数用于会员超时取消预约时免除扣次数</text>
     </view>
   </view>
 

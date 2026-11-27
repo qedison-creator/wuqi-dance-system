@@ -41,12 +41,12 @@
   border-color: var(--color-primary);
 }
 
-.store-item text {
+.store-item .at-store-item-text-t {
   font-size: 28rpx;
   color: var(--text-primary);
 }
 
-.store-item.active text {
+.store-item.active .at-store-item-text-t {
   color: var(--color-primary);
   font-weight: bold;
 }
@@ -77,7 +77,7 @@
   border-radius: 30rpx;
 }
 
-.month-nav-btn text {
+.month-nav-btn .at-month-nav-btn-text-t {
   font-size: 24rpx;
   color: var(--text-primary);
 }
@@ -140,7 +140,7 @@
   border-bottom: 1rpx solid var(--border);
 }
 
-.weekday-header text {
+.weekday-header .at-weekday-header-text-t {
   font-size: 24rpx;
   color: var(--text-secondary);
   width: 14.28%;
@@ -225,7 +225,7 @@
   background-color: #B89CDA;
 }
 
-.calendar-cell.date text {
+.calendar-cell.date .at-calendar-cell-text-t {
   font-size: 28rpx;
   color: var(--text-primary);
 }
@@ -234,7 +234,7 @@
   background-color: var(--bg-root);
 }
 
-.calendar-cell.past text {
+.calendar-cell.past .at-calendar-cell-text-t {
   color: var(--text-tertiary);
 }
 
@@ -243,7 +243,7 @@
   border: 1rpx solid var(--color-primary);
 }
 
-.calendar-cell.today text {
+.calendar-cell.today .at-calendar-cell-text-t {
   color: var(--color-primary);
   font-weight: bold;
 }
@@ -252,7 +252,7 @@
   background-color: var(--color-primary);
 }
 
-.calendar-cell.selected text {
+.calendar-cell.selected .at-calendar-cell-text-t {
   color: var(--text-inverse);
   font-weight: bold;
 }
@@ -375,7 +375,7 @@
   border-radius: 14rpx;
 }
 
-.action-btn text {
+.action-btn .at-action-btn-text-t {
   font-size: 26rpx;
   color: var(--text-primary);
 }
@@ -384,7 +384,7 @@
   background-color: rgba(197, 116, 75, 0.15);
 }
 
-.action-btn.history-action text {
+.action-btn.history-action .at-action-btn-history-action-text-t {
   color: var(--color-primary);
 }
 

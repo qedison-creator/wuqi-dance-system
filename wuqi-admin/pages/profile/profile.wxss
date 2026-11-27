@@ -235,7 +235,7 @@
   padding: 16rpx 0;
 }
 
-.version-info text {
+.version-info .at-version-info-text-t {
   font-size: 24rpx;
   color: var(--text-tertiary);
   letter-spacing: 0.5rpx;

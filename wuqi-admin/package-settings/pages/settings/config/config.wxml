@@ -57,10 +57,10 @@
 
       <view class="modal-buttons">
         <view class="btn-secondary" bindtap="onCloseModal">
-          <text>取消</text>
+          <text class="at-btn-secondary-text-t">取消</text>
         </view>
         <view class="btn-primary" bindtap="onSaveConfig">
-          <text>确认</text>
+          <text class="at-btn-primary-text-t">确认</text>
         </view>
       </view>
     </view>

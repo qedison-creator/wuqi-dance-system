@@ -132,7 +132,7 @@
   width: 160rpx;
   height: 100rpx;
   border-radius: 12rpx;
-  background: var(--bg-tertiary);
+  background: var(--bg-elevated);
   border: 1rpx solid var(--border);
 }
 
@@ -163,7 +163,7 @@
 }
 
 .hero-btn.reset-btn {
-  background: var(--bg-tertiary);
+  background: var(--bg-elevated);
   color: var(--text-secondary);
 }
 
@@ -274,7 +274,7 @@
   border-color: var(--color-primary);
 }
 
-.btn-secondary text {
+.btn-secondary .at-btn-secondary-text-t {
   font-size: var(--font-md);
   color: var(--text-primary);
   font-weight: 500;
@@ -297,7 +297,7 @@
   transform: scale(0.98);
 }
 
-.btn-primary text {
+.btn-primary .at-btn-primary-text-t {
   font-size: var(--font-md);
   color: var(--text-inverse);
   font-weight: bold;

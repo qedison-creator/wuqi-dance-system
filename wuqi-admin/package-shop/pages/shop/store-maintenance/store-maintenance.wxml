@@ -13,7 +13,7 @@
         <view class="sc-header">
           <text class="sc-name">{{item.name}}</text>
           <view class="sc-edit-btn">
-            <text>编辑</text>
+            <text class="at-sc-edit-btn-text-t">编辑</text>
           </view>
         </view>
         <view class="sc-row" wx:if="{{item.address}}">

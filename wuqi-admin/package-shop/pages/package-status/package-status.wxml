@@ -20,20 +20,20 @@
         <!-- ① 时间卡到期（二选一） -->
         <view class="cfg-row">
           <view class="cfg-row-title">
-            <text>时间卡到期提醒</text>
-            <text class="cfg-row-tip">方式二选一</text>
+            <text class="at-cfg-row-title-text-first-t">时间卡到期提醒</text>
+            <text class="cfg-row-tip at-cfg-row-title-text-first-t">方式二选一</text>
           </view>
           <view class="cfg-mode-group">
             <view class="cfg-mode {{configForm.time_card_expire.mode === 'days' ? 'cfg-mode-active' : ''}}" data-section="time_card_expire" data-mode="days" bindtap="onModeTap">
               <view class="cfg-radio {{configForm.time_card_expire.mode === 'days' ? 'cfg-radio-active' : ''}}"></view>
               <text class="cfg-mode-label">到期前</text>
-              <input class="cfg-input" type="number" value="{{configForm.time_card_expire.days}}" disabled="{{!isSuperAdmin || configForm.time_card_expire.mode !== 'days'}}" data-section="time_card_expire" data-field="days" bindinput="onConfigInput" />
+              <input class="cfg-input {{(!isSuperAdmin || configForm.time_card_expire.mode !== 'days') ? 'disabled' : ''}}" type="number" value="{{configForm.time_card_expire.days}}" disabled="{{!isSuperAdmin || configForm.time_card_expire.mode !== 'days'}}" data-section="time_card_expire" data-field="days" bindinput="onConfigInput" />
               <text class="cfg-mode-label">天提醒</text>
             </view>
             <view class="cfg-mode {{configForm.time_card_expire.mode === 'percent' ? 'cfg-mode-active' : ''}}" data-section="time_card_expire" data-mode="percent" bindtap="onModeTap">
               <view class="cfg-radio {{configForm.time_card_expire.mode === 'percent' ? 'cfg-radio-active' : ''}}"></view>
               <text class="cfg-mode-label">剩余时长低于</text>
-              <input class="cfg-input" type="number" value="{{configForm.time_card_expire.percent}}" disabled="{{!isSuperAdmin || configForm.time_card_expire.mode !== 'percent'}}" data-section="time_card_expire" data-field="percent" bindinput="onConfigInput" />
+              <input class="cfg-input {{(!isSuperAdmin || configForm.time_card_expire.mode !== 'percent') ? 'disabled' : ''}}" type="number" value="{{configForm.time_card_expire.percent}}" disabled="{{!isSuperAdmin || configForm.time_card_expire.mode !== 'percent'}}" data-section="time_card_expire" data-field="percent" bindinput="onConfigInput" />
               <text class="cfg-mode-label">%提醒</text>
             </view>
           </view>
@@ -42,20 +42,20 @@
         <!-- ② 次卡到期（二选一） -->
         <view class="cfg-row">
           <view class="cfg-row-title">
-            <text>次卡到期提醒</text>
-            <text class="cfg-row-tip">方式二选一</text>
+            <text class="at-cfg-row-title-text-first-t">次卡到期提醒</text>
+            <text class="cfg-row-tip at-cfg-row-title-text-first-t">方式二选一</text>
           </view>
           <view class="cfg-mode-group">
             <view class="cfg-mode {{configForm.count_card_expire.mode === 'days' ? 'cfg-mode-active' : ''}}" data-section="count_card_expire" data-mode="days" bindtap="onModeTap">
               <view class="cfg-radio {{configForm.count_card_expire.mode === 'days' ? 'cfg-radio-active' : ''}}"></view>
               <text class="cfg-mode-label">到期前</text>
-              <input class="cfg-input" type="number" value="{{configForm.count_card_expire.days}}" disabled="{{!isSuperAdmin || configForm.count_card_expire.mode !== 'days'}}" data-section="count_card_expire" data-field="days" bindinput="onConfigInput" />
+              <input class="cfg-input {{(!isSuperAdmin || configForm.count_card_expire.mode !== 'days') ? 'disabled' : ''}}" type="number" value="{{configForm.count_card_expire.days}}" disabled="{{!isSuperAdmin || configForm.count_card_expire.mode !== 'days'}}" data-section="count_card_expire" data-field="days" bindinput="onConfigInput" />
               <text class="cfg-mode-label">天提醒</text>
             </view>
             <view class="cfg-mode {{configForm.count_card_expire.mode === 'percent' ? 'cfg-mode-active' : ''}}" data-section="count_card_expire" data-mode="percent" bindtap="onModeTap">
               <view class="cfg-radio {{configForm.count_card_expire.mode === 'percent' ? 'cfg-radio-active' : ''}}"></view>
               <text class="cfg-mode-label">剩余时长低于</text>
-              <input class="cfg-input" type="number" value="{{configForm.count_card_expire.percent}}" disabled="{{!isSuperAdmin || configForm.count_card_expire.mode !== 'percent'}}" data-section="count_card_expire" data-field="percent" bindinput="onConfigInput" />
+              <input class="cfg-input {{(!isSuperAdmin || configForm.count_card_expire.mode !== 'percent') ? 'disabled' : ''}}" type="number" value="{{configForm.count_card_expire.percent}}" disabled="{{!isSuperAdmin || configForm.count_card_expire.mode !== 'percent'}}" data-section="count_card_expire" data-field="percent" bindinput="onConfigInput" />
               <text class="cfg-mode-label">%提醒</text>
             </view>
           </view>
@@ -64,20 +64,20 @@
         <!-- ③ 次卡次数不足（二选一） -->
         <view class="cfg-row">
           <view class="cfg-row-title">
-            <text>次卡次数不足提醒</text>
-            <text class="cfg-row-tip">方式二选一</text>
+            <text class="at-cfg-row-title-text-first-t">次卡次数不足提醒</text>
+            <text class="cfg-row-tip at-cfg-row-title-text-first-t">方式二选一</text>
           </view>
           <view class="cfg-mode-group">
             <view class="cfg-mode {{configForm.count_card_low.mode === 'count' ? 'cfg-mode-active' : ''}}" data-section="count_card_low" data-mode="count" bindtap="onModeTap">
               <view class="cfg-radio {{configForm.count_card_low.mode === 'count' ? 'cfg-radio-active' : ''}}"></view>
               <text class="cfg-mode-label">剩余次数低于</text>
-              <input class="cfg-input" type="number" value="{{configForm.count_card_low.count}}" disabled="{{!isSuperAdmin || configForm.count_card_low.mode !== 'count'}}" data-section="count_card_low" data-field="count" bindinput="onConfigInput" />
+              <input class="cfg-input {{(!isSuperAdmin || configForm.count_card_low.mode !== 'count') ? 'disabled' : ''}}" type="number" value="{{configForm.count_card_low.count}}" disabled="{{!isSuperAdmin || configForm.count_card_low.mode !== 'count'}}" data-section="count_card_low" data-field="count" bindinput="onConfigInput" />
               <text class="cfg-mode-label">次提醒</text>
             </view>
             <view class="cfg-mode {{configForm.count_card_low.mode === 'percent' ? 'cfg-mode-active' : ''}}" data-section="count_card_low" data-mode="percent" bindtap="onModeTap">
               <view class="cfg-radio {{configForm.count_card_low.mode === 'percent' ? 'cfg-radio-active' : ''}}"></view>
               <text class="cfg-mode-label">次数占比低于</text>
-              <input class="cfg-input" type="number" value="{{configForm.count_card_low.percent}}" disabled="{{!isSuperAdmin || configForm.count_card_low.mode !== 'percent'}}" data-section="count_card_low" data-field="percent" bindinput="onConfigInput" />
+              <input class="cfg-input {{(!isSuperAdmin || configForm.count_card_low.mode !== 'percent') ? 'disabled' : ''}}" type="number" value="{{configForm.count_card_low.percent}}" disabled="{{!isSuperAdmin || configForm.count_card_low.mode !== 'percent'}}" data-section="count_card_low" data-field="percent" bindinput="onConfigInput" />
               <text class="cfg-mode-label">%提醒</text>
             </view>
           </view>
@@ -86,25 +86,25 @@
         <!-- ④ 久未跳舞 -->
         <view class="cfg-row">
           <view class="cfg-row-title">
-            <text>久未跳舞提醒</text>
-            <text class="cfg-row-tip">仅统计套餐正常使用中的会员</text>
+            <text class="at-cfg-row-title-text-first-t">久未跳舞提醒</text>
+            <text class="cfg-row-tip at-cfg-row-title-text-first-t">仅统计套餐正常使用中的会员</text>
           </view>
           <view class="cfg-mode-group">
             <view class="cfg-mode cfg-mode-active">
               <view class="cfg-radio cfg-radio-active"></view>
               <text class="cfg-mode-label">超过</text>
-              <input class="cfg-input" type="number" value="{{configForm.inactive_days.days}}" disabled="{{!isSuperAdmin}}" data-section="inactive_days" data-field="days" bindinput="onConfigInput" />
+              <input class="cfg-input {{!isSuperAdmin ? 'disabled' : ''}}" type="number" value="{{configForm.inactive_days.days}}" disabled="{{!isSuperAdmin}}" data-section="inactive_days" data-field="days" bindinput="onConfigInput" />
               <text class="cfg-mode-label">天未上课提醒</text>
             </view>
           </view>
         </view>
 
         <view class="cfg-save-btn {{(savingConfig || !isSuperAdmin) ? 'cfg-save-disabled' : ''}}" bindtap="onSaveConfig">
-          <text>{{savingConfig ? '保存中...' : '保存设置'}}</text>
+          <text class="at-cfg-save-btn-text-t">{{savingConfig ? '保存中...' : '保存设置'}}</text>
         </view>
         <view class="cfg-tip">
-          <text wx:if="{{isSuperAdmin}}">保存后立即生效，首页待办事项的提醒时机同步应用该设置</text>
-          <text wx:else>提醒阈值由超级管理员统一设置，首页待办事项同步应用</text>
+          <text class="at-cfg-tip-text-t" wx:if="{{isSuperAdmin}}">保存后立即生效，首页待办事项的提醒时机同步应用该设置</text>
+          <text class="at-cfg-tip-text-t" wx:else>提醒阈值由超级管理员统一设置，首页待办事项同步应用</text>
         </view>
       </view>
     </view>

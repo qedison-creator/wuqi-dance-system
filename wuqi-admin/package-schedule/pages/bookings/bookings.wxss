@@ -109,7 +109,7 @@
   border-bottom: 4rpx solid transparent;
 }
 
-.tab-item text {
+.tab-item .at-tab-item-text-t {
   font-size: 28rpx;
   color: var(--text-secondary);
 }
@@ -118,7 +118,7 @@
   border-bottom-color: var(--color-primary);
 }
 
-.tab-item.active text {
+.tab-item.active .at-tab-item-text-t {
   color: var(--color-primary);
   font-weight: bold;
 }
@@ -270,7 +270,7 @@
   border-radius: var(--radius-sm);
 }
 
-.action-btn text {
+.action-btn .at-action-btn-text-t {
   font-size: 24rpx;
   color: var(--text-primary);
 }
@@ -279,7 +279,7 @@
   background-color: var(--color-danger-bg);
 }
 
-.action-btn.danger text {
+.action-btn.danger .at-action-btn-danger-text-t {
   color: var(--color-danger);
 }
 

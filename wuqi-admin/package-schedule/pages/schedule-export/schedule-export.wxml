@@ -10,7 +10,7 @@
     </picker>
     <view class="bg-btn-entry" bindtap="onShowBgManager">
       <image class="bg-btn-icon" src="/images/icons/shop-schedule.svg" mode="aspectFit" decoding="async"></image>
-      <text>背景图</text>
+      <text class="at-bg-btn-entry-text-t">背景图</text>
     </view>
   </view>
 

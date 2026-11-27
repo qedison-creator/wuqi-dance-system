@@ -1421,7 +1421,7 @@
   margin-bottom: 16rpx;
 }
 
-.orphan-tip text {
+.orphan-tip .at-orphan-tip-text-t {
   font-size: 24rpx;
   color: #AD6800;
   line-height: 1.5;
@@ -1486,7 +1486,7 @@
   text-align: center;
 }
 
-.hours-loading text {
+.hours-loading .at-hours-loading-text-t {
   font-size: 22rpx;
   color: var(--color-text-secondary, #999);
 }
@@ -1561,7 +1561,7 @@
   border: 1rpx solid #FFD591;
 }
 
-.correction-warning text {
+.correction-warning .at-correction-warning-text-t {
   font-size: 22rpx;
   color: #AD6800;
   line-height: 1.6;
@@ -1670,7 +1670,7 @@
   border: 1rpx solid #FFD591;
 }
 
-.period-tip text {
+.period-tip .at-period-tip-text-t {
   font-size: 22rpx;
   color: #AD6800;
   line-height: 1.6;

@@ -21,10 +21,10 @@
       </view>
       <view class="dance-style-actions" wx:if="{{isSuperAdmin}}">
         <view class="action-btn-small" data-index="{{index}}" bindtap="onEditDanceStyle">
-          <text>编辑</text>
+          <text class="at-action-btn-small-text-t">编辑</text>
         </view>
         <view class="action-btn-small danger" data-index="{{index}}" bindtap="onDeleteDanceStyle">
-          <text>删除</text>
+          <text class="at-action-btn-small-text-t at-action-btn-small-danger-text-t">删除</text>
         </view>
       </view>
     </view>

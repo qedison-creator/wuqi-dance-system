@@ -515,7 +515,7 @@ module.exports = {
           <text>{{item.name}}</text>
         </view>
       </view>
-      <button class="btn-primary store-modal-confirm" bindtap="onConfirmStoreChange" disabled="{{!selectedStoreId}}">确认修改</button>
+      <button class="btn-primary store-modal-confirm {{!selectedStoreId ? 'disabled' : ''}}" bindtap="onConfirmStoreChange" disabled="{{!selectedStoreId}}">确认修改</button>
     </view>
   </view>
 
@@ -997,7 +997,7 @@ module.exports = {
         <text class="form-label">姓名</text>
         <input class="input-field" placeholder="请输入会员姓名" value="{{editNameForm.real_name}}" bindinput="onEditNameInput" />
       </view>
-      <button class="btn-primary submit-btn" bindtap="onSubmitEditName" disabled="{{!editNameForm.real_name || editNameForm.real_name === member.real_name}}">确认修改</button>
+      <button class="btn-primary submit-btn {{(!editNameForm.real_name || editNameForm.real_name === member.real_name) ? 'disabled' : ''}}" bindtap="onSubmitEditName" disabled="{{!editNameForm.real_name || editNameForm.real_name === member.real_name}}">确认修改</button>
     </view>
   </view>
 

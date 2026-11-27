@@ -173,17 +173,17 @@
             <view wx:if="{{item.type === 'count_card'}}">
               <text>剩余 {{item.credits_remaining}} 次 / 共 {{item.credits_total}} 次</text>
               <view class="pkg-validity" wx:if="{{item.valid_until}}">
-                <text wx:if="{{item.remaining_days}}">剩余 {{item.remaining_days}} 天，有效期至 {{item.valid_until}}</text>
-                <text wx:else>有效期至 {{item.valid_until}}</text>
+                <text class="at-pkg-validity-text-t" wx:if="{{item.remaining_days}}">剩余 {{item.remaining_days}} 天，有效期至 {{item.valid_until}}</text>
+                <text class="at-pkg-validity-text-t" wx:else>有效期至 {{item.valid_until}}</text>
               </view>
             </view>
             <view wx:if="{{item.type === 'time_card'}}">
               <text wx:if="{{item.remaining_days}}">剩余 {{item.remaining_days}} 天</text>
               <text wx:if="{{item.valid_until}}">，有效期至 {{item.valid_until}}</text>
               <view class="pkg-usage" wx:if="{{item.time_card_usage}}">
-                <text wx:if="{{item.time_card_usage.daily_limit}}">今日已用 {{item.time_card_usage.daily_used}}/{{item.time_card_usage.daily_limit}} 次，剩余 {{item.time_card_usage.daily_remaining}} 次</text>
-                <text wx:if="{{item.time_card_usage.weekly_limit && !item.time_card_usage.daily_limit}}">本周已用 {{item.time_card_usage.weekly_used}}/{{item.time_card_usage.weekly_limit}} 次，剩余 {{item.time_card_usage.weekly_remaining}} 次</text>
-                <text wx:if="{{item.time_card_usage.monthly_limit && !item.time_card_usage.daily_limit && !item.time_card_usage.weekly_limit}}">本月已用 {{item.time_card_usage.monthly_used}}/{{item.time_card_usage.monthly_limit}} 次，剩余 {{item.time_card_usage.monthly_remaining}} 次</text>
+                <text class="at-pkg-usage-text-t" wx:if="{{item.time_card_usage.daily_limit}}">今日已用 {{item.time_card_usage.daily_used}}/{{item.time_card_usage.daily_limit}} 次，剩余 {{item.time_card_usage.daily_remaining}} 次</text>
+                <text class="at-pkg-usage-text-t" wx:if="{{item.time_card_usage.weekly_limit && !item.time_card_usage.daily_limit}}">本周已用 {{item.time_card_usage.weekly_used}}/{{item.time_card_usage.weekly_limit}} 次，剩余 {{item.time_card_usage.weekly_remaining}} 次</text>
+                <text class="at-pkg-usage-text-t" wx:if="{{item.time_card_usage.monthly_limit && !item.time_card_usage.daily_limit && !item.time_card_usage.weekly_limit}}">本月已用 {{item.time_card_usage.monthly_used}}/{{item.time_card_usage.monthly_limit}} 次，剩余 {{item.time_card_usage.monthly_remaining}} 次</text>
               </view>
             </view>
           </view>
@@ -237,15 +237,15 @@
       <text class="onsite-confirm-title">确认临时签到</text>
       <text class="onsite-confirm-desc">该会员未预约当前课程，确认后系统将：</text>
       <view class="onsite-confirm-steps">
-        <text>• 生成签到记录（不产生预约）</text>
-        <text>• 扣减套餐 1 课时</text>
-        <text>• 完成签到</text>
+        <text class="at-onsite-confirm-steps-text-t">• 生成签到记录（不产生预约）</text>
+        <text class="at-onsite-confirm-steps-text-t">• 扣减套餐 1 课时</text>
+        <text class="at-onsite-confirm-steps-text-t">• 完成签到</text>
       </view>
       <view class="onsite-confirm-info" wx:if="{{selectedSchedule}}">
-        <text>课程：{{selectedSchedule.timeStr}} {{selectedSchedule.className}}</text>
+        <text class="at-onsite-confirm-info-text-t">课程：{{selectedSchedule.timeStr}} {{selectedSchedule.className}}</text>
       </view>
       <view class="onsite-confirm-info" wx:if="{{profileData.member}}">
-        <text>会员：{{profileData.member.display_name || '会员'}}</text>
+        <text class="at-onsite-confirm-info-text-t">会员：{{profileData.member.display_name || '会员'}}</text>
       </view>
       <view class="modal-buttons">
         <view class="btn-cancel" bindtap="onCancelOnsiteConfirm">

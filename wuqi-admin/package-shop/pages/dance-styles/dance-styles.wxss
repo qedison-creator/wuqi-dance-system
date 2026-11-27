@@ -80,7 +80,7 @@
   white-space: nowrap;
 }
 
-.action-btn-small text {
+.action-btn-small .at-action-btn-small-text-t {
   font-size: 24rpx;
   color: var(--color-primary);
   white-space: nowrap;
@@ -90,7 +90,7 @@
   background-color: var(--color-warning-bg);
 }
 
-.action-btn-small.danger text {
+.action-btn-small.danger .at-action-btn-small-danger-text-t {
   color: var(--color-warning);
 }
 

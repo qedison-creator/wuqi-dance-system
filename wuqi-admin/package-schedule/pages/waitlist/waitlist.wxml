@@ -98,7 +98,7 @@
           <view class="modal-section-right">
             <text class="modal-section-count">共{{scheduleWaitlist.length}}人</text>
             <view class="export-btn" bindtap="onExportWaitlist">
-              <text>导出CSV</text>
+              <text class="at-export-btn-text-t">导出CSV</text>
             </view>
           </view>
         </view>

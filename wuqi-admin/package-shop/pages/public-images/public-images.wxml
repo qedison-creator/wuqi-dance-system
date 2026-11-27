@@ -92,34 +92,34 @@
       </button>
 
       <!-- 裁剪模式选择 -->
-      <view class="crop-mode-bar" wx:if="{{tempImagePath && !editingId}}">
+      <view class="crop-mode-bar at-modal-body-view-t" wx:if="{{tempImagePath && !editingId}}">
         <text class="crop-mode-label">裁剪比例：</text>
-        <view class="crop-mode-chip {{cropMode === 'portrait' ? 'active' : ''}}" data-mode="portrait" catchtap="onCropModeSelect">竖屏 3:4</view>
-        <view class="crop-mode-chip {{cropMode === 'landscape' ? 'active' : ''}}" data-mode="landscape" catchtap="onCropModeSelect">横屏 16:9</view>
-        <view class="crop-mode-chip {{cropMode === 'free' ? 'active' : ''}}" data-mode="free" catchtap="onCropModeSelect">自由裁剪</view>
+        <view class="crop-mode-chip {{cropMode === 'portrait' ? 'active' : ''}} at-modal-body-view-t" data-mode="portrait" catchtap="onCropModeSelect">竖屏 3:4</view>
+        <view class="crop-mode-chip {{cropMode === 'landscape' ? 'active' : ''}} at-modal-body-view-t" data-mode="landscape" catchtap="onCropModeSelect">横屏 16:9</view>
+        <view class="crop-mode-chip {{cropMode === 'free' ? 'active' : ''}} at-modal-body-view-t" data-mode="free" catchtap="onCropModeSelect">自由裁剪</view>
       </view>
 
-      <view class="form-item">
+      <view class="form-item at-modal-body-view-t">
         <text class="fi-label">图片名称</text>
         <input class="fi-input" placeholder="请输入图片名称" value="{{formTitle}}" bindinput="onTitleInput" />
       </view>
 
-      <view class="form-item form-item-col">
+      <view class="form-item form-item-col at-modal-body-view-t">
         <text class="fi-label">所属教练</text>
-        <view class="fi-coach-trigger" bindtap="onToggleCoachPicker">
+        <view class="fi-coach-trigger at-modal-body-view-t" bindtap="onToggleCoachPicker">
           <text class="{{formCoachIds.length > 0 ? '' : 'fi-placeholder'}}">{{formCoachIds.length > 0 ? '已选 ' + formCoachIds.length + ' 位教练' : '选择教练（可不选）'}}</text>
-          <view class="fi-arrow {{showCoachPicker ? 'up' : ''}}"></view>
+          <view class="fi-arrow {{showCoachPicker ? 'up' : ''}} at-modal-body-view-t"></view>
         </view>
         <!-- 教练多选面板 -->
-        <view class="fi-coach-panel" wx:if="{{showCoachPicker}}">
-          <view class="fcp-item" wx:for="{{coachList}}" wx:key="_id" bindtap="onCoachCheck" data-id="{{item._id}}">
-            <view class="fcp-check {{formCoachChecked[item._id] ? 'checked' : ''}}">{{formCoachChecked[item._id] ? '√' : ''}}</view>
+        <view class="fi-coach-panel at-modal-body-view-t" wx:if="{{showCoachPicker}}">
+          <view class="fcp-item at-modal-body-view-t" wx:for="{{coachList}}" wx:key="_id" bindtap="onCoachCheck" data-id="{{item._id}}">
+            <view class="fcp-check {{formCoachChecked[item._id] ? 'checked' : ''}} at-modal-body-view-t">{{formCoachChecked[item._id] ? '√' : ''}}</view>
             <text class="fcp-name">{{item.name}}</text>
           </view>
         </view>
       </view>
 
-      <view class="form-item">
+      <view class="form-item at-modal-body-view-t">
         <text class="fi-label">首页显示</text>
         <switch checked="{{formShowHome}}" color="#7EC87E" bindchange="onShowHomeChange" />
       </view>

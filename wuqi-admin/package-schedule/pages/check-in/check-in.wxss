@@ -642,7 +642,7 @@ page {
   margin-top: 8rpx;
 }
 
-.pkg-usage text {
+.pkg-usage .at-pkg-usage-text-t {
   font-size: 22rpx;
   color: #948284;
 }
@@ -651,7 +651,7 @@ page {
   margin-top: 6rpx;
 }
 
-.pkg-validity text {
+.pkg-validity .at-pkg-validity-text-t {
   font-size: 22rpx;
   color: #948284;
 }
@@ -819,7 +819,7 @@ page {
   margin-bottom: 16rpx;
 }
 
-.onsite-confirm-steps text {
+.onsite-confirm-steps .at-onsite-confirm-steps-text-t {
   font-size: 24rpx;
   color: #2C2416;
   display: block;
@@ -834,7 +834,7 @@ page {
   margin-bottom: 8rpx;
 }
 
-.onsite-confirm-info text {
+.onsite-confirm-info .at-onsite-confirm-info-text-t {
   font-size: 24rpx;
   color: #948284;
 }

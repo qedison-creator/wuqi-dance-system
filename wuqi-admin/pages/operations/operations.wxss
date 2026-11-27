@@ -435,8 +435,7 @@
   opacity: 0.5;
 }
 
-.cal-cell.is-today > text,
-.cal-cell.is-selected > text {
+.cal-cell.is-today > .at-cal-cell-text-t, .cal-cell.is-selected > .at-cal-cell-text-t {
   position: relative;
   z-index: 2;
 }

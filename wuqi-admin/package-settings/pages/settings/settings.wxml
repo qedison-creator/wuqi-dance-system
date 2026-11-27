@@ -89,10 +89,10 @@
 
   <view class="btn-row">
     <view class="btn-secondary" bindtap="onReset">
-      <text>重置</text>
+      <text class="at-btn-secondary-text-t">重置</text>
     </view>
     <view class="btn-primary" bindtap="onSave">
-      <text>保存配置</text>
+      <text class="at-btn-primary-text-t">保存配置</text>
     </view>
   </view>
 

@@ -92,7 +92,7 @@
               <view class="month-loading" wx:if="{{mg.monthLoading}}">加载中...</view>
               <!-- 该月独立的查看更多 -->
               <view class="expand-toggle month-more" wx:if="{{!mg.monthLoading && mg.hasMore}}" bindtap="onLoadMonthMore" data-tab="activation" data-month="{{mg.monthKey}}">
-                <text>查看更多 ({{mg.remainCount}}位)</text>
+                <text class="at-expand-toggle-text-t">查看更多 ({{mg.remainCount}}位)</text>
                 <view class="toggle-arrow down"></view>
               </view>
             </view>
@@ -235,7 +235,7 @@
               <view class="month-loading" wx:if="{{mg.monthLoading}}">加载中...</view>
               <!-- 该月独立的查看更多 -->
               <view class="expand-toggle month-more" wx:if="{{!mg.monthLoading && mg.hasMore}}" bindtap="onLoadMonthMore" data-tab="extension" data-month="{{mg.monthKey}}">
-                <text>查看更多 ({{mg.remainCount}}位)</text>
+                <text class="at-expand-toggle-text-t">查看更多 ({{mg.remainCount}}位)</text>
                 <view class="toggle-arrow down"></view>
               </view>
             </view>
@@ -328,7 +328,7 @@
               <view class="month-loading" wx:if="{{mg.monthLoading}}">加载中...</view>
               <!-- 该月独立的查看更多 -->
               <view class="expand-toggle month-more" wx:if="{{!mg.monthLoading && mg.hasMore}}" bindtap="onLoadMonthMore" data-tab="entry" data-month="{{mg.monthKey}}">
-                <text>查看更多 ({{mg.remainCount}}位)</text>
+                <text class="at-expand-toggle-text-t">查看更多 ({{mg.remainCount}}位)</text>
                 <view class="toggle-arrow down"></view>
               </view>
             </view>

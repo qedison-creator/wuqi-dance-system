@@ -217,7 +217,7 @@
   border-radius: var(--radius-sm);
 }
 
-.export-btn text {
+.export-btn .at-export-btn-text-t {
   font-size: 22rpx;
   color: var(--color-success);
   font-weight: 500;

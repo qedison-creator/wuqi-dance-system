@@ -250,7 +250,7 @@
   justify-content: center;
 }
 
-.confirm-modal-btn text {
+.confirm-modal-btn .at-confirm-modal-btn-text-t {
   font-size: 28rpx;
 }
 
@@ -258,11 +258,11 @@
   border-right: 1px solid var(--border);
 }
 
-.confirm-modal-btn.cancel text {
+.confirm-modal-btn.cancel .at-confirm-modal-btn-cancel-text-t {
   color: var(--text-secondary);
 }
 
-.confirm-modal-btn.execute text {
+.confirm-modal-btn.execute .at-confirm-modal-btn-execute-text-t {
   color: var(--color-danger);
   font-weight: bold;
 }

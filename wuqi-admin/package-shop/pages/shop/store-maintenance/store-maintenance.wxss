@@ -60,7 +60,7 @@
   border-radius: 8rpx;
 }
 
-.sc-edit-btn text {
+.sc-edit-btn .at-sc-edit-btn-text-t {
   font-size: 24rpx;
   color: var(--color-primary);
 }

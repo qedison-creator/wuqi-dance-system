@@ -48,7 +48,7 @@
   box-shadow: 0 8rpx 24rpx rgba(197, 116, 75, 0.3);
 }
 
-.add-btn text {
+.add-btn .at-add-btn-text-t {
   font-size: 28rpx;
   color: var(--text-inverse);
   font-weight: 600;
@@ -208,7 +208,7 @@
   text-align: center;
 }
 
-.action-btn text {
+.action-btn .at-action-btn-text-t {
   font-size: 26rpx;
   font-weight: 500;
 }
@@ -217,7 +217,7 @@
   background: var(--color-primary-bg);
 }
 
-.action-btn.primary text {
+.action-btn.primary .at-action-btn-primary-text-t {
   color: var(--color-primary);
 }
 
@@ -225,7 +225,7 @@
   background: var(--color-warning-bg);
 }
 
-.action-btn.warning text {
+.action-btn.warning .at-action-btn-text-t {
   color: var(--color-warning);
 }
 
@@ -233,7 +233,7 @@
   background: var(--color-success-bg);
 }
 
-.action-btn.success text {
+.action-btn.success .at-action-btn-text-t {
   color: var(--color-success);
 }
 
@@ -241,7 +241,7 @@
   background: var(--color-danger-bg);
 }
 
-.action-btn.danger text {
+.action-btn.danger .at-action-btn-danger-text-t {
   color: var(--color-danger);
 }
 
@@ -280,7 +280,7 @@
   border-radius: 40rpx;
 }
 
-.empty-btn text {
+.empty-btn .at-empty-btn-text-t {
   font-size: 28rpx;
   color: var(--text-inverse);
   font-weight: 600;
@@ -478,7 +478,7 @@
   border: 2rpx solid var(--color-primary);
 }
 
-.btn-secondary text {
+.btn-secondary .at-btn-secondary-text-t {
   font-size: 30rpx;
   color: var(--color-primary);
 }
@@ -492,7 +492,7 @@
   box-shadow: 0 8rpx 24rpx rgba(197, 116, 75, 0.3);
 }
 
-.btn-primary text {
+.btn-primary .at-btn-primary-text-t {
   font-size: 30rpx;
   color: var(--text-inverse);
   font-weight: 600;

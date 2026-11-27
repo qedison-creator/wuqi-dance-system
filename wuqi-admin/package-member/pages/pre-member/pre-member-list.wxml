@@ -147,8 +147,8 @@ module.exports = {
     </view>
     <!-- 查看更多按钮（在列表内部，跟随内容流动） -->
     <view class="expand-toggle {{loadingMore ? 'expand-toggle-loading' : ''}}" wx:if="{{!loading && hasMore}}" bindtap="onLoadMore">
-      <text wx:if="{{!loadingMore}}">查看更多 ({{currentTotal - visibleCount}}位)</text>
-      <text wx:else>加载中...</text>
+      <text class="at-expand-toggle-text-t" wx:if="{{!loadingMore}}">查看更多 ({{currentTotal - visibleCount}}位)</text>
+      <text class="at-expand-toggle-text-t" wx:else>加载中...</text>
       <view class="toggle-arrow down" wx:if="{{!loadingMore}}"></view>
     </view>
     <!-- 没有更多数据提示 -->

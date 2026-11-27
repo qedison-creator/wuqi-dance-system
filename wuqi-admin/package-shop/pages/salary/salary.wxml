@@ -26,7 +26,7 @@
 
     <!-- 数据异常提示（签到指向已删除的排课） -->
     <view class="orphan-tip" wx:if="{{hoursOrphanCount > 0}}">
-      <text>⚠ 有 {{hoursOrphanCount}} 条签到记录对应的课程已不存在，未计入统计，请核查数据</text>
+      <text class="at-orphan-tip-text-t">⚠ 有 {{hoursOrphanCount}} 条签到记录对应的课程已不存在，未计入统计，请核查数据</text>
     </view>
 
     <view class="hours-year-list" wx:if="{{classHoursYears.length > 0}}">
@@ -67,7 +67,7 @@
                       <text class="hours-rec-dur">{{rec.duration}}分钟</text>
                     </view>
                     <view class="hours-loading" wx:if="{{!coach._recordsLoaded}}">
-                      <text>加载明细中...</text>
+                      <text class="at-hours-loading-text-t">加载明细中...</text>
                     </view>
                   </view>
                 </view>
@@ -378,7 +378,7 @@
         </view>
 
         <view class="period-tip">
-          <text>同一时长可设多期单价：填过去的日期即补设历史时期的单价；填未来的日期即调价（到日起生效，之前时期单价不变）。</text>
+          <text class="at-period-tip-text-t">同一时长可设多期单价：填过去的日期即补设历史时期的单价；填未来的日期即调价（到日起生效，之前时期单价不变）。</text>
         </view>
       </view>
       <view class="modal-footer">
@@ -426,7 +426,7 @@
           <input class="form-input" type="digit" placeholder="请输入单价" value="{{editPeriodForm.salary_rate}}" bindinput="onEditPeriodInput" />
         </view>
         <view class="period-tip">
-          <text>开始日期需晚于上一时期、早于下一时期；结束日期不能超过下一时期开始（可以留空档，空档期有课会在页面上方提示）。修改单价后，该时期已入账的薪酬与账单将按新单价重算。</text>
+          <text class="at-period-tip-text-t">开始日期需晚于上一时期、早于下一时期；结束日期不能超过下一时期开始（可以留空档，空档期有课会在页面上方提示）。修改单价后，该时期已入账的薪酬与账单将按新单价重算。</text>
         </view>
       </view>
       <view class="modal-footer">

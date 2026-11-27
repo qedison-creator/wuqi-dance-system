@@ -1363,7 +1363,7 @@
   border: none;
 }
 
-.btn-primary[disabled] {
+.btn-primary.disabled {
   background: var(--border);
   color: var(--text-tertiary);
   box-shadow: none;

@@ -6,8 +6,8 @@
       <text class="page-desc">全平台轮播图（所有门店展示）</text>
     </view>
     <view class="add-btn {{can_operate ? '' : 'add-btn-disabled'}}" bindtap="onAddBanner">
-      <text class="add-icon">+</text>
-      <text>添加轮播图</text>
+      <text class="add-icon at-add-btn-text-t">+</text>
+      <text class="at-add-btn-text-t">添加轮播图</text>
     </view>
   </view>
 
@@ -15,8 +15,8 @@
   <view class="display-config-card">
     <view class="config-card-title" bindtap="onToggleConfigExpand">
       <view class="config-title-left">
-        <text>轮播展示设置</text>
-        <text class="config-card-sub" wx:if="{{!isSuperAdmin}}">仅超级管理员可修改</text>
+        <text class="at-config-title-left-text-t">轮播展示设置</text>
+        <text class="config-card-sub at-config-title-left-text-t" wx:if="{{!isSuperAdmin}}">仅超级管理员可修改</text>
       </view>
       <view class="config-title-right">
         <text class="config-summary" wx:if="{{!configExpanded}}">{{displayConfig.interval}}秒 · {{modeOptions[modeIndex].name}}</text>
@@ -24,26 +24,26 @@
       </view>
     </view>
     <view class="config-row-wrap {{isSuperAdmin ? '' : 'config-disabled'}}" wx:if="{{configExpanded}}">
-      <picker mode="selector" range="{{intervalOptions}}" value="{{intervalIndex}}" bindchange="onIntervalChange" disabled="{{!isSuperAdmin}}">
+      <picker class="at-config-row-wrap-picker-t" mode="selector" range="{{intervalOptions}}" value="{{intervalIndex}}" bindchange="onIntervalChange" disabled="{{!isSuperAdmin}}">
         <view class="config-row">
           <text class="config-label">轮换间隔</text>
           <view class="config-value">
-            <text>{{displayConfig.interval}} 秒</text>
+            <text class="at-config-value-text-t at-config-disabled-config-value-text-t">{{displayConfig.interval}} 秒</text>
             <image class="config-arrow" src="/images/icons/chevron-right.svg" mode="aspectFit" decoding="async" />
           </view>
         </view>
       </picker>
-      <picker mode="selector" range="{{modeOptions}}" range-key="name" value="{{modeIndex}}" bindchange="onModeChange" disabled="{{!isSuperAdmin}}">
+      <picker class="at-config-row-wrap-picker-t" mode="selector" range="{{modeOptions}}" range-key="name" value="{{modeIndex}}" bindchange="onModeChange" disabled="{{!isSuperAdmin}}">
         <view class="config-row">
           <text class="config-label">切换方式</text>
           <view class="config-value">
-            <text>{{modeOptions[modeIndex].name}}</text>
+            <text class="at-config-value-text-t at-config-disabled-config-value-text-t">{{modeOptions[modeIndex].name}}</text>
             <image class="config-arrow" src="/images/icons/chevron-right.svg" mode="aspectFit" decoding="async" />
           </view>
         </view>
       </picker>
       <view class="config-save-btn {{isSuperAdmin ? '' : 'config-save-disabled'}}" bindtap="{{isSuperAdmin ? 'onSaveDisplayConfig' : 'onConfigDisabled'}}">
-        <text>{{savingConfig ? '保存中...' : '保存设置'}}</text>
+        <text class="at-config-save-btn-text-t">{{savingConfig ? '保存中...' : '保存设置'}}</text>
       </view>
     </view>
   </view>
@@ -80,13 +80,13 @@
       <view class="banner-actions">
         <!-- 非超管/审核员禁用操作按钮（置灰且不可点击） -->
         <view class="action-btn primary {{item.can_operate ? '' : 'action-btn-disabled'}}" data-id="{{item._id}}" bindtap="{{item.can_operate ? 'onEditBanner' : 'onDisabledBannerAction'}}">
-          <text>编辑</text>
+          <text class="at-action-btn-text-t at-action-btn-primary-text-t">编辑</text>
         </view>
         <view class="action-btn {{item.status === 'active' ? 'warning' : 'success'}} {{item.can_operate ? '' : 'action-btn-disabled'}}" data-id="{{item._id}}" data-index="{{index}}" bindtap="{{item.can_operate ? 'onToggleStatus' : 'onDisabledBannerAction'}}">
-          <text>{{item.status === 'active' ? '禁用' : '启用'}}</text>
+          <text class="at-action-btn-text-t">{{item.status === 'active' ? '禁用' : '启用'}}</text>
         </view>
         <view class="action-btn danger {{item.can_operate ? '' : 'action-btn-disabled'}}" data-id="{{item._id}}" bindtap="{{item.can_operate ? 'onDeleteBanner' : 'onDisabledBannerAction'}}">
-          <text>删除</text>
+          <text class="at-action-btn-text-t at-action-btn-danger-text-t">删除</text>
         </view>
       </view>
     </view>
@@ -98,7 +98,7 @@
     <text class="empty-title">暂无全平台轮播图</text>
     <text class="empty-desc">点击上方按钮添加轮播图</text>
     <view class="empty-btn {{can_operate ? '' : 'add-btn-disabled'}}" bindtap="onAddBanner">
-      <text>添加轮播图</text>
+      <text class="at-empty-btn-text-t">添加轮播图</text>
     </view>
   </view>
 
@@ -167,8 +167,8 @@
       </scroll-view>
 
       <view class="modal-buttons">
-        <view class="btn-secondary" bindtap="onCloseModal"><text>取消</text></view>
-        <view class="btn-primary" bindtap="onSubmit"><text>保存</text></view>
+        <view class="btn-secondary" bindtap="onCloseModal"><text class="at-btn-secondary-text-t">取消</text></view>
+        <view class="btn-primary" bindtap="onSubmit"><text class="at-btn-primary-text-t">保存</text></view>
       </view>
     </view>
   </view>

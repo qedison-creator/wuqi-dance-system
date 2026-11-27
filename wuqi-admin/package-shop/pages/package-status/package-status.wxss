@@ -149,7 +149,7 @@
   margin-bottom: 14rpx;
 }
 
-.cfg-row-title > text:first-child {
+.cfg-row-title > .at-cfg-row-title-text-first-t:first-child {
   font-size: 26rpx;
   font-weight: 600;
   color: #2C2416;
@@ -223,7 +223,7 @@
   flex-shrink: 0;
 }
 
-.cfg-input[disabled] {
+.cfg-input.disabled {
   color: #B8AF9E;
   background: #F3EFE9;
 }
@@ -248,7 +248,7 @@
   box-shadow: none;
 }
 
-.cfg-save-btn text {
+.cfg-save-btn .at-cfg-save-btn-text-t {
   font-size: 28rpx;
   font-weight: 600;
   color: #FFFFFF;
@@ -259,7 +259,7 @@
   text-align: center;
 }
 
-.cfg-tip text {
+.cfg-tip .at-cfg-tip-text-t {
   font-size: 20rpx;
   color: #B8AF9E;
 }

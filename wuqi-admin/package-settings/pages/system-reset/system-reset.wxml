@@ -51,10 +51,10 @@
       </view>
       <view class="confirm-modal-footer">
         <view class="confirm-modal-btn cancel" bindtap="onCancelConfirm">
-          <text>取消</text>
+          <text class="at-confirm-modal-btn-text-t at-confirm-modal-btn-cancel-text-t">取消</text>
         </view>
         <view class="confirm-modal-btn execute" bindtap="onExecuteConfirm">
-          <text>执行初始化</text>
+          <text class="at-confirm-modal-btn-text-t at-confirm-modal-btn-execute-text-t">执行初始化</text>
         </view>
       </view>
     </view>

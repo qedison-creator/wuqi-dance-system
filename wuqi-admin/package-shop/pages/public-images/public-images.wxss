@@ -275,7 +275,7 @@
   overflow: hidden;
 }
 
-.modal-body > view {
+.modal-body > .at-modal-body-view-t {
   width: 100%;
   box-sizing: border-box;
 }

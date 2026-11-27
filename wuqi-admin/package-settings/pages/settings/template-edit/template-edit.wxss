@@ -216,7 +216,7 @@
   border-bottom: 1rpx solid var(--border);
 }
 
-.table-header text {
+.table-header .at-table-header-text-t {
   font-size: 22rpx;
   color: var(--text-tertiary);
 }
