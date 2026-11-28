@@ -915,7 +915,15 @@ Page({
       const skinUtil = require('../../utils/skin.js');
       const bkCf = this.data.cfmInfo || {};
       const bkCourse = this._ticketCourse || {};
-      const bkStaleRemain = (bkCourse.max_bookings && bkCourse.current_bookings !== undefined && bkCourse.current_bookings !== null) ? Math.max(0, bkCourse.max_bookings - bkCourse.current_bookings) : null;
+      // 票面"剩余"= 本节课生效次卡的剩余课时 - 本次消耗（只读展示；时间卡或无数据时为 null，票面不显示）
+      let bkRemain = null;
+      try {
+        const bkPkgData = this.data._packagesData || {};
+        const bkEffPkg = pickEffectivePackage(bkPkgData.history || bkPkgData.packages || [], bkCourse);
+        if (bkEffPkg && bkEffPkg.package_type === 'count_card' && typeof bkEffPkg.remaining_credits === 'number') {
+          bkRemain = Math.max(0, bkEffPkg.remaining_credits - (bkCf.credits || 1));
+        }
+      } catch (e) { /* 仅影响票面展示，不影响预约结果 */ }
       const skinSuccess = skinUtil.successState('success', '课程开始前将收到上课提醒', {
         name: bkCf.name || bkCourse.course_name || '',
         date: bkCf.date ? String(bkCf.date).slice(5).replace('-', '/') : '',
@@ -924,7 +932,7 @@ Page({
         room: bkCourse.classroom || '',
         credits: bkCf.credits || 1,
         unit: bkCf.unit || '课时',
-        remain: bkStaleRemain === null ? null : Math.max(0, bkStaleRemain - 1)
+        remain: bkRemain
       });
       if (skinSuccess) {
         this.setData({ skinSuccess });

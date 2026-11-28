@@ -3,7 +3,9 @@
 /* VOLT：骨白底 + 皮肤卡描边硬影 */
 .skin-root.skin-volt.skin-page { background: #F2F1ED; }
 .skin-volt .skin-card { background: #FFFFFF; border: 3rpx solid #111310; border-radius: 24rpx; box-shadow: 5rpx 5rpx 0 #111310; }
-.skin-volt .skin-card.active { box-shadow: 5rpx 5rpx 0 #111310; border-color: #111310; }
+/* 选中态：保持白底，仅加青柠色外框区分（与其它皮肤的做法一致） */
+.skin-volt .skin-card.active { background: #FFFFFF; border-color: #111310; box-shadow: 0 0 0 8rpx #D7FF3B, 5rpx 5rpx 0 #111310; }
+.skin-volt .sc-state { background: #D7FF3B; color: #111310; border-radius: 999rpx; padding: 4rpx 16rpx; font-weight: 700; }
 .skin-volt .sh-title { font-weight: 900; color: #111310; }
 .skin-volt .sh-sub { color: #77786F; }
 .skin-volt .skin-foot { color: #9C9D93; }

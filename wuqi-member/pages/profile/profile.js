@@ -1321,7 +1321,7 @@ Page({
       title: '提示',
       content: '您的会员申请正在审核中，审核通过后可查看完整功能',
       showCancel: false,
-      confirmColor: '#D4786E'
+      confirmColor: require('../../utils/skin.js').confirmColor()
     });
   },
 

@@ -218,7 +218,7 @@
               </block>
               <block wx:elif="{{item.r.bookBtnType === 'done' || item.r.bookBtnType === 'ended' || item.r.bookBtnType === 'cancelled'}}">
                 <view class="bk-v-seat-tt">
-                  <text class="bk-v-seat-txt bk-v-seat-dim">{{item.r.bookBtnType === 'done' ? '已登场' : (item.r.bookBtnType === 'cancelled' ? '已取消' : '已结束')}}</text>
+                  <text class="bk-v-seat-txt bk-v-seat-dim">{{item.r.bookBtnType === 'done' ? t.btnDone : (item.r.bookBtnType === 'cancelled' ? t.btnCancelled : t.btnEnded)}}</text>
                   <text class="bk-v-min-cap" wx:if="{{item.r.showMinCapacity}}">{{item.r.minCapacity}}</text>
                 </view>
               </block>
@@ -232,7 +232,7 @@
               </block>
             </view>
             <view class="bk-v-btn {{item.r.bookBtnType}}" data-course="{{item}}" data-action="{{item.r.bookBtnType === 'full' ? 'waitlist' : ''}}" catchtap="onBookCourse">
-              <text>{{item.r.bookBtnType === 'book' ? t.btnBook : item.r.bookBtnType === 'not_open' ? '未开放预约' : item.r.bookBtnType === 'booked' ? t.btnBooked : item.r.bookBtnType === 'full' ? t.btnWaitlist : item.r.bookBtnType === 'waitlisted' ? t.btnWaitlisted : item.r.bookBtnType === 'done' ? t.btnDone : (item.r.bookBtnType === 'ended' || item.r.bookBtnType === 'ongoing') ? t.btnEnded : item.r.bookBtnText}}</text>
+              <text>{{item.r.bookBtnType === 'book' ? t.btnBook : item.r.bookBtnType === 'not_open' ? t.btnNotOpen : item.r.bookBtnType === 'booked' ? t.btnBooked : item.r.bookBtnType === 'full' ? t.btnWaitlist : item.r.bookBtnType === 'waitlisted' ? t.btnWaitlisted : item.r.bookBtnType === 'done' ? t.btnDone : (item.r.bookBtnType === 'ended' || item.r.bookBtnType === 'ongoing') ? t.btnEnded : item.r.bookBtnText}}</text>
             </view>
           </view>
         </view>

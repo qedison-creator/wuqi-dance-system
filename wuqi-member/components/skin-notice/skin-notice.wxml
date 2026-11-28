@@ -2,7 +2,7 @@
   <view class="sn-mask sn-mask-{{props.skin || 'classic'}}" catchtouchmove="noop">
     <block wx:if="{{props.skin === 'paper'}}">
       <view class="sn-paper" catchtap="noop">
-        <view class="sn-paper-seal">{{props.kind === 'frozen' ? '缓' : '止'}}</view>
+        <view class="sn-paper-seal">{{props.kind === 'frozen' ? '缓' : (props.kind === 'limited' ? '限' : '止')}}</view>
         <text class="sn-paper-kicker">MEMBERSHIP NOTICE</text>
         <text class="sn-paper-title">{{props.title}}</text>
         <text class="sn-paper-desc">{{props.desc}}</text>
@@ -13,7 +13,7 @@
 
     <block wx:elif="{{props.skin === 'volt'}}">
       <view class="sn-volt" catchtap="noop">
-        <text class="sn-volt-kicker">{{props.kind === 'frozen' ? 'FROZEN' : 'PAUSED'}}</text>
+        <text class="sn-volt-kicker">{{props.kind === 'frozen' ? 'FROZEN' : (props.kind === 'limited' ? 'DENIED' : 'PAUSED')}}</text>
         <text class="sn-volt-title">{{props.title}}</text>
         <text class="sn-volt-desc">{{props.desc}}</text>
         <view class="sn-volt-btn" catchtap="onOk"><text>{{props.okText || '知道了'}}</text></view>

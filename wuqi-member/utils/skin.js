@@ -29,6 +29,8 @@ const SKINS = {
       btnWaitlisted: '候补中',
       btnEnded: '已结束',
       btnDone: '已完成',
+      btnCancelled: '已取消',
+      btnNotOpen: '未开放预约',
       bookingTitle: '场次预约',
       countUnit: '节',
       detailCostLabel: '消耗次数',
@@ -59,6 +61,7 @@ const SKINS = {
     desc: '宋体大字 · 朱砂印章 · 刊物纸感',
     swatches: ['#F5F1E8', '#B93A26', '#221D15'],
     nav: { bg: '#F5F1E8', text: 'black' },
+    pageBg: '#F5F1E8',
     t: {
       homeHeroTitle: '以舞为栖',
       homeHeroPre: '今日 ',
@@ -73,6 +76,8 @@ const SKINS = {
       btnWaitlisted: '候补中',
       btnEnded: '已结束',
       btnDone: '已完成',
+      btnCancelled: '已取消',
+      btnNotOpen: '未开放预约',
       bookingTitle: '场次预约',
       countUnit: '场',
       detailCostLabel: '消耗',
@@ -103,6 +108,7 @@ const SKINS = {
     desc: '三色纪律 · 登场文化 · 俱乐部能量',
     swatches: ['#111310', '#F2F1ED', '#D7FF3B'],
     nav: { bg: '#F2F1ED', text: 'black' },
+    pageBg: '#F2F1ED',
     t: {
       homeHeroTitle: "TODAY'S SHOWTIME",
       homeHeroPre: '今日 ',
@@ -117,6 +123,8 @@ const SKINS = {
       btnWaitlisted: '排队中',
       btnEnded: 'NEXT TIME',
       btnDone: '已登场',
+      btnCancelled: 'CANCELLED',
+      btnNotOpen: 'NOT OPEN',
       bookingTitle: '场次预约',
       countUnit: '场',
       detailCostLabel: 'COST',
@@ -156,10 +164,14 @@ function getSkinId() {
   }
 }
 
+// 写入皮肤偏好；返回是否写入成功（供设置页决定是否提示"已切换"）
 function setSkinId(id) {
   try {
     wx.setStorageSync(SKIN_KEY, resolveSkin(id));
-  } catch (e) { /* 存储异常时静默：本次会话仍可用当前皮肤 */ }
+    return wx.getStorageSync(SKIN_KEY) === resolveSkin(id);
+  } catch (e) {
+    return false; /* 存储异常时静默：本次会话仍可用当前皮肤 */
+  }
 }
 
 function getSkin() {
@@ -180,13 +192,27 @@ function pageState(options) {
     } catch (e) { /* 忽略 */ }
   }
   if (skin.id === 'paper') ensurePaperFont();
+  if (skin.id === 'volt') ensureVoltFonts();
+  // 窗口底色（下拉刷新/回弹露出的区域）随皮肤；classic 保持各页面 json 的原配置不动
+  if (skin.id !== 'classic' && skin.pageBg) {
+    try {
+      wx.setBackgroundColor({
+        backgroundColor: skin.pageBg,
+        backgroundColorTop: skin.pageBg,
+        backgroundColorBottom: skin.pageBg,
+        fail: function () { /* 部分页面/平台不支持时忽略 */ }
+      });
+    } catch (e) { /* 忽略 */ }
+  }
   return { skinId: skin.id, t: skin.t };
 }
 
-// VOLT 皮肤字体：base64 内嵌（Anton 海报字 / Space Grotesk 数字），全局加载一次
+// VOLT 皮肤字体：base64 内嵌（Anton 海报字 / Space Grotesk 数字），仅 volt 用户加载，全局一次
 let _voltFontsLoaded = false;
 function ensureVoltFonts() {
   if (_voltFontsLoaded) return;
+  // 非 volt 用户不加载（省去冷启动时 3 个字体的解析开销）；切换到 volt 时由 pageState 触发
+  if (getSkinId() !== 'volt') return;
   _voltFontsLoaded = true;
   try {
     const fonts = require('../styles/volt-fonts.js');
@@ -223,7 +249,8 @@ function ensurePaperFont() {
     try {
       wx.loadFontFace({
         global: true,
-        family: 'NotoSerifSC',
+        // 族名必须与样式表引用一致（全项目 CSS 用 'Noto Serif SC'），否则字体下载后不会被使用
+        family: 'Noto Serif SC',
         source: 'url("' + base + file + '")',
         weight: weight,
         desc: { style: 'normal' },

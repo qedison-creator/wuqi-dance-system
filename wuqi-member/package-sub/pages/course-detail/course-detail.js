@@ -1229,7 +1229,15 @@ Page({
       const skinUtil = require('../../../utils/skin.js');
       const cf = this.data.cfmInfo || {};
       const cdCourse = this.data.course || {};
-      const cdStaleRemain = (cdCourse.max_bookings && cdCourse.current_bookings !== undefined && cdCourse.current_bookings !== null) ? Math.max(0, cdCourse.max_bookings - cdCourse.current_bookings) : null;
+      // 票面"剩余"= 本节课生效次卡的剩余课时 - 本次消耗（只读展示；时间卡或无数据时为 null，票面不显示）
+      let cdRemain = null;
+      try {
+        const cdPkgs = this.data.userPackages || {};
+        const cdEffPkg = pickEffectivePackage(cdPkgs.history || cdPkgs.packages || [], cdCourse);
+        if (cdEffPkg && cdEffPkg.package_type === 'count_card' && typeof cdEffPkg.remaining_credits === 'number') {
+          cdRemain = Math.max(0, cdEffPkg.remaining_credits - (cf.credits || 1));
+        }
+      } catch (e) { /* 仅影响票面展示，不影响预约结果 */ }
       const skinSuccess = skinUtil.successState('success', '课程开始前将收到上课提醒', {
         name: cf.name || cdCourse.course_name || '',
         date: cf.date ? String(cf.date).slice(5).replace('-', '/') : '',
@@ -1238,7 +1246,7 @@ Page({
         room: cdCourse.classroom || '',
         credits: cf.credits || 1,
         unit: cf.unit || '课时',
-        remain: cdStaleRemain === null ? null : Math.max(0, cdStaleRemain - 1)
+        remain: cdRemain
       });
       if (skinSuccess) {
         this.setData({ skinSuccess });

@@ -484,3 +484,8 @@
 .vi-n-date { flex-shrink: 0; font-family: 'GroteskV', sans-serif; font-weight: 700; font-size: 22rpx; color: #9C9D93; }
 .vi-n-arrow { flex-shrink: 0; font-size: 26rpx; font-weight: 900; color: #111310; }
 .vi-notice-empty { padding: 24rpx 4rpx 16rpx; font-size: 24rpx; font-weight: 600; color: #9C9D93; text-align: center; letter-spacing: 0.04em; }
+
+/* 系统开启"减弱动态效果"时，停掉 VOLT 首页的常驻循环动画（跑马灯/片名滚动/呼吸灯/心电扫描），内容保持静止可见 */
+@media (prefers-reduced-motion: reduce) {
+  .vi-mq-track, .vi-live-dot, .vi-bill-roll, .vi-rhythm-ecg::after { animation: none !important; }
+}

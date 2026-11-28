@@ -12,10 +12,7 @@ Component({
 
   lifetimes: {
     attached() {
-      try {
-        const skinId = wx.getStorageSync('member_skin_id');
-        this.setData({ skinId: skinId === 'paper' || skinId === 'volt' ? skinId : 'classic' });
-      } catch (e) { /* 忽略 */ }
+      this._syncSkin();
       const app = getApp();
       if (typeof app.registerUpdateModal === 'function') {
         app.registerUpdateModal(this);
@@ -33,6 +30,8 @@ Component({
     show() {
       // 页面每次显示（含从其他页面返回、tab 切换）时检查更新状态
       const app = getApp();
+      // 同时重读皮肤偏好：跨页切换皮肤后，更新弹窗不再停留在旧皮肤
+      this._syncSkin();
       if (app.globalData.updateReady && !app.globalData.updateDismissed) {
         this.showModal();
       }
@@ -40,6 +39,15 @@ Component({
   },
 
   methods: {
+    // 读取本地皮肤偏好（非法值回落 classic）
+    _syncSkin() {
+      try {
+        const skinId = wx.getStorageSync('member_skin_id');
+        const next = skinId === 'paper' || skinId === 'volt' ? skinId : 'classic';
+        if (next !== this.data.skinId) this.setData({ skinId: next });
+      } catch (e) { /* 忽略 */ }
+    },
+
     // 显示弹窗（防重复）
     showModal() {
       if (this.data.visible) return;

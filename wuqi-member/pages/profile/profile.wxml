@@ -7,8 +7,9 @@
 <view class="pf-nav-spacer pf-sp-{{skinId}}" style="height: {{(statusBarHeight || 44) + 44}}px;"></view>
 <view class="profile-page skin-root skin-{{skinId}}">
   <block wx:if="{{isLoggedIn}}">
-    <block wx:if="{{skinId === 'classic'}}">
-    <view class="hero-card">
+    <!-- 非正式会员在 paper/volt 下没有专属头部，复用此结构（已有对应皮肤覆盖样式），避免头部身份卡整块缺失 -->
+    <block wx:if="{{skinId === 'classic' || !isOfficialMember}}">
+      <view class="hero-card">
       <view class="hero-top">
         <view class="hero-avatar-wrap" bindtap="onHeroAvatarTap">
           <image class="hero-avatar" src="{{avatarSrc}}" binderror="onImgError" data-type="avatar" data-id="user" mode="aspectFill" decoding="async"></image>
@@ -872,7 +873,8 @@
       </view>
     </view>
 
-    <block wx:if="{{skinId === 'classic'}}">
+    <!-- "其他"菜单：classic 所有登录用户；paper/volt 下正式会员已有 pf-legal/pf-logout，此处仅补非正式会员 -->
+    <block wx:if="{{skinId === 'classic' || userInfo.member_status !== 'official'}}">
     <view class="menu-section menu-section-other" wx:if="{{isLoggedIn}}">
       <view class="section-header">
         <view class="section-header-left">
@@ -900,6 +902,14 @@
             <image class="menu-icon" src="/images/icons/info.svg" mode="aspectFit"></image>
           </view>
           <text class="menu-item-title">关于系统</text>
+          <view class="menu-item-arrow"></view>
+        </view>
+        <!-- 皮肤外观：paper/volt 下的非正式会员需要能切回经典皮肤（classic 下本就无需入口） -->
+        <view class="menu-item" wx:if="{{skinId !== 'classic'}}" bindtap="onSkinSettings">
+          <view class="menu-icon-wrap muted">
+            <image class="menu-icon" src="/images/icons/settings.svg" mode="aspectFit"></image>
+          </view>
+          <text class="menu-item-title">皮肤外观</text>
           <view class="menu-item-arrow"></view>
         </view>
       </view>

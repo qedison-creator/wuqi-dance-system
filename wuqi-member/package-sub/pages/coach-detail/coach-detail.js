@@ -928,7 +928,15 @@ Page({
       } else {
         const skinUtil = require('../../../utils/skin.js');
       const ccDateParts = course.date ? String(course.date).split('-') : [];
-      const ccStaleRemain = (course.max_bookings && course.current_bookings !== undefined && course.current_bookings !== null) ? Math.max(0, course.max_bookings - course.current_bookings) : null;
+      // 票面"剩余"= 本节课生效次卡的剩余课时 - 本次消耗（只读展示；时间卡或无数据时为 null，票面不显示）
+      let ccRemain = null;
+      try {
+        const ccPkgData = this._packagesData || {};
+        const ccEffPkg = pickEffectivePackage(ccPkgData.history || ccPkgData.packages || [], course);
+        if (ccEffPkg && ccEffPkg.package_type === 'count_card' && typeof ccEffPkg.remaining_credits === 'number') {
+          ccRemain = Math.max(0, ccEffPkg.remaining_credits - (course.credits_cost || 1));
+        }
+      } catch (e) { /* 仅影响票面展示，不影响预约结果 */ }
       const skinSuccess = skinUtil.successState('success', '课程开始前将收到上课提醒', {
         name: course.course_name || '',
         date: ccDateParts.length === 3 ? parseInt(ccDateParts[1], 10) + '/' + String(parseInt(ccDateParts[2], 10)).padStart(2, '0') : '',
@@ -936,7 +944,7 @@ Page({
         time: course.start_time || '',
         room: course.classroom || '',
         credits: course.credits_cost || 1,
-        remain: ccStaleRemain === null ? null : Math.max(0, ccStaleRemain - 1)
+        remain: ccRemain
       });
       if (skinSuccess) {
         this.setData({ skinSuccess });
@@ -948,6 +956,11 @@ Page({
     } catch (err) {
       wx.showToast({ title: err.message || '预约失败', icon: 'none' });
     }
+  },
+
+  // 关闭皮肤成功动效层（与 booking / course-detail 一致；仅控制弹层显隐，不涉及预约结果）
+  onSkinSuccessOk() {
+    require('../../../utils/skin.js').closeSuccess(this);
   },
 
   refreshCourses() {
